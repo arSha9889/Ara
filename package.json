@@ -1,0 +1,20 @@
+{
+  "name": "nexus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Nexus / N-Web v1 Web Core monorepo",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "build:web": "npm --workspace apps/web run build",
+    "preview:web": "npm --workspace apps/web run preview",
+    "test:api": "apps/api/.venv/bin/pytest -c apps/api/pytest.ini apps/api/tests"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

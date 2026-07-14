@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nexus — презентация продукта</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+      :root {
+        --bg: #070914;
+        --panel: rgba(255, 255, 255, 0.08);
+        --panel-strong: rgba(255, 255, 255, 0.14);
+        --text: #f7f9ff;
+        --muted: #aeb7d4;
+        --primary: #7c5cff;
+        --secondary: #58d7ff;
+        --success: #4fffd2;
+        --warning: #f6b73c;
+        --danger: #ff5c8a;
+        --line: rgba(255, 255, 255, 0.16);
+        --shadow: 0 34px 110px rgba(0, 0, 0, 0.36);
+      }
+
+      * { box-sizing: border-box; }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        min-width: 320px;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Manrope, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        overflow: hidden;
+      }
+
+      body::before,
+      body::after {
+        content: '';
+        position: fixed;
+        inset: auto;
+        width: 52vw;
+        height: 52vw;
+        border-radius: 999px;
+        filter: blur(12px);
+        opacity: 0.52;
+        pointer-events: none;
+      }
+
+      body::before {
+        left: -18vw;
+        top: -24vw;
+        background: radial-gradient(circle, rgba(124, 92, 255, 0.72), transparent 64%);
+      }
+
+      body::after {
+        right: -20vw;
+        bottom: -24vw;
+        background: radial-gradient(circle, rgba(88, 215, 255, 0.55), transparent 64%);
+      }
+
+      .deck {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        isolation: isolate;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 28px;
+        padding: clamp(28px, 4vw, 58px);
+        opacity: 0;
+        transform: translateX(38px) scale(0.985);
+        transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+        pointer-events: none;
+      }
+
+      .slide.active {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        pointer-events: auto;
+      }
+
+      .slide.previous {
+        transform: translateX(-38px) scale(0.985);
+      }
+
+      .slide-shell {
+        position: relative;
+        min-height: 0;
+        border: 1px solid var(--line);
+        border-radius: 34px;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.055)),
+          radial-gradient(circle at 84% 12%, rgba(88, 215, 255, 0.18), transparent 24rem),
+          radial-gradient(circle at 12% 86%, rgba(124, 92, 255, 0.24), transparent 24rem);
+        box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(26px) saturate(1.24);
+        overflow: hidden;
+        padding: clamp(28px, 4vw, 56px);
+        display: grid;
+        align-content: center;
+      }
+
+      .slide-shell::before {
+        content: '';
+        position: absolute;
+        inset: 1px 10% auto;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+      }
+
+      .topbar,
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+        color: var(--muted);
+        font-size: clamp(0.78rem, 1.2vw, 0.96rem);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text);
+      }
+
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        border-radius: 15px;
+        object-fit: cover;
+        box-shadow: 0 0 0 8px rgba(124, 92, 255, 0.22), 0 16px 42px rgba(88, 215, 255, 0.18);
+      }
+
+      h1,
+      h2,
+      h3,
+      p { margin-top: 0; }
+
+      h1 {
+        max-width: 980px;
+        margin-bottom: 20px;
+        font-size: clamp(3rem, 8vw, 6.4rem);
+        line-height: 0.9;
+        letter-spacing: -0.075em;
+      }
+
+      h2 {
+        max-width: 980px;
+        margin-bottom: 22px;
+        font-size: clamp(2rem, 5.4vw, 4.6rem);
+        line-height: 0.94;
+        letter-spacing: -0.065em;
+      }
+
+      h3 {
+        margin-bottom: 10px;
+        font-size: clamp(1.05rem, 2vw, 1.35rem);
+        line-height: 1.15;
+      }
+
+      p,
+      li {
+        color: var(--muted);
+        font-size: clamp(1rem, 1.5vw, 1.2rem);
+        line-height: 1.55;
+      }
+
+      .lead {
+        max-width: 860px;
+        color: #dce5ff;
+        font-size: clamp(1.18rem, 2.1vw, 1.55rem);
+      }
+
+      .eyebrow {
+        margin-bottom: 18px;
+        color: var(--success);
+        font-size: 0.84rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .accent {
+        background: linear-gradient(135deg, #ffffff, var(--secondary) 42%, var(--primary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.075);
+        padding: clamp(18px, 2.2vw, 26px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: clamp(1.04rem, 1.7vw, 1.28rem);
+      }
+
+      .metric {
+        display: grid;
+        gap: 8px;
+      }
+
+      .metric b {
+        font-size: clamp(2rem, 4.8vw, 4.4rem);
+        line-height: 0.92;
+        letter-spacing: -0.06em;
+      }
+
+      .metric span,
+      .pill {
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        padding: 9px 13px;
+        font-size: clamp(0.82rem, 1.2vw, 0.96rem);
+      }
+
+      .timeline {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .timeline::before {
+        content: '';
+        position: absolute;
+        left: 5%;
+        right: 5%;
+        top: 24px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        opacity: 0.65;
+      }
+
+      .step {
+        position: relative;
+        display: grid;
+        gap: 12px;
+        padding-top: 54px;
+      }
+
+      .step::before {
+        content: '';
+        position: absolute;
+        top: 11px;
+        left: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        box-shadow: 0 0 0 9px rgba(124, 92, 255, 0.16);
+      }
+
+      .phone {
+        width: min(100%, 310px);
+        justify-self: center;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 38px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+        padding: 14px;
+        box-shadow: 0 34px 90px rgba(0, 0, 0, 0.34);
+      }
+
+      .screen {
+        min-height: 540px;
+        border-radius: 28px;
+        background:
+          radial-gradient(circle at 30% 10%, rgba(88, 215, 255, 0.35), transparent 14rem),
+          linear-gradient(180deg, #12172a, #090b16);
+        padding: 18px;
+        display: grid;
+        align-content: end;
+        gap: 10px;
+      }
+
+      .bubble {
+        max-width: 84%;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.13);
+        padding: 12px 14px;
+        color: #eef3ff;
+        font-size: 0.92rem;
+      }
+
+      .bubble.out {
+        justify-self: end;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+      }
+
+      .progress {
+        position: relative;
+        width: min(360px, 42vw);
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      .progress span {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--progress);
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+      }
+
+      .controls {
+        position: fixed;
+        right: 28px;
+        bottom: 24px;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: var(--text);
+        cursor: pointer;
+        padding: 10px 14px;
+        font: inherit;
+        font-weight: 900;
+        backdrop-filter: blur(18px);
+      }
+
+      button:hover { background: rgba(255, 255, 255, 0.18); }
+
+      .counter {
+        min-width: 74px;
+        color: var(--muted);
+        font-weight: 900;
+        text-align: center;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+        gap: clamp(24px, 4vw, 54px);
+        align-items: center;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 1.1em;
+      }
+
+      li + li { margin-top: 10px; }
+
+      .quote {
+        border-left: 4px solid var(--secondary);
+        padding-left: 22px;
+        color: #edf5ff;
+        font-size: clamp(1.4rem, 3vw, 2.4rem);
+        line-height: 1.2;
+        letter-spacing: -0.04em;
+      }
+
+      @media (max-width: 900px) {
+        html,
+        body { overflow: auto; }
+
+        .deck { min-height: 100vh; height: auto; }
+        .slide { position: static; display: none; min-height: 100vh; }
+        .slide.active { display: grid; }
+        .grid,
+        .grid.two,
+        .grid.four,
+        .timeline,
+        .split { grid-template-columns: 1fr; }
+        .timeline::before { display: none; }
+        .controls { right: 14px; bottom: 14px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck" id="deck">
+      <section class="slide active">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>Product Beta Deck</span></div>
+        <div class="slide-shell split">
+          <div>
+            <p class="eyebrow">Beta version · 10 июля</p>
+            <h1>Nexus: <span class="accent">мессенджер нового поколения</span></h1>
+            <p class="lead">Личные чаты, быстрый вход, медиа-сообщения и собственный визуальный стиль — в первой веб-бета версии продукта.</p>
+            <div class="pill-row"><span class="pill">Web / PWA</span><span class="pill">RU / EN</span><span class="pill">Direct chats</span><span class="pill">Nexus ID</span></div>
+          </div>
+          <div class="phone" aria-hidden="true"><div class="screen"><div class="bubble">Welcome to Nexus</div><div class="bubble out">Привет! Проверяем beta?</div><div class="bubble">Да, выглядит готово ✨</div></div></div>
+        </div>
+        <div class="footer"><span>11 марта — 10 июля</span><div class="progress" style="--progress: 5.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>01 · Product idea</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Идея продукта</p>
+          <h2>Простой, быстрый и безопасный способ личного общения</h2>
+          <p class="lead">Nexus создаётся как современный мессенджер для широкой аудитории. Первая версия сфокусирована на самом важном: зарегистрироваться, найти человека, начать личный чат и обмениваться сообщениями без лишней сложности.</p>
+          <div class="grid three">
+            <div class="card"><strong>Фокус</strong><p>Личные чаты 1-на-1 вместо перегруженного комбайна функций.</p></div>
+            <div class="card"><strong>Идентичность</strong><p>Публичный 16-значный Nexus ID и username для поиска людей.</p></div>
+            <div class="card"><strong>Доступность</strong><p>Два языка интерфейса, адаптивный web и PWA-подход.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Product vision</span><div class="progress" style="--progress: 11%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>02 · Problem</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Почему это важно</p>
+          <h2>Пользователям нужен мессенджер без лишнего шума</h2>
+          <div class="grid two">
+            <div class="card"><strong>Перегруз интерфейса</strong><p>Многие приложения смешивают чаты, каналы, группы, рекламу, рекомендации и лишние сценарии.</p></div>
+            <div class="card"><strong>Сложный вход</strong><p>Пользователь хочет быстро восстановить доступ и войти на доверенном устройстве без постоянных лишних шагов.</p></div>
+            <div class="card"><strong>Слабая персональность</strong><p>Продукту важно иметь узнаваемый стиль, а не выглядеть как копия существующих решений.</p></div>
+            <div class="card"><strong>Нужен фундамент</strong><p>Сначала стабильная web-база, потом Desktop, Mobile, звонки и расширенные функции.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Market context</span><div class="progress" style="--progress: 16.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>03 · Solution</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Решение</p>
+          <h2>Nexus Beta — рабочий web-MVP без звонков</h2>
+          <p class="lead">Бета-версия показывает полный базовый путь пользователя: регистрация, вход, профиль, настройки, личные чаты, медиа, реакции, статусы и realtime-события.</p>
+          <div class="grid four">
+            <div class="metric card"><b>1:1</b><span>личные чаты</span></div>
+            <div class="metric card"><b>16</b><span>цифр Nexus ID</span></div>
+            <div class="metric card"><b>2</b><span>языка RU / EN</span></div>
+            <div class="metric card"><b>100MB</b><span>лимит upload</span></div>
+          </div>
+        </div>
+        <div class="footer"><span>Beta scope</span><div class="progress" style="--progress: 22%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>04 · Audience</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Для кого</p>
+          <h2>Для людей, которым нужен спокойный личный мессенджер</h2>
+          <div class="grid three">
+            <div class="card"><strong>Первые пользователи</strong><p>Проверяют быстрый вход, личные чаты, отправку сообщений и базовую стабильность.</p></div>
+            <div class="card"><strong>Команды и партнёры</strong><p>Смотрят на потенциал продукта, архитектуру и дальнейший roadmap.</p></div>
+            <div class="card"><strong>Будущая аудитория</strong><p>Получит web, затем desktop и mobile-клиенты с единым UX.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Target users</span><div class="progress" style="--progress: 27.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>05 · User flow</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Путь пользователя</p>
+          <h2>От первого запуска до первого сообщения</h2>
+          <div class="timeline">
+            <div class="step card"><strong>Открывает Nexus</strong><p>Видит стартовый экран и выбирает регистрацию или вход.</p></div>
+            <div class="step card"><strong>Создаёт аккаунт</strong><p>Получает Nexus ID, username, пароль и recovery code.</p></div>
+            <div class="step card"><strong>Настраивает доступ</strong><p>Может включить PIN для быстрого входа на устройстве.</p></div>
+            <div class="step card"><strong>Находит человека</strong><p>По username или 16-значному Nexus ID.</p></div>
+            <div class="step card"><strong>Пишет в чат</strong><p>Отправляет текст, медиа, voice, emoji и реакции.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Flow</span><div class="progress" style="--progress: 33%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>06 · Identity</span></div>
+        <div class="slide-shell split">
+          <div>
+            <p class="eyebrow">Идентичность аккаунта</p>
+            <h2>Nexus ID + username</h2>
+            <p class="lead">Каждый пользователь получает постоянный публичный 16-значный Nexus ID и может выбрать username. Это даёт понятный способ найти человека без обязательной привязки к e-mail.</p>
+            <ul><li>Регистрация через Telegram proof / early beta access.</li><li>Вход по Nexus ID + пароль.</li><li>Быстрый вход по PIN на доверенном устройстве.</li><li>Восстановление через резервный код.</li></ul>
+          </div>
+          <div class="card metric"><b>5839<br />2048<br />7712<br />6041</b><span>пример публичного Nexus ID</span></div>
+        </div>
+        <div class="footer"><span>Account model</span><div class="progress" style="--progress: 38.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>07 · Communication</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Коммуникация</p>
+          <h2>В beta уже есть основа живого общения</h2>
+          <div class="grid three">
+            <div class="card"><strong>Сообщения</strong><p>Text, photo, video, file, voice и emoji-сообщения.</p></div>
+            <div class="card"><strong>Realtime</strong><p>WebSocket reconnect, новые сообщения, реакции, typing и presence baseline.</p></div>
+            <div class="card"><strong>Статусы</strong><p>Базовые sent, delivered, read и визуальные индикаторы активности.</p></div>
+            <div class="card"><strong>Медиа</strong><p>Upload endpoint, локальное dev-хранилище, MIME allow-list и лимит 100 МБ.</p></div>
+            <div class="card"><strong>Реакции</strong><p>Быстрый набор emoji и счётчики реакций на сообщение.</p></div>
+            <div class="card"><strong>Voice</strong><p>Запись голосового сообщения прямо в браузере через MediaRecorder.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Communication core</span><div class="progress" style="--progress: 44%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>08 · Design</span></div>
+        <div class="slide-shell split">
+          <div>
+            <p class="eyebrow">Дизайн</p>
+            <h2>Собственный визуальный стиль Nexus</h2>
+            <p class="lead">Интерфейс строится на мягких glass-панелях, аккуратной типографике, светящихся акцентах, адаптивной сетке и анимациях входа/загрузки.</p>
+            <div class="pill-row"><span class="pill">Nexus Halo</span><span class="pill">Nexus Orbit</span><span class="pill">Nexus Aurora</span><span class="pill">Liquid Glass</span></div>
+          </div>
+          <div class="card"><p class="quote">«Не копировать существующие мессенджеры — создать узнаваемый, спокойный и премиальный Nexus UI.»</p></div>
+        </div>
+        <div class="footer"><span>Visual system</span><div class="progress" style="--progress: 49.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>09 · Security</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Безопасность аккаунта</p>
+          <h2>Базовая защита уже заложена в beta</h2>
+          <div class="grid two">
+            <div class="card"><strong>Пароли и recovery</strong><p>Argon2-хеширование секретов, recovery code хранится только как хеш, сброс пароля через код.</p></div>
+            <div class="card"><strong>Сессии</strong><p>JWT access token, refresh token с серверным хешем, logout и восстановление сессии.</p></div>
+            <div class="card"><strong>PIN</strong><p>Быстрый вход по PIN работает только на доверенном устройстве и управляется из настроек.</p></div>
+            <div class="card"><strong>Устройства</strong><p>Список активных устройств, история входов и отзыв сессии устройства.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Security baseline</span><div class="progress" style="--progress: 55%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>10 · Tech</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Технологии</p>
+          <h2>Современный web-stack с понятным развитием</h2>
+          <div class="grid four">
+            <div class="card"><strong>Frontend</strong><p>React, Vite, React Router, CSS design system.</p></div>
+            <div class="card"><strong>Backend</strong><p>FastAPI, async SQLAlchemy, Alembic, Redis client.</p></div>
+            <div class="card"><strong>Realtime</strong><p>WebSocket API, подписка на чат, reconnect на клиенте.</p></div>
+            <div class="card"><strong>Storage</strong><p>Локальный dev storage baseline для файлов и медиа.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Architecture</span><div class="progress" style="--progress: 60.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>11 · Platforms</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Платформы</p>
+          <h2>Сначала Web/PWA, затем Desktop и Mobile</h2>
+          <div class="grid three">
+            <div class="card"><strong>Web / PWA</strong><p>Первая платформа. Работает в современных браузерах и адаптируется под desktop, tablet и phone.</p></div>
+            <div class="card"><strong>Desktop</strong><p>Следующий этап: Tauri + React, Windows 10+ и macOS 14+.</p></div>
+            <div class="card"><strong>Mobile</strong><p>После desktop: React Native, iOS 17+ и Android 8+.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Platform roadmap</span><div class="progress" style="--progress: 66%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>12 · Timeline</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Сроки разработки</p>
+          <h2>11 марта — 10 июля: путь к beta</h2>
+          <div class="timeline">
+            <div class="step card"><strong>11 марта</strong><p>Старт идеи, архитектуры и product scope для N-Web/v1.</p></div>
+            <div class="step card"><strong>Март–апрель</strong><p>Проектирование Web Core, UI kit, сценарии регистрации и чатов.</p></div>
+            <div class="step card"><strong>Май</strong><p>Backend foundation: модели, миграции, auth, session, recovery.</p></div>
+            <div class="step card"><strong>Июнь</strong><p>Frontend app shell, профиль, настройки, чаты, realtime baseline.</p></div>
+            <div class="step card"><strong>10 июля</strong><p>Beta: медиа, voice, реакции, статусы, дизайн polish и презентация.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Development timeline</span><div class="progress" style="--progress: 71.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>13 · Beta content</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Что готово в beta</p>
+          <h2>Демонстрационный web MVP без звонков</h2>
+          <div class="grid two">
+            <div class="card"><strong>Пользовательские сценарии</strong><p>Регистрация, вход, recovery, PIN, профиль, язык, тема, устройства и история входов.</p></div>
+            <div class="card"><strong>Чаты</strong><p>Создание direct-чата по username/Nexus ID, история сообщений, realtime и reconnect.</p></div>
+            <div class="card"><strong>Медиа</strong><p>Фото, видео, документы, voice, emoji, реакции и статусы прочтения.</p></div>
+            <div class="card"><strong>UI polish</strong><p>Новый логотип, app icons, loader GIF с N, responsive layout, анимации и Liquid Glass theme.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Beta deliverables</span><div class="progress" style="--progress: 77%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>14 · Honest scope</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Что не входит в beta</p>
+          <h2>Бета честно ограничена, чтобы быстрее проверить ядро</h2>
+          <div class="grid three">
+            <div class="card"><strong>Нет звонков</strong><p>Аудиозвонки и демонстрация экрана вынесены в Web Calls & Release.</p></div>
+            <div class="card"><strong>Нет групп и каналов</strong><p>Первая версия фокусируется на личных чатах 1-на-1.</p></div>
+            <div class="card"><strong>Не production storage</strong><p>Файлы сейчас в локальном dev storage, без private ACL/signed links.</p></div>
+            <div class="card"><strong>Realtime single-process</strong><p>Redis pub/sub и multi-instance fan-out — следующий шаг стабилизации.</p></div>
+            <div class="card"><strong>E2EE позже</strong><p>Архитектура не закрывает путь к E2EE, но beta не реализует клиентское шифрование.</p></div>
+            <div class="card"><strong>Telegram bot recovery позже</strong><p>Ручная процедура через бот остаётся в roadmap.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Scope control</span><div class="progress" style="--progress: 82.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>15 · Next steps</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Следующие шаги</p>
+          <h2>От beta к публичному N-Web/v1</h2>
+          <div class="grid two">
+            <div class="card"><strong>Стабилизация</strong><p>Smoke-check, accessibility, mobile polish, больше тестов, UX-валидация ошибок и edge cases.</p></div>
+            <div class="card"><strong>Инфраструктура</strong><p>PostgreSQL/Redis окружение, миграции, health checks, подготовка staging.</p></div>
+            <div class="card"><strong>Production media</strong><p>Object storage, private access model, безопасная раздача файлов.</p></div>
+            <div class="card"><strong>Calls & release</strong><p>Аудиозвонки, screen sharing, жалобы, блокировки, финальная PWA-адаптация.</p></div>
+          </div>
+        </div>
+        <div class="footer"><span>Roadmap</span><div class="progress" style="--progress: 88%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>16 · Why now</span></div>
+        <div class="slide-shell split">
+          <div>
+            <p class="eyebrow">Почему сейчас</p>
+            <h2>База уже достаточно сильная для демонстрации</h2>
+            <p class="lead">Nexus прошёл путь от архитектурного плана до работающей beta-версии с реальными сценариями пользователя. Теперь можно показывать продукт, собирать обратную связь и принимать решения по следующей вехе.</p>
+          </div>
+          <div class="grid two">
+            <div class="metric card"><b>4</b><span>месяца разработки</span></div>
+            <div class="metric card"><b>18</b><span>слайдов продукта</span></div>
+            <div class="metric card"><b>Web</b><span>первая платформа</span></div>
+            <div class="metric card"><b>Beta</b><span>готова к проверке</span></div>
+          </div>
+        </div>
+        <div class="footer"><span>Demo readiness</span><div class="progress" style="--progress: 93.5%"><span></span></div></div>
+      </section>
+
+      <section class="slide">
+        <div class="topbar"><span class="brand"><img class="brand-mark" src="../apps/web/public/icons/nexus-icon-192.png" alt="" /> Nexus</span><span>17 · Closing</span></div>
+        <div class="slide-shell">
+          <p class="eyebrow">Финал</p>
+          <h2>Nexus Beta — фундамент будущей коммуникационной платформы</h2>
+          <p class="lead">Цель следующего шага — проверить продукт на реальных сценариях, укрепить стабильность и довести N-Web/v1 до публичного релиза.</p>
+          <div class="pill-row"><span class="pill">Показать beta</span><span class="pill">Собрать feedback</span><span class="pill">Стабилизировать Web Core</span><span class="pill">Готовить N-Web/v1 release</span></div>
+        </div>
+        <div class="footer"><span>Thank you</span><div class="progress" style="--progress: 100%"><span></span></div></div>
+      </section>
+    </main>
+
+    <div class="controls" aria-label="Управление презентацией">
+      <button type="button" id="prev">←</button>
+      <span class="counter" id="counter">1 / 18</span>
+      <button type="button" id="next">→</button>
+    </div>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const counter = document.querySelector('#counter');
+      let index = 0;
+
+      function show(nextIndex) {
+        const safeIndex = Math.max(0, Math.min(slides.length - 1, nextIndex));
+        slides.forEach((slide, slideIndex) => {
+          slide.classList.toggle('active', slideIndex === safeIndex);
+          slide.classList.toggle('previous', slideIndex < safeIndex);
+        });
+        index = safeIndex;
+        counter.textContent = `${index + 1} / ${slides.length}`;
+      }
+
+      document.querySelector('#prev').addEventListener('click', () => show(index - 1));
+      document.querySelector('#next').addEventListener('click', () => show(index + 1));
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' || event.key === ' ') show(index + 1);
+        if (event.key === 'ArrowLeft') show(index - 1);
+        if (event.key === 'Home') show(0);
+        if (event.key === 'End') show(slides.length - 1);
+      });
+    </script>
+  </body>
+</html>

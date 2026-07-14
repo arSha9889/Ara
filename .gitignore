@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+apps/web/node_modules/
+apps/web/dist/
+apps/api/.venv/
+apps/api/storage/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.env
+.env.*
+!.env.example
+!apps/api/.env.example
+!apps/web/.env.example
+.coverage
+htmlcov/

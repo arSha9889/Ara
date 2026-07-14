@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nexus">
+  <defs>
+    <linearGradient id="nexusGradient" x1="96" y1="96" x2="416" y2="416" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6E5BFF" />
+      <stop offset="1" stop-color="#46D9FF" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="18" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#F7F8FF" />
+  <circle cx="256" cy="256" r="154" fill="none" stroke="#D9D6FF" stroke-width="34" />
+  <circle cx="256" cy="256" r="118" fill="url(#nexusGradient)" filter="url(#glow)" />
+  <path d="M190 330V182h36l72 86v-86h42v148h-36l-72-86v86h-42Z" fill="white" />
+</svg>
