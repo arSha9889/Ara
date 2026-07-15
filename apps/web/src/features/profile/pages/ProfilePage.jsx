@@ -3,27 +3,14 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
+import { BUILT_IN_AVATARS, AVATAR_EMOJIS, UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { NexusLoader } from '../../../shared/ui/NexusLoader.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { getMyProfile, updateMyProfile, updateUsername } from '../api/userApi.js';
 
-const BUILT_IN_AVATARS = Array.from({ length: 20 }, (_, index) => `animal-${String(index + 1).padStart(2, '0')}`);
-const AVATAR_EMOJIS = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🐵', '🐧', '🦉', '🐺', '🐰', '🦄', '🐙', '🐢', '🦋', '🐝', '🦕', '🐬', '🦭', '🐿️'];
 const AVATAR_MAX_SIZE_BYTES = 50 * 1024 * 1024;
-
-function avatarEmoji(avatarRef) {
-  const index = BUILT_IN_AVATARS.indexOf(avatarRef || 'animal-01');
-  return AVATAR_EMOJIS[index >= 0 ? index : 0];
-}
-
-function AvatarView({ profile, previewUrl, size = 'large' }) {
-  if (previewUrl || profile?.avatar_type === 'uploaded') {
-    return <img className={`avatar ${size} avatar-image`} src={previewUrl || profile?.avatar_ref} alt="" aria-hidden="true" />;
-  }
-  return <div className={`avatar ${size} avatar-emoji`} aria-hidden="true">{avatarEmoji(profile?.avatar_ref)}</div>;
-}
 
 export function ProfilePage() {
   const { t } = useI18n();
@@ -133,7 +120,12 @@ export function ProfilePage() {
     }
 
     if (!isSupported) {
-      setStatus(t('profile.notificationsUnsupported'));
+      const result = await enableNotifications();
+      setStatus(result.status === 'ios_install_required'
+        ? t('profile.notificationsInstallRequired')
+        : result.status === 'insecure_context'
+          ? t('profile.notificationsHttpsRequired')
+          : t('profile.notificationsUnsupported'));
       return;
     }
 
@@ -143,7 +135,15 @@ export function ProfilePage() {
       return;
     }
 
-    setStatus(result.status === 'denied' ? t('profile.notificationsDenied') : result.status === 'unconfigured' ? t('profile.notificationsUnavailable') : t('profile.notificationsNotEnabled'));
+    setStatus(result.status === 'denied'
+      ? t('profile.notificationsDenied')
+      : result.status === 'unconfigured'
+        ? t('profile.notificationsUnavailable')
+        : result.status === 'ios_install_required'
+          ? t('profile.notificationsInstallRequired')
+          : result.status === 'insecure_context'
+            ? t('profile.notificationsHttpsRequired')
+            : t('profile.notificationsNotEnabled'));
   }
 
   return (
@@ -151,7 +151,7 @@ export function ProfilePage() {
       <h1>{t('profile.title')}</h1>
       {isLoading ? <NexusLoader compact title={t('profile.loadingTitle')} text={t('profile.loadingText')} /> : null}
       <div className="profile-card">
-        <AvatarView profile={{ ...user?.profile, avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} />
+        <UserAvatar profile={{ ...user?.profile, avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} size="large" />
         <div>
           <p className="muted">{t('profile.displayNameLabel')}</p>
           <h2>{user?.profile?.display_name ?? 'Nexus User'}</h2>
@@ -164,7 +164,7 @@ export function ProfilePage() {
             <h2>{t('profile.avatarTitle')}</h2>
             <p className="muted">{t('profile.avatarText')}</p>
           </div>
-          <AvatarView profile={{ avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} />
+          <UserAvatar profile={{ avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} size="large" />
         </div>
         <div className="avatar-grid compact-avatar-grid">
           {BUILT_IN_AVATARS.map((avatarRef, index) => (
@@ -191,7 +191,7 @@ export function ProfilePage() {
           <span className={`settings-status-pill ${notificationsEnabled && notificationPermission === 'granted' ? 'granted' : 'default'}`}>
             {notificationsEnabled && notificationPermission === 'granted' ? t('settings.notificationStatus.granted') : t('settings.notificationStatus.default')}
           </span>
-          <input type="checkbox" checked={notificationsEnabled && notificationPermission === 'granted'} onChange={handleNotificationsToggle} disabled={!isSupported || notificationPermission === 'denied'} />
+          <input type="checkbox" checked={notificationsEnabled && notificationPermission === 'granted'} onChange={handleNotificationsToggle} disabled={notificationPermission === 'denied'} />
         </label>
       </section>
       <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />

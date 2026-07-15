@@ -1,5 +1,14 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
+export const ACCESS_TOKEN_STORAGE_KEY = 'nexus_access_token';
+export const REFRESH_TOKEN_STORAGE_KEY = 'nexus_refresh_token';
+
+let authSessionHandlers = {
+  onRefresh: null,
+  onExpire: null,
+};
+let refreshPromise = null;
+
 const API_ERROR_MESSAGES = {
   'Username contains invalid characters': 'Username должен содержать только латинские буквы и цифры, от 3 до 32 символов.',
   'Username is already taken': 'Этот username уже занят.',
@@ -45,21 +54,128 @@ export function translateApiError(detail, fallbackStatus) {
   return `Ошибка запроса к API: ${fallbackStatus}`;
 }
 
+export function configureAuthSessionHandlers(handlers) {
+  authSessionHandlers = {
+    onRefresh: handlers?.onRefresh ?? null,
+    onExpire: handlers?.onExpire ?? null,
+  };
+}
+
+function isRefreshEndpoint(path) {
+  return path === '/api/auth/refresh';
+}
+
+function getAuthorizationHeader(headers) {
+  return new Headers(headers ?? {}).get('Authorization') ?? '';
+}
+
+function withAccessToken(headers, accessToken) {
+  const nextHeaders = new Headers(headers ?? {});
+  nextHeaders.set('Authorization', `Bearer ${accessToken}`);
+  return nextHeaders;
+}
+
+async function parseErrorMessage(response) {
+  const errorBody = await response.json().catch(() => null);
+  return translateApiError(errorBody?.detail, response.status);
+}
+
+async function refreshStoredSession() {
+  if (refreshPromise) return refreshPromise;
+
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  if (!refreshToken) {
+    throw new Error(API_ERROR_MESSAGES['Invalid refresh token']);
+  }
+
+  refreshPromise = (async () => {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (!response.ok) {
+      localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+      authSessionHandlers.onExpire?.();
+      throw new Error(await parseErrorMessage(response));
+    }
+
+    const refreshed = await response.json();
+    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, refreshed.access_token);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshed.refresh_token);
+    authSessionHandlers.onRefresh?.({
+      accessToken: refreshed.access_token,
+      refreshToken: refreshed.refresh_token,
+      user: refreshed.user,
+    });
+    return refreshed;
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
+function shouldRefreshAfterUnauthorized(path, optionsHeaders, skipAuthRefresh) {
+  return !skipAuthRefresh
+    && !isRefreshEndpoint(path)
+    && getAuthorizationHeader(optionsHeaders).startsWith('Bearer ')
+    && Boolean(localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY));
+}
+
+export async function authenticatedFetch(path, options = {}) {
+  const { headers, skipAuthRefresh = false, ...restOptions } = options;
+  let requestHeaders = headers;
+  let response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: 'include',
+    headers: requestHeaders,
+    ...restOptions,
+  });
+
+  if (response.status === 401 && shouldRefreshAfterUnauthorized(path, requestHeaders, skipAuthRefresh)) {
+    const refreshed = await refreshStoredSession();
+    requestHeaders = withAccessToken(requestHeaders, refreshed.access_token);
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: 'include',
+      headers: requestHeaders,
+      ...restOptions,
+    });
+  }
+
+  return response;
+}
+
 export async function apiRequest(path, options = {}) {
-  const { body, headers, ...restOptions } = options;
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const { body, headers, skipAuthRefresh = false, ...restOptions } = options;
+  let requestHeaders = {
+    'Content-Type': 'application/json',
+    ...headers,
+  };
+  let response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
-      'Content-Type': 'application/json',
-      ...headers,
+      ...requestHeaders,
     },
     credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
     ...restOptions,
   });
 
+  if (response.status === 401 && shouldRefreshAfterUnauthorized(path, requestHeaders, skipAuthRefresh)) {
+    const refreshed = await refreshStoredSession();
+    requestHeaders = withAccessToken(requestHeaders, refreshed.access_token);
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: requestHeaders,
+      credentials: 'include',
+      body: body ? JSON.stringify(body) : undefined,
+      ...restOptions,
+    });
+  }
+
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => null);
-    throw new Error(translateApiError(errorBody?.detail, response.status));
+    throw new Error(await parseErrorMessage(response));
   }
 
   return response.json();

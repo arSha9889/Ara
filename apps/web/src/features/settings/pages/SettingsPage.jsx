@@ -86,7 +86,12 @@ export function SettingsPage() {
   async function handleEnableNotifications() {
     if (!isSupported) {
       setStatusKind('error');
-      setStatus(t('settings.notificationsUnsupported'));
+      const result = await enableNotifications();
+      setStatus(result.status === 'ios_install_required'
+        ? t('settings.notificationsInstallRequired')
+        : result.status === 'insecure_context'
+          ? t('settings.notificationsHttpsRequired')
+          : t('settings.notificationsUnsupported'));
       return;
     }
 
@@ -97,7 +102,15 @@ export function SettingsPage() {
       return;
     }
     setStatusKind('error');
-    setStatus(result.status === 'denied' ? t('settings.notificationsDenied') : result.status === 'unconfigured' ? t('settings.notificationsUnavailable') : t('settings.notificationsNotEnabled'));
+    setStatus(result.status === 'denied'
+      ? t('settings.notificationsDenied')
+      : result.status === 'unconfigured'
+        ? t('settings.notificationsUnavailable')
+        : result.status === 'ios_install_required'
+          ? t('settings.notificationsInstallRequired')
+          : result.status === 'insecure_context'
+            ? t('settings.notificationsHttpsRequired')
+            : t('settings.notificationsNotEnabled'));
   }
 
   async function handleDisableNotifications() {
@@ -195,7 +208,7 @@ export function SettingsPage() {
           {notificationsEnabled ? (
             <button className="button button-secondary" type="button" onClick={handleDisableNotifications}>{t('settings.disableNotifications')}</button>
           ) : (
-            <button className="button button-primary" type="button" onClick={handleEnableNotifications} disabled={!isSupported || !pushConfigured || notificationPermission === 'denied'}>
+            <button className="button button-primary" type="button" onClick={handleEnableNotifications} disabled={notificationPermission === 'denied'}>
               {t('settings.enableNotifications')}
             </button>
           )}

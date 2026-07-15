@@ -1,17 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
+import { getDeviceId } from '../../../shared/device/deviceId.js';
+import { BUILT_IN_AVATARS, AVATAR_EMOJIS } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
-import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { checkUsername, updateMyProfile } from '../../profile/api/userApi.js';
 import { completeRegistration, createDevRegistrationProof, createEarlyAccessRegistrationProof } from '../api/authApi.js';
 
-const BUILT_IN_AVATARS = Array.from({ length: 20 }, (_, index) => `animal-${String(index + 1).padStart(2, '0')}`);
-const AVATAR_EMOJIS = ['🦊', '🐼', '🐯', '🦁', '🐨', '🐸', '🐵', '🐧', '🦉', '🐺', '🐰', '🦄', '🐙', '🐢', '🦋', '🐝', '🦕', '🐬', '🦭', '🐿️'];
 const AVATAR_MAX_SIZE_BYTES = 50 * 1024 * 1024;
 
 export function RegisterPage() {
@@ -40,6 +39,10 @@ export function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDevProofLoading, setIsDevProofLoading] = useState(false);
   const [isEarlyAccessLoading, setIsEarlyAccessLoading] = useState(false);
+
+  useEffect(() => () => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+  }, [avatarPreview]);
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -122,10 +125,12 @@ export function RegisterPage() {
       return;
     }
     setError('');
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    const previewUrl = URL.createObjectURL(file);
     setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
+    setAvatarPreview(previewUrl);
     updateField('avatar_type', 'uploaded');
-    updateField('avatar_ref', avatarPreview || 'custom-avatar');
+    updateField('avatar_ref', previewUrl);
   }
 
   function selectBuiltInAvatar(avatarRef) {

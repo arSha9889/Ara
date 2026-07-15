@@ -1,27 +1,47 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
+import { ACCESS_TOKEN_STORAGE_KEY, configureAuthSessionHandlers, REFRESH_TOKEN_STORAGE_KEY } from '../../shared/api/httpClient.js';
+import { getCurrentUser, refreshSession } from '../../features/auth/api/authApi.js';
 import { useI18n } from './I18nProvider.jsx';
 import { useTheme } from './ThemeProvider.jsx';
-import { getCurrentUser, refreshSession } from '../../features/auth/api/authApi.js';
 
 const SessionContext = createContext(null);
+const ACCESS_REFRESH_SKEW_MS = 60 * 1000;
+
+function accessTokenExpiresAt(accessToken) {
+  if (!accessToken) return null;
+  try {
+    const [, payload] = accessToken.split('.');
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(window.atob(normalized));
+    return typeof decoded.exp === 'number' ? decoded.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function shouldRefreshAccessToken(accessToken) {
+  const expiresAt = accessTokenExpiresAt(accessToken);
+  return !expiresAt || expiresAt - Date.now() <= ACCESS_REFRESH_SKEW_MS;
+}
 
 export function SessionProvider({ children }) {
   const { setLanguage } = useI18n();
   const { setTheme } = useTheme();
   const [isSessionLoading, setIsSessionLoading] = useState(true);
   const [session, setSession] = useState(() => {
-    const accessToken = localStorage.getItem('nexus_access_token');
-    const refreshToken = localStorage.getItem('nexus_refresh_token');
+    const accessToken = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
     return { accessToken, refreshToken, user: null };
   });
 
   function saveSession(nextSession) {
     if (nextSession.accessToken) {
-      localStorage.setItem('nexus_access_token', nextSession.accessToken);
+      localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, nextSession.accessToken);
     }
     if (nextSession.refreshToken) {
-      localStorage.setItem('nexus_refresh_token', nextSession.refreshToken);
+      localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, nextSession.refreshToken);
     }
     syncPreferences(nextSession.user);
     setSession(nextSession);
@@ -37,10 +57,24 @@ export function SessionProvider({ children }) {
   }
 
   function clearSession() {
-    localStorage.removeItem('nexus_access_token');
-    localStorage.removeItem('nexus_refresh_token');
+    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     setSession({ accessToken: null, refreshToken: null, user: null });
   }
+
+  useEffect(() => {
+    configureAuthSessionHandlers({
+      onRefresh: (nextSession) => {
+        syncPreferences(nextSession.user);
+        setSession(nextSession);
+      },
+      onExpire: () => {
+        setSession({ accessToken: null, refreshToken: null, user: null });
+      },
+    });
+
+    return () => configureAuthSessionHandlers(null);
+  }, []);
 
   useEffect(() => {
     async function restoreSession() {
@@ -73,6 +107,39 @@ export function SessionProvider({ children }) {
     restoreSession();
     // restore once on app boot only
   }, []);
+
+  useEffect(() => {
+    if (!session.refreshToken) return undefined;
+
+    async function refreshNow() {
+      try {
+        const refreshed = await refreshSession(session.refreshToken);
+        saveSession({ accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token, user: refreshed.user });
+      } catch {
+        clearSession();
+      }
+    }
+
+    const expiresAt = accessTokenExpiresAt(session.accessToken);
+    const delay = expiresAt ? Math.max(expiresAt - Date.now() - ACCESS_REFRESH_SKEW_MS, 5000) : 5000;
+    const timer = window.setTimeout(refreshNow, delay);
+
+    function refreshWhenVisible() {
+      if (document.visibilityState !== 'visible') return;
+      if (shouldRefreshAccessToken(localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY))) {
+        refreshNow();
+      }
+    }
+
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+    };
+  }, [session.accessToken, session.refreshToken]);
 
   const value = useMemo(() => ({ session, saveSession, clearSession, isSessionLoading }), [session, isSessionLoading]);
 

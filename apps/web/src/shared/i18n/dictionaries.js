@@ -99,6 +99,8 @@ export const dictionaries = {
       notificationsNotEnabled: 'Уведомления пока не включены.',
       notificationsUnsupported: 'Этот браузер не поддерживает уведомления.',
       notificationsUnavailable: 'Push-уведомления пока не настроены на сервере.',
+      notificationsInstallRequired: 'На iPhone и iPad уведомления включаются только в установленном приложении: Safari → Поделиться → На экран «Домой», затем откройте Nexus с иконки.',
+      notificationsHttpsRequired: 'Push-уведомления работают только по HTTPS или на localhost.',
     },
     settings: {
       title: 'Настройки',
@@ -118,6 +120,8 @@ export const dictionaries = {
       notificationsNotEnabled: 'Уведомления пока не включены.',
       notificationsUnsupported: 'Этот браузер не поддерживает уведомления.',
       notificationsUnavailable: 'Push-уведомления пока не настроены на сервере.',
+      notificationsInstallRequired: 'На iPhone и iPad уведомления включаются только в установленном приложении: Safari → Поделиться → На экран «Домой», затем откройте Nexus с иконки.',
+      notificationsHttpsRequired: 'Push-уведомления работают только по HTTPS или на localhost.',
       notificationsDisabled: 'Уведомления выключены для Nexus в этом браузере.',
       disableNotifications: 'Выключить уведомления',
       notificationStatus: {
@@ -336,6 +340,8 @@ export const dictionaries = {
       notificationsNotEnabled: 'Notifications are not enabled yet.',
       notificationsUnsupported: 'This browser does not support notifications.',
       notificationsUnavailable: 'Push notifications have not been configured on the server yet.',
+      notificationsInstallRequired: 'On iPhone and iPad, notifications can be enabled only in the installed app: Safari → Share → Add to Home Screen, then open Nexus from its icon.',
+      notificationsHttpsRequired: 'Push notifications require HTTPS or localhost.',
     },
     settings: {
       title: 'Settings',
@@ -355,6 +361,8 @@ export const dictionaries = {
       notificationsNotEnabled: 'Notifications are not enabled yet.',
       notificationsUnsupported: 'This browser does not support notifications.',
       notificationsUnavailable: 'Push notifications have not been configured on the server yet.',
+      notificationsInstallRequired: 'On iPhone and iPad, notifications can be enabled only in the installed app: Safari → Share → Add to Home Screen, then open Nexus from its icon.',
+      notificationsHttpsRequired: 'Push notifications require HTTPS or localhost.',
       notificationsDisabled: 'Notifications are disabled for Nexus in this browser.',
       disableNotifications: 'Disable notifications',
       notificationStatus: {

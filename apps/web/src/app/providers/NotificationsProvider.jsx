@@ -8,7 +8,7 @@ import {
   markNotificationsRead,
   savePushSubscription,
 } from '../../features/notifications/api/notificationApi.js';
-import { getPushSubscription, isPushSupported, subscribeToPush } from '../../features/notifications/notificationClient.js';
+import { getPushSupportState, getPushSubscription, isPushSupported, subscribeToPush } from '../../features/notifications/notificationClient.js';
 import { useSession } from './SessionProvider.jsx';
 
 const NotificationsContext = createContext(null);
@@ -26,6 +26,7 @@ export function NotificationsProvider({ children }) {
   const [isLoading, setIsLoading] = useState(false);
   const reconnectTimerRef = useRef(null);
 
+  const pushSupport = getPushSupportState();
   const isSupported = isPushSupported();
   const isEnabled = isSupported && permission === 'granted' && pushConfig.enabled && hasSubscription;
   const unreadCount = notifications.filter((item) => !item.read_at).length;
@@ -92,16 +93,17 @@ export function NotificationsProvider({ children }) {
   }, [session.accessToken]);
 
   async function enableNotifications() {
-    if (!isSupported) return { status: 'unsupported' };
-    const config = pushConfig.enabled ? pushConfig : await getPushConfig(session.accessToken);
-    setPushConfig(config);
-    if (!config.enabled || !config.public_key) return { status: 'unconfigured' };
-
+    if (!isSupported) return { status: pushSupport.reason || 'unsupported' };
+    if (!session.accessToken) return { status: 'unauthorized' };
     const nextPermission = Notification.permission === 'granted'
       ? 'granted'
       : await Notification.requestPermission();
     setPermission(nextPermission);
     if (nextPermission !== 'granted') return { status: nextPermission };
+
+    const config = pushConfig.enabled ? pushConfig : await getPushConfig(session.accessToken);
+    setPushConfig(config);
+    if (!config.enabled || !config.public_key) return { status: 'unconfigured' };
 
     const subscription = await getPushSubscription() || await subscribeToPush(config.public_key);
     await savePushSubscription(session.accessToken, subscription.toJSON());

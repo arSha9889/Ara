@@ -5,6 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
+import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
 import { NexusLoader } from '../../../shared/ui/NexusLoader.jsx';
@@ -192,6 +193,7 @@ export function ChatsPage() {
           </Link>
           {regularChats.map((chat) => (
             <Link className="info-card chat-thread-card" key={chat.id} to={`/app/chats/${chat.id}`}>
+              <UserAvatar baseClass="chat-list-avatar" profile={chat.peer} fallback={chatTitle(chat, t)[0] || 'N'} />
               <div className="chat-thread-copy">
                 <strong>{chatTitle(chat, t)}</strong>
                 <span className="muted">{chatSubtitle(chat, session.user?.id, t)}</span>

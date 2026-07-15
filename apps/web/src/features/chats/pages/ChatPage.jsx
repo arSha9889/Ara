@@ -5,6 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
+import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { NexusLoader } from '../../../shared/ui/NexusLoader.jsx';
 import { deleteMessage, editMessage, getChat, getMessages, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
@@ -186,6 +187,8 @@ export function ChatPage() {
   const fileInputRef = useRef(null);
   const recordingCancelledRef = useRef(false);
   const reconnectTimerRef = useRef(null);
+  const typingStopTimerRef = useRef(null);
+  const lastTypingSentAtRef = useRef(0);
   const messageListRef = useRef(null);
   const pendingReadMessageIdsRef = useRef(new Set());
   const readTimerRef = useRef(null);
@@ -318,7 +321,10 @@ export function ChatPage() {
     };
   }, [chatId, isChatIdValid, session.accessToken, session.user?.id]);
 
-  useEffect(() => () => cancelVoiceRecording(), []);
+  useEffect(() => () => {
+    cancelVoiceRecording();
+    if (typingStopTimerRef.current) window.clearTimeout(typingStopTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -463,7 +469,25 @@ export function ChatPage() {
       setMessageType('text');
     }
     setText(value);
-    safeSocketSend(socket, { event: value ? 'typing.started' : 'typing.stopped', chat_id: chatId });
+    if (typingStopTimerRef.current) {
+      window.clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+    if (!value) {
+      lastTypingSentAtRef.current = 0;
+      safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
+      return;
+    }
+    const now = Date.now();
+    if (now - lastTypingSentAtRef.current > 2500) {
+      lastTypingSentAtRef.current = now;
+      safeSocketSend(socket, { event: 'typing.started', chat_id: chatId });
+    }
+    typingStopTimerRef.current = window.setTimeout(() => {
+      lastTypingSentAtRef.current = 0;
+      safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
+      typingStopTimerRef.current = null;
+    }, 1800);
   }
 
   function clearSelectedMedia() {
@@ -575,7 +599,11 @@ export function ChatPage() {
     <section className="panel chat-panel">
       <header className="chat-header">
         <div className="chat-avatar-wrap">
-          <div className={`avatar ${isSavedChat ? 'saved-avatar' : ''}`} aria-hidden="true">{isSavedChat ? '★' : chat?.peer?.display_name?.[0] || chat?.peer?.username?.[0] || 'N'}</div>
+          {isSavedChat ? (
+            <div className="avatar saved-avatar" aria-hidden="true">★</div>
+          ) : (
+            <UserAvatar profile={chat?.peer} fallback={chat?.peer?.display_name?.[0] || chat?.peer?.username?.[0] || 'N'} />
+          )}
           {!isSavedChat ? <span className={`presence-dot ${peerStatus.tone}`} aria-hidden="true" /> : null}
         </div>
         <div>

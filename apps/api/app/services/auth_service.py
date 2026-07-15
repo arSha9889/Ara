@@ -141,6 +141,8 @@ async def refresh_access_token(session: AsyncSession, refresh_token: str) -> tup
         user = await find_user_by_id(session, item.user_id)
         if not user:
             raise AuthError('Session user not found')
+        item.expires_at = now + timedelta(days=settings.refresh_token_days)
+        await session.commit()
         await _load_profile(session, user)
         return to_user_out(user), create_access_token(user.id), refresh_token
     raise AuthError('Invalid refresh token')

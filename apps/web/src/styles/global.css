@@ -571,6 +571,7 @@ p { margin-bottom: 14px; }
   box-shadow: 0 0 0 8px var(--ring);
   flex: 0 0 auto;
   object-fit: cover;
+  overflow: hidden;
 }
 
 .app-menu {
@@ -1753,7 +1754,7 @@ button.info-card {
 }
 
 .chat-thread-card {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
 }
 
@@ -2085,9 +2086,43 @@ code {
   .hero-card,
   .panel {
     width: 100%;
-    border-radius: 24px;
-    padding: 20px;
+    border-radius: 20px;
+    padding: 16px;
   }
+
+  h1 { margin-bottom: 12px; font-size: clamp(1.75rem, 9vw, 2.4rem); }
+  h2 { font-size: 1.24rem; }
+  p { margin-bottom: 10px; }
+
+  .app-sidebar { padding: 12px max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left)); gap: 10px; }
+  .app-sidebar-topbar { gap: 10px; }
+  .app-menu-trigger { min-height: 48px; border-radius: 18px; }
+  .app-menu-orb { width: 34px; height: 34px; border-radius: 13px; }
+  .app-main { padding: 12px; }
+  .content-grid { gap: 12px; }
+
+  .info-card,
+  .settings-section,
+  .liquid-glass-prompt,
+  .notification-prompt {
+    margin-top: 12px;
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .list-stack { gap: 9px; margin-top: 12px; }
+  .chat-list-avatar,
+  .avatar,
+  .brand-mark { width: 40px; height: 40px; box-shadow: 0 0 0 5px var(--ring); }
+  .large { width: 62px; height: 62px; }
+  .avatar-picker { gap: 12px; border-radius: 18px; padding: 14px; }
+  .avatar-picker-head { align-items: flex-start; }
+  .avatar-preview { width: 64px; height: 64px; font-size: 2rem; box-shadow: 0 0 0 5px var(--ring); }
+  .avatar-grid,
+  .compact-avatar-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+  .avatar-choice { font-size: 1.2rem; }
+  .chat-thread-card { gap: 10px; }
+  .chat-unread-badge { min-width: 24px; height: 24px; font-size: 0.72rem; }
 
   .hero-card { min-height: calc(100dvh - 28px); }
 
@@ -2118,13 +2153,16 @@ code {
   .notification-actions { display: grid; }
 
   .chat-panel {
-    height: calc(100dvh - 32px);
-    min-height: calc(100dvh - 32px);
-    border-radius: 22px;
-    padding: 14px;
+    height: calc(100dvh - 24px);
+    min-height: calc(100dvh - 24px);
+    border-radius: 18px;
+    padding: 12px;
   }
 
-  .chat-header { align-items: flex-start; }
+  .chat-header { align-items: flex-start; padding-bottom: 12px; gap: 10px; }
+  .chat-header h1 { margin-bottom: 4px; font-size: 1.35rem; }
+  .chat-subtitle { gap: 6px; font-size: 0.84rem; }
+  .presence-pill { padding: 3px 8px; font-size: 0.72rem; }
   .pinned-message-bar { border-radius: 18px; padding: 10px; gap: 10px; }
   .pinned-message-icon { width: 34px; height: 34px; border-radius: 12px; }
   .pinned-message-jump { display: none; }
@@ -2182,6 +2220,53 @@ code {
   .composer-emoji-panel { right: -48px; width: min(320px, calc(100vw - 28px)); }
   .reaction-picker-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); max-height: 220px; }
   code { width: 100%; }
+}
+
+@media (max-width: 860px), (pointer: coarse) {
+  :root { --shadow-soft: 0 14px 34px rgba(20, 20, 43, 0.1); --shadow-card: 0 10px 24px rgba(20, 20, 43, 0.08); }
+
+  body {
+    background:
+      radial-gradient(circle at 12% 5%, color-mix(in srgb, var(--primary), transparent 90%), transparent 18rem),
+      var(--background);
+  }
+
+  body::before { display: none; }
+
+  .hero-card,
+  .panel,
+  .app-menu-panel,
+  .chat-create-panel,
+  .composer-emoji-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  :root[data-theme='liquid_glass'] .hero-card,
+  :root[data-theme='liquid_glass'] .panel,
+  :root[data-theme='liquid_glass'] .app-sidebar,
+  :root[data-theme='liquid_glass'] .composer-input-shell,
+  :root[data-theme='liquid_glass'] .info-card,
+  :root[data-theme='liquid_glass'] .settings-section,
+  :root[data-theme='liquid_glass'] .liquid-glass-prompt,
+  :root[data-theme='liquid_glass'] .notification-prompt,
+  :root[data-theme='liquid_glass'] .segmented-control,
+  :root[data-theme='liquid_glass'] .presence-pill,
+  :root[data-theme='liquid_glass'] .composer-preview {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: var(--shadow-card);
+  }
+
+  .presence-dot.online,
+  .presence-dot.connecting,
+  .voice-button.is-recording,
+  .empty-orbit {
+    animation: none;
+  }
+
+  .panel,
+  .info-card { animation: none; }
 }
 
 @media (min-width: 861px) and (max-width: 1180px) {

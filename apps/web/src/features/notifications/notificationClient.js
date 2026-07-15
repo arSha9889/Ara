@@ -1,5 +1,34 @@
 const SERVICE_WORKER_PATH = '/service-worker.js';
 
+function isLocalhost() {
+  return ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+}
+
+export function isStandaloneApp() {
+  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function isIOSLike() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || '';
+  const userAgent = navigator.userAgent || '';
+  return /iPhone|iPad|iPod/i.test(platform)
+    || /iPhone|iPad|iPod/i.test(userAgent)
+    || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+export function getPushSupportState() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { supported: false, reason: isIOSLike() && !isStandaloneApp() ? 'ios_install_required' : 'unsupported' };
+  }
+  if (isIOSLike() && !isStandaloneApp()) {
+    return { supported: false, reason: 'ios_install_required' };
+  }
+  if (!window.isSecureContext && !isLocalhost()) {
+    return { supported: false, reason: 'insecure_context' };
+  }
+  return { supported: true, reason: null };
+}
+
 function urlBase64ToUint8Array(value) {
   const padding = '='.repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -8,12 +37,15 @@ function urlBase64ToUint8Array(value) {
 }
 
 export function isPushSupported() {
-  return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+  return getPushSupportState().supported;
 }
 
 export async function getServiceWorkerRegistration() {
   if (!isPushSupported()) return null;
-  return navigator.serviceWorker.register(SERVICE_WORKER_PATH, { scope: '/' });
+  const existing = await navigator.serviceWorker.getRegistration('/');
+  if (existing) return existing;
+  await navigator.serviceWorker.register(SERVICE_WORKER_PATH, { scope: '/' });
+  return navigator.serviceWorker.ready;
 }
 
 export async function getPushSubscription() {

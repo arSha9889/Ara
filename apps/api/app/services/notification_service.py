@@ -22,6 +22,13 @@ def web_push_is_configured() -> bool:
     return bool(settings.vapid_private_key and settings.vapid_public_key and settings.vapid_claims_email)
 
 
+def _vapid_claims_subject() -> str:
+    subject = settings.vapid_claims_email.strip()
+    if not subject or ':' in subject:
+        return subject
+    return f'mailto:{subject}'
+
+
 async def save_push_subscription(
     session: AsyncSession,
     user_id: UUID,
@@ -141,7 +148,7 @@ def _send_push(subscription: PushSubscription, notification: NotificationOut) ->
             },
             data=json.dumps(notification.model_dump(mode='json')),
             vapid_private_key=settings.vapid_private_key,
-            vapid_claims={'sub': settings.vapid_claims_email},
+            vapid_claims={'sub': _vapid_claims_subject()},
             ttl=60 * 60 * 24,
         )
         return False
