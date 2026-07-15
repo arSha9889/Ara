@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@nexus/ui": "0.1.0",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "react": "latest",
