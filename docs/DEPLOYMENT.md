@@ -1,8 +1,8 @@
-# Закрытая бета: GitHub, Railway и Vercel
+# Закрытая бета: GitHub, Railway, Vercel и альтернативный web-хостинг
 
 Репозиторий — npm-монорепозиторий:
 
-- `apps/web` — пользовательское React-приложение, деплоится в Vercel;
+- `apps/web` — пользовательское React-приложение, деплоится в Vercel или на доступный из РФ web-хостинг/VPS;
 - `packages/ui` — переиспользуемые базовые UI-компоненты;
 - `apps/api` — FastAPI API, деплоится в Railway;
 - `.github/workflows/ci.yml` — проверка сборки web и тестов API в GitHub Actions.
@@ -65,6 +65,57 @@ VITE_TELEGRAM_BOT_NAME=<имя_бота_без_@>
 4. После первого Vercel-деплоя добавьте точный URL Vercel в `NEXUS_ALLOWED_ORIGINS` Railway и передеплойте API.
 
 `apps/web/vercel.json` содержит SPA rewrite, поэтому прямое открытие маршрутов вроде `/app/chats/...` не даст 404.
+
+## 4. Альтернативный web-хостинг для доступа из России
+
+Если у пользователя без VPN не открывается сам домен Vercel, это нельзя исправить внутри React-приложения: браузер не получает HTML/JS приложения. Для пользователей из России используйте домен и хостинг/VPS, доступные из РФ, и разверните `apps/web` как Docker-контейнер с Nginx.
+
+Вариант с одним публичным доменом для web:
+
+- пользователь открывает `https://<ваш-доступный-домен>`;
+- Nginx отдаёт собранный React web;
+- запросы `/api`, `/ws` и `/storage/uploads` проксируются на API;
+- в браузере не используется недоступный `*.vercel.app` домен.
+
+Сборка образа из директории `apps/web`:
+
+```bash
+docker build -t nexus-web apps/web
+```
+
+Запуск контейнера:
+
+```bash
+docker run -d \
+  --name nexus-web \
+  -p 8080:8080 \
+  -e NEXUS_API_UPSTREAM=https://<ваш-api-домен> \
+  nexus-web
+```
+
+Если web и API находятся в одной Docker-сети, можно указать внутренний адрес API, например:
+
+```bash
+NEXUS_API_UPSTREAM=http://api:8000
+```
+
+Для такого same-origin деплоя `VITE_API_BASE_URL` и `VITE_WS_BASE_URL` можно не задавать: production-сборка web по умолчанию будет обращаться к `/api` и `/ws` на том же домене. Если API остаётся на отдельном публичном домене, задайте переменные при сборке:
+
+```bash
+docker build \
+  --build-arg VITE_API_BASE_URL=https://<ваш-api-домен> \
+  --build-arg VITE_WS_BASE_URL=wss://<ваш-api-домен> \
+  -t nexus-web apps/web
+```
+
+Для same-origin варианта в API достаточно разрешить публичный web-домен:
+
+```dotenv
+NEXUS_ALLOWED_ORIGINS=["https://<ваш-доступный-домен>"]
+NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-доступный-домен>
+```
+
+Практический критерий готовности: `https://<ваш-доступный-домен>` должен открываться с обычного российского мобильного/домашнего интернета без VPN.
 
 ## Перед открытием беты
 
