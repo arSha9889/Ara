@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { apiRequest } from '../../../shared/api/httpClient.js';
+import { getRuntimeConfigValue } from '../../../shared/config/runtimeConfig.js';
 import { createEarlyAccessRegistrationProof } from '../api/authApi.js';
 
-const TELEGRAM_BOT_NAME = import.meta.env.VITE_TELEGRAM_BOT_NAME;
+const TELEGRAM_BOT_NAME = getRuntimeConfigValue('VITE_TELEGRAM_BOT_NAME') || import.meta.env.VITE_TELEGRAM_BOT_NAME;
 
 export function TelegramLoginButton({ children }) {
   const { t } = useI18n();

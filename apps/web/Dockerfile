@@ -22,6 +22,8 @@ ENV PORT=8080 \
     NEXUS_API_UPSTREAM=http://api:8000
 
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY docker-entrypoint.d/40-generate-runtime-config.sh /docker-entrypoint.d/40-generate-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-generate-runtime-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 8080

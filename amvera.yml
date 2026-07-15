@@ -1,0 +1,5 @@
+build:
+  dockerfile: Dockerfile.amvera-web
+
+run:
+  containerPort: 8080
