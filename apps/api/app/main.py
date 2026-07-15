@@ -16,6 +16,7 @@ from app.services.redis_client import check_redis
 from app.services.storage_service import storage_root
 
 
+# Deployment trigger: temporary no-op change.
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name)
     app.add_middleware(
