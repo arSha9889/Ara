@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 from starlette.websockets import WebSocketDisconnect
 
 from app.api.router import api_router
@@ -10,6 +11,7 @@ from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.domain.tokens import decode_access_token
 from app.models.chats import ChatParticipant
+from app.models.users import User
 from app.db.health import check_database
 from app.services.realtime_manager import realtime_manager
 from app.services.redis_client import check_redis
@@ -69,9 +71,16 @@ def create_app() -> FastAPI:
             await _safe_close_websocket(websocket, code=1008)
             return
 
+        if not await _is_active_user(user_id):
+            await _safe_send_json(websocket, {'event': 'connection.rejected', 'reason': 'user_not_available'})
+            await _safe_close_websocket(websocket, code=1008)
+            return
+
         if not await _safe_send_json(websocket, {'event': 'connection.authenticated', 'user_id': str(user_id)}):
             return
-        await realtime_manager.connect_user(websocket, user_id)
+        was_offline = await realtime_manager.connect_user(websocket, user_id)
+        if was_offline:
+            await _broadcast_presence_to_user_chats(user_id, True)
 
         try:
             while True:
@@ -92,6 +101,15 @@ def create_app() -> FastAPI:
                         continue
                     await realtime_manager.subscribe(websocket, chat_id)
                     await _safe_send_json(websocket, {'event': 'chat.subscribed', 'chat_id': str(chat_id)})
+                    await realtime_manager.broadcast_to_chat(
+                        chat_id,
+                        {
+                            'event': 'presence.status',
+                            'chat_id': str(chat_id),
+                            'user_id': str(user_id),
+                            'is_online': True,
+                        },
+                    )
                     continue
 
                 if event == 'chat.unsubscribe':
@@ -101,7 +119,7 @@ def create_app() -> FastAPI:
                     await _safe_send_json(websocket, {'event': 'chat.unsubscribed', 'chat_id': str(chat_id) if chat_id else None})
                     continue
 
-                if event in {'typing.started', 'typing.stopped', 'presence.active', 'file.uploading'}:
+                if event in {'typing.started', 'typing.stopped', 'presence.active', 'file.uploading', 'voice.uploading'}:
                     chat_id = _parse_uuid(message.get('chat_id'))
                     if not chat_id:
                         await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'invalid_chat_id'})
@@ -121,7 +139,9 @@ def create_app() -> FastAPI:
 
                 await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'unsupported_event'})
         except (RuntimeError, WebSocketDisconnect):
-            await realtime_manager.disconnect(websocket)
+            disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
+            if disconnected_user_id and went_offline:
+                await _broadcast_presence_to_user_chats(disconnected_user_id, False)
             return
 
     return app
@@ -142,12 +162,33 @@ async def _is_chat_participant(user_id: UUID, chat_id: UUID) -> bool:
         return participant is not None
 
 
+async def _is_active_user(user_id: UUID) -> bool:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User.id).where(User.id == user_id, User.deleted_at.is_(None)))
+        return result.scalar_one_or_none() is not None
+
+
+async def _broadcast_presence_to_user_chats(user_id: UUID, is_online: bool) -> None:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(ChatParticipant.chat_id).where(ChatParticipant.user_id == user_id))
+        chat_ids = list(result.scalars())
+    for chat_id in chat_ids:
+        await realtime_manager.broadcast_to_chat(chat_id, {
+            'event': 'presence.status',
+            'chat_id': str(chat_id),
+            'user_id': str(user_id),
+            'is_online': is_online,
+        })
+
+
 async def _safe_send_json(websocket: WebSocket, payload: dict) -> bool:
     try:
         await websocket.send_json(payload)
         return True
     except WebSocketDisconnect:
-        await realtime_manager.disconnect(websocket)
+        disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
+        if disconnected_user_id and went_offline:
+            await _broadcast_presence_to_user_chats(disconnected_user_id, False)
         return False
 
 
@@ -155,9 +196,13 @@ async def _safe_close_websocket(websocket: WebSocket, code: int = 1000) -> None:
     try:
         await websocket.close(code=code)
     except (RuntimeError, WebSocketDisconnect):
-        await realtime_manager.disconnect(websocket)
+        disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
+        if disconnected_user_id and went_offline:
+            await _broadcast_presence_to_user_chats(disconnected_user_id, False)
     except RuntimeError:
-        await realtime_manager.disconnect(websocket)
+        disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
+        if disconnected_user_id and went_offline:
+            await _broadcast_presence_to_user_chats(disconnected_user_id, False)
         return False
 
 

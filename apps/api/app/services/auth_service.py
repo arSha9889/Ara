@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
 
@@ -14,6 +14,7 @@ from app.domain.registration_proof import verify_registration_proof
 from app.domain.security_hashing import hash_secret, verify_secret
 from app.domain.tokens import create_access_token
 from app.domain.validators import is_valid_password, is_valid_pin, is_valid_username
+from app.models.chats import PushSubscription
 from app.models.security import PasswordCredential, RecoveryCode, TrustedDevicePin
 from app.models.sessions import LoginHistory, Session
 from app.models.users import User, UserProfile
@@ -29,12 +30,12 @@ EARLY_ACCESS_TELEGRAM_ID_PREFIX = 'early-access-'
 
 
 async def find_user_by_telegram_id(session: AsyncSession, telegram_id: str) -> User | None:
-    result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+    result = await session.execute(select(User).where(User.telegram_id == telegram_id, User.deleted_at.is_(None)))
     return result.scalar_one_or_none()
 
 
 async def find_user_by_id(session: AsyncSession, user_id: UUID) -> User | None:
-    result = await session.execute(select(User).where(User.id == user_id))
+    result = await session.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
     return result.scalar_one_or_none()
 
 
@@ -100,7 +101,7 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
 
 
 async def login_with_password(session: AsyncSession, nexus_id: str, password: str, device_id: str) -> tuple[UserOut, str, str]:
-    result = await session.execute(select(User).where(User.nexus_id == nexus_id))
+    result = await session.execute(select(User).where(User.nexus_id == nexus_id, User.deleted_at.is_(None)))
     user = result.scalar_one_or_none()
     if not user:
         raise AuthError('Invalid Nexus ID or password')
@@ -161,6 +162,33 @@ async def logout_by_refresh_token(session: AsyncSession, refresh_token: str | No
     if item and verify_secret(refresh_token, item.refresh_token_hash):
         item.revoked_at = datetime.now(timezone.utc)
         await session.commit()
+
+
+async def delete_account(session: AsyncSession, user_id: UUID) -> None:
+    user = await find_user_by_id(session, user_id)
+    if not user:
+        raise AuthError('User not found')
+
+    now = datetime.now(timezone.utc)
+    user.status = 'deleted'
+    user.deleted_at = now
+    await session.execute(
+        update(Session)
+        .where(Session.user_id == user_id, Session.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    await session.execute(
+        update(TrustedDevicePin)
+        .where(TrustedDevicePin.user_id == user_id, TrustedDevicePin.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    await session.execute(
+        update(RecoveryCode)
+        .where(RecoveryCode.user_id == user_id, RecoveryCode.revoked_at.is_(None))
+        .values(status='revoked', revoked_at=now)
+    )
+    await session.execute(delete(PushSubscription).where(PushSubscription.user_id == user_id))
+    await session.commit()
 
 
 async def _username_exists(session: AsyncSession, username: str) -> bool:

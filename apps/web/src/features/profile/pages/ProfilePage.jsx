@@ -19,6 +19,7 @@ export function ProfilePage() {
   const [form, setForm] = useState({ display_name: '', username: '', optional_phone: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const { disableNotifications, enableNotifications, isEnabled: notificationsEnabled, isSupported, permission: notificationPermission } = useNotifications();
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(!session.user);
@@ -164,19 +165,30 @@ export function ProfilePage() {
             <h2>{t('profile.avatarTitle')}</h2>
             <p className="muted">{t('profile.avatarText')}</p>
           </div>
-          <UserAvatar profile={{ avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} size="large" />
+          <button className="avatar-preview" type="button" onClick={() => setIsAvatarPickerOpen((current) => !current)} aria-expanded={isAvatarPickerOpen} aria-label={t('profile.avatarTitle')}>
+            {avatarPreview ? <img src={avatarPreview} alt="" /> : <UserAvatar profile={{ avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} size="large" />}
+            <span className="avatar-preview-edit" aria-hidden="true">＋</span>
+          </button>
         </div>
-        <div className="avatar-grid compact-avatar-grid">
-          {BUILT_IN_AVATARS.map((avatarRef, index) => (
-            <button className={`avatar-choice ${form.avatar_type === 'built_in' && form.avatar_ref === avatarRef ? 'active' : ''}`} type="button" key={avatarRef} onClick={() => selectBuiltInAvatar(avatarRef)}>
-              <span aria-hidden="true">{AVATAR_EMOJIS[index]}</span>
-            </button>
-          ))}
-        </div>
-        <label className="avatar-upload">
-          <span>{avatarFile ? avatarFile.name : t('profile.uploadAvatar')}</span>
-          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
-        </label>
+        {isAvatarPickerOpen ? (
+          <div className="avatar-options-panel">
+            <label className="avatar-upload">
+              <span className="avatar-upload-icon" aria-hidden="true">＋</span>
+              <span className="avatar-upload-copy">
+                <strong>{avatarFile ? avatarFile.name : t('profile.uploadAvatar')}</strong>
+                <small>PNG, JPG, GIF, WebP</small>
+              </span>
+              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
+            </label>
+            <div className="avatar-grid compact-avatar-grid">
+              {BUILT_IN_AVATARS.map((avatarRef, index) => (
+                <button className={`avatar-choice ${form.avatar_type === 'built_in' && form.avatar_ref === avatarRef ? 'active' : ''}`} type="button" key={avatarRef} onClick={() => selectBuiltInAvatar(avatarRef)} aria-pressed={form.avatar_type === 'built_in' && form.avatar_ref === avatarRef}>
+                  <span aria-hidden="true">{AVATAR_EMOJIS[index]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
       <div className="info-card halo-outline">
         <span>Nexus ID</span>

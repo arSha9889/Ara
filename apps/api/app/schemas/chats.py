@@ -42,6 +42,7 @@ class ChatPeerOut(BaseModel):
     username: str
     avatar_type: str
     avatar_ref: str
+    is_online: bool = False
 
 
 class ChatPreviewMessageOut(BaseModel):

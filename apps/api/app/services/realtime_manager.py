@@ -12,9 +12,14 @@ class RealtimeManager:
         self._user_connections: dict[UUID, set[WebSocket]] = defaultdict(set)
         self._connection_users: dict[WebSocket, UUID] = {}
 
-    async def connect_user(self, websocket: WebSocket, user_id: UUID) -> None:
+    async def connect_user(self, websocket: WebSocket, user_id: UUID) -> bool:
+        was_offline = not self._user_connections.get(user_id)
         self._user_connections[user_id].add(websocket)
         self._connection_users[websocket] = user_id
+        return was_offline
+
+    def is_user_online(self, user_id: UUID) -> bool:
+        return bool(self._user_connections.get(user_id))
 
     async def subscribe(self, websocket: WebSocket, chat_id: UUID) -> None:
         self._chat_connections[chat_id].add(websocket)
@@ -26,15 +31,18 @@ class RealtimeManager:
         if not self._chat_connections[chat_id]:
             self._chat_connections.pop(chat_id, None)
 
-    async def disconnect(self, websocket: WebSocket) -> None:
+    async def disconnect(self, websocket: WebSocket) -> tuple[UUID | None, bool]:
         for chat_id in list(self._connection_chats.get(websocket, set())):
             await self.unsubscribe(websocket, chat_id)
         self._connection_chats.pop(websocket, None)
         user_id = self._connection_users.pop(websocket, None)
+        went_offline = False
         if user_id:
             self._user_connections[user_id].discard(websocket)
             if not self._user_connections[user_id]:
                 self._user_connections.pop(user_id, None)
+                went_offline = True
+        return user_id, went_offline
 
     async def broadcast_to_chat(self, chat_id: UUID, payload: dict) -> None:
         stale_connections: list[WebSocket] = []

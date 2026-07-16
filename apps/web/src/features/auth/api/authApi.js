@@ -85,6 +85,15 @@ export function logoutSession(refreshToken) {
   });
 }
 
+export function deleteAccount(accessToken) {
+  return apiRequest('/api/auth/account', {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
 export function verifyRecoveryCode(payload) {
   return apiRequest('/api/recovery/code/verify', {
     method: 'POST',

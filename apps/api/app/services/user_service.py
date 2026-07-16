@@ -70,7 +70,8 @@ async def search_users(session: AsyncSession, query: str):
     if not value:
         return []
     statement = select(User).join(UserProfile).where(
-        or_(UserProfile.username.ilike(f'%{value}%'), User.nexus_id == value)
+        User.deleted_at.is_(None),
+        or_(UserProfile.username.ilike(f'%{value}%'), User.nexus_id == value),
     ).limit(20)
     result = await session.execute(statement)
     users = result.scalars().all()
@@ -81,9 +82,9 @@ async def search_users(session: AsyncSession, query: str):
 
 async def find_public_user(session: AsyncSession, identifier: str):
     if is_valid_nexus_id(identifier):
-        statement = select(User).where(User.nexus_id == identifier)
+        statement = select(User).where(User.nexus_id == identifier, User.deleted_at.is_(None))
     else:
-        statement = select(User).join(UserProfile).where(UserProfile.username == identifier)
+        statement = select(User).join(UserProfile).where(UserProfile.username == identifier, User.deleted_at.is_(None))
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     if not user:

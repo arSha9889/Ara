@@ -46,6 +46,66 @@ function upsertMessageKeepingStatus(messages, nextMessage) {
   ));
 }
 
+function formatVoiceTime(value) {
+  const seconds = Math.max(0, Math.round(Number(value) || 0));
+  const minutes = Math.floor(seconds / 60);
+  const rest = String(seconds % 60).padStart(2, '0');
+  return `${minutes}:${rest}`;
+}
+
+function VoiceMessage({ message, t }) {
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const duration = message.duration_seconds || audioRef.current?.duration || 0;
+
+  function togglePlayback() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      return;
+    }
+    audio.pause();
+    setIsPlaying(false);
+  }
+
+  function handleTimeUpdate() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const nextDuration = audio.duration || duration || 0;
+    setCurrentTime(audio.currentTime || 0);
+    setProgress(nextDuration ? Math.min(1, audio.currentTime / nextDuration) : 0);
+  }
+
+  function handleEnded() {
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+  }
+
+  return (
+    <div className={`voice-message ${isPlaying ? 'is-playing' : ''}`} style={{ '--voice-progress': progress }}>
+      <button className="voice-message-icon" type="button" onClick={togglePlayback} aria-label={isPlaying ? t('messages.pauseVoice') : t('messages.playVoice')}>
+        <span aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span>
+      </button>
+      <div className="voice-message-body">
+        <div className="voice-message-head">
+          <span>{t('messages.voice')}</span>
+          <time>{formatVoiceTime(isPlaying ? currentTime : duration)}</time>
+        </div>
+        <div className="voice-wave" aria-hidden="true">
+          {Array.from({ length: 18 }).map((_, index) => (
+            <span key={index} style={{ '--bar-index': index }} />
+          ))}
+        </div>
+      </div>
+      <audio ref={audioRef} src={message.media_url} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+    </div>
+  );
+}
+
 function renderMessageContent(message, t) {
   if (message.deleted_at) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
@@ -57,25 +117,7 @@ function renderMessageContent(message, t) {
     return <video className="message-media" src={message.media_url} controls />;
   }
   if (message.type === 'voice') {
-    const duration = message.duration_seconds ?? 0;
-
-    return (
-      <div className="voice-message">
-        <div className="voice-message-icon" aria-hidden="true">▶</div>
-        <div className="voice-message-body">
-          <div className="voice-message-head">
-            <span>{t('messages.voice')}</span>
-            <time>{duration}s</time>
-          </div>
-          <div className="voice-wave" aria-hidden="true">
-            {Array.from({ length: 18 }).map((_, index) => (
-              <span key={index} />
-            ))}
-          </div>
-          <audio className="voice-player" src={message.media_url} controls preload="metadata" />
-        </div>
-      </div>
-    );
+    return <VoiceMessage message={message} t={t} />;
   }
   if (message.type === 'file') {
     return (
@@ -110,10 +152,10 @@ function DeliveryStatus({ status, t }) {
 }
 
 function realtimeStatusView(status, t) {
-  if (status === 'subscribed' || status === 'connected') {
+  if (status === true || status === 'online') {
     return { label: t('messages.online'), tone: 'online' };
   }
-  if (status === 'connecting' || status === 'reconnecting') {
+  if (status === 'connecting') {
     return { label: t('messages.connecting'), tone: 'connecting' };
   }
   return { label: t('messages.offline'), tone: 'offline' };
@@ -176,6 +218,7 @@ export function ChatPage() {
   const [error, setError] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState('connecting');
   const [activityText, setActivityText] = useState('');
+  const [activityType, setActivityType] = useState('');
   const [editingMessage, setEditingMessage] = useState(null);
   const [editText, setEditText] = useState('');
   const [openReactionPickerMessageId, setOpenReactionPickerMessageId] = useState(null);
@@ -193,8 +236,8 @@ export function ChatPage() {
   const pendingReadMessageIdsRef = useRef(new Set());
   const readTimerRef = useRef(null);
   const isChatIdValid = isValidChatId(chatId);
-  const peerStatus = realtimeStatusView(realtimeStatus, t);
   const isSavedChat = chat?.type === 'saved';
+  const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', t);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
 
@@ -279,16 +322,36 @@ export function ChatPage() {
         }
         if (payload.event === 'typing.started' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
           setActivityText(t('messages.typing'));
+          setActivityType('typing');
         }
         if (payload.event === 'file.uploading' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
           setActivityText(t('messages.sendingFile'));
+          setActivityType('file');
+        }
+        if (payload.event === 'voice.uploading' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
+          setActivityText(t('messages.sendingVoice'));
+          setActivityType('voice');
         }
         if (payload.event === 'typing.stopped' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
           setActivityText('');
+          setActivityType('');
         }
         if (payload.event === 'presence.active' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
           setActivityText(t('messages.peerActive'));
-          window.setTimeout(() => setActivityText(''), 2400);
+          setActivityType('active');
+          window.setTimeout(() => {
+            setActivityText('');
+            setActivityType('');
+          }, 2400);
+        }
+        if (payload.event === 'presence.status' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
+          setChat((current) => current?.peer?.id === payload.user_id
+            ? { ...current, peer: { ...current.peer, is_online: Boolean(payload.is_online) } }
+            : current);
+          if (!payload.is_online) {
+            setActivityText('');
+            setActivityType('');
+          }
         }
         if (payload.event?.startsWith('error.')) {
           setError(payload.reason ?? payload.event);
@@ -373,7 +436,7 @@ export function ChatPage() {
     setIsUploading(true);
     try {
       if (isMediaMessage) {
-        safeSocketSend(socket, { event: 'file.uploading', chat_id: chatId });
+        safeSocketSend(socket, { event: messageType === 'voice' ? 'voice.uploading' : 'file.uploading', chat_id: chatId });
       }
       const uploadedMedia = isMediaMessage
         ? await uploadMedia(session.accessToken, selectedFile)
@@ -666,9 +729,17 @@ export function ChatPage() {
             ) : null}
             {editingMessage?.id === message.id ? (
               <form className="message-edit-form" onSubmit={handleEditSubmit}>
-                <input className="text-input" value={editText} onChange={(event) => setEditText(event.target.value)} autoFocus />
-                <button className="message-action-button" type="submit">{t('messages.save')}</button>
-                <button className="message-action-button" type="button" onClick={() => setEditingMessage(null)}>{t('messages.cancel')}</button>
+                <input className="message-edit-input" value={editText} onChange={(event) => setEditText(event.target.value)} autoFocus />
+                <div className="message-edit-actions">
+                  <button className="message-edit-button save" type="submit" aria-label={t('messages.save')}>
+                    <span aria-hidden="true">✓</span>
+                    <span>{t('messages.save')}</span>
+                  </button>
+                  <button className="message-edit-button cancel" type="button" onClick={() => setEditingMessage(null)} aria-label={t('messages.cancel')}>
+                    <span aria-hidden="true">×</span>
+                    <span>{t('messages.cancel')}</span>
+                  </button>
+                </div>
               </form>
             ) : <div>{renderMessageContent(message, t)}</div>}
             <div className="message-meta">
@@ -699,9 +770,24 @@ export function ChatPage() {
           </article>
         ))}
         {activityText ? (
-          <div className="chat-activity-line" aria-live="polite">
-            <span aria-hidden="true" />
-            {activityText}
+          <div className={`chat-activity-line ${activityType || 'active'}`} aria-live="polite">
+            <span className="chat-activity-icon" aria-hidden="true">
+              {activityType === 'file' ? '📎' : activityType === 'voice' ? (
+                <span className="activity-wave">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              ) : (
+                <span className="activity-dots">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              )}
+            </span>
+            <span>{activityText}</span>
           </div>
         ) : null}
         {error ? <p className="error-text">{error}</p> : null}

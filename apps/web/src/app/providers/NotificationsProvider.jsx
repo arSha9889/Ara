@@ -101,15 +101,20 @@ export function NotificationsProvider({ children }) {
     setPermission(nextPermission);
     if (nextPermission !== 'granted') return { status: nextPermission };
 
-    const config = pushConfig.enabled ? pushConfig : await getPushConfig(session.accessToken);
+    const config = await getPushConfig(session.accessToken);
     setPushConfig(config);
     if (!config.enabled || !config.public_key) return { status: 'unconfigured' };
 
-    const subscription = await getPushSubscription() || await subscribeToPush(config.public_key);
-    await savePushSubscription(session.accessToken, subscription.toJSON());
-    setHasSubscription(true);
-    localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
-    return { status: 'granted' };
+    try {
+      const subscription = await getPushSubscription() || await subscribeToPush(config.public_key);
+      await savePushSubscription(session.accessToken, subscription.toJSON());
+      setHasSubscription(true);
+      localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
+      return { status: 'granted' };
+    } catch {
+      setHasSubscription(false);
+      return { status: 'subscription_failed' };
+    }
   }
 
   async function disableNotifications() {

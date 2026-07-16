@@ -36,6 +36,11 @@ function urlBase64ToUint8Array(value) {
   return Uint8Array.from(rawData, (character) => character.charCodeAt(0));
 }
 
+function applicationServerKeyFromBase64(value) {
+  const bytes = urlBase64ToUint8Array(value);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
 export function isPushSupported() {
   return getPushSupportState().supported;
 }
@@ -58,6 +63,6 @@ export async function subscribeToPush(publicKey) {
   if (!registration) throw new Error('Push notifications are not supported');
   return registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey),
+    applicationServerKey: applicationServerKeyFromBase64(publicKey),
   });
 }

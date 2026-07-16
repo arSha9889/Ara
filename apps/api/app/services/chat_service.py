@@ -9,6 +9,7 @@ from app.models.chats import Chat, ChatParticipant, Message, MessageReaction, Me
 from app.models.users import User, UserProfile
 from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageCreateRequest, MessageOut, MessageReactionOut
 from app.services.auth_service import AuthError
+from app.services.realtime_manager import realtime_manager
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'voice', 'emoji', 'file'}
 REACTION_EMOJIS = {
@@ -350,6 +351,7 @@ async def _chat_peer_out(session: AsyncSession, participant_ids: list[UUID], cur
         username=profile.username,
         avatar_type=profile.avatar_type,
         avatar_ref=profile.avatar_ref,
+        is_online=realtime_manager.is_user_online(peer_id),
     )
 
 

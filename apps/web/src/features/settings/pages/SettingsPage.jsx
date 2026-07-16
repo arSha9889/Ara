@@ -7,7 +7,7 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
-import { createPin, regenerateRecoveryCode, resetPin } from '../../auth/api/authApi.js';
+import { createPin, deleteAccount, regenerateRecoveryCode, resetPin } from '../../auth/api/authApi.js';
 import { updateMyProfile } from '../../profile/api/userApi.js';
 import { getDevices, getLoginHistory, revokeDevice } from '../api/deviceApi.js';
 
@@ -19,7 +19,7 @@ function isApplePlatform() {
 
 export function SettingsPage() {
   const { t } = useI18n();
-  const { session, saveSession } = useSession();
+  const { session, saveSession, clearSession } = useSession();
   const { theme, setTheme } = useTheme();
   const [devices, setDevices] = useState([]);
   const [history, setHistory] = useState([]);
@@ -27,9 +27,15 @@ export function SettingsPage() {
   const [statusKind, setStatusKind] = useState('error');
   const [showLiquidGlassPrompt, setShowLiquidGlassPrompt] = useState(false);
   const { disableNotifications, enableNotifications, isEnabled: notificationsEnabled, isSupported, permission: notificationPermission, pushConfigured } = useNotifications();
+  const [activeTab, setActiveTab] = useState('appearance');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newRecoveryCode, setNewRecoveryCode] = useState('');
   const [pinForm, setPinForm] = useState({ current_password: '', pin: '' });
+  const settingsTabs = [
+    { id: 'appearance', icon: '🎨', label: t('settings.appearance') },
+    { id: 'notifications', icon: '🔔', label: t('settings.notifications') },
+    { id: 'security', icon: '🔐', label: t('settings.security') },
+  ];
 
   async function loadSecurityData() {
     const [deviceItems, historyItems] = await Promise.all([
@@ -106,11 +112,13 @@ export function SettingsPage() {
       ? t('settings.notificationsDenied')
       : result.status === 'unconfigured'
         ? t('settings.notificationsUnavailable')
-        : result.status === 'ios_install_required'
-          ? t('settings.notificationsInstallRequired')
-          : result.status === 'insecure_context'
-            ? t('settings.notificationsHttpsRequired')
-            : t('settings.notificationsNotEnabled'));
+        : result.status === 'subscription_failed'
+          ? t('settings.notificationsSubscriptionFailed')
+          : result.status === 'ios_install_required'
+            ? t('settings.notificationsInstallRequired')
+            : result.status === 'insecure_context'
+              ? t('settings.notificationsHttpsRequired')
+              : t('settings.notificationsNotEnabled'));
   }
 
   async function handleDisableNotifications() {
@@ -170,88 +178,127 @@ export function SettingsPage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    setStatus('');
+    if (!window.confirm(t('settings.deleteAccountConfirm'))) return;
+    try {
+      await disableNotifications().catch(() => undefined);
+      await deleteAccount(session.accessToken);
+      clearSession();
+    } catch (err) {
+      setStatusKind('error');
+      setStatus(err.message);
+    }
+  }
+
   return (
     <section className="panel readable">
       <h1>{t('settings.title')}</h1>
-      <section className="settings-section">
-        <h2>{t('settings.appearance')}</h2>
-        {showLiquidGlassPrompt ? (
-          <div className="liquid-glass-prompt">
-            <div>
-              <strong>{t('settings.liquidGlassTitle')}</strong>
-              <p className="muted">{t('settings.liquidGlassText')}</p>
+      <div className="settings-tabs" role="tablist" aria-label={t('settings.title')}>
+        {settingsTabs.map((tab) => (
+          <button
+            className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <span className="settings-tab-icon" aria-hidden="true">{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+      {status ? <p className={statusKind === 'success' ? 'success-text settings-status-line' : 'error-text settings-status-line'}>{status}</p> : null}
+      {activeTab === 'appearance' ? (
+        <section className="settings-section" role="tabpanel">
+          <h2>{t('settings.appearance')}</h2>
+          {showLiquidGlassPrompt ? (
+            <div className="liquid-glass-prompt">
+              <div>
+                <strong>{t('settings.liquidGlassTitle')}</strong>
+                <p className="muted">{t('settings.liquidGlassText')}</p>
+              </div>
+              <div className="toolbar">
+                <button className="button button-primary" type="button" onClick={enableLiquidGlass}>{t('settings.enableLiquidGlass')}</button>
+                <button className="button button-secondary" type="button" onClick={dismissLiquidGlassPrompt}>{t('common.notNow')}</button>
+              </div>
             </div>
-            <div className="toolbar">
-              <button className="button button-primary" type="button" onClick={enableLiquidGlass}>{t('settings.enableLiquidGlass')}</button>
-              <button className="button button-secondary" type="button" onClick={dismissLiquidGlassPrompt}>{t('common.notNow')}</button>
-            </div>
+          ) : null}
+          <label className="field inline-field">
+            <span>{t('settings.theme')}</span>
+            <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference({ design_theme: designTheme })} />
+          </label>
+          <label className="field inline-field">
+            <span>{t('settings.language')}</span>
+            <LanguageSwitcher onChange={(language) => saveAppearancePreference({ language })} />
+          </label>
+        </section>
+      ) : null}
+      {activeTab === 'notifications' ? (
+        <section className="settings-section" role="tabpanel">
+          <h2>{t('settings.notifications')}</h2>
+          <p className="muted">{t('settings.notificationsText')}</p>
+          <div className="notification-settings-row">
+            <span className={`settings-status-pill ${notificationsEnabled && notificationPermission === 'granted' ? 'granted' : notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`}>
+              {notificationsEnabled && notificationPermission === 'granted'
+                ? t('settings.notificationStatus.granted')
+                : t(`settings.notificationStatus.${notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`)}
+            </span>
+            {notificationsEnabled ? (
+              <button className="button button-secondary" type="button" onClick={handleDisableNotifications}>{t('settings.disableNotifications')}</button>
+            ) : (
+              <button className="button button-primary" type="button" onClick={handleEnableNotifications} disabled={notificationPermission === 'denied'}>
+                {t('settings.enableNotifications')}
+              </button>
+            )}
           </div>
-        ) : null}
-        <label className="field inline-field">
-          <span>{t('settings.theme')}</span>
-          <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference({ design_theme: designTheme })} />
-        </label>
-        <label className="field inline-field">
-          <span>{t('settings.language')}</span>
-          <LanguageSwitcher onChange={(language) => saveAppearancePreference({ language })} />
-        </label>
-      </section>
-      <section className="settings-section">
-        <h2>{t('settings.notifications')}</h2>
-        <p className="muted">{t('settings.notificationsText')}</p>
-        <div className="notification-settings-row">
-          <span className={`settings-status-pill ${notificationsEnabled && notificationPermission === 'granted' ? 'granted' : notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`}>
-            {notificationsEnabled && notificationPermission === 'granted'
-              ? t('settings.notificationStatus.granted')
-              : t(`settings.notificationStatus.${notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`)}
-          </span>
-          {notificationsEnabled ? (
-            <button className="button button-secondary" type="button" onClick={handleDisableNotifications}>{t('settings.disableNotifications')}</button>
-          ) : (
-            <button className="button button-primary" type="button" onClick={handleEnableNotifications} disabled={notificationPermission === 'denied'}>
-              {t('settings.enableNotifications')}
-            </button>
-          )}
-        </div>
-      </section>
-      <section className="settings-section">
-        <h2>{t('settings.security')}</h2>
-        {status ? <p className={statusKind === 'success' ? 'success-text' : 'error-text'}>{status}</p> : null}
-        <h3>{t('settings.activeDevices')}</h3>
-        <div className="list-stack">
-          {devices.map((device) => (
-            <article className="info-card" key={device.id}>
-              <strong>{device.device_id}</strong>
-              <span className="muted">{t('settings.until')} {new Date(device.expires_at).toLocaleString()}</span>
-              {device.revoked_at ? <span className="muted">{t('settings.revoked')}</span> : <button className="button button-secondary" type="button" onClick={() => handleRevokeDevice(device.device_id)}>{t('settings.revoke')}</button>}
-            </article>
-          ))}
-        </div>
-        <h3>{t('settings.loginHistory')}</h3>
-        <div className="list-stack">
-          {history.map((item) => (
-            <article className="info-card" key={item.id}>
-              <strong>{item.method} — {item.result}</strong>
-              <span className="muted">{new Date(item.created_at).toLocaleString()}</span>
-            </article>
-          ))}
-        </div>
-        <form className="info-card" onSubmit={handleRegenerateRecoveryCode}>
-          <h3>{t('settings.recoveryCodeTitle')}</h3>
-          <p className="muted">{t('settings.recoveryCodeText')}</p>
-          <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
-          <button className="button button-secondary" type="submit">{t('settings.createRecoveryCode')}</button>
-          {newRecoveryCode ? <code>{newRecoveryCode}</code> : null}
-        </form>
-        <form className="info-card" onSubmit={handleCreatePin}>
-          <h3>{t('settings.devicePinTitle')}</h3>
-          <p className="muted">{t('settings.devicePinText')}</p>
-          <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required />
-          <input className="text-input" inputMode="numeric" placeholder={t('settings.newPin')} value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value }))} required />
-          <button className="button button-secondary" type="submit">{t('settings.savePin')}</button>
-          <button className="button button-secondary" type="button" onClick={handleRemovePin} disabled={!pinForm.current_password}>{t('settings.removePin')}</button>
-        </form>
-      </section>
+        </section>
+      ) : null}
+      {activeTab === 'security' ? (
+        <section className="settings-section" role="tabpanel">
+          <h2>{t('settings.security')}</h2>
+          <h3>{t('settings.activeDevices')}</h3>
+          <div className="list-stack">
+            {devices.map((device) => (
+              <article className="info-card" key={device.id}>
+                <strong>{device.device_id}</strong>
+                <span className="muted">{t('settings.until')} {new Date(device.expires_at).toLocaleString()}</span>
+                {device.revoked_at ? <span className="muted">{t('settings.revoked')}</span> : <button className="button button-secondary" type="button" onClick={() => handleRevokeDevice(device.device_id)}>{t('settings.revoke')}</button>}
+              </article>
+            ))}
+          </div>
+          <h3>{t('settings.loginHistory')}</h3>
+          <div className="list-stack">
+            {history.map((item) => (
+              <article className="info-card" key={item.id}>
+                <strong>{item.method} — {item.result}</strong>
+                <span className="muted">{new Date(item.created_at).toLocaleString()}</span>
+              </article>
+            ))}
+          </div>
+          <form className="info-card" onSubmit={handleRegenerateRecoveryCode}>
+            <h3>{t('settings.recoveryCodeTitle')}</h3>
+            <p className="muted">{t('settings.recoveryCodeText')}</p>
+            <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+            <button className="button button-secondary" type="submit">{t('settings.createRecoveryCode')}</button>
+            {newRecoveryCode ? <code>{newRecoveryCode}</code> : null}
+          </form>
+          <form className="info-card" onSubmit={handleCreatePin}>
+            <h3>{t('settings.devicePinTitle')}</h3>
+            <p className="muted">{t('settings.devicePinText')}</p>
+            <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required />
+            <input className="text-input" inputMode="numeric" placeholder={t('settings.newPin')} value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value }))} required />
+            <button className="button button-secondary" type="submit">{t('settings.savePin')}</button>
+            <button className="button button-secondary" type="button" onClick={handleRemovePin} disabled={!pinForm.current_password}>{t('settings.removePin')}</button>
+          </form>
+          <section className="info-card danger-zone">
+            <h3>{t('settings.dangerZone')}</h3>
+            <p className="muted">{t('settings.deleteAccountText')}</p>
+            <button className="button button-danger" type="button" onClick={handleDeleteAccount}>{t('settings.deleteAccount')}</button>
+          </section>
+        </section>
+      ) : null}
     </section>
   );
 }

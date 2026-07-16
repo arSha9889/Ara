@@ -33,6 +33,7 @@ export function RegisterPage() {
   const [step, setStep] = useState('profile');
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
   const [usernameState, setUsernameState] = useState('');
   const [error, setError] = useState('');
@@ -177,30 +178,39 @@ export function RegisterPage() {
         </div>
         {step === 'profile' ? (
           <>
-            <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={handleUsernameBlur} required />
-            {usernameState ? <p className="muted">{usernameState}</p> : null}
             <section className="avatar-picker" aria-label={t('register.avatarTitle')}>
               <div className="avatar-picker-head">
                 <div>
                   <h2>{t('register.avatarTitle')}</h2>
                   <p className="muted">{t('register.avatarText')}</p>
                 </div>
-                <div className="avatar-preview">
+                <button className="avatar-preview" type="button" onClick={() => setIsAvatarPickerOpen((current) => !current)} aria-expanded={isAvatarPickerOpen} aria-label={t('register.avatarTitle')}>
                   {avatarPreview ? <img src={avatarPreview} alt="" /> : <span>{AVATAR_EMOJIS[BUILT_IN_AVATARS.indexOf(form.avatar_ref)] || '🦊'}</span>}
+                  <span className="avatar-preview-edit" aria-hidden="true">＋</span>
+                </button>
+              </div>
+              {isAvatarPickerOpen ? (
+                <div className="avatar-options-panel">
+                  <label className="avatar-upload">
+                    <span className="avatar-upload-icon" aria-hidden="true">＋</span>
+                    <span className="avatar-upload-copy">
+                      <strong>{avatarFile ? avatarFile.name : t('register.uploadAvatar')}</strong>
+                      <small>PNG, JPG, GIF, WebP</small>
+                    </span>
+                    <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
+                  </label>
+                  <div className="avatar-grid">
+                    {BUILT_IN_AVATARS.map((avatarRef, index) => (
+                      <button className={`avatar-choice ${form.avatar_type === 'built_in' && form.avatar_ref === avatarRef ? 'active' : ''}`} type="button" key={avatarRef} onClick={() => selectBuiltInAvatar(avatarRef)} aria-pressed={form.avatar_type === 'built_in' && form.avatar_ref === avatarRef}>
+                        <span aria-hidden="true">{AVATAR_EMOJIS[index]}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="avatar-grid">
-                {BUILT_IN_AVATARS.map((avatarRef, index) => (
-                  <button className={`avatar-choice ${form.avatar_type === 'built_in' && form.avatar_ref === avatarRef ? 'active' : ''}`} type="button" key={avatarRef} onClick={() => selectBuiltInAvatar(avatarRef)}>
-                    <span aria-hidden="true">{AVATAR_EMOJIS[index]}</span>
-                  </button>
-                ))}
-              </div>
-              <label className="avatar-upload">
-                <span>{avatarFile ? avatarFile.name : t('register.uploadAvatar')}</span>
-                <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
-              </label>
+              ) : null}
             </section>
+            <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={handleUsernameBlur} required />
+            {usernameState ? <p className="muted">{usernameState}</p> : null}
             {error ? <p className="error-text">{error}</p> : null}
             <Button type="submit">{t('common.continue')}</Button>
           </>

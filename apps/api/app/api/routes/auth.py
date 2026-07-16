@@ -27,6 +27,7 @@ from app.services.auth_service import (
     AuthError,
     complete_registration,
     count_active_users,
+    delete_account,
     find_user_by_telegram_id,
     get_user_with_profile,
     issue_session_for_user,
@@ -161,3 +162,15 @@ async def refresh(
 @router.get('/me', response_model=UserOut)
 async def me(current_user: Annotated[UserOut, Depends(get_current_user)]) -> UserOut:
     return current_user
+
+
+@router.delete('/account')
+async def delete_current_account(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, str]:
+    try:
+        await delete_account(session, current_user.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {'status': 'ok'}

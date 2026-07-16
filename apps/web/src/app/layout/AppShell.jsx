@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
-import { logoutSession } from '../../features/auth/api/authApi.js';
+import { deleteAccount, logoutSession } from '../../features/auth/api/authApi.js';
 import { NotificationsMenu } from '../../features/notifications/components/NotificationsMenu.jsx';
-import { LanguageSwitcher } from '../../shared/ui/LanguageSwitcher.jsx';
-import { ThemeSwitcher } from '../../shared/ui/ThemeSwitcher.jsx';
 import { useI18n } from '../providers/I18nProvider.jsx';
 import { useNotifications } from '../providers/NotificationsProvider.jsx';
 import { useSession } from '../providers/SessionProvider.jsx';
@@ -26,8 +24,15 @@ export function AppShell() {
     clearSession();
   }
 
+  async function handleDeleteAccount() {
+    if (!window.confirm(t('settings.deleteAccountConfirm'))) return;
+    await disableNotifications().catch(() => undefined);
+    await deleteAccount(session.accessToken);
+    clearSession();
+  }
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isMenuOpen ? 'is-mobile-menu-open' : ''}`}>
       <aside className="app-sidebar" aria-label={t('common.navigation')}>
         <div className="app-sidebar-topbar">
           <NavLink className="brand" to="/app" aria-label="Nexus">
@@ -57,19 +62,13 @@ export function AppShell() {
                 </NavLink>
               ))}
             </nav>
-            <div className="app-menu-section">
-              <div className="app-menu-switcher">
-                <span className="nav-icon" aria-hidden="true">🌐</span>
-                <LanguageSwitcher />
-              </div>
-              <div className="app-menu-switcher">
-                <span className="nav-icon" aria-hidden="true">🎨</span>
-                <ThemeSwitcher />
-              </div>
-            </div>
             <button className="button button-secondary logout-button" type="button" onClick={handleLogout}>
               <span aria-hidden="true">↩</span>
               <span>{t('common.logout')}</span>
+            </button>
+            <button className="button button-danger delete-account-button" type="button" onClick={handleDeleteAccount}>
+              <span aria-hidden="true">🗑</span>
+              <span>{t('settings.deleteAccount')}</span>
             </button>
           </div>
         </div>
@@ -77,6 +76,23 @@ export function AppShell() {
       <main className="app-main">
         <Outlet />
       </main>
+      <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
+        <button
+          className={`mobile-bottom-nav-item ${isMenuOpen ? 'active' : ''}`}
+          type="button"
+          aria-expanded={isMenuOpen}
+          onClick={() => setIsMenuOpen((current) => !current)}
+        >
+          <span className="mobile-bottom-nav-icon" aria-hidden="true">☰</span>
+          <span>Меню</span>
+        </button>
+        {navItems.map((item) => (
+          <NavLink className="mobile-bottom-nav-item" to={item.to} key={item.to} end={item.to === '/app'} onClick={() => setIsMenuOpen(false)}>
+            <span className="mobile-bottom-nav-icon" aria-hidden="true">{item.icon}</span>
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

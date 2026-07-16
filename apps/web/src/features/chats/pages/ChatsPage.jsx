@@ -40,10 +40,25 @@ export function ChatsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
   const reconnectTimerRef = useRef(null);
+  const socketRef = useRef(null);
+  const chatsRef = useRef([]);
   const { enableNotifications, isEnabled, isSupported, permission, pushConfigured } = useNotifications();
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [notificationPromptStatus, setNotificationPromptStatus] = useState('');
   const savedChat = chats.find((chat) => chat.type === 'saved');
   const regularChats = chats.filter((chat) => chat.type !== 'saved');
+
+  useEffect(() => {
+    chatsRef.current = chats;
+    subscribeChatList(socketRef.current, chats);
+  }, [chats]);
+
+  function subscribeChatList(socket, chatItems) {
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    chatItems.forEach((chat) => {
+      socket.send(JSON.stringify({ event: 'chat.subscribe', chat_id: chat.id }));
+    });
+  }
 
   async function loadChats({ showLoading = true } = {}) {
     try {
@@ -67,11 +82,20 @@ export function ChatsPage() {
 
     function connect() {
       socket = createRealtimeConnection(session.accessToken);
+      socketRef.current = socket;
       socket.addEventListener('message', (event) => {
         try {
           const payload = JSON.parse(event.data);
+          if (payload.event === 'connection.authenticated') {
+            subscribeChatList(socket, chatsRef.current);
+          }
           if (payload.event === 'message.created') {
             loadChats({ showLoading: false }).catch((err) => setError(err.message));
+          }
+          if (payload.event === 'presence.status') {
+            setChats((current) => current.map((chat) => chat.peer?.id === payload.user_id
+              ? { ...chat, peer: { ...chat.peer, is_online: Boolean(payload.is_online) } }
+              : chat));
           }
         } catch {
           // Ignore malformed realtime payloads; the next event will resync the list.
@@ -90,6 +114,7 @@ export function ChatsPage() {
       active = false;
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       socket?.close();
+      if (socketRef.current === socket) socketRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.accessToken]);
@@ -126,15 +151,29 @@ export function ChatsPage() {
 
   async function handleEnableNotifications() {
     const result = await enableNotifications();
-    if (result.status !== 'default') {
+    if (result.status === 'granted') {
       localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
       setShowNotificationPrompt(false);
+      setNotificationPromptStatus('');
+      return;
     }
+    setNotificationPromptStatus(result.status === 'denied'
+      ? t('profile.notificationsDenied')
+      : result.status === 'unconfigured'
+        ? t('profile.notificationsUnavailable')
+        : result.status === 'subscription_failed'
+          ? t('profile.notificationsSubscriptionFailed')
+          : result.status === 'ios_install_required'
+            ? t('profile.notificationsInstallRequired')
+            : result.status === 'insecure_context'
+              ? t('profile.notificationsHttpsRequired')
+              : t('profile.notificationsNotEnabled'));
   }
 
   function handleDismissNotifications() {
     localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
     setShowNotificationPrompt(false);
+    setNotificationPromptStatus('');
   }
 
   return (
@@ -154,6 +193,7 @@ export function ChatsPage() {
               <button className="button button-primary" type="button" onClick={handleEnableNotifications}>{t('chats.enableNotifications')}</button>
               <button className="button button-secondary" type="button" onClick={handleDismissNotifications}>{t('common.notNow')}</button>
             </div>
+            {notificationPromptStatus ? <p className="error-text">{notificationPromptStatus}</p> : null}
           </div>
         ) : null}
         <div className={`chat-create-menu ${isCreateChatOpen ? 'is-open' : ''}`}>
@@ -193,7 +233,10 @@ export function ChatsPage() {
           </Link>
           {regularChats.map((chat) => (
             <Link className="info-card chat-thread-card" key={chat.id} to={`/app/chats/${chat.id}`}>
-              <UserAvatar baseClass="chat-list-avatar" profile={chat.peer} fallback={chatTitle(chat, t)[0] || 'N'} />
+              <span className="chat-list-avatar-wrap">
+                <UserAvatar baseClass="chat-list-avatar" profile={chat.peer} fallback={chatTitle(chat, t)[0] || 'N'} />
+                {chat.peer?.is_online ? <span className="presence-dot online" aria-hidden="true" /> : null}
+              </span>
               <div className="chat-thread-copy">
                 <strong>{chatTitle(chat, t)}</strong>
                 <span className="muted">{chatSubtitle(chat, session.user?.id, t)}</span>
