@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
 
@@ -20,13 +20,11 @@ from app.models.sessions import LoginHistory, Session
 from app.models.users import User, UserProfile
 from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.users import UserOut, UserProfileOut
+from app.services.phone_verification_service import PhoneVerificationError, consume_verified_phone, normalize_phone
 
 
 class AuthError(ValueError):
     pass
-
-
-EARLY_ACCESS_TELEGRAM_ID_PREFIX = 'early-access-'
 
 
 async def find_user_by_telegram_id(session: AsyncSession, telegram_id: str) -> User | None:
@@ -38,12 +36,6 @@ async def find_user_by_id(session: AsyncSession, user_id: UUID) -> User | None:
     result = await session.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
     return result.scalar_one_or_none()
 
-
-async def count_active_users(session: AsyncSession) -> int:
-    result = await session.execute(select(func.count(User.id)).where(User.deleted_at.is_(None)))
-    return int(result.scalar_one())
-
-
 async def get_user_with_profile(session: AsyncSession, user_id: UUID) -> User | None:
     user = await find_user_by_id(session, user_id)
     if user:
@@ -54,18 +46,24 @@ async def get_user_with_profile(session: AsyncSession, user_id: UUID) -> User | 
 async def complete_registration(session: AsyncSession, request: RegisterCompleteRequest) -> tuple[UserOut, str, str, str]:
     telegram_id = verify_registration_proof(request.registration_proof)
     _validate_registration_request(request)
-
-    if (
-        telegram_id.startswith(EARLY_ACCESS_TELEGRAM_ID_PREFIX)
-        and await count_active_users(session) >= settings.early_access_bypass_limit
-    ):
-        raise AuthError('Лимит раннего доступа исчерпан')
+    verified_phone = None
+    is_dev_registration = telegram_id.startswith('dev-')
 
     if await find_user_by_telegram_id(session, telegram_id):
         raise AuthError('Этот Telegram-аккаунт уже зарегистрирован')
 
     if await _username_exists(session, request.username):
         raise AuthError('Этот username уже занят')
+
+    if request.phone_verification_id:
+        try:
+            verified_phone = await consume_verified_phone(session, request.phone_verification_id, telegram_id)
+        except PhoneVerificationError as exc:
+            raise AuthError(str(exc)) from exc
+        if await _phone_exists(session, verified_phone):
+            raise AuthError('Phone number is already registered')
+    elif not is_dev_registration:
+        raise AuthError('Phone number is not verified')
 
     nexus_id = await _generate_unique_nexus_id(session)
     user = User(nexus_id=nexus_id, telegram_id=telegram_id, status='active')
@@ -78,6 +76,7 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
         username=request.username,
         avatar_type=request.avatar_type,
         avatar_ref=request.avatar_ref,
+        optional_phone=verified_phone,
         language=request.language,
         design_theme=request.design_theme,
     )
@@ -100,17 +99,16 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
     return to_user_out(user), create_access_token(user.id), refresh_token, format_recovery_code(recovery_code)
 
 
-async def login_with_password(session: AsyncSession, nexus_id: str, password: str, device_id: str) -> tuple[UserOut, str, str]:
-    result = await session.execute(select(User).where(User.nexus_id == nexus_id, User.deleted_at.is_(None)))
-    user = result.scalar_one_or_none()
+async def login_with_password(session: AsyncSession, identifier: str, password: str, device_id: str) -> tuple[UserOut, str, str]:
+    user = await _find_user_by_login_identifier(session, identifier)
     if not user:
-        raise AuthError('Invalid Nexus ID or password')
+        raise AuthError('Invalid phone or password')
 
     credential = await session.get(PasswordCredential, user.id)
     if not credential or not verify_secret(password, credential.password_hash):
         session.add(_login_history(user.id, device_id, 'password', 'failed'))
         await session.commit()
-        raise AuthError('Invalid Nexus ID or password')
+        raise AuthError('Invalid phone or password')
 
     refresh_token = _generate_refresh_token()
     session.add(_create_session(user.id, device_id, refresh_token))
@@ -196,6 +194,30 @@ async def _username_exists(session: AsyncSession, username: str) -> bool:
     return result.scalar_one_or_none() is not None
 
 
+async def _phone_exists(session: AsyncSession, phone: str) -> bool:
+    result = await session.execute(select(UserProfile.user_id).where(UserProfile.optional_phone == phone))
+    return result.scalar_one_or_none() is not None
+
+
+async def _find_user_by_login_identifier(session: AsyncSession, identifier: str) -> User | None:
+    value = identifier.strip()
+    if value.isdigit() and len(value) == settings.nexus_id_length:
+        result = await session.execute(select(User).where(User.nexus_id == value, User.deleted_at.is_(None)))
+        return result.scalar_one_or_none()
+
+    try:
+        phone = normalize_phone(value)
+    except PhoneVerificationError:
+        return None
+
+    result = await session.execute(
+        select(User)
+        .join(UserProfile, UserProfile.user_id == User.id)
+        .where(UserProfile.optional_phone == phone, User.deleted_at.is_(None))
+    )
+    return result.scalar_one_or_none()
+
+
 async def _generate_unique_nexus_id(session: AsyncSession) -> str:
     for _ in range(10):
         nexus_id = generate_nexus_id()
@@ -222,6 +244,8 @@ def _validate_registration_request(request: RegisterCompleteRequest) -> None:
         raise AuthError('Такой стандартный аватар недоступен')
     if request.avatar_type == 'uploaded' and not request.avatar_ref.startswith(('http://', 'https://', '/storage/')):
         raise AuthError('Загруженный аватар имеет неподдерживаемый формат')
+    if request.phone_verification_id and not request.registration_proof:
+        raise AuthError('Phone verification requires registration proof')
 
 
 def _generate_refresh_token() -> str:

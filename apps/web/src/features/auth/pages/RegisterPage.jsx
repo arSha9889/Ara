@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -9,18 +9,30 @@ import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { checkUsername, updateMyProfile } from '../../profile/api/userApi.js';
-import { completeRegistration, createDevRegistrationProof, createEarlyAccessRegistrationProof } from '../api/authApi.js';
+import {
+  completeRegistration,
+  confirmPhoneVerification,
+  createDevRegistrationProof,
+  startPhoneVerification,
+} from '../api/authApi.js';
 
 const AVATAR_MAX_SIZE_BYTES = 50 * 1024 * 1024;
+const PHONE_COUNTRIES = [
+  { code: 'RU', dialCode: '+7', labelKey: 'phoneCountryRussia', placeholder: '+7 999 123-45-67' },
+  { code: 'KZ', dialCode: '+7', labelKey: 'phoneCountryKazakhstan', placeholder: '+7 701 123-45-67' },
+];
 
 export function RegisterPage() {
   const { t, language } = useI18n();
   const navigate = useNavigate();
-  const location = useLocation();
   const { saveSession } = useSession();
   const isDevMode = import.meta.env.DEV;
   const [form, setForm] = useState({
-    registration_proof: location.state?.registrationProof ?? '',
+    registration_proof: '',
+    phone_verification_id: null,
+    country: 'RU',
+    phone: '',
+    phone_code: '',
     username: '',
     password: '',
     pin: '',
@@ -39,7 +51,11 @@ export function RegisterPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDevProofLoading, setIsDevProofLoading] = useState(false);
-  const [isEarlyAccessLoading, setIsEarlyAccessLoading] = useState(false);
+  const [isPhoneRequestLoading, setIsPhoneRequestLoading] = useState(false);
+  const [isPhoneConfirmLoading, setIsPhoneConfirmLoading] = useState(false);
+  const [phoneVerification, setPhoneVerification] = useState(null);
+  const [phoneStatus, setPhoneStatus] = useState('');
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
   useEffect(() => () => {
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
@@ -47,6 +63,19 @@ export function RegisterPage() {
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function resetPhoneVerification(nextFields = {}) {
+    setForm((current) => ({
+      ...current,
+      ...nextFields,
+      registration_proof: '',
+      phone_verification_id: null,
+      phone_code: '',
+    }));
+    setPhoneVerification(null);
+    setIsPhoneVerified(false);
+    setPhoneStatus('');
   }
 
   async function handleUsernameBlur() {
@@ -65,11 +94,21 @@ export function RegisterPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    if (!form.registration_proof) {
+      setError(t('register.phoneRequestRequired'));
+      return;
+    }
     setIsLoading(true);
     try {
       const registrationPayload = avatarFile
         ? { ...form, avatar_type: 'built_in', avatar_ref: 'animal-01' }
-        : form;
+        : { ...form };
+      delete registrationPayload.country;
+      delete registrationPayload.phone;
+      delete registrationPayload.phone_code;
+      if (!isPhoneVerified) {
+        delete registrationPayload.phone_verification_id;
+      }
       const result = await completeRegistration({ ...registrationPayload, pin: form.pin || null });
       let user = result.user;
       if (avatarFile) {
@@ -95,6 +134,7 @@ export function RegisterPage() {
     try {
       const result = await createDevRegistrationProof(`dev-${crypto.randomUUID()}`);
       updateField('registration_proof', result.registration_proof);
+      setIsPhoneVerified(false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -102,16 +142,50 @@ export function RegisterPage() {
     }
   }
 
-  async function handleCreateEarlyAccessProof() {
+  async function handleStartPhoneVerification() {
     setError('');
-    setIsEarlyAccessLoading(true);
+    setPhoneStatus('');
+    setIsPhoneRequestLoading(true);
     try {
-      const result = await createEarlyAccessRegistrationProof();
-      updateField('registration_proof', result.registration_proof);
+      const result = await startPhoneVerification({ country: form.country, phone: form.phone, device_id: form.device_id });
+      setForm((current) => ({
+        ...current,
+        phone_verification_id: result.verification_id,
+        phone_code: '',
+        registration_proof: '',
+      }));
+      setPhoneVerification(result);
+      setIsPhoneVerified(false);
+      setPhoneStatus(t('register.phoneBotOpened'));
+      const opened = window.open(result.bot_url, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        window.location.href = result.bot_url;
+      }
     } catch (err) {
       setError(err.message);
     } finally {
-      setIsEarlyAccessLoading(false);
+      setIsPhoneRequestLoading(false);
+    }
+  }
+
+  async function handleConfirmPhoneCode() {
+    setError('');
+    setPhoneStatus('');
+    if (!form.phone_verification_id) {
+      setError(t('register.phoneRequestRequired'));
+      return;
+    }
+    setIsPhoneConfirmLoading(true);
+    try {
+      const result = await confirmPhoneVerification({ verification_id: form.phone_verification_id, code: form.phone_code });
+      updateField('registration_proof', result.registration_proof);
+      updateField('phone', result.phone);
+      setIsPhoneVerified(true);
+      setPhoneStatus(t('register.phoneConfirmed'));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsPhoneConfirmLoading(false);
     }
   }
 
@@ -216,15 +290,6 @@ export function RegisterPage() {
           </>
         ) : (
           <>
-        {!form.registration_proof ? (
-          <div className="info-card halo-outline">
-            <strong>{t('register.earlyAccessTitle')}</strong>
-            <p className="muted">{t('register.earlyAccessText')}</p>
-            <Button type="button" variant="secondary" onClick={handleCreateEarlyAccessProof} disabled={isEarlyAccessLoading}>
-              {isEarlyAccessLoading ? t('register.creatingAccess') : t('register.createEarlyAccess')}
-            </Button>
-          </div>
-        ) : null}
         {isDevMode ? (
           <div className="info-card halo-outline">
             <strong>{t('register.devTitle')}</strong>
@@ -234,12 +299,44 @@ export function RegisterPage() {
             </Button>
           </div>
         ) : null}
-        <TextInput label="Registration proof" value={form.registration_proof} onChange={(event) => updateField('registration_proof', event.target.value)} required />
+        <div className="info-card halo-outline phone-verification-card">
+          <strong>{t('register.phoneTitle')}</strong>
+          <p className="muted">{t('register.phoneText')}</p>
+          <label className="field">
+            {t('register.phoneCountry')}
+            <select className="select" value={form.country} onChange={(event) => resetPhoneVerification({ country: event.target.value })}>
+              {PHONE_COUNTRIES.map((country) => (
+                <option key={country.code} value={country.code}>{t(`register.${country.labelKey}`)} · {country.dialCode}</option>
+              ))}
+            </select>
+          </label>
+          <TextInput
+            label={t('register.phoneLabel')}
+            inputMode="tel"
+            placeholder={PHONE_COUNTRIES.find((country) => country.code === form.country)?.placeholder}
+            value={form.phone}
+            onChange={(event) => resetPhoneVerification({ phone: event.target.value })}
+          />
+          <Button type="button" variant="secondary" onClick={handleStartPhoneVerification} disabled={isPhoneRequestLoading || !form.phone.trim()}>
+            {isPhoneRequestLoading ? t('register.phoneRequesting') : t('register.phoneRequestCode')}
+          </Button>
+          {phoneVerification ? (
+            <a className="button button-secondary" href={phoneVerification.bot_url} target="_blank" rel="noreferrer">
+              {t('register.phoneOpenBot')}
+            </a>
+          ) : null}
+          <TextInput label={t('register.phoneCodeLabel')} inputMode="numeric" value={form.phone_code} onChange={(event) => updateField('phone_code', event.target.value.replace(/\D/g, '').slice(0, 4))} />
+          <Button type="button" variant="secondary" onClick={handleConfirmPhoneCode} disabled={isPhoneConfirmLoading || form.phone_code.length !== 4}>
+            {isPhoneConfirmLoading ? t('register.phoneChecking') : t('register.phoneConfirmCode')}
+          </Button>
+          {phoneStatus ? <p className="success-text">{phoneStatus}</p> : null}
+        </div>
+        {isDevMode ? <TextInput label="Registration proof" value={form.registration_proof} onChange={(event) => updateField('registration_proof', event.target.value)} required /> : null}
         <TextInput label={t('register.password')} type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
         <TextInput label={t('register.optionalPin')} inputMode="numeric" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
         {error ? <p className="error-text">{error}</p> : null}
         <button className="button button-secondary" type="button" onClick={() => setStep('profile')}>{t('register.backToProfile')}</button>
-        <Button type="submit" disabled={isLoading}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
+        <Button type="submit" disabled={isLoading || !form.registration_proof}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
           </>
         )}
       </form>

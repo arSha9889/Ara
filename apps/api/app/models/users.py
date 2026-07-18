@@ -29,7 +29,7 @@ class UserProfile(Base):
     username: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     avatar_type: Mapped[str] = mapped_column(String(32), default='built_in')
     avatar_ref: Mapped[str] = mapped_column(String(255), default='animal-01')
-    optional_phone: Mapped[str | None] = mapped_column(String(32))
+    optional_phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
     phone_public: Mapped[bool] = mapped_column(Boolean, default=False)
     language: Mapped[str] = mapped_column(String(8), default='ru')
     design_theme: Mapped[str] = mapped_column(String(32), default='halo')

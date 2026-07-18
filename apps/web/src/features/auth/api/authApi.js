@@ -14,9 +14,17 @@ export function createDevRegistrationProof(telegramId) {
   });
 }
 
-export function createEarlyAccessRegistrationProof() {
-  return apiRequest('/api/auth/early-access/registration-proof', {
+export function startPhoneVerification(payload) {
+  return apiRequest('/api/auth/phone-verification/start', {
     method: 'POST',
+    body: payload,
+  });
+}
+
+export function confirmPhoneVerification(payload) {
+  return apiRequest('/api/auth/phone-verification/confirm', {
+    method: 'POST',
+    body: payload,
   });
 }
 

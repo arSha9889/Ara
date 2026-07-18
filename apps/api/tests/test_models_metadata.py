@@ -17,6 +17,7 @@ def test_web_core_tables_are_registered() -> None:
         'message_reactions',
         'message_receipts',
         'telegram_recovery_requests',
+        'phone_verifications',
         'audit_logs',
     }
 

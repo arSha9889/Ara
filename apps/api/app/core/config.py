@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     database_url: str = 'postgresql+asyncpg://nexus:nexus@localhost:5432/nexus'
     redis_url: str = 'redis://localhost:6379/0'
     telegram_bot_token: str = ''
+    telegram_bot_name: str = ''
+    telegram_webhook_secret: str = ''
     registration_proof_secret: str = 'dev-registration-proof-secret-change-me'
     access_token_secret: str = 'dev-access-token-secret-change-me'
     access_token_algorithm: str = 'HS256'

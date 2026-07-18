@@ -13,7 +13,7 @@ export function LoginPage() {
   const { t } = useI18n();
   const { saveSession } = useSession();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nexus_id: '', password: '', pin: '', device_id: getDeviceId() });
+  const [form, setForm] = useState({ phone: '', password: '', pin: '', device_id: getDeviceId() });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,7 +26,7 @@ export function LoginPage() {
     setError('');
     setIsLoading(true);
     try {
-      const result = await loginWithPassword(form);
+      const result = await loginWithPassword({ identifier: form.phone, password: form.password, device_id: form.device_id });
       saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user: result.user });
       navigate('/app');
     } catch (err) {
@@ -40,7 +40,7 @@ export function LoginPage() {
     setError('');
     setIsLoading(true);
     try {
-      const result = await loginWithPin({ nexus_id: form.nexus_id, pin: form.pin, device_id: form.device_id });
+      const result = await loginWithPin({ identifier: form.phone, pin: form.pin, device_id: form.device_id });
       saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user: result.user });
       navigate('/app');
     } catch (err) {
@@ -58,12 +58,13 @@ export function LoginPage() {
           <span>Nexus</span>
         </Link>
         <h1>{t('auth.loginTitle')}</h1>
-        <TextInput label={t('auth.nexusId')} inputMode="numeric" autoComplete="username" value={form.nexus_id} onChange={(event) => updateField('nexus_id', event.target.value)} required />
+        <TextInput label={t('auth.phone')} inputMode="tel" autoComplete="tel" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} required />
         <TextInput label={t('auth.password')} type="password" autoComplete="current-password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
         <TextInput label={t('auth.pin')} inputMode="numeric" autoComplete="off" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
         {error ? <p className="error-text">{error}</p> : null}
         <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
-        <Button type="button" variant="secondary" disabled={isLoading || !form.nexus_id || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
+        <Button type="button" variant="secondary" disabled={isLoading || !form.phone || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
+        <Link to="/register">{t('auth.createAccount')}</Link>
         <Link to="/recovery">{t('onboarding.recovery')}</Link>
       </form>
     </main>

@@ -10,9 +10,10 @@ from app.domain.validators import is_valid_pin
 from app.models.audit import AuditLog
 from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import LoginHistory
-from app.models.users import User
+from app.models.users import User, UserProfile
 from app.schemas.users import UserOut
 from app.services.auth_service import issue_session_for_user
+from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
 
 class SecurityError(ValueError):
@@ -64,14 +65,13 @@ async def reset_pin(
     await session.commit()
 
 
-async def login_with_pin(session: AsyncSession, nexus_id: str, pin: str, device_id: str) -> tuple[UserOut, str, str]:
+async def login_with_pin(session: AsyncSession, identifier: str, pin: str, device_id: str) -> tuple[UserOut, str, str]:
     if not is_valid_pin(pin):
-        raise SecurityError('Invalid Nexus ID or PIN')
+        raise SecurityError('Invalid phone or PIN')
 
-    result = await session.execute(select(User).where(User.nexus_id == nexus_id, User.deleted_at.is_(None)))
-    user = result.scalar_one_or_none()
+    user = await _find_user_by_login_identifier(session, identifier)
     if not user:
-        raise SecurityError('Invalid Nexus ID or PIN')
+        raise SecurityError('Invalid phone or PIN')
 
     trusted_pin = await _get_active_pin_for_device(session, user.id, device_id)
     if not trusted_pin:
@@ -99,7 +99,7 @@ async def login_with_pin(session: AsyncSession, nexus_id: str, pin: str, device_
             trusted_pin.locked_until = now + timedelta(minutes=settings.pin_lock_minutes)
         session.add(LoginHistory(user_id=user.id, device_id=device_id, method='pin', result='failed'))
         await session.commit()
-        raise SecurityError('Invalid Nexus ID or PIN')
+        raise SecurityError('Invalid phone or PIN')
 
     trusted_pin.failed_attempts = 0
     trusted_pin.locked_until = None
@@ -152,6 +152,25 @@ def _new_pin(user_id: UUID, device_id: str, pin: str) -> TrustedDevicePin:
 
 def _trusted_until() -> datetime:
     return datetime.now(timezone.utc) + timedelta(days=settings.pin_trusted_days)
+
+
+async def _find_user_by_login_identifier(session: AsyncSession, identifier: str) -> User | None:
+    value = identifier.strip()
+    if value.isdigit() and len(value) == settings.nexus_id_length:
+        result = await session.execute(select(User).where(User.nexus_id == value, User.deleted_at.is_(None)))
+        return result.scalar_one_or_none()
+
+    try:
+        phone = normalize_phone(value)
+    except PhoneVerificationError:
+        return None
+
+    result = await session.execute(
+        select(User)
+        .join(UserProfile, UserProfile.user_id == User.id)
+        .where(UserProfile.optional_phone == phone, User.deleted_at.is_(None))
+    )
+    return result.scalar_one_or_none()
 
 
 def _audit(user_id: UUID, action: str, device_id: str) -> AuditLog:

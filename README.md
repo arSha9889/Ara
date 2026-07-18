@@ -24,7 +24,7 @@
 
 - PostgreSQL/Redis;
 - полноценная авторизация;
-- Telegram Login Widget verification;
+- Telegram-бот подтверждения телефона;
 - хранение сессий и сообщений;
 - WebSocket-бизнес-логика.
 
@@ -52,13 +52,13 @@
 
 Входит:
 
-- Telegram Login Widget signature verification на backend;
-- registration proof после Telegram callback;
+- регистрация через подтверждение телефона в Telegram-боте;
+- registration proof после подтверждения 4-значного кода из бота;
 - завершение регистрации с username, password, optional PIN, language и theme;
 - выдача уникального Nexus ID;
 - генерация recovery code и хранение только его хеша;
 - создание password credential, trusted PIN device и session;
-- login по Nexus ID + password;
+- login по телефону + password;
 - JWT access token;
 - refresh token с серверным Argon2-хешем и отдельным lookup hash;
 - logout по refresh token;
@@ -67,17 +67,15 @@
 - frontend session state с восстановлением через refresh token;
 - protected routes для `/app`;
 - logout из app shell;
-- Telegram Login Widget component через `VITE_TELEGRAM_BOT_NAME`;
-- Telegram callback для зарегистрированного пользователя создаёт полноценную session с refresh token;
-- экран завершения регистрации под Telegram proof;
+- экран завершения регистрации под proof от Telegram-бота;
 - проверка username на экране регистрации;
 - подключённый login form;
 - восстановление доступа по Nexus ID + recovery code со сбросом пароля;
 - регенерация recovery code из настроек после подтверждения текущего пароля;
-- быстрый вход по PIN на доверенном устройстве;
+- быстрый вход по PIN на доверенном устройстве по телефону;
 - создание, замена и отключение PIN для текущего устройства.
 
-Ограничение этапа: если `VITE_TELEGRAM_BOT_NAME` не задан, frontend показывает dev-fallback и даёт открыть экран регистрации вручную. Для реальной регистрации всё равно нужен валидный `registration_proof`, который backend выдаёт после `/api/auth/telegram/callback`. Временный endpoint `POST /api/auth/dev/registration-proof` доступен только при `NEXUS_ENVIRONMENT=dev`, скрыт из OpenAPI и dev-кнопка не попадает в production build.
+Ограничение этапа: для реальной регистрации нужен настроенный Telegram-бот (`NEXUS_TELEGRAM_BOT_TOKEN`, `NEXUS_TELEGRAM_BOT_NAME`) и webhook `/api/auth/telegram/webhook`. Временный endpoint `POST /api/auth/dev/registration-proof` доступен только при `NEXUS_ENVIRONMENT=dev`, скрыт из OpenAPI и dev-кнопка не попадает в production build.
 
 ### Этап 4 — profile/settings/devices
 

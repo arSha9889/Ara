@@ -38,10 +38,11 @@ async def _prepare_database(engine) -> None:
 
 async def _create_user(session_factory, username: str, telegram_id: str):
     async with session_factory() as session:
+        proof_identity = telegram_id if telegram_id.startswith('dev-') else f'dev-{telegram_id}'
         user, access_token, refresh_token, recovery_code = await complete_registration(
             session,
             RegisterCompleteRequest(
-                registration_proof=create_registration_proof(telegram_id),
+                registration_proof=create_registration_proof(proof_identity),
                 username=username,
                 password='password123',
                 pin='1234',

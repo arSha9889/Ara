@@ -1,39 +1,42 @@
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_user
 from app.core.config import settings
 from app.db.session import get_db_session
 from app.domain.registration_proof import create_registration_proof
-from app.domain.telegram_auth import verify_telegram_login
 from app.schemas.auth import (
     DevRegistrationProofRequest,
     DevRegistrationProofResponse,
-    EarlyAccessRegistrationProofResponse,
     LoginRequest,
     LogoutRequest,
+    PhoneVerificationConfirmRequest,
+    PhoneVerificationConfirmResponse,
+    PhoneVerificationStartRequest,
+    PhoneVerificationStartResponse,
     RefreshRequest,
     RegisterCompleteRequest,
     RegisterCompleteResponse,
-    TelegramCallbackRequest,
-    TelegramCallbackResponse,
     TokenPairResponse,
 )
 from app.schemas.users import UserOut
 from app.services.auth_service import (
     AuthError,
     complete_registration,
-    count_active_users,
     delete_account,
-    find_user_by_telegram_id,
-    get_user_with_profile,
-    issue_session_for_user,
     login_with_password,
     logout_by_refresh_token,
     refresh_access_token,
+)
+from app.services.phone_verification_service import (
+    PHONE_VERIFICATION_TTL_MINUTES,
+    PhoneVerificationError,
+    create_phone_verification,
+    handle_telegram_bot_update,
+    verify_phone_code,
 )
 
 router = APIRouter()
@@ -44,61 +47,59 @@ async def telegram_start() -> dict[str, str]:
     return {'status': 'ready'}
 
 
+@router.post('/telegram/webhook', include_in_schema=False)
+async def telegram_webhook(
+    update: dict,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    x_telegram_bot_api_secret_token: Annotated[str | None, Header()] = None,
+) -> dict[str, str]:
+    if settings.telegram_webhook_secret and not secrets.compare_digest(
+        x_telegram_bot_api_secret_token or '',
+        settings.telegram_webhook_secret,
+    ):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid Telegram webhook secret')
+    await handle_telegram_bot_update(session, update)
+    return {'status': 'ok'}
+
+
+@router.post('/phone-verification/start', response_model=PhoneVerificationStartResponse)
+async def phone_verification_start(
+    request: PhoneVerificationStartRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PhoneVerificationStartResponse:
+    if not settings.telegram_bot_name or not settings.telegram_bot_token:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Telegram bot is not configured')
+    try:
+        started = await create_phone_verification(session, request.country, request.phone, request.device_id)
+    except PhoneVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PhoneVerificationStartResponse(
+        verification_id=started.verification.id,
+        bot_url=f'https://t.me/{settings.telegram_bot_name}?start={started.start_payload}',
+        expires_in_seconds=PHONE_VERIFICATION_TTL_MINUTES * 60,
+    )
+
+
+@router.post('/phone-verification/confirm', response_model=PhoneVerificationConfirmResponse)
+async def phone_verification_confirm(
+    request: PhoneVerificationConfirmRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PhoneVerificationConfirmResponse:
+    try:
+        result = await verify_phone_code(session, request.verification_id, request.code)
+    except PhoneVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PhoneVerificationConfirmResponse(
+        registration_proof=result.registration_proof,
+        phone=result.verification.phone,
+    )
+
+
 @router.post('/dev/registration-proof', response_model=DevRegistrationProofResponse, include_in_schema=False)
 async def dev_registration_proof(request: DevRegistrationProofRequest) -> DevRegistrationProofResponse:
     if settings.environment != 'dev':
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Not found')
     return DevRegistrationProofResponse(registration_proof=create_registration_proof(request.telegram_id))
-
-
-@router.post('/early-access/registration-proof', response_model=EarlyAccessRegistrationProofResponse)
-async def early_access_registration_proof(
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> EarlyAccessRegistrationProofResponse:
-    registered_users_count = await count_active_users(session)
-    remaining_slots = max(settings.early_access_bypass_limit - registered_users_count, 0)
-    if remaining_slots <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Early access registration limit is reached',
-        )
-
-    return EarlyAccessRegistrationProofResponse(
-        registration_proof=create_registration_proof(f'early-access-{secrets.token_urlsafe(16)}'),
-        remaining_slots=remaining_slots - 1,
-    )
-
-
-@router.post('/telegram/callback', response_model=TelegramCallbackResponse)
-async def telegram_callback(
-    request: TelegramCallbackRequest,
-    session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> TelegramCallbackResponse:
-    try:
-        identity = verify_telegram_login(request.payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    user = await find_user_by_telegram_id(session, identity.telegram_id)
-    if user:
-        user = await get_user_with_profile(session, user.id)
-        user_out, access_token, refresh_token = await issue_session_for_user(
-            session,
-            user,
-            request.device_id or 'telegram-widget',
-            'telegram_login',
-        )
-        return TelegramCallbackResponse(
-            is_registered=True,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            user=user_out,
-        )
-
-    return TelegramCallbackResponse(
-        is_registered=False,
-        registration_proof=create_registration_proof(identity.telegram_id),
-    )
 
 
 @router.post('/register/complete', response_model=RegisterCompleteResponse)
@@ -126,10 +127,13 @@ async def login(
     request: LoginRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TokenPairResponse:
+    identifier = request.identifier or request.phone or request.nexus_id
+    if not identifier:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Phone is required')
     try:
         user, access_token, refresh_token = await login_with_password(
             session,
-            request.nexus_id,
+            identifier,
             request.password,
             request.device_id,
         )

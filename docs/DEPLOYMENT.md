@@ -36,6 +36,8 @@ NEXUS_DATABASE_URL=${{Postgres.DATABASE_URL}}
 NEXUS_REDIS_URL=
 NEXUS_ALLOWED_ORIGINS=["https://<ваш-проект>.vercel.app"]
 NEXUS_TELEGRAM_BOT_TOKEN=<секрет Telegram-бота>
+NEXUS_TELEGRAM_BOT_NAME=<имя_бота_без_@>
+NEXUS_TELEGRAM_WEBHOOK_SECRET=<случайная строка для Telegram webhook>
 NEXUS_REGISTRATION_PROOF_SECRET=<случайная длинная строка>
 NEXUS_ACCESS_TOKEN_SECRET=<случайная длинная строка>
 NEXUS_UPLOAD_DIR=/data/uploads
@@ -59,7 +61,6 @@ API автоматически преобразует предоставленн
 ```dotenv
 VITE_API_BASE_URL=https://<ваш-api>.up.railway.app
 VITE_WS_BASE_URL=wss://<ваш-api>.up.railway.app
-VITE_TELEGRAM_BOT_NAME=<имя_бота_без_@>
 ```
 
 4. После первого Vercel-деплоя добавьте точный URL Vercel в `NEXUS_ALLOWED_ORIGINS` Railway и передеплойте API.
@@ -135,7 +136,6 @@ NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-доступный-домен>
 
 ```dotenv
 NEXUS_API_UPSTREAM=https://<ваш-api-домен>
-VITE_TELEGRAM_BOT_NAME=<имя_бота_без_@>
 ```
 
 `VITE_API_BASE_URL` и `VITE_WS_BASE_URL` для Amvera web обычно не задаются: frontend обращается к `/api` и `/ws` на своём домене, а Nginx проксирует их в `NEXUS_API_UPSTREAM`.
@@ -152,7 +152,7 @@ NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-домен-amvera>
 6. Передеплойте API и проверьте:
 
 - `https://<ваш-домен-amvera>` открывается без VPN;
-- `https://<ваш-домен-amvera>/env.js` содержит ожидаемый `VITE_TELEGRAM_BOT_NAME`;
+- `https://<ваш-домен-amvera>/env.js` содержит ожидаемые URL API/WS, если вы их задавали;
 - `https://<ваш-домен-amvera>/health` возвращает health API;
 - вход, чаты, загрузка файлов и realtime-сообщения работают.
 
@@ -160,6 +160,6 @@ NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-домен-amvera>
 
 1. Откройте Vercel-приложение и проверьте регистрацию, вход, чат и загрузку файла.
 2. Проверьте API `/health` и `/health/infrastructure`.
-3. Убедитесь, что Telegram callback и домен Vercel разрешены в настройках Telegram-бота.
+3. Убедитесь, что Telegram webhook настроен на `/api/auth/telegram/webhook` и передаёт `NEXUS_TELEGRAM_WEBHOOK_SECRET`.
 4. Не масштабируйте Railway API выше одного инстанса: realtime сейчас реализован в памяти одного процесса.
 5. Локальное файловое хранилище на Railway подходит для закрытой беты только с подключённым Volume; для production перенесите файлы в object storage.

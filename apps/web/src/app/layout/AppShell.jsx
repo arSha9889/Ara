@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { deleteAccount, logoutSession } from '../../features/auth/api/authApi.js';
 import { NotificationsMenu } from '../../features/notifications/components/NotificationsMenu.jsx';
@@ -11,12 +11,17 @@ export function AppShell() {
   const { t } = useI18n();
   const { session, clearSession } = useSession();
   const { disableNotifications } = useNotifications();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navItems = [
     { to: '/app', icon: '💬', label: t('chats.title') },
     { to: '/app/profile', icon: '👤', label: t('profile.title') },
     { to: '/app/settings', icon: '⚙️', label: t('settings.title') },
   ];
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   async function handleLogout() {
     await disableNotifications().catch(() => undefined);
@@ -35,7 +40,7 @@ export function AppShell() {
     <div className={`app-shell ${isMenuOpen ? 'is-mobile-menu-open' : ''}`}>
       <aside className="app-sidebar" aria-label={t('common.navigation')}>
         <div className="app-sidebar-topbar">
-          <NavLink className="brand" to="/app" aria-label="Nexus">
+          <NavLink className="brand" to="/app" aria-label="Nexus" onClick={() => setIsMenuOpen(false)}>
             <img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" />
             <span>Nexus</span>
           </NavLink>
@@ -62,12 +67,12 @@ export function AppShell() {
                 </NavLink>
               ))}
             </nav>
-            <button className="button button-secondary logout-button" type="button" onClick={handleLogout}>
-              <span aria-hidden="true">↩</span>
+            <button className="button button-secondary account-action-button logout-button" type="button" onClick={handleLogout}>
+              <span className="account-action-icon" aria-hidden="true">↩</span>
               <span>{t('common.logout')}</span>
             </button>
-            <button className="button button-danger delete-account-button" type="button" onClick={handleDeleteAccount}>
-              <span aria-hidden="true">🗑</span>
+            <button className="button button-danger account-action-button delete-account-button" type="button" onClick={handleDeleteAccount}>
+              <span className="account-action-icon" aria-hidden="true">🗑</span>
               <span>{t('settings.deleteAccount')}</span>
             </button>
           </div>
