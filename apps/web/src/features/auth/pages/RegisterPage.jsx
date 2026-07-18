@@ -46,7 +46,7 @@ export function RegisterPage() {
     avatar_type: 'built_in',
     avatar_ref: 'animal-01',
   });
-  const [step, setStep] = useState('profile');
+  const [step, setStep] = useState('access');
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
@@ -130,6 +130,16 @@ export function RegisterPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function handleAccessStep(event) {
+    event.preventDefault();
+    setError('');
+    if (!form.registration_proof) {
+      setError(t('register.phoneRequestRequired'));
+      return;
+    }
+    setStep('profile');
   }
 
   async function handleCreateDevProof() {
@@ -228,8 +238,14 @@ export function RegisterPage() {
       return;
     }
     await handleUsernameBlur();
-    setStep('credentials');
+    setStep('password');
   }
+
+  const submitHandler = step === 'access'
+    ? handleAccessStep
+    : step === 'profile'
+      ? handleProfileStep
+      : handleSubmit;
 
   if (!hasSelectedCountry) {
     return <Navigate to="/onboarding" replace />;
@@ -237,14 +253,63 @@ export function RegisterPage() {
 
   return (
     <main className="auth-page">
-      <form className="panel readable" onSubmit={step === 'profile' ? handleProfileStep : handleSubmit}>
+      <form className="panel readable" onSubmit={submitHandler}>
         <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" /><span>Nexus</span></Link>
         <h1>{t('register.title')}</h1>
         <p className="muted">{t('register.subtitle')}</p>
         <div className="registration-steps" aria-label={t('register.steps')}>
-          <span className={step === 'profile' ? 'active' : ''}>1. {t('register.profileStep')}</span>
-          <span className={step === 'credentials' ? 'active' : ''}>2. {t('register.credentialsStep')}</span>
+          <span className={step === 'access' ? 'active' : ''}>1. {t('register.accessStep')}</span>
+          <span className={step === 'profile' ? 'active' : ''}>2. {t('register.profileStep')}</span>
+          <span className={step === 'password' ? 'active' : ''}>3. {t('register.passwordStep')}</span>
         </div>
+        {step === 'access' ? (
+          <>
+            {isDevMode ? (
+              <div className="info-card halo-outline">
+                <strong>{t('register.devTitle')}</strong>
+                <p className="muted">{t('register.devText')}</p>
+                <Button type="button" variant="secondary" onClick={handleCreateDevProof} disabled={isDevProofLoading}>
+                  {isDevProofLoading ? t('register.creatingProof') : t('register.createDevProof')}
+                </Button>
+              </div>
+            ) : null}
+            <div className="info-card halo-outline phone-verification-card">
+              <strong>{t('register.phoneTitle')}</strong>
+              <p className="muted">{t('register.phoneText')}</p>
+              <div className="selected-country-card">
+                <span className="country-option-flag" aria-hidden="true">{selectedPhoneCountry.flag}</span>
+                <span className="country-option-copy">
+                  <strong>{t(`register.${selectedPhoneCountry.labelKey}`)}</strong>
+                  <small>{selectedPhoneCountry.dialCode} · {selectedPhoneCountry.code}</small>
+                </span>
+                <Link className="selected-country-change" to="/onboarding">{t('register.changeCountry')}</Link>
+              </div>
+              <TextInput
+                label={t('register.phoneLabel')}
+                inputMode="tel"
+                placeholder={selectedPhoneCountry.placeholder}
+                value={form.phone}
+                onChange={(event) => resetPhoneVerification({ phone: event.target.value })}
+              />
+              <Button type="button" variant="secondary" onClick={handleStartPhoneVerification} disabled={isPhoneRequestLoading || !form.phone.trim()}>
+                {isPhoneRequestLoading ? t('register.phoneRequesting') : t('register.phoneRequestCode')}
+              </Button>
+              {phoneVerification ? (
+                <a className="button button-secondary" href={phoneVerification.bot_url} target="_blank" rel="noreferrer">
+                  {t('register.phoneOpenBot')}
+                </a>
+              ) : null}
+              <TextInput label={t('register.phoneCodeLabel')} inputMode="numeric" value={form.phone_code} onChange={(event) => updateField('phone_code', event.target.value.replace(/\D/g, '').slice(0, 4))} />
+              <Button type="button" variant="secondary" onClick={handleConfirmPhoneCode} disabled={isPhoneConfirmLoading || form.phone_code.length !== 4}>
+                {isPhoneConfirmLoading ? t('register.phoneChecking') : t('register.phoneConfirmCode')}
+              </Button>
+              {phoneStatus ? <p className="success-text">{phoneStatus}</p> : null}
+            </div>
+            {isDevMode ? <TextInput label="Registration proof" value={form.registration_proof} onChange={(event) => updateField('registration_proof', event.target.value)} required /> : null}
+            {error ? <p className="error-text">{error}</p> : null}
+            <Button type="submit" disabled={!form.registration_proof}>{t('common.continue')}</Button>
+          </>
+        ) : null}
         {step === 'profile' ? (
           <>
             <section className="avatar-picker" aria-label={t('register.avatarTitle')}>
@@ -281,59 +346,23 @@ export function RegisterPage() {
             <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={handleUsernameBlur} required />
             {usernameState ? <p className="muted">{usernameState}</p> : null}
             {error ? <p className="error-text">{error}</p> : null}
+            <button className="button button-secondary" type="button" onClick={() => setStep('access')}>{t('register.backToAccess')}</button>
             <Button type="submit">{t('common.continue')}</Button>
           </>
-        ) : (
-          <>
-        {isDevMode ? (
-          <div className="info-card halo-outline">
-            <strong>{t('register.devTitle')}</strong>
-            <p className="muted">{t('register.devText')}</p>
-            <Button type="button" variant="secondary" onClick={handleCreateDevProof} disabled={isDevProofLoading}>
-              {isDevProofLoading ? t('register.creatingProof') : t('register.createDevProof')}
-            </Button>
-          </div>
         ) : null}
-        <div className="info-card halo-outline phone-verification-card">
-          <strong>{t('register.phoneTitle')}</strong>
-          <p className="muted">{t('register.phoneText')}</p>
-          <div className="selected-country-card">
-            <span className="country-option-flag" aria-hidden="true">{selectedPhoneCountry.flag}</span>
-            <span className="country-option-copy">
-              <strong>{t(`register.${selectedPhoneCountry.labelKey}`)}</strong>
-              <small>{selectedPhoneCountry.dialCode} · {selectedPhoneCountry.code}</small>
-            </span>
-            <Link className="selected-country-change" to="/onboarding">{t('register.changeCountry')}</Link>
-          </div>
-          <TextInput
-            label={t('register.phoneLabel')}
-            inputMode="tel"
-            placeholder={selectedPhoneCountry.placeholder}
-            value={form.phone}
-            onChange={(event) => resetPhoneVerification({ phone: event.target.value })}
-          />
-          <Button type="button" variant="secondary" onClick={handleStartPhoneVerification} disabled={isPhoneRequestLoading || !form.phone.trim()}>
-            {isPhoneRequestLoading ? t('register.phoneRequesting') : t('register.phoneRequestCode')}
-          </Button>
-          {phoneVerification ? (
-            <a className="button button-secondary" href={phoneVerification.bot_url} target="_blank" rel="noreferrer">
-              {t('register.phoneOpenBot')}
-            </a>
-          ) : null}
-          <TextInput label={t('register.phoneCodeLabel')} inputMode="numeric" value={form.phone_code} onChange={(event) => updateField('phone_code', event.target.value.replace(/\D/g, '').slice(0, 4))} />
-          <Button type="button" variant="secondary" onClick={handleConfirmPhoneCode} disabled={isPhoneConfirmLoading || form.phone_code.length !== 4}>
-            {isPhoneConfirmLoading ? t('register.phoneChecking') : t('register.phoneConfirmCode')}
-          </Button>
-          {phoneStatus ? <p className="success-text">{phoneStatus}</p> : null}
-        </div>
-        {isDevMode ? <TextInput label="Registration proof" value={form.registration_proof} onChange={(event) => updateField('registration_proof', event.target.value)} required /> : null}
-        <TextInput label={t('register.password')} type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
-        <TextInput label={t('register.optionalPin')} inputMode="numeric" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
-        {error ? <p className="error-text">{error}</p> : null}
-        <button className="button button-secondary" type="button" onClick={() => setStep('profile')}>{t('register.backToProfile')}</button>
-        <Button type="submit" disabled={isLoading || !form.registration_proof}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
+        {step === 'password' ? (
+          <>
+            <div className="info-card halo-outline">
+              <strong>{t('register.passwordTitle')}</strong>
+              <p className="muted">{t('register.passwordText')}</p>
+              <TextInput label={t('register.password')} type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
+              <TextInput label={t('register.optionalPin')} inputMode="numeric" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
+            </div>
+            {error ? <p className="error-text">{error}</p> : null}
+            <button className="button button-secondary" type="button" onClick={() => setStep('profile')}>{t('register.backToProfile')}</button>
+            <Button type="submit" disabled={isLoading || !form.registration_proof}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
           </>
-        )}
+        ) : null}
       </form>
     </main>
   );
