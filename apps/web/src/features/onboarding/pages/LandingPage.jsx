@@ -8,7 +8,7 @@ import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 export function LandingPage() {
   const { t } = useI18n();
   const { session } = useSession();
-  const ctaPath = session?.accessToken ? '/app' : '/onboarding';
+  const ctaPath = session?.accessToken ? '/app' : '/register';
   const featureCards = [
     { icon: '💬', title: t('onboarding.directChatsTitle'), text: t('onboarding.directChatsText') },
     { icon: '🎙', title: t('onboarding.voiceTitle'), text: t('onboarding.voiceText') },

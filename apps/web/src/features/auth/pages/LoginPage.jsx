@@ -64,7 +64,7 @@ export function LoginPage() {
         {error ? <p className="error-text">{error}</p> : null}
         <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
         <Button type="button" variant="secondary" disabled={isLoading || !form.phone || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
-        <Link to="/onboarding">{t('auth.createAccount')}</Link>
+        <Link to="/register">{t('auth.createAccount')}</Link>
       </form>
     </main>
   );
