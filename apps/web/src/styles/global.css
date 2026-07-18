@@ -645,6 +645,197 @@ p { margin-bottom: 14px; }
   box-shadow: 0 0 0 5px var(--ring), 0 14px 32px rgba(20, 20, 43, 0.08);
 }
 
+.country-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.country-picker-label {
+  color: color-mix(in srgb, var(--text), var(--muted) 18%);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.country-picker-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.country-option {
+  position: relative;
+  min-width: 0;
+  min-height: 70px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 84%);
+  border-radius: 24px;
+  padding: 12px 38px 12px 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface), transparent 2%), color-mix(in srgb, var(--surface-elevated), transparent 10%));
+  color: var(--text);
+  box-shadow: 0 10px 24px rgba(20, 20, 43, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.46);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.country-option:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary), transparent 52%);
+}
+
+.country-option.active {
+  border-color: color-mix(in srgb, var(--primary), transparent 24%);
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--primary), transparent 80%), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary), white 88%), color-mix(in srgb, var(--secondary), white 88%));
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--primary), transparent 78%), inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+.country-option:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 5px var(--ring), 0 16px 36px color-mix(in srgb, var(--primary), transparent 78%);
+}
+
+.country-option-flag {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 8px 18px rgba(20, 20, 43, 0.08);
+  font-size: 1.35rem;
+}
+
+.country-option-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.country-option-copy strong,
+.country-option-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-option-copy strong {
+  font-size: 0.95rem;
+  line-height: 1.1;
+}
+
+.country-option-copy small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.country-option-check {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 900;
+  opacity: 0;
+  transform: translateY(-50%) scale(0.72);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.country-option.active .country-option-check {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.onboard-page {
+  background:
+    radial-gradient(circle at 16% 10%, color-mix(in srgb, var(--primary), transparent 78%), transparent 24rem),
+    radial-gradient(circle at 84% 18%, color-mix(in srgb, var(--secondary), transparent 82%), transparent 22rem);
+}
+
+.onboard-panel {
+  max-width: 720px;
+  display: grid;
+  gap: 24px;
+}
+
+.onboard-topbar {
+  margin-bottom: 2px;
+}
+
+.onboard-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.onboard-copy .eyebrow {
+  margin-bottom: 2px;
+}
+
+.onboard-copy h1 {
+  max-width: 560px;
+}
+
+.onboard-country-picker {
+  gap: 12px;
+}
+
+.onboard-country-option {
+  min-height: 86px;
+  text-decoration: none;
+}
+
+.onboard-country-option .country-option-check {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.onboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.selected-country-card {
+  min-height: 58px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 84%);
+  border-radius: 22px;
+  padding: 10px 10px 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface), transparent 2%), color-mix(in srgb, var(--surface-elevated), transparent 10%));
+  box-shadow: 0 10px 24px rgba(20, 20, 43, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.46);
+}
+
+.selected-country-change {
+  margin-left: auto;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 76%);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.selected-country-change:hover {
+  background: color-mix(in srgb, var(--primary), transparent 90%);
+}
+
 .app-shell {
   min-height: 100vh;
   min-height: 100dvh;
@@ -2749,14 +2940,6 @@ code {
   margin-top: 16px;
 }
 
-.telegram-widget-wrap {
-  min-height: 44px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-}
-
 .nexus-loader {
   display: grid;
   place-items: center;
@@ -3102,12 +3285,17 @@ code {
 
   .stack,
   .toolbar,
-  .sidebar-tools,
-  .telegram-widget-wrap {
+  .sidebar-tools {
     width: 100%;
     align-items: stretch;
     gap: 8px;
   }
+
+  .country-picker-options { grid-template-columns: 1fr; }
+  .country-option { min-height: 62px; border-radius: 20px; }
+  .selected-country-card { align-items: flex-start; flex-wrap: wrap; border-radius: 20px; }
+  .selected-country-change { margin-left: 49px; }
+  .onboard-actions { display: grid; }
 
   .toolbar > *,
   .sidebar-tools > * { min-width: 0; }

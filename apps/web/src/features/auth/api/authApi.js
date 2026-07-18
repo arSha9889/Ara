@@ -101,27 +101,3 @@ export function deleteAccount(accessToken) {
     },
   });
 }
-
-export function verifyRecoveryCode(payload) {
-  return apiRequest('/api/recovery/code/verify', {
-    method: 'POST',
-    body: payload,
-  });
-}
-
-export function resetPasswordWithRecoveryCode(payload) {
-  return apiRequest('/api/recovery/password/reset', {
-    method: 'POST',
-    body: payload,
-  });
-}
-
-export function regenerateRecoveryCode(accessToken, currentPassword) {
-  return apiRequest('/api/recovery/code/regenerate', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: { current_password: currentPassword },
-  });
-}

@@ -9,13 +9,12 @@ from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.config import settings
 from app.domain.nexus_id import generate_nexus_id
-from app.domain.recovery_code import format_recovery_code, generate_recovery_code
 from app.domain.registration_proof import verify_registration_proof
 from app.domain.security_hashing import hash_secret, verify_secret
 from app.domain.tokens import create_access_token
 from app.domain.validators import is_valid_password, is_valid_pin, is_valid_username
 from app.models.chats import PushSubscription
-from app.models.security import PasswordCredential, RecoveryCode, TrustedDevicePin
+from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import LoginHistory, Session
 from app.models.users import User, UserProfile
 from app.schemas.auth import RegisterCompleteRequest
@@ -43,7 +42,7 @@ async def get_user_with_profile(session: AsyncSession, user_id: UUID) -> User | 
     return user
 
 
-async def complete_registration(session: AsyncSession, request: RegisterCompleteRequest) -> tuple[UserOut, str, str, str]:
+async def complete_registration(session: AsyncSession, request: RegisterCompleteRequest) -> tuple[UserOut, str, str]:
     telegram_id = verify_registration_proof(request.registration_proof)
     _validate_registration_request(request)
     verified_phone = None
@@ -83,9 +82,6 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
     session.add(profile)
     session.add(PasswordCredential(user_id=user.id, password_hash=hash_secret(request.password)))
 
-    recovery_code = generate_recovery_code()
-    session.add(RecoveryCode(user_id=user.id, code_hash=hash_secret(recovery_code), status='active'))
-
     if request.pin:
         session.add(_create_trusted_pin(user.id, request.device_id, request.pin))
 
@@ -96,7 +92,7 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
     await session.refresh(user)
     set_committed_value(user, 'profile', profile)
 
-    return to_user_out(user), create_access_token(user.id), refresh_token, format_recovery_code(recovery_code)
+    return to_user_out(user), create_access_token(user.id), refresh_token
 
 
 async def login_with_password(session: AsyncSession, identifier: str, password: str, device_id: str) -> tuple[UserOut, str, str]:
@@ -179,11 +175,6 @@ async def delete_account(session: AsyncSession, user_id: UUID) -> None:
         update(TrustedDevicePin)
         .where(TrustedDevicePin.user_id == user_id, TrustedDevicePin.revoked_at.is_(None))
         .values(revoked_at=now)
-    )
-    await session.execute(
-        update(RecoveryCode)
-        .where(RecoveryCode.user_id == user_id, RecoveryCode.revoked_at.is_(None))
-        .values(status='revoked', revoked_at=now)
     )
     await session.execute(delete(PushSubscription).where(PushSubscription.user_id == user_id))
     await session.commit()

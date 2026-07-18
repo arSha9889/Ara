@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -18,19 +18,23 @@ import {
 
 const AVATAR_MAX_SIZE_BYTES = 50 * 1024 * 1024;
 const PHONE_COUNTRIES = [
-  { code: 'RU', dialCode: '+7', labelKey: 'phoneCountryRussia', placeholder: '+7 999 123-45-67' },
-  { code: 'KZ', dialCode: '+7', labelKey: 'phoneCountryKazakhstan', placeholder: '+7 701 123-45-67' },
+  { code: 'RU', dialCode: '+7', flag: '🇷🇺', labelKey: 'phoneCountryRussia', placeholder: '+7 999 123-45-67' },
+  { code: 'KZ', dialCode: '+7', flag: '🇰🇿', labelKey: 'phoneCountryKazakhstan', placeholder: '+7 701 123-45-67' },
 ];
 
 export function RegisterPage() {
   const { t, language } = useI18n();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { saveSession } = useSession();
   const isDevMode = import.meta.env.DEV;
+  const countryParam = searchParams.get('country');
+  const hasSelectedCountry = PHONE_COUNTRIES.some((country) => country.code === countryParam);
+  const initialCountry = hasSelectedCountry ? countryParam : 'RU';
   const [form, setForm] = useState({
     registration_proof: '',
     phone_verification_id: null,
-    country: 'RU',
+    country: initialCountry,
     phone: '',
     phone_code: '',
     username: '',
@@ -46,7 +50,6 @@ export function RegisterPage() {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
-  const [recoveryCode, setRecoveryCode] = useState('');
   const [usernameState, setUsernameState] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +59,7 @@ export function RegisterPage() {
   const [phoneVerification, setPhoneVerification] = useState(null);
   const [phoneStatus, setPhoneStatus] = useState('');
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const selectedPhoneCountry = PHONE_COUNTRIES.find((country) => country.code === form.country) ?? PHONE_COUNTRIES[0];
 
   useEffect(() => () => {
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
@@ -120,7 +124,7 @@ export function RegisterPage() {
         }
       }
       saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user });
-      setRecoveryCode(result.recovery_code);
+      navigate('/app', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -227,17 +231,8 @@ export function RegisterPage() {
     setStep('credentials');
   }
 
-  if (recoveryCode) {
-    return (
-      <main className="auth-page">
-        <section className="panel readable">
-          <h1>{t('register.recoveryTitle')}</h1>
-          <p className="muted">{t('register.recoveryHint')}</p>
-          <div className="info-card halo-outline"><strong>{recoveryCode}</strong></div>
-          <Button onClick={() => navigate('/app')}>{t('register.recoverySaved')}</Button>
-        </section>
-      </main>
-    );
+  if (!hasSelectedCountry) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return (
@@ -302,18 +297,18 @@ export function RegisterPage() {
         <div className="info-card halo-outline phone-verification-card">
           <strong>{t('register.phoneTitle')}</strong>
           <p className="muted">{t('register.phoneText')}</p>
-          <label className="field">
-            {t('register.phoneCountry')}
-            <select className="select" value={form.country} onChange={(event) => resetPhoneVerification({ country: event.target.value })}>
-              {PHONE_COUNTRIES.map((country) => (
-                <option key={country.code} value={country.code}>{t(`register.${country.labelKey}`)} · {country.dialCode}</option>
-              ))}
-            </select>
-          </label>
+          <div className="selected-country-card">
+            <span className="country-option-flag" aria-hidden="true">{selectedPhoneCountry.flag}</span>
+            <span className="country-option-copy">
+              <strong>{t(`register.${selectedPhoneCountry.labelKey}`)}</strong>
+              <small>{selectedPhoneCountry.dialCode} · {selectedPhoneCountry.code}</small>
+            </span>
+            <Link className="selected-country-change" to="/onboarding">{t('register.changeCountry')}</Link>
+          </div>
           <TextInput
             label={t('register.phoneLabel')}
             inputMode="tel"
-            placeholder={PHONE_COUNTRIES.find((country) => country.code === form.country)?.placeholder}
+            placeholder={selectedPhoneCountry.placeholder}
             value={form.phone}
             onChange={(event) => resetPhoneVerification({ phone: event.target.value })}
           />

@@ -52,7 +52,6 @@ class RegisterCompleteRequest(BaseModel):
 class RegisterCompleteResponse(BaseModel):
     access_token: str
     refresh_token: str
-    recovery_code: str
     user: UserOut
 
 

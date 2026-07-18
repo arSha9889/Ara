@@ -1,5 +1,4 @@
 from app.domain.nexus_id import format_nexus_id, generate_nexus_id, is_valid_nexus_id
-from app.domain.recovery_code import format_recovery_code, generate_recovery_code, is_valid_recovery_code
 from app.domain.security_hashing import hash_secret, verify_secret
 from app.domain.validators import is_valid_password, is_valid_pin, is_valid_username
 
@@ -33,14 +32,6 @@ def test_pin_rules() -> None:
     assert not is_valid_pin('123')
     assert not is_valid_pin('123456789')
     assert not is_valid_pin('12a4')
-
-
-def test_recovery_code_generation_and_formatting() -> None:
-    code = generate_recovery_code()
-
-    assert is_valid_recovery_code(code)
-    assert len(code) == 24
-    assert format_recovery_code(code).count(' ') == 5
 
 
 def test_secret_hashing_roundtrip() -> None:

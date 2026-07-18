@@ -7,7 +7,7 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
-import { createPin, deleteAccount, regenerateRecoveryCode, resetPin } from '../../auth/api/authApi.js';
+import { createPin, deleteAccount, resetPin } from '../../auth/api/authApi.js';
 import { updateMyProfile } from '../../profile/api/userApi.js';
 import { getDevices, getLoginHistory, revokeDevice } from '../api/deviceApi.js';
 
@@ -28,8 +28,6 @@ export function SettingsPage() {
   const [showLiquidGlassPrompt, setShowLiquidGlassPrompt] = useState(false);
   const { disableNotifications, enableNotifications, isEnabled: notificationsEnabled, isSupported, permission: notificationPermission, pushConfigured } = useNotifications();
   const [activeTab, setActiveTab] = useState('appearance');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newRecoveryCode, setNewRecoveryCode] = useState('');
   const [pinForm, setPinForm] = useState({ current_password: '', pin: '' });
   const settingsTabs = [
     { id: 'appearance', icon: '🎨', label: t('settings.appearance') },
@@ -125,22 +123,6 @@ export function SettingsPage() {
     await disableNotifications();
     setStatusKind('success');
     setStatus(t('settings.notificationsDisabled'));
-  }
-
-  async function handleRegenerateRecoveryCode(event) {
-    event.preventDefault();
-    setStatus('');
-    setNewRecoveryCode('');
-    try {
-      const result = await regenerateRecoveryCode(session.accessToken, currentPassword);
-      setNewRecoveryCode(result.recovery_code);
-      setCurrentPassword('');
-      setStatusKind('success');
-      setStatus(t('settings.recoveryCreated'));
-    } catch (err) {
-      setStatusKind('error');
-      setStatus(err.message);
-    }
   }
 
   async function handleCreatePin(event) {
@@ -277,13 +259,6 @@ export function SettingsPage() {
               </article>
             ))}
           </div>
-          <form className="info-card" onSubmit={handleRegenerateRecoveryCode}>
-            <h3>{t('settings.recoveryCodeTitle')}</h3>
-            <p className="muted">{t('settings.recoveryCodeText')}</p>
-            <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
-            <button className="button button-secondary" type="submit">{t('settings.createRecoveryCode')}</button>
-            {newRecoveryCode ? <code>{newRecoveryCode}</code> : null}
-          </form>
           <form className="info-card" onSubmit={handleCreatePin}>
             <h3>{t('settings.devicePinTitle')}</h3>
             <p className="muted">{t('settings.devicePinText')}</p>

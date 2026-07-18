@@ -42,7 +42,6 @@
 - Alembic-конфигурация и первая миграция;
 - генерация и форматирование Nexus ID;
 - validation rules для username, password и PIN;
-- генерация и форматирование recovery code;
 - Argon2-хеширование секретов;
 - минимальные backend-тесты доменных правил и регистрации моделей.
 
@@ -56,7 +55,6 @@
 - registration proof после подтверждения 4-значного кода из бота;
 - завершение регистрации с username, password, optional PIN, language и theme;
 - выдача уникального Nexus ID;
-- генерация recovery code и хранение только его хеша;
 - создание password credential, trusted PIN device и session;
 - login по телефону + password;
 - JWT access token;
@@ -70,8 +68,6 @@
 - экран завершения регистрации под proof от Telegram-бота;
 - проверка username на экране регистрации;
 - подключённый login form;
-- восстановление доступа по Nexus ID + recovery code со сбросом пароля;
-- регенерация recovery code из настроек после подтверждения текущего пароля;
 - быстрый вход по PIN на доверенном устройстве по телефону;
 - создание, замена и отключение PIN для текущего устройства.
 
@@ -161,7 +157,6 @@
 
 - Telegram registration/login baseline;
 - Nexus ID + password login;
-- recovery code reset password flow;
 - PIN login на доверенном устройстве;
 - direct chats;
 - text/photo/video/file/voice/emoji messages;
@@ -195,7 +190,7 @@
 - групповые чаты и каналы;
 - production object storage с private ACL/signed links;
 - Redis pub/sub fan-out для нескольких backend-инстансов;
-- Telegram recovery bot ручной процедуры.
+- ручная процедура восстановления доступа.
 
 Минимальный smoke-check перед показом:
 
@@ -205,12 +200,11 @@
 4. Проверить `/health` и `/health/infrastructure`.
 5. Зарегистрировать двух пользователей через Telegram/dev-flow в dev.
 6. Проверить login по Nexus ID + password.
-7. Проверить recovery reset password и новый recovery code.
-8. Проверить создание PIN, выход и вход по PIN на том же устройстве.
-9. Создать direct chat по username/Nexus ID.
-10. Отправить text/photo/file/voice/emoji, реакцию и read status в двух вкладках.
-11. Обновить страницу чата и убедиться, что история и WebSocket reconnect работают.
-12. Открыть приложение на mobile width и проверить manifest/installability в браузере.
+7. Проверить создание PIN, выход и вход по PIN на том же устройстве.
+8. Создать direct chat по username/Nexus ID.
+9. Отправить text/photo/file/voice/emoji, реакцию и read status в двух вкладках.
+10. Обновить страницу чата и убедиться, что история и WebSocket reconnect работают.
+11. Открыть приложение на mobile width и проверить manifest/installability в браузере.
 
 ### Этап 6 — стабилизация Web Core
 

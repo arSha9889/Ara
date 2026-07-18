@@ -10,12 +10,10 @@ from app.db.base import Base
 from app.domain.registration_proof import create_registration_proof
 from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.chats import MessageCreateRequest, MessageOut
-from app.schemas.recovery import PasswordResetRequest
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import complete_registration, login_with_password, refresh_access_token
 from app.services.chat_service import create_message, create_or_get_direct_chat, list_messages, mark_message_read, mark_messages_read, toggle_reaction
 from app.services.notification_service import create_message_notifications, list_notifications
-from app.services.recovery_service import reset_password_with_recovery_code, verify_recovery_code_for_user
 from app.services.user_service import update_profile
 
 
@@ -39,7 +37,7 @@ async def _prepare_database(engine) -> None:
 async def _create_user(session_factory, username: str, telegram_id: str):
     async with session_factory() as session:
         proof_identity = telegram_id if telegram_id.startswith('dev-') else f'dev-{telegram_id}'
-        user, access_token, refresh_token, recovery_code = await complete_registration(
+        user, access_token, refresh_token = await complete_registration(
             session,
             RegisterCompleteRequest(
                 registration_proof=create_registration_proof(proof_identity),
@@ -51,7 +49,7 @@ async def _create_user(session_factory, username: str, telegram_id: str):
                 design_theme='halo',
             ),
         )
-        return user, access_token, refresh_token, recovery_code
+        return user, access_token, refresh_token
 
 
 @pytest.mark.anyio
@@ -64,10 +62,8 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
         except (OSError, OperationalError) as exc:
             pytest.skip(f'database is not available: {exc}')
 
-        first_user, _, first_refresh_token, recovery_code = await _create_user(session_factory, 'alicenexus', '101')
-        second_user, _, _, _ = await _create_user(session_factory, 'bobnexus', '102')
-
-        assert recovery_code
+        first_user, _, first_refresh_token = await _create_user(session_factory, 'alicenexus', '101')
+        second_user, _, _ = await _create_user(session_factory, 'bobnexus', '102')
 
         async with session_factory() as session:
             logged_user, access_token, refresh_token = await login_with_password(
@@ -85,31 +81,6 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             assert refreshed_user.id == first_user.id
             assert refreshed_access_token
             assert same_refresh_token == first_refresh_token
-
-        async with session_factory() as session:
-            assert await verify_recovery_code_for_user(session, first_user.nexus_id, recovery_code)
-            reset_user, reset_access_token, reset_refresh_token, next_recovery_code = await reset_password_with_recovery_code(
-                session,
-                PasswordResetRequest(
-                    nexus_id=first_user.nexus_id,
-                    recovery_code=recovery_code,
-                    new_password='newpass123',
-                    device_id='browser-device-recovery',
-                ),
-            )
-            assert reset_user.id == first_user.id
-            assert reset_access_token
-            assert reset_refresh_token
-            assert next_recovery_code and next_recovery_code != recovery_code
-
-        async with session_factory() as session:
-            logged_after_reset, _, _ = await login_with_password(
-                session,
-                first_user.nexus_id,
-                'newpass123',
-                'browser-device-after-reset',
-            )
-            assert logged_after_reset.id == first_user.id
 
         async with session_factory() as session:
             updated_user = await update_profile(

@@ -108,7 +108,7 @@ async def register_complete(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> RegisterCompleteResponse:
     try:
-        user, access_token, refresh_token, recovery_code = await complete_registration(session, request)
+        user, access_token, refresh_token = await complete_registration(session, request)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except ValueError as exc:
@@ -118,7 +118,6 @@ async def register_complete(
         user=user,
         access_token=access_token,
         refresh_token=refresh_token,
-        recovery_code=recovery_code,
     )
 
 

@@ -24,9 +24,7 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     pin_trusted_days: int = 365
     pin_lock_minutes: int = 30
-    recovery_lock_minutes: int = 60
     max_auth_attempts: int = 5
-    recovery_code_length: int = 24
     nexus_id_length: int = 16
     early_access_bypass_limit: int = Field(default=100, ge=0)
     password_hash_time_cost: int = Field(default=3, ge=1)

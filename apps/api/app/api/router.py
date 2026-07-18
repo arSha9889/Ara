@@ -1,11 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, chats, devices, notifications, recovery, security, uploads, users
+from app.api.routes import auth, chats, devices, notifications, security, uploads, users
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix='/auth', tags=['auth'])
 api_router.include_router(security.router, prefix='/security', tags=['security'])
-api_router.include_router(recovery.router, prefix='/recovery', tags=['recovery'])
 api_router.include_router(users.router, prefix='/users', tags=['users'])
 api_router.include_router(devices.router, tags=['devices'])
 api_router.include_router(chats.router, prefix='/chats', tags=['chats'])
