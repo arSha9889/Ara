@@ -52,19 +52,28 @@ export function LoginPage() {
 
   return (
     <main className="auth-page">
-      <form className="panel" onSubmit={handleSubmit}>
-        <Link to="/" className="brand compact">
-          <img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" />
-          <span>Nexus</span>
-        </Link>
-        <h1>{t('auth.loginTitle')}</h1>
-        <TextInput label={t('auth.phone')} inputMode="tel" autoComplete="tel" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} required />
-        <TextInput label={t('auth.password')} type="password" autoComplete="current-password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
-        <TextInput label={t('auth.pin')} inputMode="numeric" autoComplete="off" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
+      <form className="panel auth-card" onSubmit={handleSubmit}>
+        <div className="auth-card-head">
+          <Link to="/" className="brand compact">
+            <img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" />
+            <span>Nexus</span>
+          </Link>
+          <div>
+            <h1>{t('auth.loginTitle')}</h1>
+            <p className="muted">{t('auth.loginSubtitle')}</p>
+          </div>
+        </div>
+        <div className="auth-fields">
+          <TextInput label={t('auth.phone')} inputMode="tel" autoComplete="tel" value={form.phone} onChange={(event) => updateField('phone', event.target.value)} required />
+          <TextInput label={t('auth.password')} type="password" autoComplete="current-password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
+          <TextInput label={t('auth.pin')} inputMode="numeric" autoComplete="off" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
+        </div>
         {error ? <p className="error-text">{error}</p> : null}
-        <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
-        <Button type="button" variant="secondary" disabled={isLoading || !form.phone || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
-        <Link to="/register">{t('auth.createAccount')}</Link>
+        <div className="auth-actions">
+          <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
+          <Button type="button" variant="secondary" disabled={isLoading || !form.phone || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
+        </div>
+        <Link to="/register" className="auth-switch-link">{t('auth.createAccount')}</Link>
       </form>
     </main>
   );

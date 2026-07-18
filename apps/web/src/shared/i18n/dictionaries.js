@@ -45,6 +45,7 @@ export const dictionaries = {
     },
     auth: {
       loginTitle: 'Вход в Nexus',
+      loginSubtitle: 'Введите телефон и пароль. PIN можно использовать для быстрого входа на этом устройстве.',
       nexusId: 'Nexus ID',
       phone: 'Телефон',
       password: 'Пароль',
@@ -82,7 +83,7 @@ export const dictionaries = {
       passwordText: 'Задайте пароль для входа. PIN можно добавить для быстрого входа только на этом устройстве.',
       accessKicker: 'Безопасный вход',
       accessTitle: 'Подтвердите доступ так же просто, как сообщение в чате',
-      accessText: 'Nexus проверит номер через Telegram-бота и сразу переведёт вас к профилю — без лишних форм и ожидания.',
+      accessText: 'Введите номер, получите 4-значный код в Telegram-боте и подтвердите его здесь.',
       accessPreviewBot: 'Код доступа готов',
       accessPreviewUser: 'Подтверждаю',
       accessChecklist: 'Статус подтверждения доступа',
@@ -323,6 +324,7 @@ export const dictionaries = {
     },
     auth: {
       loginTitle: 'Sign in to Nexus',
+      loginSubtitle: 'Enter your phone and password. You can use PIN for quick access on this device.',
       nexusId: 'Nexus ID',
       phone: 'Phone',
       password: 'Password',
@@ -360,7 +362,7 @@ export const dictionaries = {
       passwordText: 'Set a password for sign-in. You can add a PIN for faster access on this device only.',
       accessKicker: 'Secure access',
       accessTitle: 'Confirm access as simply as sending a chat message',
-      accessText: 'Nexus verifies your number through the Telegram bot and moves you straight to the profile step — no extra forms or waiting.',
+      accessText: 'Enter your phone number, get a 4-digit code in the Telegram bot, and confirm it here.',
       accessPreviewBot: 'Access code is ready',
       accessPreviewUser: 'Confirming',
       accessChecklist: 'Access verification status',

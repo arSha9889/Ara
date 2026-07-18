@@ -256,24 +256,6 @@ export function RegisterPage() {
         </div>
         {step === 'access' ? (
           <section className="access-step-shell" aria-label={t('register.accessStep')}>
-            <div className="access-hero-card">
-              <div className="access-hero-orb" aria-hidden="true">✦</div>
-              <div className="access-hero-copy">
-                <span className="access-kicker">{t('register.accessKicker')}</span>
-                <h2>{t('register.accessTitle')}</h2>
-                <p>{t('register.accessText')}</p>
-              </div>
-              <div className="access-chat-preview" aria-hidden="true">
-                <div className="access-chat-row incoming">
-                  <span className="access-chat-avatar">N</span>
-                  <span className="access-chat-bubble">{t('register.accessPreviewBot')}</span>
-                </div>
-                <div className="access-chat-row outgoing">
-                  <span className="access-chat-bubble">{t('register.accessPreviewUser')}</span>
-                </div>
-                <div className="access-chat-code">•• {form.phone_code || '0000'} ••</div>
-              </div>
-            </div>
             {isDevMode ? (
               <div className="info-card halo-outline">
                 <strong>{t('register.devTitle')}</strong>
@@ -285,10 +267,9 @@ export function RegisterPage() {
             ) : null}
             <div className="info-card halo-outline phone-verification-card access-card">
               <div className="access-card-head">
-                <span className="access-card-icon" aria-hidden="true">✈</span>
                 <div>
                   <strong>{t('register.phoneTitle')}</strong>
-                  <p className="muted">{t('register.phoneText')}</p>
+                  <p className="muted">{t('register.accessText')}</p>
                 </div>
               </div>
               <div className="access-mini-steps" aria-label={t('register.accessChecklist')}>
@@ -296,26 +277,26 @@ export function RegisterPage() {
                 <span className={phoneVerification ? 'done' : ''}>{t('register.accessStepBot')}</span>
                 <span className={isPhoneVerified ? 'done' : ''}>{t('register.accessStepCode')}</span>
               </div>
-              <div className="country-picker access-country-picker" role="radiogroup" aria-label={t('register.phoneCountry')}>
-                {PHONE_COUNTRIES.map((country) => (
-                  <button
-                    className={`country-option ${form.country === country.code ? 'active' : ''}`}
-                    type="button"
-                    role="radio"
-                    aria-checked={form.country === country.code}
-                    key={country.code}
-                    onClick={() => resetPhoneVerification({ country: country.code, phone: '' })}
-                  >
-                    <span className="country-option-flag" aria-hidden="true">{country.flag}</span>
-                    <span className="country-option-copy">
-                      <strong>{t(`register.${country.labelKey}`)}</strong>
-                      <small>{country.dialCode} · {country.code}</small>
-                    </span>
-                    <span className="country-option-check" aria-hidden="true">✓</span>
-                  </button>
-                ))}
-              </div>
               <div className="access-phone-row">
+                <div className="country-picker access-country-picker" role="radiogroup" aria-label={t('register.phoneCountry')}>
+                  {PHONE_COUNTRIES.map((country) => (
+                    <button
+                      className={`country-option ${form.country === country.code ? 'active' : ''}`}
+                      type="button"
+                      role="radio"
+                      aria-checked={form.country === country.code}
+                      key={country.code}
+                      onClick={() => resetPhoneVerification({ country: country.code, phone: '' })}
+                    >
+                      <span className="country-option-flag" aria-hidden="true">{country.flag}</span>
+                      <span className="country-option-copy">
+                        <strong>{country.code}</strong>
+                        <small>{country.dialCode}</small>
+                      </span>
+                      <span className="country-option-check" aria-hidden="true">✓</span>
+                    </button>
+                  ))}
+                </div>
                 <TextInput
                   label={t('register.phoneLabel')}
                   inputMode="tel"
@@ -323,6 +304,8 @@ export function RegisterPage() {
                   value={form.phone}
                   onChange={(event) => resetPhoneVerification({ phone: event.target.value })}
                 />
+              </div>
+              <div className="access-request-action">
                 <Button type="button" variant="secondary" onClick={handleStartPhoneVerification} disabled={isPhoneRequestLoading || !form.phone.trim()}>
                   {isPhoneRequestLoading ? t('register.phoneRequesting') : t('register.phoneRequestCode')}
                 </Button>
@@ -342,10 +325,7 @@ export function RegisterPage() {
             </div>
             {isDevMode ? <TextInput label="Registration proof" value={form.registration_proof} onChange={(event) => updateField('registration_proof', event.target.value)} required /> : null}
             {error ? <p className="error-text">{error}</p> : null}
-            <div className="access-footer-actions">
-              <span>{t('register.accessPrivacy')}</span>
-              <Button type="submit" disabled={!form.registration_proof}>{t('common.continue')}</Button>
-            </div>
+            <Button type="submit" disabled={!form.registration_proof}>{t('common.continue')}</Button>
           </section>
         ) : null}
         {step === 'profile' ? (
