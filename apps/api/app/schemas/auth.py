@@ -14,7 +14,7 @@ class DevRegistrationProofResponse(BaseModel):
 
 
 class PhoneVerificationStartRequest(BaseModel):
-    country: str = Field(pattern=r'^(RU|KZ)$')
+    country: str = Field(pattern=r'^(RU|KZ|UA)$')
     phone: str = Field(min_length=7, max_length=32)
     device_id: str = Field(min_length=8, max_length=128)
 
