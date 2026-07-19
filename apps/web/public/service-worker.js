@@ -1,6 +1,13 @@
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
 self.addEventListener('push', (event) => {
   let notification = {};
-  let isDevToolsTest = false;
   try {
     notification = event.data?.json() ?? {};
   } catch {
@@ -9,7 +16,6 @@ self.addEventListener('push', (event) => {
       body: event.data?.text() || 'Тестовое push-уведомление',
       url: '/app',
     };
-    isDevToolsTest = true;
   }
   const options = {
     body: notification.body || 'Новое сообщение в Nexus',
@@ -19,15 +25,7 @@ self.addEventListener('push', (event) => {
     renotify: true,
     data: { url: notification.url || '/app' },
   };
-  event.waitUntil((async () => {
-    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const hasVisibleNexusWindow = windows.some((client) => (
-      client.url.startsWith(self.location.origin) && client.visibilityState === 'visible'
-    ));
-    if (isDevToolsTest || !hasVisibleNexusWindow) {
-      await self.registration.showNotification(notification.title || 'Nexus', options);
-    }
-  })());
+  event.waitUntil(self.registration.showNotification(notification.title || 'Nexus', options));
 });
 
 self.addEventListener('notificationclick', (event) => {

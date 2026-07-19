@@ -61,6 +61,10 @@ export async function getPushSubscription() {
 export async function subscribeToPush(publicKey) {
   const registration = await getServiceWorkerRegistration();
   if (!registration) throw new Error('Push notifications are not supported');
+  const existingSubscription = await registration.pushManager.getSubscription();
+  if (existingSubscription) {
+    await existingSubscription.unsubscribe();
+  }
   return registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: applicationServerKeyFromBase64(publicKey),

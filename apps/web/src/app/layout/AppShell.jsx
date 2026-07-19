@@ -13,6 +13,7 @@ export function AppShell() {
   const { disableNotifications } = useNotifications();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isChatRoute = location.pathname.startsWith('/app/chats/');
   const navItems = [
     { to: '/app', icon: '💬', label: t('chats.title') },
     { to: '/app/profile', icon: '👤', label: t('profile.title') },
@@ -37,7 +38,7 @@ export function AppShell() {
   }
 
   return (
-    <div className={`app-shell ${isMenuOpen ? 'is-mobile-menu-open' : ''}`}>
+    <div className={`app-shell ${isMenuOpen ? 'is-mobile-menu-open' : ''} ${isChatRoute ? 'is-chat-route' : ''}`}>
       <aside className="app-sidebar" aria-label={t('common.navigation')}>
         <div className="app-sidebar-topbar">
           <NavLink className="brand" to="/app" aria-label="Nexus" onClick={() => setIsMenuOpen(false)}>
@@ -81,23 +82,25 @@ export function AppShell() {
       <main className="app-main">
         <Outlet />
       </main>
-      <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
-        <button
-          className={`mobile-bottom-nav-item ${isMenuOpen ? 'active' : ''}`}
-          type="button"
-          aria-expanded={isMenuOpen}
-          onClick={() => setIsMenuOpen((current) => !current)}
-        >
-          <span className="mobile-bottom-nav-icon" aria-hidden="true">☰</span>
-          <span>Меню</span>
-        </button>
-        {navItems.map((item) => (
-          <NavLink className="mobile-bottom-nav-item" to={item.to} key={item.to} end={item.to === '/app'} onClick={() => setIsMenuOpen(false)}>
-            <span className="mobile-bottom-nav-icon" aria-hidden="true">{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      {!isChatRoute ? (
+        <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
+          <button
+            className={`mobile-bottom-nav-item ${isMenuOpen ? 'active' : ''}`}
+            type="button"
+            aria-expanded={isMenuOpen}
+            onClick={() => setIsMenuOpen((current) => !current)}
+          >
+            <span className="mobile-bottom-nav-icon" aria-hidden="true">☰</span>
+            <span>Меню</span>
+          </button>
+          {navItems.map((item) => (
+            <NavLink className="mobile-bottom-nav-item" to={item.to} key={item.to} end={item.to === '/app'} onClick={() => setIsMenuOpen(false)}>
+              <span className="mobile-bottom-nav-icon" aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      ) : null}
     </div>
   );
 }

@@ -106,7 +106,7 @@ export function NotificationsProvider({ children }) {
     if (!config.enabled || !config.public_key) return { status: 'unconfigured' };
 
     try {
-      const subscription = await getPushSubscription() || await subscribeToPush(config.public_key);
+      const subscription = await subscribeToPush(config.public_key);
       await savePushSubscription(session.accessToken, subscription.toJSON());
       setHasSubscription(true);
       localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
