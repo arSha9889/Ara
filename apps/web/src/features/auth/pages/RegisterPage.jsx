@@ -186,6 +186,10 @@ export function RegisterPage() {
     setError('');
     setPhoneStatus('');
     setIsPhoneRequestLoading(true);
+    const telegramWindow = window.open('', '_blank');
+    if (telegramWindow) {
+      telegramWindow.opener = null;
+    }
     try {
       const result = await startPhoneVerification({ country: form.country, phone: form.phone, device_id: form.device_id });
       setForm((current) => ({
@@ -197,11 +201,13 @@ export function RegisterPage() {
       setPhoneVerification(result);
       setIsPhoneVerified(false);
       setPhoneStatus(t('register.phoneBotOpened'));
-      const opened = window.open(result.bot_url, '_blank', 'noopener,noreferrer');
-      if (!opened) {
+      if (telegramWindow) {
+        telegramWindow.location.href = result.bot_url;
+      } else {
         window.location.href = result.bot_url;
       }
     } catch (err) {
+      telegramWindow?.close();
       setError(err.message);
     } finally {
       setIsPhoneRequestLoading(false);
