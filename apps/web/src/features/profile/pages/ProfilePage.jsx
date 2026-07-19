@@ -142,11 +142,13 @@ export function ProfilePage() {
         ? t('profile.notificationsUnavailable')
         : result.status === 'subscription_failed'
           ? t('profile.notificationsSubscriptionFailed')
-          : result.status === 'ios_install_required'
-            ? t('profile.notificationsInstallRequired')
-            : result.status === 'insecure_context'
-              ? t('profile.notificationsHttpsRequired')
-              : t('profile.notificationsNotEnabled'));
+          : result.status === 'delivery_failed'
+            ? t('profile.notificationsDeliveryFailed')
+            : result.status === 'ios_install_required'
+              ? t('profile.notificationsInstallRequired')
+              : result.status === 'insecure_context'
+                ? t('profile.notificationsHttpsRequired')
+                : t('profile.notificationsNotEnabled'));
   }
 
   return (

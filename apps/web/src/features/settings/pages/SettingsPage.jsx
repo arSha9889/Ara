@@ -112,11 +112,13 @@ export function SettingsPage() {
         ? t('settings.notificationsUnavailable')
         : result.status === 'subscription_failed'
           ? t('settings.notificationsSubscriptionFailed')
-          : result.status === 'ios_install_required'
-            ? t('settings.notificationsInstallRequired')
-            : result.status === 'insecure_context'
-              ? t('settings.notificationsHttpsRequired')
-              : t('settings.notificationsNotEnabled'));
+          : result.status === 'delivery_failed'
+            ? t('settings.notificationsDeliveryFailed')
+            : result.status === 'ios_install_required'
+              ? t('settings.notificationsInstallRequired')
+              : result.status === 'insecure_context'
+                ? t('settings.notificationsHttpsRequired')
+                : t('settings.notificationsNotEnabled'));
   }
 
   async function handleDisableNotifications() {

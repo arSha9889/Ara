@@ -139,9 +139,13 @@ export function NotificationsProvider({ children }) {
     try {
       const subscription = await subscribeToPush(config.public_key);
       await savePushSubscription(session.accessToken, subscription.toJSON());
-      await sendTestPushNotification(session.accessToken);
       setHasSubscription(true);
       localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
+      try {
+        await sendTestPushNotification(session.accessToken);
+      } catch {
+        return { status: 'delivery_failed' };
+      }
       return { status: 'granted' };
     } catch {
       setHasSubscription(false);
