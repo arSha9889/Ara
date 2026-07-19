@@ -21,8 +21,9 @@ class PhoneVerificationError(ValueError):
 PHONE_VERIFICATION_TTL_MINUTES = 10
 START_PAYLOAD_PREFIX = 'phone_'
 CONFIRM_CALLBACK_PREFIX = 'phone_confirm:'
-SUPPORTED_PHONE_COUNTRIES = {'RU', 'KZ'}
+SUPPORTED_PHONE_COUNTRIES = {'RU', 'KZ', 'UA'}
 KAZAKHSTAN_MOBILE_PREFIXES = {'700', '701', '702', '705', '707', '708', '747', '771', '775', '776', '777', '778'}
+UKRAINE_MOBILE_PREFIXES = {'39', '50', '63', '66', '67', '68', '73', '91', '92', '93', '94', '95', '96', '97', '98', '99'}
 
 
 @dataclass(frozen=True)
@@ -301,6 +302,10 @@ def normalize_phone(value: str, country: str | None = None) -> str:
         cleaned = f'+7{cleaned[1:]}'
     if normalized_country in {'RU', 'KZ'} and cleaned.isdigit() and len(cleaned) == 10:
         cleaned = f'+7{cleaned}'
+    if normalized_country == 'UA' and cleaned.isdigit() and len(cleaned) == 10 and cleaned.startswith('0'):
+        cleaned = f'+380{cleaned[1:]}'
+    if normalized_country == 'UA' and cleaned.isdigit() and len(cleaned) == 9:
+        cleaned = f'+380{cleaned}'
     if cleaned.startswith('+'):
         digits = cleaned[1:]
     else:
@@ -312,6 +317,8 @@ def normalize_phone(value: str, country: str | None = None) -> str:
         raise PhoneVerificationError('Only Russian mobile numbers are supported')
     if normalized_country == 'KZ' and not _is_kazakhstan_mobile_phone(cleaned):
         raise PhoneVerificationError('Only Kazakhstan mobile numbers are supported')
+    if normalized_country == 'UA' and not _is_ukraine_mobile_phone(cleaned):
+        raise PhoneVerificationError('Only Ukrainian mobile numbers are supported')
     return cleaned
 
 
@@ -326,7 +333,13 @@ def _is_kazakhstan_mobile_phone(phone: str) -> bool:
     return bool(re.fullmatch(r'\+7\d{10}', phone)) and phone[2:5] in KAZAKHSTAN_MOBILE_PREFIXES
 
 
+def _is_ukraine_mobile_phone(phone: str) -> bool:
+    return bool(re.fullmatch(r'\+380\d{9}', phone)) and phone[4:6] in UKRAINE_MOBILE_PREFIXES
+
+
 def _phone_country_name(country: str) -> str:
+    if country == 'UA':
+        return 'Украина'
     if country == 'KZ':
         return 'Казахстан'
     return 'Россия'

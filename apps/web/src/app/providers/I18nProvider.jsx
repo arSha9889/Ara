@@ -3,7 +3,11 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import { dictionaries } from '../../shared/i18n/dictionaries.js';
 
 const I18nContext = createContext(null);
-const SUPPORTED_LANGUAGES = ['ru', 'en'];
+export const SUPPORTED_LANGUAGES = ['ru', 'en', 'es', 'fr', 'uk'];
+
+function getDictionaryValue(dictionary, key) {
+  return key.split('.').reduce((current, part) => current?.[part], dictionary);
+}
 
 export function I18nProvider({ children }) {
   const [language, setLanguageState] = useState(() => localStorage.getItem('nexus_language') || 'ru');
@@ -16,7 +20,10 @@ export function I18nProvider({ children }) {
 
   const value = useMemo(() => {
     function t(key) {
-      return key.split('.').reduce((current, part) => current?.[part], dictionaries[language]) ?? key;
+      return getDictionaryValue(dictionaries[language], key)
+        ?? getDictionaryValue(dictionaries.en, key)
+        ?? getDictionaryValue(dictionaries.ru, key)
+        ?? key;
     }
 
     return { language, setLanguage, t };

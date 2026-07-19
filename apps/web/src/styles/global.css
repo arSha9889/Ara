@@ -2864,6 +2864,7 @@ p { margin-bottom: 14px; }
 }
 
 .segment-code { font-size: 0.72rem; line-height: 1; }
+.language-segmented .segment-button { min-width: 44px; padding: 0 8px; }
 .theme-segmented { gap: 5px; }
 .theme-segmented .segment-button { min-width: 60px; padding: 0 9px; }
 

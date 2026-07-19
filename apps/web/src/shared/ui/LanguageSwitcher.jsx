@@ -1,4 +1,12 @@
-import { useI18n } from '../../app/providers/I18nProvider.jsx';
+import { SUPPORTED_LANGUAGES, useI18n } from '../../app/providers/I18nProvider.jsx';
+
+const LANGUAGE_OPTIONS = [
+  { id: 'ru', label: 'Русский', icon: '🇷🇺', code: 'RU' },
+  { id: 'en', label: 'English', icon: '🇬🇧', code: 'EN' },
+  { id: 'es', label: 'Español', icon: '🇪🇸', code: 'ES' },
+  { id: 'fr', label: 'Français', icon: '🇫🇷', code: 'FR' },
+  { id: 'uk', label: 'Українська', icon: '🇺🇦', code: 'UK' },
+].filter((item) => SUPPORTED_LANGUAGES.includes(item.id));
 
 export function LanguageSwitcher({ onChange }) {
   const { language, setLanguage } = useI18n();
@@ -10,10 +18,7 @@ export function LanguageSwitcher({ onChange }) {
 
   return (
     <div className="segmented-control language-segmented" role="radiogroup" aria-label="Language">
-      {[
-        { id: 'ru', label: 'Русский', icon: '🇷🇺', code: 'RU' },
-        { id: 'en', label: 'English', icon: '🇬🇧', code: 'EN' },
-      ].map((item) => (
+      {LANGUAGE_OPTIONS.map((item) => (
         <button
           className={`segment-button icon-segment ${language === item.id ? 'active' : ''}`}
           type="button"

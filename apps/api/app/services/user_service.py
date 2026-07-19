@@ -36,7 +36,7 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
         profile.avatar_type = avatar_type
         profile.avatar_ref = avatar_ref
     if request.language is not None:
-        if request.language not in {'ru', 'en'}:
+        if request.language not in {'ru', 'en', 'es', 'fr', 'uk'}:
             raise AuthError('Unsupported language')
         profile.language = request.language
     if request.design_theme is not None:
