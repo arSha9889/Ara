@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -145,7 +146,9 @@ export function RegisterPage() {
           user = result.user;
         }
       }
-      saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user });
+      flushSync(() => {
+        saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user });
+      });
       navigate('/app', { replace: true });
     } catch (err) {
       setError(err.message);

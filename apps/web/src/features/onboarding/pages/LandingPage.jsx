@@ -8,7 +8,9 @@ import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 export function LandingPage() {
   const { t } = useI18n();
   const { session } = useSession();
-  const ctaPath = session?.accessToken ? '/app' : '/register';
+  const isAuthenticated = Boolean(session?.accessToken);
+  const ctaPath = isAuthenticated ? '/app' : '/register';
+  const ctaLabel = isAuthenticated ? t('onboarding.enterMessenger') : t('onboarding.openMessenger');
   const featureCards = [
     { icon: '💬', title: t('onboarding.directChatsTitle'), text: t('onboarding.directChatsText') },
     { icon: '🎙', title: t('onboarding.voiceTitle'), text: t('onboarding.voiceText') },
@@ -44,7 +46,8 @@ export function LandingPage() {
               <span>{t('onboarding.languagesFeature')}</span>
             </div>
             <div className="stack landing-actions">
-              <Link to={ctaPath} className="button button-primary">{t('onboarding.openMessenger')}</Link>
+              <Link to={ctaPath} className="button button-primary">{ctaLabel}</Link>
+              {!isAuthenticated ? <Link to="/login" className="button button-secondary">{t('onboarding.login')}</Link> : null}
             </div>
           </div>
 
@@ -92,7 +95,10 @@ export function LandingPage() {
         <div className="landing-final-cta">
           <h2>{t('onboarding.finalTitle')}</h2>
           <p>{t('onboarding.finalText')}</p>
-          <Link to={ctaPath} className="button button-primary">{t('onboarding.openMessenger')}</Link>
+          <div className="stack landing-final-actions">
+            <Link to={ctaPath} className="button button-primary">{ctaLabel}</Link>
+            {!isAuthenticated ? <Link to="/login" className="button button-secondary">{t('onboarding.login')}</Link> : null}
+          </div>
         </div>
       </section>
     </main>

@@ -356,6 +356,11 @@ p { margin-bottom: 14px; }
 
 .landing-actions { margin-top: 4px; }
 
+.landing-final-actions {
+  justify-content: center;
+  margin-top: 18px;
+}
+
 .landing-phone {
   position: relative;
   min-height: 430px;
@@ -3669,7 +3674,8 @@ code {
   .landing-copy { justify-items: stretch; }
   .landing-copy h1 { font-size: clamp(2rem, 12vw, 3.4rem); }
   .landing-feature-pills { grid-template-columns: 1fr; }
-  .landing-actions .button { width: 100%; }
+  .landing-actions .button,
+  .landing-final-actions .button { width: 100%; }
   .landing-phone {
     min-height: 360px;
     border-radius: 28px;
