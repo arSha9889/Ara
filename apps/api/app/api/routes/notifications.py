@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_user
@@ -19,6 +19,7 @@ from app.services.notification_service import (
     mark_notifications_read,
     remove_push_subscription,
     save_push_subscription,
+    send_test_push_notification,
     web_push_is_configured,
 )
 
@@ -42,6 +43,19 @@ async def create_push_subscription(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, bool]:
     await save_push_subscription(session, current_user.id, request)
+    return {'ok': True}
+
+
+@router.post('/test-push')
+async def test_push_notification(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, bool]:
+    if not web_push_is_configured():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Push notifications are not configured')
+    delivered = await send_test_push_notification(session, current_user.id)
+    if not delivered:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail='Push notification delivery failed')
     return {'ok': True}
 
 

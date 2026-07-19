@@ -1,10 +1,12 @@
 import asyncio
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pywebpush import WebPushException, webpush
+from py_vapid import Vapid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +20,12 @@ from app.services.realtime_manager import realtime_manager
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class PushDeliveryResult:
+    delivered: bool
+    expired: bool = False
+
+
 def web_push_is_configured() -> bool:
     return bool(settings.vapid_private_key and settings.vapid_public_key and settings.vapid_claims_email)
 
@@ -27,6 +35,13 @@ def _vapid_claims_subject() -> str:
     if not subject or ':' in subject:
         return subject
     return f'mailto:{subject}'
+
+
+def _vapid_private_key() -> str | Vapid:
+    private_key = settings.vapid_private_key.strip().replace('\\n', '\n')
+    if '-----BEGIN' in private_key:
+        return Vapid.from_pem(private_key.encode('utf8'))
+    return private_key
 
 
 async def save_push_subscription(
@@ -125,21 +140,38 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
         await _send_push_to_user(session, notification.recipient_user_id, payload)
 
 
-async def _send_push_to_user(session: AsyncSession, user_id: UUID, notification: NotificationOut) -> None:
+async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> bool:
+    notification = NotificationOut(
+        id=uuid4(),
+        chat_id=None,
+        message_id=None,
+        title='Nexus',
+        body='Проверка push-уведомлений',
+        url='/app/settings',
+        created_at=datetime.now(timezone.utc),
+        read_at=None,
+    )
+    return await _send_push_to_user(session, user_id, notification)
+
+
+async def _send_push_to_user(session: AsyncSession, user_id: UUID, notification: NotificationOut) -> bool:
     if not web_push_is_configured():
-        return
+        return False
     subscriptions = list((await session.execute(
         select(PushSubscription).where(PushSubscription.user_id == user_id)
     )).scalars())
+    delivered = False
     for subscription in subscriptions:
-        expired = await asyncio.to_thread(_send_push, subscription, notification)
-        if expired:
+        result = await asyncio.to_thread(_send_push, subscription, notification)
+        delivered = delivered or result.delivered
+        if result.expired:
             await session.delete(subscription)
     if subscriptions:
         await session.commit()
+    return delivered
 
 
-def _send_push(subscription: PushSubscription, notification: NotificationOut) -> bool:
+def _send_push(subscription: PushSubscription, notification: NotificationOut) -> PushDeliveryResult:
     try:
         webpush(
             subscription_info={
@@ -147,11 +179,11 @@ def _send_push(subscription: PushSubscription, notification: NotificationOut) ->
                 'keys': {'p256dh': subscription.p256dh, 'auth': subscription.auth},
             },
             data=json.dumps(notification.model_dump(mode='json')),
-            vapid_private_key=settings.vapid_private_key,
+            vapid_private_key=_vapid_private_key(),
             vapid_claims={'sub': _vapid_claims_subject()},
             ttl=60 * 60 * 24,
         )
-        return False
+        return PushDeliveryResult(delivered=True)
     except WebPushException as exc:
         status_code = exc.response.status_code if exc.response is not None else None
         logger.warning(
@@ -160,7 +192,7 @@ def _send_push(subscription: PushSubscription, notification: NotificationOut) ->
             status_code,
             str(exc),
         )
-        return status_code in {404, 410}
+        return PushDeliveryResult(delivered=False, expired=status_code in {404, 410})
     except Exception as exc:
         logger.warning(
             'Web Push delivery failed for subscription %s: %s: %s',
@@ -168,7 +200,7 @@ def _send_push(subscription: PushSubscription, notification: NotificationOut) ->
             type(exc).__name__,
             str(exc),
         )
-        return False
+        return PushDeliveryResult(delivered=False)
 
 
 def _notification_out(notification: Notification) -> NotificationOut:

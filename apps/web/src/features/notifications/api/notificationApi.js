@@ -13,6 +13,13 @@ export function savePushSubscription(accessToken, subscription) {
   });
 }
 
+export function sendTestPushNotification(accessToken) {
+  return apiRequest('/api/notifications/test-push', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function deletePushSubscription(accessToken, endpoint) {
   return apiRequest('/api/notifications/subscriptions', {
     method: 'DELETE',

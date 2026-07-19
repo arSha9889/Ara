@@ -7,8 +7,10 @@ import {
   getPushConfig,
   markNotificationsRead,
   savePushSubscription,
+  sendTestPushNotification,
 } from '../../features/notifications/api/notificationApi.js';
-import { getPushSupportState, getPushSubscription, isPushSupported, subscribeToPush } from '../../features/notifications/notificationClient.js';
+import { ensurePushSubscription, getPushSupportState, getPushSubscription, isPushSupported, subscribeToPush } from '../../features/notifications/notificationClient.js';
+import { playNotificationSound, primeNotificationSound } from '../../features/notifications/notificationSound.js';
 import { useSession } from './SessionProvider.jsx';
 
 const NotificationsContext = createContext(null);
@@ -25,6 +27,7 @@ export function NotificationsProvider({ children }) {
   const [hasSubscription, setHasSubscription] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const reconnectTimerRef = useRef(null);
+  const knownNotificationIdsRef = useRef(new Set());
 
   const pushSupport = getPushSupportState();
   const isSupported = isPushSupported();
@@ -32,8 +35,25 @@ export function NotificationsProvider({ children }) {
   const unreadCount = notifications.filter((item) => !item.read_at).length;
 
   useEffect(() => {
+    function handleFirstInteraction() {
+      primeNotificationSound();
+      window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+    }
+
+    window.addEventListener('pointerdown', handleFirstInteraction, { once: true });
+    window.addEventListener('keydown', handleFirstInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstInteraction);
+      window.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!session.accessToken) {
       setNotifications([]);
+      knownNotificationIdsRef.current = new Set();
       setPushConfig({ enabled: false, public_key: null });
       setHasSubscription(false);
       return undefined;
@@ -51,8 +71,15 @@ export function NotificationsProvider({ children }) {
         ]);
         if (!active) return;
         setPushConfig(config);
+        knownNotificationIdsRef.current = new Set(items.map((item) => item.id));
         setNotifications(sortNotifications(items));
         setPermission('Notification' in window ? Notification.permission : 'unsupported');
+        if (config.enabled && config.public_key && Notification.permission === 'granted') {
+          const subscription = await ensurePushSubscription(config.public_key);
+          await savePushSubscription(session.accessToken, subscription.toJSON());
+          setHasSubscription(true);
+          return;
+        }
         setHasSubscription(Boolean(await getPushSubscription()));
       } finally {
         if (active) setIsLoading(false);
@@ -69,10 +96,13 @@ export function NotificationsProvider({ children }) {
           return;
         }
         if (payload.event === 'notification.created' && payload.notification) {
+          const isNewNotification = !knownNotificationIdsRef.current.has(payload.notification.id);
+          knownNotificationIdsRef.current.add(payload.notification.id);
           setNotifications((current) => sortNotifications([
             payload.notification,
             ...current.filter((item) => item.id !== payload.notification.id),
           ]));
+          if (isNewNotification) playNotificationSound();
         }
       });
       socket.addEventListener('close', () => {
@@ -100,6 +130,7 @@ export function NotificationsProvider({ children }) {
       : await Notification.requestPermission();
     setPermission(nextPermission);
     if (nextPermission !== 'granted') return { status: nextPermission };
+    await primeNotificationSound();
 
     const config = await getPushConfig(session.accessToken);
     setPushConfig(config);
@@ -108,6 +139,7 @@ export function NotificationsProvider({ children }) {
     try {
       const subscription = await subscribeToPush(config.public_key);
       await savePushSubscription(session.accessToken, subscription.toJSON());
+      await sendTestPushNotification(session.accessToken);
       setHasSubscription(true);
       localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
       return { status: 'granted' };

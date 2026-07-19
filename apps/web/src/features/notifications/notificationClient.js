@@ -41,6 +41,16 @@ function applicationServerKeyFromBase64(value) {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
+function isSameApplicationServerKey(subscription, publicKey) {
+  const currentKey = subscription.options?.applicationServerKey;
+  if (!currentKey) return false;
+
+  const expected = new Uint8Array(applicationServerKeyFromBase64(publicKey));
+  const current = new Uint8Array(currentKey);
+  if (expected.byteLength !== current.byteLength) return false;
+  return expected.every((byte, index) => byte === current[index]);
+}
+
 export function isPushSupported() {
   return getPushSupportState().supported;
 }
@@ -48,7 +58,10 @@ export function isPushSupported() {
 export async function getServiceWorkerRegistration() {
   if (!isPushSupported()) return null;
   const existing = await navigator.serviceWorker.getRegistration('/');
-  if (existing) return existing;
+  if (existing) {
+    await existing.update().catch(() => undefined);
+    return navigator.serviceWorker.ready;
+  }
   await navigator.serviceWorker.register(SERVICE_WORKER_PATH, { scope: '/' });
   return navigator.serviceWorker.ready;
 }
@@ -58,10 +71,13 @@ export async function getPushSubscription() {
   return registration?.pushManager.getSubscription() ?? null;
 }
 
-export async function subscribeToPush(publicKey) {
+export async function subscribeToPush(publicKey, { force = true } = {}) {
   const registration = await getServiceWorkerRegistration();
   if (!registration) throw new Error('Push notifications are not supported');
   const existingSubscription = await registration.pushManager.getSubscription();
+  if (existingSubscription && !force && isSameApplicationServerKey(existingSubscription, publicKey)) {
+    return existingSubscription;
+  }
   if (existingSubscription) {
     await existingSubscription.unsubscribe();
   }
@@ -69,4 +85,8 @@ export async function subscribeToPush(publicKey) {
     userVisibleOnly: true,
     applicationServerKey: applicationServerKeyFromBase64(publicKey),
   });
+}
+
+export function ensurePushSubscription(publicKey) {
+  return subscribeToPush(publicKey, { force: false });
 }
