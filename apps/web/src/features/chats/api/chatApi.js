@@ -5,11 +5,11 @@ export function getChats(accessToken) {
   return apiRequest('/api/chats', { headers: authHeaders(accessToken) });
 }
 
-export function createDirectChat(accessToken, identifier) {
+export function createDirectChat(accessToken, payload) {
   return apiRequest('/api/chats/direct', {
     method: 'POST',
     headers: authHeaders(accessToken),
-    body: { identifier },
+    body: payload,
   });
 }
 

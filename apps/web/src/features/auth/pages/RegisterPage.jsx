@@ -55,11 +55,31 @@ export function RegisterPage() {
   const [phoneVerification, setPhoneVerification] = useState(null);
   const [phoneStatus, setPhoneStatus] = useState('');
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [isCountryPickerOpen, setIsCountryPickerOpen] = useState(false);
   const selectedPhoneCountry = PHONE_COUNTRIES.find((country) => country.code === form.country) ?? PHONE_COUNTRIES[0];
 
   useEffect(() => () => {
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
   }, [avatarPreview]);
+
+  useEffect(() => {
+    if (!isCountryPickerOpen) return undefined;
+
+    function closeCountryPicker(event) {
+      const isInsideCountryMenu = event.target instanceof Element && event.target.closest('.phone-country-menu');
+      if (event.key === 'Escape' || !isInsideCountryMenu) {
+        setIsCountryPickerOpen(false);
+      }
+    }
+
+    document.addEventListener('keydown', closeCountryPicker);
+    document.addEventListener('pointerdown', closeCountryPicker);
+
+    return () => {
+      document.removeEventListener('keydown', closeCountryPicker);
+      document.removeEventListener('pointerdown', closeCountryPicker);
+    };
+  }, [isCountryPickerOpen]);
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -76,6 +96,12 @@ export function RegisterPage() {
     setPhoneVerification(null);
     setIsPhoneVerified(false);
     setPhoneStatus('');
+  }
+
+  function selectPhoneCountry(country) {
+    setIsCountryPickerOpen(false);
+    if (country.code === form.country) return;
+    resetPhoneVerification({ country: country.code, phone: '' });
   }
 
   async function handleUsernameBlur() {
@@ -278,24 +304,45 @@ export function RegisterPage() {
                 <span className={isPhoneVerified ? 'done' : ''}>{t('register.accessStepCode')}</span>
               </div>
               <div className="access-phone-row">
-                <div className="country-picker access-country-picker" role="radiogroup" aria-label={t('register.phoneCountry')}>
-                  {PHONE_COUNTRIES.map((country) => (
+                <div className="phone-country-field">
+                  <span className="phone-country-label">{t('register.phoneCountry')}</span>
+                  <div className="phone-country-menu">
                     <button
-                      className={`country-option ${form.country === country.code ? 'active' : ''}`}
+                      className="phone-country-trigger"
                       type="button"
-                      role="radio"
-                      aria-checked={form.country === country.code}
-                      key={country.code}
-                      onClick={() => resetPhoneVerification({ country: country.code, phone: '' })}
+                      aria-haspopup="listbox"
+                      aria-expanded={isCountryPickerOpen}
+                      onClick={() => setIsCountryPickerOpen((current) => !current)}
                     >
-                      <span className="country-option-flag" aria-hidden="true">{country.flag}</span>
-                      <span className="country-option-copy">
-                        <strong>{country.code}</strong>
-                        <small>{country.dialCode}</small>
+                      <span className="phone-country-flag" aria-hidden="true">{selectedPhoneCountry.flag}</span>
+                      <span className="phone-country-trigger-copy">
+                        <strong>{selectedPhoneCountry.code}</strong>
+                        <small>{selectedPhoneCountry.dialCode}</small>
                       </span>
-                      <span className="country-option-check" aria-hidden="true">✓</span>
+                      <span className="phone-country-chevron" aria-hidden="true">⌄</span>
                     </button>
-                  ))}
+                    {isCountryPickerOpen ? (
+                      <div className="phone-country-list" role="listbox" aria-label={t('register.phoneCountry')}>
+                        {PHONE_COUNTRIES.map((country) => (
+                          <button
+                            className={`phone-country-option ${form.country === country.code ? 'active' : ''}`}
+                            type="button"
+                            role="option"
+                            aria-selected={form.country === country.code}
+                            key={country.code}
+                            onClick={() => selectPhoneCountry(country)}
+                          >
+                            <span className="phone-country-flag" aria-hidden="true">{country.flag}</span>
+                            <span className="phone-country-option-copy">
+                              <strong>{t(`register.${country.labelKey}`)}</strong>
+                              <small>{country.dialCode} · {country.code}</small>
+                            </span>
+                            <span className="phone-country-check" aria-hidden="true">✓</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 <TextInput
                   label={t('register.phoneLabel')}

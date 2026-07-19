@@ -4,11 +4,11 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.nexus_id import is_valid_nexus_id
 from app.models.chats import Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification
 from app.models.users import User, UserProfile
 from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageCreateRequest, MessageOut, MessageReactionOut
 from app.services.auth_service import AuthError
+from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'voice', 'emoji', 'file'}
@@ -30,14 +30,14 @@ async def list_chats(session: AsyncSession, user_id: UUID) -> list[ChatOut]:
     result = await session.execute(
         select(Chat)
         .join(ChatParticipant, ChatParticipant.chat_id == Chat.id)
-        .where(ChatParticipant.user_id == user_id)
+        .where(ChatParticipant.user_id == user_id, ChatParticipant.role != 'pending')
         .order_by(Chat.updated_at.desc())
     )
     return [await _chat_out(session, chat, user_id) for chat in result.scalars()]
 
 
-async def create_or_get_direct_chat(session: AsyncSession, user_id: UUID, identifier: str) -> ChatOut:
-    other_user = await _find_user_by_identifier(session, identifier)
+async def create_or_get_direct_chat(session: AsyncSession, user_id: UUID, country: str, phone: str) -> ChatOut:
+    other_user = await _find_user_by_phone(session, country, phone)
     if other_user.id == user_id:
         raise AuthError('Cannot create direct chat with yourself')
 
@@ -50,14 +50,18 @@ async def create_or_get_direct_chat(session: AsyncSession, user_id: UUID, identi
     for chat_id in existing.scalars():
         chat = await session.get(Chat, chat_id)
         if chat and chat.type == 'direct':
-                return await _chat_out(session, chat, user_id)
+            participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
+            if participant and participant.role == 'pending':
+                participant.role = 'member'
+                await session.commit()
+            return await _chat_out(session, chat, user_id)
 
     chat = Chat(type='direct')
     session.add(chat)
     await session.flush()
     session.add_all([
         ChatParticipant(chat_id=chat.id, user_id=user_id, role='member'),
-        ChatParticipant(chat_id=chat.id, user_id=other_user.id, role='member'),
+        ChatParticipant(chat_id=chat.id, user_id=other_user.id, role='pending'),
     ])
     await session.commit()
     return await _chat_out(session, chat, user_id)
@@ -118,6 +122,7 @@ async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, re
     chat = await session.get(Chat, chat_id)
     if chat:
         chat.last_message_id = message.id
+    await _activate_direct_chat_participants(session, chat_id)
     await session.commit()
     return await _message_out(session, message, user_id)
 
@@ -273,11 +278,16 @@ async def mark_messages_read(
     return [await _message_out(session, message, user_id) for message in newly_read_messages]
 
 
-async def _find_user_by_identifier(session: AsyncSession, identifier: str) -> User:
-    if is_valid_nexus_id(identifier):
-        statement = select(User).where(User.nexus_id == identifier)
-    else:
-        statement = select(User).join(UserProfile).where(UserProfile.username == identifier)
+async def _find_user_by_phone(session: AsyncSession, country: str, phone: str) -> User:
+    try:
+        normalized_phone = normalize_phone(phone, country)
+    except PhoneVerificationError as exc:
+        raise AuthError(str(exc)) from exc
+    statement = (
+        select(User)
+        .join(UserProfile, UserProfile.user_id == User.id)
+        .where(UserProfile.optional_phone == normalized_phone, User.deleted_at.is_(None))
+    )
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     if not user:
@@ -289,6 +299,17 @@ async def _ensure_participant(session: AsyncSession, user_id: UUID, chat_id: UUI
     participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
     if not participant:
         raise AuthError('Chat not found')
+
+
+async def _activate_direct_chat_participants(session: AsyncSession, chat_id: UUID) -> None:
+    chat = await session.get(Chat, chat_id)
+    if not chat or chat.type != 'direct':
+        return
+    await session.execute(
+        update(ChatParticipant)
+        .where(ChatParticipant.chat_id == chat_id, ChatParticipant.role == 'pending')
+        .values(role='member')
+    )
 
 
 def _validate_message_request(request: MessageCreateRequest) -> None:

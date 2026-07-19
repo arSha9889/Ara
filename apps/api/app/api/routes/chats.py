@@ -39,7 +39,7 @@ async def create_direct_chat(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ChatOut:
     try:
-        return await create_or_get_direct_chat(session, current_user.id, request.identifier)
+        return await create_or_get_direct_chat(session, current_user.id, request.country, request.phone)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 
 
 class DirectChatCreateRequest(BaseModel):
-    identifier: str = Field(min_length=3, max_length=64)
+    country: str = Field(pattern=r'^(RU|KZ)$')
+    phone: str = Field(min_length=7, max_length=32)
 
 
 class MessageCreateRequest(BaseModel):

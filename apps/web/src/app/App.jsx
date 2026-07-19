@@ -11,8 +11,22 @@ import { ChatsPage } from '../features/chats/pages/ChatsPage.jsx';
 import { WelcomeChatPage } from '../features/chats/pages/WelcomeChatPage.jsx';
 import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
 import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
+import { NexusLoader } from '../shared/ui/NexusLoader.jsx';
+import { useSession } from './providers/SessionProvider.jsx';
 
 export function App() {
+  const { isSessionLoading } = useSession();
+
+  if (isSessionLoading) {
+    return (
+      <main className="app-boot-loader-page">
+        <section className="panel boot-loader-panel">
+          <NexusLoader />
+        </section>
+      </main>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />

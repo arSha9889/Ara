@@ -12,7 +12,7 @@ from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.chats import MessageCreateRequest, MessageOut
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import complete_registration, login_with_password, refresh_access_token
-from app.services.chat_service import create_message, create_or_get_direct_chat, list_messages, mark_message_read, mark_messages_read, toggle_reaction
+from app.services.chat_service import create_message, create_or_get_direct_chat, list_chats, list_messages, mark_message_read, mark_messages_read, toggle_reaction
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import update_profile
 
@@ -86,22 +86,32 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             updated_user = await update_profile(
                 session,
                 first_user.id,
-                ProfileUpdateRequest(language='en', design_theme='aurora', phone_public=True),
+                ProfileUpdateRequest(language='en', design_theme='aurora', optional_phone='+79990000001', phone_public=True),
             )
             assert updated_user.profile.language == 'en'
             assert updated_user.profile.design_theme == 'aurora'
+            assert updated_user.profile.optional_phone == '+79990000001'
             assert updated_user.profile.phone_public is True
 
         async with session_factory() as session:
-            chat = await create_or_get_direct_chat(session, first_user.id, second_user.nexus_id)
+            await update_profile(
+                session,
+                second_user.id,
+                ProfileUpdateRequest(optional_phone='+79990000002'),
+            )
+
+        async with session_factory() as session:
+            chat = await create_or_get_direct_chat(session, first_user.id, 'RU', '+7 999 000-00-02')
             assert first_user.id in chat.participant_ids
             assert second_user.id in chat.participant_ids
+            assert [item.id for item in await list_chats(session, second_user.id)] == []
 
             message = await create_message(session, first_user.id, chat.id, MessageCreateRequest(text='Привет'))
             assert isinstance(message, MessageOut)
             assert message.payload == 'Привет'
             assert message.delivery_status == 'delivered'
-            unread_chat = await create_or_get_direct_chat(session, second_user.id, first_user.nexus_id)
+            assert [item.id for item in await list_chats(session, second_user.id)] == [chat.id]
+            unread_chat = await create_or_get_direct_chat(session, second_user.id, 'RU', '+7 999 000-00-01')
             assert unread_chat.unread_count == 1
 
             reacted_message = await toggle_reaction(session, second_user.id, chat.id, message.id, '👍')
@@ -110,7 +120,7 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
 
             read_message = await mark_message_read(session, second_user.id, chat.id, message.id)
             assert read_message.delivery_status == 'received'
-            read_chat = await create_or_get_direct_chat(session, second_user.id, first_user.nexus_id)
+            read_chat = await create_or_get_direct_chat(session, second_user.id, 'RU', '+7 999 000-00-01')
             assert read_chat.unread_count == 0
 
             second_message = await create_message(session, first_user.id, chat.id, MessageCreateRequest(text='Ещё одно сообщение'))
