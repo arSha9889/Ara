@@ -9,8 +9,10 @@ __pycache__/
 *.py[cod]
 .env
 .env.*
+deploy/production.env
 !.env.example
 !apps/api/.env.example
 !apps/web/.env.example
+!deploy/production.env.example
 .coverage
 htmlcov/

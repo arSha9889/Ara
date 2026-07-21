@@ -69,6 +69,11 @@ export function LandingPage() {
               <Link to={ctaPath} className="button button-primary">{ctaLabel}</Link>
               {!isAuthenticated ? <Link to="/login" className="button button-secondary">{t('onboarding.login')}</Link> : null}
             </div>
+            <nav className="landing-legal-links" aria-label={t('onboarding.legalLinksLabel')}>
+              <Link to="/privacy">{t('onboarding.privacyPolicy')}</Link>
+              <span aria-hidden="true">·</span>
+              <Link to="/terms">{t('onboarding.terms')}</Link>
+            </nav>
           </div>
 
           <div className="landing-phone" aria-label={t('onboarding.previewLabel')}>
@@ -141,6 +146,11 @@ export function LandingPage() {
               <Link to={ctaPath} className="button button-primary">{ctaLabel}</Link>
               {!isAuthenticated ? <Link to="/login" className="button button-secondary">{t('onboarding.login')}</Link> : null}
             </div>
+            <nav className="landing-legal-links centered" aria-label={t('onboarding.legalLinksLabel')}>
+              <Link to="/privacy">{t('onboarding.privacyPolicy')}</Link>
+              <span aria-hidden="true">·</span>
+              <Link to="/terms">{t('onboarding.terms')}</Link>
+            </nav>
           </div>
         </div>
       </section>

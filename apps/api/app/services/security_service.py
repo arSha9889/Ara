@@ -13,6 +13,7 @@ from app.models.sessions import LoginHistory
 from app.models.users import User, UserProfile
 from app.schemas.users import UserOut
 from app.services.auth_service import issue_session_for_user
+from app.services.email_verification_service import EmailVerificationError, normalize_email
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
 
@@ -67,11 +68,11 @@ async def reset_pin(
 
 async def login_with_pin(session: AsyncSession, identifier: str, pin: str, device_id: str) -> tuple[UserOut, str, str]:
     if not is_valid_pin(pin):
-        raise SecurityError('Invalid phone or PIN')
+        raise SecurityError('Invalid login identifier or PIN')
 
     user = await _find_user_by_login_identifier(session, identifier)
     if not user:
-        raise SecurityError('Invalid phone or PIN')
+        raise SecurityError('Invalid login identifier or PIN')
 
     trusted_pin = await _get_active_pin_for_device(session, user.id, device_id)
     if not trusted_pin:
@@ -99,7 +100,7 @@ async def login_with_pin(session: AsyncSession, identifier: str, pin: str, devic
             trusted_pin.locked_until = now + timedelta(minutes=settings.pin_lock_minutes)
         session.add(LoginHistory(user_id=user.id, device_id=device_id, method='pin', result='failed'))
         await session.commit()
-        raise SecurityError('Invalid phone or PIN')
+        raise SecurityError('Invalid login identifier or PIN')
 
     trusted_pin.failed_attempts = 0
     trusted_pin.locked_until = None
@@ -158,6 +159,18 @@ async def _find_user_by_login_identifier(session: AsyncSession, identifier: str)
     value = identifier.strip()
     if value.isdigit() and len(value) == settings.nexus_id_length:
         result = await session.execute(select(User).where(User.nexus_id == value, User.deleted_at.is_(None)))
+        return result.scalar_one_or_none()
+
+    if '@' in value:
+        try:
+            email = normalize_email(value)
+        except EmailVerificationError:
+            return None
+        result = await session.execute(
+            select(User)
+            .join(UserProfile, UserProfile.user_id == User.id)
+            .where(UserProfile.email == email, User.deleted_at.is_(None))
+        )
         return result.scalar_one_or_none()
 
     try:

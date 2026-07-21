@@ -1,0 +1,9 @@
+{
+  email {$NEXUS_ACME_EMAIL}
+}
+
+{$NEXUS_PUBLIC_DOMAIN} {
+  encode zstd gzip
+
+  reverse_proxy web:8080
+}

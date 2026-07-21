@@ -9,6 +9,8 @@ import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx'
 import { ChatPage } from '../features/chats/pages/ChatPage.jsx';
 import { ChatsPage } from '../features/chats/pages/ChatsPage.jsx';
 import { WelcomeChatPage } from '../features/chats/pages/WelcomeChatPage.jsx';
+import { PrivacyPolicyPage } from '../features/legal/pages/PrivacyPolicyPage.jsx';
+import { TermsPage } from '../features/legal/pages/TermsPage.jsx';
 import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
 import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
 import { NexusLoader } from '../shared/ui/NexusLoader.jsx';
@@ -33,6 +35,8 @@ export function App() {
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppShell />}>
           <Route index element={<ChatsPage />} />

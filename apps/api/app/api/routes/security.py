@@ -36,9 +36,9 @@ async def pin_login(
     request: PinLoginRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PinLoginResponse:
-    identifier = request.identifier or request.phone or request.nexus_id
+    identifier = request.identifier or request.email or request.phone or request.nexus_id
     if not identifier:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Phone is required')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Login identifier is required')
     try:
         user, access_token, refresh_token = await login_with_pin(session, identifier, request.pin, request.device_id)
     except SecurityError as exc:

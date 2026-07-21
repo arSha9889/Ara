@@ -43,6 +43,47 @@ def test_normalize_phone() -> None:
 
 
 @pytest.mark.anyio
+async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.db.base import Base
+    from app.domain.registration_proof import create_registration_proof
+    from app.models.users import User
+    from app.schemas.auth import RegisterCompleteRequest
+    from app.services.auth_service import AuthError, complete_registration
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            for index in range(100):
+                session.add(User(nexus_id=f'{index:016d}', telegram_id=f'existing-{index}', status='active'))
+            await session.commit()
+
+            with pytest.raises(AuthError, match='Early access registration limit is reached'):
+                await complete_registration(
+                    session,
+                    RegisterCompleteRequest(
+                        registration_proof=create_registration_proof('dev-over-limit'),
+                        username='overlimit',
+                        password='password123',
+                        device_id='device-over-limit',
+                        accepted_terms=True,
+                        accepted_privacy_policy=True,
+                    ),
+                )
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
 async def test_phone_verification_bot_flow(anyio_backend, monkeypatch) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 

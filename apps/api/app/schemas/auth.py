@@ -35,9 +35,31 @@ class PhoneVerificationConfirmResponse(BaseModel):
     phone: str
 
 
+class EmailVerificationStartRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class EmailVerificationStartResponse(BaseModel):
+    verification_id: UUID
+    bot_url: str
+    expires_in_seconds: int
+
+
+class EmailVerificationConfirmRequest(BaseModel):
+    verification_id: UUID
+    code: str = Field(pattern=r'^\d{4}$')
+
+
+class EmailVerificationConfirmResponse(BaseModel):
+    registration_proof: str
+    email: str
+
+
 class RegisterCompleteRequest(BaseModel):
     registration_proof: str
     phone_verification_id: UUID | None = None
+    email_verification_id: UUID | None = None
     username: str = Field(min_length=3, max_length=32)
     password: str = Field(min_length=5, max_length=30)
     pin: str | None = Field(default=None, min_length=4, max_length=8)
@@ -47,6 +69,8 @@ class RegisterCompleteRequest(BaseModel):
     display_name: str | None = Field(default=None, max_length=80)
     avatar_type: str = Field(default='built_in', max_length=32)
     avatar_ref: str = Field(default='animal-01', max_length=255)
+    accepted_terms: bool = False
+    accepted_privacy_policy: bool = False
 
 
 class RegisterCompleteResponse(BaseModel):
@@ -56,8 +80,9 @@ class RegisterCompleteResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    identifier: str | None = Field(default=None, min_length=7, max_length=32)
+    identifier: str | None = Field(default=None, min_length=5, max_length=255)
     phone: str | None = Field(default=None, min_length=7, max_length=32)
+    email: str | None = Field(default=None, min_length=5, max_length=255)
     nexus_id: str | None = Field(default=None, min_length=16, max_length=16)
     password: str
     device_id: str = Field(min_length=8, max_length=128)

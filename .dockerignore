@@ -11,6 +11,7 @@ apps/api/.env
 apps/api/.env.*
 apps/web/.env
 apps/web/.env.*
+deploy/production.env
 backend/
 Референсы/
 plans/

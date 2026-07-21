@@ -28,6 +28,20 @@ export function confirmPhoneVerification(payload) {
   });
 }
 
+export function startEmailVerification(payload) {
+  return apiRequest('/api/auth/email-verification/start', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function confirmEmailVerification(payload) {
+  return apiRequest('/api/auth/email-verification/confirm', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
 export function loginWithPassword(payload) {
   return apiRequest('/api/auth/login', {
     method: 'POST',

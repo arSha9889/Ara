@@ -9,6 +9,7 @@ class UserProfileOut(BaseModel):
     avatar_type: str
     avatar_ref: str
     optional_phone: str | None
+    email: str | None
     phone_public: bool
     language: str
     design_theme: str

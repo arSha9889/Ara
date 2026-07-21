@@ -17,6 +17,10 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terms_version: Mapped[str | None] = mapped_column(String(32))
+    privacy_policy_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    privacy_policy_version: Mapped[str | None] = mapped_column(String(32))
 
     profile: Mapped['UserProfile'] = relationship(back_populates='user', cascade='all, delete-orphan')
 
@@ -30,6 +34,7 @@ class UserProfile(Base):
     avatar_type: Mapped[str] = mapped_column(String(32), default='built_in')
     avatar_ref: Mapped[str] = mapped_column(String(255), default='animal-01')
     optional_phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
     phone_public: Mapped[bool] = mapped_column(Boolean, default=False)
     language: Mapped[str] = mapped_column(String(8), default='ru')
     design_theme: Mapped[str] = mapped_column(String(32), default='halo')

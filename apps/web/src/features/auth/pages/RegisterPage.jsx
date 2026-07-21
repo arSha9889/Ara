@@ -12,8 +12,10 @@ import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { checkUsername, updateMyProfile } from '../../profile/api/userApi.js';
 import {
   completeRegistration,
+  confirmEmailVerification,
   confirmPhoneVerification,
   createDevRegistrationProof,
+  startEmailVerification,
   startPhoneVerification,
 } from '../api/authApi.js';
 
@@ -31,10 +33,14 @@ export function RegisterPage() {
   const isDevMode = import.meta.env.DEV;
   const [form, setForm] = useState({
     registration_proof: '',
+    access_method: 'phone',
     phone_verification_id: null,
+    email_verification_id: null,
     country: 'RU',
     phone: '',
     phone_code: '',
+    email: '',
+    email_code: '',
     username: '',
     password: '',
     pin: '',
@@ -43,6 +49,8 @@ export function RegisterPage() {
     design_theme: 'halo',
     avatar_type: 'built_in',
     avatar_ref: 'animal-01',
+    accepted_terms: false,
+    accepted_privacy_policy: false,
   });
   const [step, setStep] = useState('access');
   const [avatarFile, setAvatarFile] = useState(null);
@@ -54,9 +62,14 @@ export function RegisterPage() {
   const [isDevProofLoading, setIsDevProofLoading] = useState(false);
   const [isPhoneRequestLoading, setIsPhoneRequestLoading] = useState(false);
   const [isPhoneConfirmLoading, setIsPhoneConfirmLoading] = useState(false);
+  const [isEmailRequestLoading, setIsEmailRequestLoading] = useState(false);
+  const [isEmailConfirmLoading, setIsEmailConfirmLoading] = useState(false);
   const [phoneVerification, setPhoneVerification] = useState(null);
+  const [emailVerification, setEmailVerification] = useState(null);
   const [phoneStatus, setPhoneStatus] = useState('');
+  const [emailStatus, setEmailStatus] = useState('');
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isCountryPickerOpen, setIsCountryPickerOpen] = useState(false);
   const selectedPhoneCountry = PHONE_COUNTRIES.find((country) => country.code === form.country) ?? PHONE_COUNTRIES[0];
 
@@ -100,6 +113,39 @@ export function RegisterPage() {
     setPhoneStatus('');
   }
 
+  function resetEmailVerification(nextFields = {}) {
+    setForm((current) => ({
+      ...current,
+      ...nextFields,
+      registration_proof: '',
+      email_verification_id: null,
+      email_code: '',
+    }));
+    setEmailVerification(null);
+    setIsEmailVerified(false);
+    setEmailStatus('');
+  }
+
+  function selectAccessMethod(method) {
+    if (method === form.access_method) return;
+    setError('');
+    setPhoneVerification(null);
+    setEmailVerification(null);
+    setPhoneStatus('');
+    setEmailStatus('');
+    setIsPhoneVerified(false);
+    setIsEmailVerified(false);
+    setForm((current) => ({
+      ...current,
+      access_method: method,
+      registration_proof: '',
+      phone_verification_id: null,
+      email_verification_id: null,
+      phone_code: '',
+      email_code: '',
+    }));
+  }
+
   function selectPhoneCountry(country) {
     setIsCountryPickerOpen(false);
     if (country.code === form.country) return;
@@ -123,7 +169,11 @@ export function RegisterPage() {
     event.preventDefault();
     setError('');
     if (!form.registration_proof) {
-      setError(t('register.phoneRequestRequired'));
+      setError(t('register.accessRequestRequired'));
+      return;
+    }
+    if (!form.accepted_terms || !form.accepted_privacy_policy) {
+      setError(t('register.legalRequired'));
       return;
     }
     setIsLoading(true);
@@ -134,8 +184,14 @@ export function RegisterPage() {
       delete registrationPayload.country;
       delete registrationPayload.phone;
       delete registrationPayload.phone_code;
+      delete registrationPayload.email;
+      delete registrationPayload.email_code;
+      delete registrationPayload.access_method;
       if (!isPhoneVerified) {
         delete registrationPayload.phone_verification_id;
+      }
+      if (!isEmailVerified) {
+        delete registrationPayload.email_verification_id;
       }
       const result = await completeRegistration({ ...registrationPayload, pin: form.pin || null });
       let user = result.user;
@@ -162,7 +218,7 @@ export function RegisterPage() {
     event.preventDefault();
     setError('');
     if (!form.registration_proof) {
-      setError(t('register.phoneRequestRequired'));
+      setError(t('register.accessRequestRequired'));
       return;
     }
     setStep('profile');
@@ -175,6 +231,7 @@ export function RegisterPage() {
       const result = await createDevRegistrationProof(`dev-${crypto.randomUUID()}`);
       updateField('registration_proof', result.registration_proof);
       setIsPhoneVerified(false);
+      setIsEmailVerified(false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -214,6 +271,38 @@ export function RegisterPage() {
     }
   }
 
+  async function handleStartEmailVerification() {
+    setError('');
+    setEmailStatus('');
+    setIsEmailRequestLoading(true);
+    const telegramWindow = window.open('', '_blank');
+    if (telegramWindow) {
+      telegramWindow.opener = null;
+    }
+    try {
+      const result = await startEmailVerification({ email: form.email, device_id: form.device_id });
+      setForm((current) => ({
+        ...current,
+        email_verification_id: result.verification_id,
+        email_code: '',
+        registration_proof: '',
+      }));
+      setEmailVerification(result);
+      setIsEmailVerified(false);
+      setEmailStatus(t('register.emailBotOpened'));
+      if (telegramWindow) {
+        telegramWindow.location.href = result.bot_url;
+      } else {
+        window.location.href = result.bot_url;
+      }
+    } catch (err) {
+      telegramWindow?.close();
+      setError(err.message);
+    } finally {
+      setIsEmailRequestLoading(false);
+    }
+  }
+
   async function handleConfirmPhoneCode() {
     setError('');
     setPhoneStatus('');
@@ -232,6 +321,27 @@ export function RegisterPage() {
       setError(err.message);
     } finally {
       setIsPhoneConfirmLoading(false);
+    }
+  }
+
+  async function handleConfirmEmailCode() {
+    setError('');
+    setEmailStatus('');
+    if (!form.email_verification_id) {
+      setError(t('register.emailRequestRequired'));
+      return;
+    }
+    setIsEmailConfirmLoading(true);
+    try {
+      const result = await confirmEmailVerification({ verification_id: form.email_verification_id, code: form.email_code });
+      updateField('registration_proof', result.registration_proof);
+      updateField('email', result.email);
+      setIsEmailVerified(true);
+      setEmailStatus(t('register.emailConfirmed'));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsEmailConfirmLoading(false);
     }
   }
 
@@ -285,6 +395,10 @@ export function RegisterPage() {
         <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" /><span>Nexus</span></Link>
         <h1>{t('register.title')}</h1>
         <p className="muted">{t('register.subtitle')}</p>
+        <div className="info-card halo-outline beta-limit-card">
+          <strong>{t('register.betaLimitTitle')}</strong>
+          <p className="muted">{t('register.betaLimitText')}</p>
+        </div>
         <div className="registration-steps" aria-label={t('register.steps')}>
           <span className={step === 'access' ? 'active' : ''}>1. {t('register.accessStep')}</span>
           <span className={step === 'profile' ? 'active' : ''}>2. {t('register.profileStep')}</span>
@@ -304,81 +418,125 @@ export function RegisterPage() {
             <div className="info-card halo-outline phone-verification-card access-card">
               <div className="access-card-head">
                 <div>
-                  <strong>{t('register.phoneTitle')}</strong>
+                  <strong>{form.access_method === 'phone' ? t('register.phoneTitle') : t('register.emailTitle')}</strong>
                   <p className="muted">{t('register.accessText')}</p>
                 </div>
               </div>
+              <div className="access-method-switch" role="group" aria-label={t('register.accessMethodTitle')}>
+                <button className={form.access_method === 'phone' ? 'active' : ''} type="button" onClick={() => selectAccessMethod('phone')}>
+                  {t('register.accessMethodPhone')}
+                </button>
+                <button className={form.access_method === 'email' ? 'active' : ''} type="button" onClick={() => selectAccessMethod('email')}>
+                  {t('register.accessMethodEmail')}
+                </button>
+              </div>
               <div className="access-mini-steps" aria-label={t('register.accessChecklist')}>
-                <span className={form.phone_verification_id ? 'done' : ''}>{t('register.accessStepPhone')}</span>
-                <span className={phoneVerification ? 'done' : ''}>{t('register.accessStepBot')}</span>
-                <span className={isPhoneVerified ? 'done' : ''}>{t('register.accessStepCode')}</span>
+                <span className={(form.access_method === 'phone' ? form.phone_verification_id : form.email_verification_id) ? 'done' : ''}>
+                  {form.access_method === 'phone' ? t('register.accessStepPhone') : t('register.accessStepEmail')}
+                </span>
+                <span className={(form.access_method === 'phone' ? phoneVerification : emailVerification) ? 'done' : ''}>{t('register.accessStepBot')}</span>
+                <span className={(form.access_method === 'phone' ? isPhoneVerified : isEmailVerified) ? 'done' : ''}>{t('register.accessStepCode')}</span>
               </div>
-              <div className="access-phone-row">
-                <div className="phone-country-field">
-                  <span className="phone-country-label">{t('register.phoneCountry')}</span>
-                  <div className="phone-country-menu">
-                    <button
-                      className="phone-country-trigger"
-                      type="button"
-                      aria-haspopup="listbox"
-                      aria-expanded={isCountryPickerOpen}
-                      onClick={() => setIsCountryPickerOpen((current) => !current)}
-                    >
-                      <span className="phone-country-flag" aria-hidden="true">{selectedPhoneCountry.flag}</span>
-                      <span className="phone-country-trigger-copy">
-                        <strong>{selectedPhoneCountry.code}</strong>
-                        <small>{selectedPhoneCountry.dialCode}</small>
-                      </span>
-                      <span className="phone-country-chevron" aria-hidden="true">⌄</span>
-                    </button>
-                    {isCountryPickerOpen ? (
-                      <div className="phone-country-list" role="listbox" aria-label={t('register.phoneCountry')}>
-                        {PHONE_COUNTRIES.map((country) => (
-                          <button
-                            className={`phone-country-option ${form.country === country.code ? 'active' : ''}`}
-                            type="button"
-                            role="option"
-                            aria-selected={form.country === country.code}
-                            key={country.code}
-                            onClick={() => selectPhoneCountry(country)}
-                          >
-                            <span className="phone-country-flag" aria-hidden="true">{country.flag}</span>
-                            <span className="phone-country-option-copy">
-                              <strong>{t(`register.${country.labelKey}`)}</strong>
-                              <small>{country.dialCode} · {country.code}</small>
-                            </span>
-                            <span className="phone-country-check" aria-hidden="true">✓</span>
-                          </button>
-                        ))}
+              {form.access_method === 'phone' ? (
+                <>
+                  <div className="access-phone-row">
+                    <div className="phone-country-field">
+                      <span className="phone-country-label">{t('register.phoneCountry')}</span>
+                      <div className="phone-country-menu">
+                        <button
+                          className="phone-country-trigger"
+                          type="button"
+                          aria-haspopup="listbox"
+                          aria-expanded={isCountryPickerOpen}
+                          onClick={() => setIsCountryPickerOpen((current) => !current)}
+                        >
+                          <span className="phone-country-flag" aria-hidden="true">{selectedPhoneCountry.flag}</span>
+                          <span className="phone-country-trigger-copy">
+                            <strong>{selectedPhoneCountry.code}</strong>
+                            <small>{selectedPhoneCountry.dialCode}</small>
+                          </span>
+                          <span className="phone-country-chevron" aria-hidden="true">⌄</span>
+                        </button>
+                        {isCountryPickerOpen ? (
+                          <div className="phone-country-list" role="listbox" aria-label={t('register.phoneCountry')}>
+                            {PHONE_COUNTRIES.map((country) => (
+                              <button
+                                className={`phone-country-option ${form.country === country.code ? 'active' : ''}`}
+                                type="button"
+                                role="option"
+                                aria-selected={form.country === country.code}
+                                key={country.code}
+                                onClick={() => selectPhoneCountry(country)}
+                              >
+                                <span className="phone-country-flag" aria-hidden="true">{country.flag}</span>
+                                <span className="phone-country-option-copy">
+                                  <strong>{t(`register.${country.labelKey}`)}</strong>
+                                  <small>{country.dialCode} · {country.code}</small>
+                                </span>
+                                <span className="phone-country-check" aria-hidden="true">✓</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
+                    </div>
+                    <TextInput
+                      label={t('register.phoneLabel')}
+                      inputMode="tel"
+                      placeholder={selectedPhoneCountry.placeholder}
+                      value={form.phone}
+                      onChange={(event) => resetPhoneVerification({ phone: event.target.value })}
+                    />
                   </div>
-                </div>
-                <TextInput
-                  label={t('register.phoneLabel')}
-                  inputMode="tel"
-                  placeholder={selectedPhoneCountry.placeholder}
-                  value={form.phone}
-                  onChange={(event) => resetPhoneVerification({ phone: event.target.value })}
-                />
-              </div>
-              <div className="access-request-action">
-                <Button type="button" variant="secondary" onClick={handleStartPhoneVerification} disabled={isPhoneRequestLoading || !form.phone.trim()}>
-                  {isPhoneRequestLoading ? t('register.phoneRequesting') : t('register.phoneRequestCode')}
-                </Button>
-              </div>
-              {phoneVerification ? (
-                <a className="button button-secondary access-bot-link" href={phoneVerification.bot_url} target="_blank" rel="noreferrer">
-                  {t('register.phoneOpenBot')}
-                </a>
-              ) : null}
-              <div className="access-code-row">
-                <TextInput label={t('register.phoneCodeLabel')} inputMode="numeric" value={form.phone_code} onChange={(event) => updateField('phone_code', event.target.value.replace(/\D/g, '').slice(0, 4))} />
-                <Button type="button" variant="secondary" onClick={handleConfirmPhoneCode} disabled={isPhoneConfirmLoading || form.phone_code.length !== 4}>
-                  {isPhoneConfirmLoading ? t('register.phoneChecking') : t('register.phoneConfirmCode')}
-                </Button>
-              </div>
-              {phoneStatus ? <p className="success-text">{phoneStatus}</p> : null}
+                  <div className="access-request-action">
+                    <Button type="button" variant="secondary" onClick={handleStartPhoneVerification} disabled={isPhoneRequestLoading || !form.phone.trim()}>
+                      {isPhoneRequestLoading ? t('register.phoneRequesting') : t('register.phoneRequestCode')}
+                    </Button>
+                  </div>
+                  {phoneVerification ? (
+                    <a className="button button-secondary access-bot-link" href={phoneVerification.bot_url} target="_blank" rel="noreferrer">
+                      {t('register.phoneOpenBot')}
+                    </a>
+                  ) : null}
+                  <div className="access-code-row">
+                    <TextInput label={t('register.phoneCodeLabel')} inputMode="numeric" value={form.phone_code} onChange={(event) => updateField('phone_code', event.target.value.replace(/\D/g, '').slice(0, 4))} />
+                    <Button type="button" variant="secondary" onClick={handleConfirmPhoneCode} disabled={isPhoneConfirmLoading || form.phone_code.length !== 4}>
+                      {isPhoneConfirmLoading ? t('register.phoneChecking') : t('register.phoneConfirmCode')}
+                    </Button>
+                  </div>
+                  {phoneStatus ? <p className="success-text">{phoneStatus}</p> : null}
+                </>
+              ) : (
+                <>
+                  <TextInput
+                    label={t('register.emailLabel')}
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="name@example.com"
+                    value={form.email}
+                    onChange={(event) => resetEmailVerification({ email: event.target.value })}
+                  />
+                  <p className="muted access-note">{t('register.emailTelegramNote')}</p>
+                  <div className="access-request-action">
+                    <Button type="button" variant="secondary" onClick={handleStartEmailVerification} disabled={isEmailRequestLoading || !form.email.trim()}>
+                      {isEmailRequestLoading ? t('register.emailRequesting') : t('register.emailRequestCode')}
+                    </Button>
+                  </div>
+                  {emailVerification ? (
+                    <a className="button button-secondary access-bot-link" href={emailVerification.bot_url} target="_blank" rel="noreferrer">
+                      {t('register.emailOpenBot')}
+                    </a>
+                  ) : null}
+                  <div className="access-code-row">
+                    <TextInput label={t('register.emailCodeLabel')} inputMode="numeric" value={form.email_code} onChange={(event) => updateField('email_code', event.target.value.replace(/\D/g, '').slice(0, 4))} />
+                    <Button type="button" variant="secondary" onClick={handleConfirmEmailCode} disabled={isEmailConfirmLoading || form.email_code.length !== 4}>
+                      {isEmailConfirmLoading ? t('register.emailChecking') : t('register.emailConfirmCode')}
+                    </Button>
+                  </div>
+                  {emailStatus ? <p className="success-text">{emailStatus}</p> : null}
+                </>
+              )}
             </div>
             {isDevMode ? <TextInput label="Registration proof" value={form.registration_proof} onChange={(event) => updateField('registration_proof', event.target.value)} required /> : null}
             {error ? <p className="error-text">{error}</p> : null}
@@ -433,9 +591,25 @@ export function RegisterPage() {
               <TextInput label={t('register.password')} type="password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
               <TextInput label={t('register.optionalPin')} inputMode="numeric" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
             </div>
+            <div className="info-card halo-outline legal-consent-card">
+              <strong>{t('register.legalTitle')}</strong>
+              <p className="muted">{t('register.legalText')}</p>
+              <label className="legal-consent-row">
+                <input type="checkbox" checked={form.accepted_privacy_policy} onChange={(event) => updateField('accepted_privacy_policy', event.target.checked)} required />
+                <span>
+                  {t('register.acceptPrivacy')} <Link to="/privacy" target="_blank" rel="noreferrer">{t('onboarding.privacyPolicy')}</Link>
+                </span>
+              </label>
+              <label className="legal-consent-row">
+                <input type="checkbox" checked={form.accepted_terms} onChange={(event) => updateField('accepted_terms', event.target.checked)} required />
+                <span>
+                  {t('register.acceptTerms')} <Link to="/terms" target="_blank" rel="noreferrer">{t('onboarding.terms')}</Link>
+                </span>
+              </label>
+            </div>
             {error ? <p className="error-text">{error}</p> : null}
             <button className="button button-secondary" type="button" onClick={() => setStep('profile')}>{t('register.backToProfile')}</button>
-            <Button type="submit" disabled={isLoading || !form.registration_proof}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
+            <Button type="submit" disabled={isLoading || !form.registration_proof || !form.accepted_terms || !form.accepted_privacy_policy}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
           </>
         ) : null}
       </form>

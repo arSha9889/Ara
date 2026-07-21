@@ -1,0 +1,107 @@
+name: nexus-production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${NEXUS_POSTGRES_DB:-nexus}
+      POSTGRES_USER: ${NEXUS_POSTGRES_USER:-nexus}
+      POSTGRES_PASSWORD: ${NEXUS_POSTGRES_PASSWORD:?Set NEXUS_POSTGRES_PASSWORD in deploy/production.env}
+    volumes:
+      - nexus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - nexus_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../apps/api
+    restart: unless-stopped
+    environment:
+      NEXUS_ENVIRONMENT: production
+      NEXUS_DATABASE_URL: postgresql+asyncpg://${NEXUS_POSTGRES_USER:-nexus}:${NEXUS_POSTGRES_PASSWORD:?Set NEXUS_POSTGRES_PASSWORD in deploy/production.env}@postgres:5432/${NEXUS_POSTGRES_DB:-nexus}
+      NEXUS_REDIS_URL: redis://redis:6379/0
+      NEXUS_ALLOWED_ORIGINS: ${NEXUS_ALLOWED_ORIGINS:?Set NEXUS_ALLOWED_ORIGINS in deploy/production.env}
+      NEXUS_STORAGE_PUBLIC_URL_PREFIX: ${NEXUS_STORAGE_PUBLIC_URL_PREFIX:-/storage/uploads}
+      NEXUS_STORAGE_PUBLIC_BASE_URL: ${NEXUS_STORAGE_PUBLIC_BASE_URL:?Set NEXUS_STORAGE_PUBLIC_BASE_URL in deploy/production.env}
+      NEXUS_REGISTRATION_PROOF_SECRET: ${NEXUS_REGISTRATION_PROOF_SECRET:?Set NEXUS_REGISTRATION_PROOF_SECRET in deploy/production.env}
+      NEXUS_ACCESS_TOKEN_SECRET: ${NEXUS_ACCESS_TOKEN_SECRET:?Set NEXUS_ACCESS_TOKEN_SECRET in deploy/production.env}
+      NEXUS_TELEGRAM_BOT_TOKEN: ${NEXUS_TELEGRAM_BOT_TOKEN:-}
+      NEXUS_TELEGRAM_BOT_NAME: ${NEXUS_TELEGRAM_BOT_NAME:-}
+      NEXUS_TELEGRAM_WEBHOOK_SECRET: ${NEXUS_TELEGRAM_WEBHOOK_SECRET:-}
+      NEXUS_VAPID_PRIVATE_KEY: ${NEXUS_VAPID_PRIVATE_KEY:-}
+      NEXUS_VAPID_PUBLIC_KEY: ${NEXUS_VAPID_PUBLIC_KEY:-}
+      NEXUS_VAPID_CLAIMS_EMAIL: ${NEXUS_VAPID_CLAIMS_EMAIL:-}
+      NEXUS_ACCESS_TOKEN_MINUTES: ${NEXUS_ACCESS_TOKEN_MINUTES:-15}
+      NEXUS_REFRESH_TOKEN_DAYS: ${NEXUS_REFRESH_TOKEN_DAYS:-30}
+      NEXUS_PIN_TRUSTED_DAYS: ${NEXUS_PIN_TRUSTED_DAYS:-365}
+      NEXUS_UPLOAD_MAX_SIZE_BYTES: ${NEXUS_UPLOAD_MAX_SIZE_BYTES:-104857600}
+      NEXUS_UPLOAD_DIR: /data/uploads
+    volumes:
+      - nexus_api_uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  web:
+    build:
+      context: ../apps/web
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      NEXUS_API_UPSTREAM: http://api:8000
+      VITE_API_BASE_URL: ""
+      VITE_WS_BASE_URL: ""
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    environment:
+      NEXUS_PUBLIC_DOMAIN: ${NEXUS_PUBLIC_DOMAIN:?Set NEXUS_PUBLIC_DOMAIN in deploy/production.env}
+      NEXUS_ACME_EMAIL: ${NEXUS_ACME_EMAIL:?Set NEXUS_ACME_EMAIL in deploy/production.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - nexus_caddy_data:/data
+      - nexus_caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  nexus_postgres_data:
+  nexus_redis_data:
+  nexus_api_uploads:
+  nexus_caddy_data:
+  nexus_caddy_config:

@@ -11,6 +11,10 @@ from app.domain.registration_proof import create_registration_proof
 from app.schemas.auth import (
     DevRegistrationProofRequest,
     DevRegistrationProofResponse,
+    EmailVerificationConfirmRequest,
+    EmailVerificationConfirmResponse,
+    EmailVerificationStartRequest,
+    EmailVerificationStartResponse,
     LoginRequest,
     LogoutRequest,
     PhoneVerificationConfirmRequest,
@@ -30,6 +34,12 @@ from app.services.auth_service import (
     login_with_password,
     logout_by_refresh_token,
     refresh_access_token,
+)
+from app.services.email_verification_service import (
+    EMAIL_VERIFICATION_TTL_MINUTES,
+    EmailVerificationError,
+    create_email_verification,
+    verify_email_code,
 )
 from app.services.phone_verification_service import (
     PHONE_VERIFICATION_TTL_MINUTES,
@@ -95,6 +105,39 @@ async def phone_verification_confirm(
     )
 
 
+@router.post('/email-verification/start', response_model=EmailVerificationStartResponse)
+async def email_verification_start(
+    request: EmailVerificationStartRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> EmailVerificationStartResponse:
+    if not settings.telegram_bot_name or not settings.telegram_bot_token:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Telegram bot is not configured')
+    try:
+        started = await create_email_verification(session, request.email, request.device_id)
+    except EmailVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return EmailVerificationStartResponse(
+        verification_id=started.verification.id,
+        bot_url=f'https://t.me/{settings.telegram_bot_name}?start={started.start_payload}',
+        expires_in_seconds=EMAIL_VERIFICATION_TTL_MINUTES * 60,
+    )
+
+
+@router.post('/email-verification/confirm', response_model=EmailVerificationConfirmResponse)
+async def email_verification_confirm(
+    request: EmailVerificationConfirmRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> EmailVerificationConfirmResponse:
+    try:
+        result = await verify_email_code(session, request.verification_id, request.code)
+    except EmailVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return EmailVerificationConfirmResponse(
+        registration_proof=result.registration_proof,
+        email=result.verification.email,
+    )
+
+
 @router.post('/dev/registration-proof', response_model=DevRegistrationProofResponse, include_in_schema=False)
 async def dev_registration_proof(request: DevRegistrationProofRequest) -> DevRegistrationProofResponse:
     if settings.environment != 'dev':
@@ -126,9 +169,9 @@ async def login(
     request: LoginRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TokenPairResponse:
-    identifier = request.identifier or request.phone or request.nexus_id
+    identifier = request.identifier or request.email or request.phone or request.nexus_id
     if not identifier:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Phone is required')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Login identifier is required')
     try:
         user, access_token, refresh_token = await login_with_password(
             session,

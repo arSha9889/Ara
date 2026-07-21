@@ -1,165 +1,226 @@
-# Закрытая бета: GitHub, Railway, Vercel и альтернативный web-хостинг
+# Production deployment: домен reg.ru и российский сервер
 
-Репозиторий — npm-монорепозиторий:
+Проект уже готовится к варианту, где пользователь открывает один публичный домен, например `https://nexus.example.ru`, а внутри сервера работают:
 
-- `apps/web` — пользовательское React-приложение, деплоится в Vercel или на доступный из РФ web-хостинг/VPS;
-- `packages/ui` — переиспользуемые базовые UI-компоненты;
-- `apps/api` — FastAPI API, деплоится в Railway;
-- `.github/workflows/ci.yml` — проверка сборки web и тестов API в GitHub Actions.
+- `web` — React/Vite-приложение в Nginx-контейнере;
+- `api` — FastAPI-приложение;
+- `postgres` — основная база данных;
+- `redis` — инфраструктурный Redis для текущего контура и будущего масштабирования realtime;
+- `caddy` — внешний reverse proxy с автоматическим HTTPS от Let's Encrypt.
 
-## 1. GitHub
+В этом варианте фронтенд, API, WebSocket и загруженные файлы находятся на одном домене:
+
+- `https://<домен>/` — сайт;
+- `https://<домен>/api/...` — API;
+- `wss://<домен>/ws` — realtime WebSocket;
+- `https://<домен>/storage/uploads/...` — текущая раздача загруженных файлов.
+
+Такой same-origin деплой проще и надёжнее для MVP: браузеру не нужны отдельные публичные API-домены, CORS становится менее хрупким, а Web Push работает через HTTPS.
+
+## 1. Что нужно от хостинга
+
+Минимально желательно:
+
+- VPS/выделенный сервер с Linux;
+- root-доступ или пользователь с `sudo`;
+- открытые входящие порты `80` и `443`;
+- Docker и Docker Compose v2;
+- 2+ ГБ RAM для комфортного baseline-запуска;
+- постоянный диск под PostgreSQL и загрузки пользователей.
+
+Если хостинг окажется не VPS, а панельным/shared-хостингом без Docker, схема будет другой. Тогда нужно будет адаптировать запуск под конкретную панель.
+
+## 2. DNS в reg.ru
+
+В панели reg.ru для домена создайте запись:
+
+```text
+Тип: A
+Имя: @
+Значение: <публичный IPv4 сервера>
+TTL: по умолчанию
+```
+
+Если нужен `www`, добавьте ещё одну запись:
+
+```text
+Тип: CNAME
+Имя: www
+Значение: <ваш-домен>.
+```
+
+Важно: HTTPS-сертификат выпустится только после того, как DNS уже указывает на сервер и порты `80/443` доступны извне.
+
+## 3. Файлы деплоя в репозитории
+
+Добавлены production-шаблоны:
+
+- `deploy/compose.production.yml` — Docker Compose для `postgres`, `redis`, `api`, `web`, `caddy`;
+- `deploy/Caddyfile` — публичный HTTPS reverse proxy;
+- `deploy/production.env.example` — шаблон переменных окружения для сервера.
+
+Секретный файл на сервере должен называться `deploy/production.env`. Его нельзя коммитить в Git.
+
+## 4. Подготовка сервера
+
+На сервере установите Docker и Compose по инструкции вашего хостинга/дистрибутива. Затем получите код проекта, например через Git:
+
+```bash
+git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> nexus
+cd nexus
+```
+
+Создайте production env:
+
+```bash
+cp deploy/production.env.example deploy/production.env
+nano deploy/production.env
+```
+
+В `deploy/production.env` обязательно заменить:
+
+```dotenv
+NEXUS_PUBLIC_DOMAIN=<ваш-домен>
+NEXUS_ACME_EMAIL=<ваш-email>
+NEXUS_POSTGRES_PASSWORD=<длинный-случайный-пароль>
+NEXUS_ALLOWED_ORIGINS=["https://<ваш-домен>"]
+NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-домен>
+NEXUS_REGISTRATION_PROOF_SECRET=<длинная-случайная-строка>
+NEXUS_ACCESS_TOKEN_SECRET=<длинная-случайная-строка>
+NEXUS_TELEGRAM_BOT_TOKEN=<токен-бота>
+NEXUS_TELEGRAM_BOT_NAME=<username-бота-без-@>
+NEXUS_TELEGRAM_WEBHOOK_SECRET=<длинная-случайная-строка>
+NEXUS_EARLY_ACCESS_BYPASS_LIMIT=100
+```
+
+`NEXUS_EARLY_ACCESS_BYPASS_LIMIT=100` ограничивает регистрацию закрытой беты первыми 100 активными аккаунтами. Значение `0` отключает лимит.
+
+Секреты можно сгенерировать так:
+
+```bash
+openssl rand -hex 32
+```
+
+## 5. Первый запуск
 
 Из корня проекта:
 
 ```bash
-git init
-git add .
-git commit -m "Prepare closed beta deployment"
-git branch -M main
-git remote add origin <URL_ВАШЕГО_РЕПОЗИТОРИЯ>
-git push -u origin main
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --build
 ```
 
-Перед публикацией убедитесь, что `apps/api/.env` не добавлен в индекс. В нём находятся секреты, а `.gitignore` исключает его по умолчанию.
+Что произойдёт:
 
-## 2. Railway: API и PostgreSQL
+1. поднимется PostgreSQL;
+2. поднимется Redis;
+3. API применит Alembic-миграции и запустит FastAPI;
+4. web соберёт React-приложение и запустит Nginx;
+5. Caddy выпустит HTTPS-сертификат и начнёт принимать внешний трафик.
 
-1. Создайте проект Railway и добавьте сервис **PostgreSQL**.
-2. Добавьте сервис из GitHub-репозитория. В настройках сервиса укажите **Root Directory**: `apps/api`.
-3. Railway использует `apps/api/Dockerfile`; миграции Alembic применяются перед запуском API.
-4. Добавьте Volume, смонтированный в `/data`, чтобы файлы не исчезали при перезапуске контейнера.
-5. Задайте переменные API:
+Проверка статуса:
+
+```bash
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml ps
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml logs -f caddy
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml logs -f api
+```
+
+## 6. Telegram webhook
+
+После запуска сайта настройте webhook Telegram-бота на production API:
+
+```bash
+curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://<ваш-домен>/api/auth/telegram/webhook",
+    "secret_token": "<NEXUS_TELEGRAM_WEBHOOK_SECRET>"
+  }'
+```
+
+Проверить текущий webhook:
+
+```bash
+curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
+```
+
+## 7. Web Push/VAPID
+
+Для фоновых push-уведомлений production должен работать по HTTPS и иметь заполненные переменные:
 
 ```dotenv
-NEXUS_ENVIRONMENT=production
-NEXUS_DATABASE_URL=${{Postgres.DATABASE_URL}}
-NEXUS_REDIS_URL=
-NEXUS_ALLOWED_ORIGINS=["https://<ваш-проект>.vercel.app"]
-NEXUS_TELEGRAM_BOT_TOKEN=<секрет Telegram-бота>
-NEXUS_TELEGRAM_BOT_NAME=<имя_бота_без_@>
-NEXUS_TELEGRAM_WEBHOOK_SECRET=<случайная строка для Telegram webhook>
-NEXUS_REGISTRATION_PROOF_SECRET=<случайная длинная строка>
-NEXUS_ACCESS_TOKEN_SECRET=<случайная длинная строка>
-NEXUS_UPLOAD_DIR=/data/uploads
-NEXUS_STORAGE_PUBLIC_URL_PREFIX=/storage/uploads
-NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-api>.up.railway.app
-NEXUS_VAPID_PRIVATE_KEY=<VAPID private key>
-NEXUS_VAPID_PUBLIC_KEY=<VAPID public key>
+NEXUS_VAPID_PRIVATE_KEY=<private key>
+NEXUS_VAPID_PUBLIC_KEY=<public key>
 NEXUS_VAPID_CLAIMS_EMAIL=mailto:<ваш-email>
 ```
 
-API автоматически преобразует предоставленный Railway адрес PostgreSQL в формат драйвера `asyncpg`. `NEXUS_REDIS_URL` пока можно оставить пустым: API продолжает работать, а `/health/infrastructure` отметит Redis как недоступный. Для нескольких API-инстансов нужен Redis pub/sub; для закрытой беты используйте один инстанс Railway.
-
-После деплоя проверьте `https://<ваш-api>.up.railway.app/health`: должен вернуться `{"status":"ok","service":"nexus-api"}`.
-
-## 3. Vercel: web
-
-1. Импортируйте тот же GitHub-репозиторий в Vercel.
-2. Укажите **Root Directory**: `apps/web`. Framework Preset — Vite.
-3. Добавьте переменные окружения во все нужные окружения Vercel:
-
-```dotenv
-VITE_API_BASE_URL=https://<ваш-api>.up.railway.app
-VITE_WS_BASE_URL=wss://<ваш-api>.up.railway.app
-```
-
-4. После первого Vercel-деплоя добавьте точный URL Vercel в `NEXUS_ALLOWED_ORIGINS` Railway и передеплойте API.
-
-`apps/web/vercel.json` содержит SPA rewrite, поэтому прямое открытие маршрутов вроде `/app/chats/...` не даст 404.
-
-## 4. Альтернативный web-хостинг для доступа из России
-
-Если у пользователя без VPN не открывается сам домен Vercel, это нельзя исправить внутри React-приложения: браузер не получает HTML/JS приложения. Для пользователей из России используйте домен и хостинг/VPS, доступные из РФ, и разверните `apps/web` как Docker-контейнер с Nginx.
-
-Вариант с одним публичным доменом для web:
-
-- пользователь открывает `https://<ваш-доступный-домен>`;
-- Nginx отдаёт собранный React web;
-- запросы `/api`, `/ws` и `/storage/uploads` проксируются на API;
-- в браузере не используется недоступный `*.vercel.app` домен.
-
-Сборка образа из директории `apps/web`:
+Сгенерировать пару можно локально в `apps/api` после установки зависимостей:
 
 ```bash
-docker build -t nexus-web apps/web
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+.venv/bin/python -c "import base64; from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat; from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print('NEXUS_VAPID_PRIVATE_KEY=' + base64.urlsafe_b64encode(v.private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())).rstrip(b'=').decode()); print('NEXUS_VAPID_PUBLIC_KEY=' + base64.urlsafe_b64encode(v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)).rstrip(b'=').decode())"
 ```
 
-Запуск контейнера:
+## 8. Smoke-check после запуска
+
+Проверьте:
+
+1. `https://<ваш-домен>` открывается без VPN с обычного российского интернета.
+2. `https://<ваш-домен>/health` возвращает `{"status":"ok","service":"nexus-api"}`.
+3. `https://<ваш-домен>/health/infrastructure` показывает `database: ok` и `redis: ok`.
+4. Регистрация через Telegram-бота создаёт пользователя.
+5. Вход по Nexus ID + password работает.
+6. PIN создаётся и работает на доверенном устройстве.
+7. Direct chat создаётся по username/Nexus ID.
+8. Text/photo/video/file/voice/emoji сообщения отправляются и сохраняются.
+9. Realtime-сообщения приходят во второй вкладке без обновления страницы.
+10. Загруженные файлы открываются по URL `/storage/uploads/...`.
+11. Push-подписка включается в профиле/настройках, если заполнены VAPID-ключи.
+
+## 9. Обновление production
+
+На сервере из корня проекта:
 
 ```bash
-docker run -d \
-  --name nexus-web \
-  -p 8080:8080 \
-  -e NEXUS_API_UPSTREAM=https://<ваш-api-домен> \
-  nexus-web
+git pull
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --build
 ```
 
-Если web и API находятся в одной Docker-сети, можно указать внутренний адрес API, например:
+API-контейнер при старте применяет миграции:
+
+```text
+alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+## 10. Резервные копии
+
+Перед реальными пользователями обязательно настройте backup PostgreSQL и uploads volume.
+
+Пример ручного дампа PostgreSQL:
 
 ```bash
-NEXUS_API_UPSTREAM=http://api:8000
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml exec postgres \
+  pg_dump -U nexus nexus > nexus-$(date +%Y-%m-%d).sql
 ```
 
-Для такого same-origin деплоя `VITE_API_BASE_URL` и `VITE_WS_BASE_URL` можно не задавать: production-сборка web по умолчанию будет обращаться к `/api` и `/ws` на том же домене. Если API остаётся на отдельном публичном домене, задайте переменные при сборке:
+Uploads лежат в Docker volume `nexus-production_nexus_api_uploads`. Их тоже нужно регулярно копировать или переносить в production object storage.
 
-```bash
-docker build \
-  --build-arg VITE_API_BASE_URL=https://<ваш-api-домен> \
-  --build-arg VITE_WS_BASE_URL=wss://<ваш-api-домен> \
-  -t nexus-web apps/web
-```
+## 11. Важные ограничения текущего MVP
 
-Для same-origin варианта в API достаточно разрешить публичный web-домен:
+- Realtime fan-out пока in-memory в одном API-процессе. Не запускайте несколько API-инстансов до внедрения Redis pub/sub fan-out.
+- Локальное файловое хранилище подходит для одного сервера, но для полноценного production лучше перейти на object storage с private ACL/signed links.
+- Загруженные файлы сейчас раздаются публичным static URL.
+- Email-регистрация подтверждается через Telegram-бота: это связывает указанный email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику. Для полноценной email-verification нужно добавить SMTP/почтовый провайдер.
+- Нужны регулярные backup базы и uploads.
 
-```dotenv
-NEXUS_ALLOWED_ORIGINS=["https://<ваш-доступный-домен>"]
-NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-доступный-домен>
-```
+## Старый вариант: Railway/Vercel/Amvera
 
-Практический критерий готовности: `https://<ваш-доступный-домен>` должен открываться с обычного российского мобильного/домашнего интернета без VPN.
+Ранее проект описывался под Railway/Vercel и отдельный web-хостинг. Это всё ещё возможно, но для купленного домена и российского VPS основной рекомендуемый путь теперь — `deploy/compose.production.yml` на одном сервере.
 
-### Amvera: web вместо Vercel
+Если понадобится вернуть схему с внешним API и отдельным web-хостингом:
 
-Для Amvera в корне репозитория добавлены:
-
-- `amvera.yml` — указывает Amvera собирать Docker-образ и слушать порт `8080`;
-- `Dockerfile.amvera-web` — собирает только `apps/web` из монорепозитория;
-- `.dockerignore` — исключает тяжёлые локальные файлы из Docker-контекста;
-- `/env.js` runtime-config — позволяет читать переменные Amvera на этапе запуска контейнера, потому что на этапе сборки они недоступны.
-
-Рекомендуемый порядок:
-
-1. Создайте в Amvera новое приложение для frontend, например `nexus-web`.
-2. Подключите GitHub-репозиторий `arSha9889/Nex` или загрузите код через git Amvera.
-3. В качестве конфигурации используйте корневой `amvera.yml`.
-4. Добавьте переменные приложения:
-
-```dotenv
-NEXUS_API_UPSTREAM=https://<ваш-api-домен>
-```
-
-`VITE_API_BASE_URL` и `VITE_WS_BASE_URL` для Amvera web обычно не задаются: frontend обращается к `/api` и `/ws` на своём домене, а Nginx проксирует их в `NEXUS_API_UPSTREAM`.
-
-После изменения переменных в Amvera перезапустите контейнер: entrypoint заново сгенерирует `/env.js`.
-
-5. После первого успешного запуска возьмите публичный домен Amvera и добавьте его в переменные API:
-
-```dotenv
-NEXUS_ALLOWED_ORIGINS=["https://<ваш-домен-amvera>"]
-NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-домен-amvera>
-```
-
-6. Передеплойте API и проверьте:
-
-- `https://<ваш-домен-amvera>` открывается без VPN;
-- `https://<ваш-домен-amvera>/env.js` содержит ожидаемые URL API/WS, если вы их задавали;
-- `https://<ваш-домен-amvera>/health` возвращает health API;
-- вход, чаты, загрузка файлов и realtime-сообщения работают.
-
-## Перед открытием беты
-
-1. Откройте Vercel-приложение и проверьте регистрацию, вход, чат и загрузку файла.
-2. Проверьте API `/health` и `/health/infrastructure`.
-3. Убедитесь, что Telegram webhook настроен на `/api/auth/telegram/webhook` и передаёт `NEXUS_TELEGRAM_WEBHOOK_SECRET`.
-4. Не масштабируйте Railway API выше одного инстанса: realtime сейчас реализован в памяти одного процесса.
-5. Локальное файловое хранилище на Railway подходит для закрытой беты только с подключённым Volume; для production перенесите файлы в object storage.
+- web-контейнер поддерживает `NEXUS_API_UPSTREAM=https://<api-домен>`;
+- в same-origin production `VITE_API_BASE_URL` и `VITE_WS_BASE_URL` лучше оставлять пустыми;
+- если API расположен на отдельном публичном домене, задайте `VITE_API_BASE_URL=https://<api-домен>` и `VITE_WS_BASE_URL=wss://<api-домен>` на этапе сборки или через runtime `/env.js`.

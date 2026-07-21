@@ -51,12 +51,12 @@
 
 Входит:
 
-- регистрация через подтверждение телефона в Telegram-боте;
+- регистрация через подтверждение телефона или email в Telegram-боте;
 - registration proof после подтверждения 4-значного кода из бота;
 - завершение регистрации с username, password, optional PIN, language и theme;
 - выдача уникального Nexus ID;
 - создание password credential, trusted PIN device и session;
-- login по телефону + password;
+- login по телефону, email или Nexus ID + password;
 - JWT access token;
 - refresh token с серверным Argon2-хешем и отдельным lookup hash;
 - logout по refresh token;
@@ -68,10 +68,10 @@
 - экран завершения регистрации под proof от Telegram-бота;
 - проверка username на экране регистрации;
 - подключённый login form;
-- быстрый вход по PIN на доверенном устройстве по телефону;
+- быстрый вход по PIN на доверенном устройстве по телефону, email или Nexus ID;
 - создание, замена и отключение PIN для текущего устройства.
 
-Ограничение этапа: для реальной регистрации нужен настроенный Telegram-бот (`NEXUS_TELEGRAM_BOT_TOKEN`, `NEXUS_TELEGRAM_BOT_NAME`) и webhook `/api/auth/telegram/webhook`. Временный endpoint `POST /api/auth/dev/registration-proof` доступен только при `NEXUS_ENVIRONMENT=dev`, скрыт из OpenAPI и dev-кнопка не попадает в production build.
+Ограничение этапа: для реальной регистрации нужен настроенный Telegram-бот (`NEXUS_TELEGRAM_BOT_TOKEN`, `NEXUS_TELEGRAM_BOT_NAME`) и webhook `/api/auth/telegram/webhook`. Email-регистрация сейчас подтверждает связь указанного email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику; для строгой проверки потребуется SMTP/почтовая отправка. Временный endpoint `POST /api/auth/dev/registration-proof` доступен только при `NEXUS_ENVIRONMENT=dev`, скрыт из OpenAPI и dev-кнопка не попадает в production build.
 
 ### Этап 4 — profile/settings/devices
 
