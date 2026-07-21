@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
+import { startCallTone } from '../callTone.js';
 
 function formatDuration(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -53,12 +54,18 @@ export function CallOverlay({ call, peer, t }) {
   const duration = useCallDuration(call.startedAt);
   const isVisible = call.callState !== 'idle';
   const isIncoming = call.callState === 'incoming';
+  const isOutgoingRinging = call.callState === 'calling';
   const isActive = call.callState === 'active' || call.callState === 'connecting';
   const remoteVideoTracks = call.remoteStream?.getVideoTracks() ?? [];
   const hasRemoteScreen = remoteVideoTracks.some((track) => track.readyState === 'live');
   const title = peer?.display_name || peer?.username || t('chats.directChat');
   const subtitle = call.statusText || (isActive ? t('calls.connected') : t('calls.calling'));
   const callModeLabel = hasRemoteScreen ? t('calls.remoteScreen') : (isIncoming ? t('calls.incomingLabel') : t('calls.audioLabel'));
+
+  useEffect(() => {
+    if (!isOutgoingRinging) return undefined;
+    return startCallTone();
+  }, [isOutgoingRinging]);
 
   if (!isVisible) return null;
 
