@@ -2277,40 +2277,50 @@ p { margin-bottom: 14px; }
 }
 
 .message-edit-form {
-  display: grid;
-  gap: 9px;
-  min-width: min(340px, 62vw);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: min(320px, 58vw);
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 76%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface), transparent 6%);
+  padding: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
 .message-edit-input {
-  width: 100%;
+  flex: 1 1 auto;
+  width: 1px;
   min-width: 0;
-  min-height: 40px;
-  border: 1px solid color-mix(in srgb, var(--primary), transparent 64%);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--surface), transparent 8%);
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   color: inherit;
-  padding: 0 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  padding: 0 10px;
+  font: inherit;
+  font-weight: 850;
   outline: 0;
-  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: background 160ms ease, box-shadow 160ms ease;
 }
 
 .message-edit-input:focus {
-  border-color: color-mix(in srgb, var(--primary), white 8%);
-  background: color-mix(in srgb, var(--surface), transparent 2%);
-  box-shadow: 0 0 0 4px var(--ring), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  background: color-mix(in srgb, var(--surface-elevated), transparent 8%);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .message-edit-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
+  flex: 0 0 auto;
+  gap: 4px;
   align-items: center;
   justify-content: flex-end;
 }
 
 .message-edit-button {
+  width: 34px;
+  height: 34px;
   min-height: 34px;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -2322,7 +2332,7 @@ p { margin-bottom: 14px; }
   font-size: 0.84rem;
   font-weight: 900;
   line-height: 1;
-  padding: 0 12px;
+  padding: 0;
   transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease;
 }
 
@@ -2348,15 +2358,17 @@ p { margin-bottom: 14px; }
 }
 
 .message-bubble.outgoing .message-edit-input {
-  border-color: rgba(255, 255, 255, 0.34);
-  background: rgba(255, 255, 255, 0.14);
   color: white;
 }
 
 .message-bubble.outgoing .message-edit-input:focus {
-  border-color: rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+}
+
+.message-bubble.outgoing .message-edit-form {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .message-bubble.outgoing .message-edit-button.save {
@@ -4066,9 +4078,9 @@ code {
   .message-bubble.incoming .message-actions { justify-self: start; }
   .message-action-button { min-width: 34px; height: 34px; padding: 0 8px; }
   .message-action-button .action-label { display: none; }
-  .message-edit-form { min-width: min(280px, 78vw); gap: 8px; }
-  .message-edit-actions { justify-content: stretch; }
-  .message-edit-button { flex: 1 1 auto; padding: 0 10px; }
+  .message-edit-form { min-width: min(280px, 78vw); gap: 5px; }
+  .message-edit-actions { justify-content: flex-end; }
+  .message-edit-button { flex: 0 0 34px; padding: 0; }
 
   .segmented-control { width: 100%; justify-content: center; }
   .app-menu-switcher .segmented-control { width: max-content; justify-content: flex-start; }

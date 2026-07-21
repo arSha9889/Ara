@@ -1020,11 +1020,9 @@ export function ChatPage() {
                 <div className="message-edit-actions">
                   <button className="message-edit-button save" type="submit" aria-label={t('messages.save')}>
                     <span aria-hidden="true">✓</span>
-                    <span>{t('messages.save')}</span>
                   </button>
                   <button className="message-edit-button cancel" type="button" onClick={() => setEditingMessage(null)} aria-label={t('messages.cancel')}>
                     <span aria-hidden="true">×</span>
-                    <span>{t('messages.cancel')}</span>
                   </button>
                 </div>
               </form>
