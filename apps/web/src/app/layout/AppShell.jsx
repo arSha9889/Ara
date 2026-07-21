@@ -84,15 +84,6 @@ export function AppShell() {
       </main>
       {!isChatRoute ? (
         <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
-          <button
-            className={`mobile-bottom-nav-item ${isMenuOpen ? 'active' : ''}`}
-            type="button"
-            aria-expanded={isMenuOpen}
-            onClick={() => setIsMenuOpen((current) => !current)}
-          >
-            <span className="mobile-bottom-nav-icon" aria-hidden="true">☰</span>
-            <span>Меню</span>
-          </button>
           {navItems.map((item) => (
             <NavLink className="mobile-bottom-nav-item" to={item.to} key={item.to} end={item.to === '/app'} onClick={() => setIsMenuOpen(false)}>
               <span className="mobile-bottom-nav-icon" aria-hidden="true">{item.icon}</span>

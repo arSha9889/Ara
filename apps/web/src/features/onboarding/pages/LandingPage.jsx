@@ -81,23 +81,25 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="landing-section landing-stage-card">
-          <div>
-            <p className="eyebrow">{t('onboarding.stageEyebrow')}</p>
-            <h2>{t('onboarding.stageTitle')}</h2>
-            <p>{t('onboarding.stageText')}</p>
+        <div className="landing-compact-row">
+          <div className="landing-section landing-stage-card">
+            <div>
+              <p className="eyebrow">{t('onboarding.stageEyebrow')}</p>
+              <h2>{t('onboarding.stageTitle')}</h2>
+              <p>{t('onboarding.stageText')}</p>
+            </div>
+            <ul className="landing-stage-list">
+              {stageItems.map((item) => <li key={item}>{item}</li>)}
+            </ul>
           </div>
-          <ul className="landing-stage-list">
-            {stageItems.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-        </div>
 
-        <div className="landing-final-cta">
-          <h2>{t('onboarding.finalTitle')}</h2>
-          <p>{t('onboarding.finalText')}</p>
-          <div className="stack landing-final-actions">
-            <Link to={ctaPath} className="button button-primary">{ctaLabel}</Link>
-            {!isAuthenticated ? <Link to="/login" className="button button-secondary">{t('onboarding.login')}</Link> : null}
+          <div className="landing-final-cta">
+            <h2>{t('onboarding.finalTitle')}</h2>
+            <p>{t('onboarding.finalText')}</p>
+            <div className="stack landing-final-actions">
+              <Link to={ctaPath} className="button button-primary">{ctaLabel}</Link>
+              {!isAuthenticated ? <Link to="/login" className="button button-secondary">{t('onboarding.login')}</Link> : null}
+            </div>
           </div>
         </div>
       </section>
