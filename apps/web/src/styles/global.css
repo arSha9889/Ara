@@ -1933,7 +1933,7 @@ p { margin-bottom: 14px; }
 .composer-input-shell {
   min-height: 52px;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 40px 40px 40px 44px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px 40px 44px;
   align-items: center;
   gap: 6px;
   border: 1px solid color-mix(in srgb, var(--primary), transparent 78%);
@@ -1983,22 +1983,84 @@ p { margin-bottom: 14px; }
 .attachment-button { position: relative; overflow: hidden; font-size: 1.45rem; font-weight: 900; }
 .attachment-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
-.voice-button {
+.record-control-wrap {
+  position: relative;
+}
+
+.record-button.voice-mode {
   color: var(--muted);
   background: color-mix(in srgb, var(--surface), var(--primary) 8%);
 }
 
-.video-note-button {
+.record-button.video-mode {
   color: var(--secondary);
   background: color-mix(in srgb, var(--secondary), transparent 88%);
   font-size: 1.05rem;
 }
 
-.video-note-button.is-recording {
+.record-button.is-recording {
   color: white;
-  background: linear-gradient(135deg, var(--danger), var(--primary));
+  background: linear-gradient(135deg, var(--danger), var(--warning));
   box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger), transparent 78%);
   animation: recordingPulse 1.1s ease-in-out infinite;
+}
+
+.record-button.video-mode.is-recording {
+  background: linear-gradient(135deg, var(--danger), var(--primary));
+}
+
+.record-mode-menu {
+  position: absolute;
+  z-index: 10;
+  right: -48px;
+  bottom: calc(100% + 14px);
+  width: min(280px, calc(100vw - 42px));
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 78%);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--secondary), transparent 80%), transparent 8rem),
+    color-mix(in srgb, var(--surface-elevated), transparent 4%);
+  box-shadow: 0 24px 70px rgba(20, 20, 43, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  padding: 10px;
+  animation: panelEnter 180ms var(--ease-out-soft) both;
+  backdrop-filter: blur(22px) saturate(1.18);
+  -webkit-backdrop-filter: blur(22px) saturate(1.18);
+}
+
+.record-mode-menu button {
+  min-height: 46px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 86%);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--surface), transparent 5%);
+  color: var(--text);
+  cursor: pointer;
+  padding: 0 12px;
+  font-weight: 900;
+  text-align: left;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.record-mode-menu button:hover,
+.record-mode-menu button.active {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary), transparent 58%);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--primary), transparent 82%);
+}
+
+.record-mode-menu button.active {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), transparent 82%), color-mix(in srgb, var(--secondary), transparent 86%));
+}
+
+.record-mode-menu small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 6px 0;
 }
 
 .composer-emoji-wrap { position: relative; }
@@ -2025,13 +2087,6 @@ p { margin-bottom: 14px; }
   animation: panelEnter 180ms var(--ease-out-soft) both;
   backdrop-filter: blur(22px) saturate(1.18);
   -webkit-backdrop-filter: blur(22px) saturate(1.18);
-}
-
-.voice-button.is-recording {
-  color: white;
-  background: linear-gradient(135deg, var(--danger), var(--warning));
-  box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger), transparent 78%);
-  animation: recordingPulse 1.1s ease-in-out infinite;
 }
 
 .send-fab {
@@ -4011,7 +4066,7 @@ code {
 
   .composer-input-shell {
     min-height: auto;
-    grid-template-columns: 36px minmax(0, 1fr) 36px 36px 36px 40px;
+    grid-template-columns: 36px minmax(0, 1fr) 36px 36px 40px;
     gap: 4px;
     padding: 4px;
   }
@@ -4046,7 +4101,7 @@ code {
   .message-bubble { max-width: 92%; }
 
   .composer-input-shell {
-    grid-template-columns: 34px minmax(0, 1fr) 34px 34px 34px 38px;
+    grid-template-columns: 34px minmax(0, 1fr) 34px 34px 38px;
     gap: 3px;
   }
 
@@ -4093,7 +4148,7 @@ code {
 
   .presence-dot.online,
   .presence-dot.connecting,
-  .voice-button.is-recording,
+  .record-button.is-recording,
   .empty-orbit {
     animation: none;
   }
