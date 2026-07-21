@@ -1930,6 +1930,11 @@ p { margin-bottom: 14px; }
   border-bottom: 1px solid color-mix(in srgb, var(--primary), transparent 86%);
 }
 
+.chat-header > div:not(.chat-avatar-wrap) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .chat-avatar-wrap {
   position: relative;
   flex: 0 0 auto;
@@ -1997,6 +2002,360 @@ p { margin-bottom: 14px; }
 .presence-pill.online { color: var(--success); }
 .presence-pill.connecting { color: var(--warning); }
 .presence-pill.offline { color: var(--muted); }
+
+.chat-call-button {
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--success), transparent 68%);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--secondary), transparent 72%), transparent 5rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--success), transparent 84%), color-mix(in srgb, var(--surface-elevated), transparent 4%));
+  color: color-mix(in srgb, var(--success), var(--text) 24%);
+  padding: 0 15px 0 12px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 900;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--success), transparent 84%);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.chat-call-button span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--success), transparent 82%);
+}
+
+.chat-call-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--success), transparent 38%);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--success), transparent 76%);
+}
+
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--secondary), transparent 54%), transparent 24rem),
+    radial-gradient(circle at 82% 10%, color-mix(in srgb, var(--primary), transparent 60%), transparent 30rem),
+    color-mix(in srgb, var(--background), transparent 8%);
+  animation: callOverlayIn 220ms var(--ease-out-soft) both;
+  backdrop-filter: blur(22px) saturate(1.1);
+  -webkit-backdrop-filter: blur(22px) saturate(1.1);
+}
+
+.call-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.call-stage span {
+  position: absolute;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--primary), transparent 76%), transparent 68%);
+  filter: blur(4px);
+  animation: callBlobFloat 8s ease-in-out infinite;
+}
+
+.call-stage span:nth-child(1) { left: -10rem; top: 8%; }
+.call-stage span:nth-child(2) { right: -11rem; top: 18%; animation-delay: -2.4s; background: radial-gradient(circle, color-mix(in srgb, var(--secondary), transparent 76%), transparent 68%); }
+.call-stage span:nth-child(3) { left: 35%; bottom: -16rem; animation-delay: -4.8s; background: radial-gradient(circle, color-mix(in srgb, var(--success), transparent 80%), transparent 68%); }
+
+.call-card {
+  position: relative;
+  width: min(1040px, 100%);
+  min-height: min(720px, calc(100dvh - 44px));
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 72%);
+  border-radius: 34px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface), transparent 2%), color-mix(in srgb, var(--surface-elevated), transparent 10%));
+  box-shadow: 0 34px 120px rgba(20, 20, 43, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.44);
+  padding: clamp(16px, 3vw, 26px);
+  overflow: hidden;
+  animation: panelEnter 260ms var(--ease-out-soft) both;
+}
+
+.call-card-glow {
+  position: absolute;
+  inset: -30% -20% auto auto;
+  width: 36rem;
+  height: 36rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--secondary), transparent 68%), transparent 66%);
+  pointer-events: none;
+}
+
+.call-topbar,
+.call-peer,
+.call-controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.call-topbar {
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.call-peer {
+  min-width: 0;
+  gap: 13px;
+}
+
+.call-peer h2 {
+  margin: 0 0 3px;
+  font-size: clamp(1.25rem, 3vw, 2rem);
+}
+
+.call-peer span,
+.call-kicker {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.call-kicker {
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+}
+
+.call-quality-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--secondary), transparent 66%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--secondary), transparent 88%);
+  color: color-mix(in srgb, var(--secondary), var(--text) 24%);
+  padding: 7px 11px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.call-quality-badge span {
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  padding: 2px 7px;
+  font-size: 0.7rem;
+}
+
+.call-content {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 280px);
+  gap: 16px;
+}
+
+.call-visual {
+  min-height: 360px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 80%);
+  border-radius: 28px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--primary), transparent 78%), transparent 16rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-elevated), transparent 12%), color-mix(in srgb, var(--surface), transparent 2%));
+  overflow: hidden;
+}
+
+.call-avatar-orbit {
+  position: relative;
+  width: min(280px, 62vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.call-avatar-orbit .avatar {
+  width: 112px;
+  height: 112px;
+  font-size: 2.4rem;
+  box-shadow: 0 18px 56px color-mix(in srgb, var(--primary), transparent 72%);
+}
+
+.call-wave {
+  position: absolute;
+  inset: 50%;
+  width: 118px;
+  height: 118px;
+  border: 1px solid color-mix(in srgb, var(--secondary), transparent 44%);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  animation: callWave 2.6s ease-out infinite;
+}
+
+.call-wave.two { animation-delay: 0.55s; }
+.call-wave.three { animation-delay: 1.1s; }
+
+.call-screen-video,
+.call-local-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #05070f;
+}
+
+.call-screen-video { min-height: 360px; }
+
+.call-side-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.call-timer-card,
+.call-status-card,
+.call-local-preview,
+.call-screen-placeholder {
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 82%);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface-elevated), transparent 6%);
+  padding: 13px;
+  box-shadow: 0 12px 28px rgba(20, 20, 43, 0.08);
+}
+
+.call-timer-card span,
+.call-local-preview span,
+.call-screen-placeholder p,
+.call-status-card {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.call-timer-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 2rem;
+  letter-spacing: -0.04em;
+}
+
+.call-status-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.call-live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--warning);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--warning), transparent 82%);
+}
+
+.call-live-dot.active {
+  background: var(--success);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--success), transparent 82%);
+  animation: presencePulse 1.8s ease-in-out infinite;
+}
+
+.call-local-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.call-local-video {
+  height: 120px;
+  border-radius: 16px;
+}
+
+.call-screen-placeholder {
+  min-height: 148px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.call-screen-placeholder span {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+  color: var(--primary);
+  font-size: 1.35rem;
+}
+
+.call-screen-placeholder p { margin: 8px 0 0; }
+
+.call-controls {
+  justify-content: center;
+  gap: 12px;
+}
+
+.call-control-button {
+  min-width: 82px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 78%);
+  border-radius: 22px;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  background: color-mix(in srgb, var(--surface-elevated), transparent 5%);
+  color: var(--text);
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 900;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.call-control-button span {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+  color: var(--primary);
+}
+
+.call-control-button small { font-size: 0.75rem; }
+
+.call-control-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--primary), transparent 84%);
+}
+
+.call-control-button.active {
+  border-color: color-mix(in srgb, var(--secondary), transparent 50%);
+  background: color-mix(in srgb, var(--secondary), transparent 86%);
+}
+
+.call-control-button.accept span {
+  background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success), var(--secondary) 30%));
+  color: white;
+}
+
+.call-control-button.decline span,
+.call-control-button.hangup span {
+  background: linear-gradient(135deg, var(--danger), color-mix(in srgb, var(--danger), var(--warning) 22%));
+  color: white;
+  transform: rotate(135deg);
+}
+
+.call-control-button.decline span { transform: none; }
 
 .chat-activity-line {
   width: fit-content;
@@ -4259,6 +4618,23 @@ code {
   .chat-header > div:not(.chat-avatar-wrap) { min-width: 0; flex: 1 1 auto; }
   .chat-header h1 { margin-bottom: 4px; font-size: 1.35rem; }
   .chat-subtitle { gap: 6px; font-size: 0.84rem; flex-wrap: wrap; }
+  .chat-call-button { min-height: 38px; padding-inline: 9px; }
+  .chat-call-button strong { display: none; }
+  .chat-call-button span { width: 26px; height: 26px; }
+
+  .call-overlay { padding: 10px; }
+  .call-card { min-height: calc(100dvh - 20px); border-radius: 24px; gap: 12px; }
+  .call-topbar { align-items: flex-start; }
+  .call-quality-badge { padding: 6px 9px; font-size: 0.72rem; }
+  .call-content { grid-template-columns: 1fr; gap: 12px; }
+  .call-visual { min-height: 260px; border-radius: 22px; }
+  .call-screen-video { min-height: 260px; }
+  .call-side-panel { grid-template-columns: 1fr 1fr; }
+  .call-local-preview,
+  .call-screen-placeholder { grid-column: 1 / -1; min-height: auto; }
+  .call-controls { gap: 8px; }
+  .call-control-button { min-width: 72px; padding: 8px; border-radius: 18px; }
+  .call-control-button span { width: 40px; height: 40px; }
   .presence-pill { padding: 3px 8px; font-size: 0.72rem; }
   .pinned-message-bar { border-radius: 18px; padding: 10px; gap: 10px; }
   .pinned-message-copy span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -4414,6 +4790,21 @@ code {
 @keyframes panelEnter {
   from { opacity: 0; transform: translateY(14px) scale(0.985); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes callOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes callBlobFloat {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.72; }
+  50% { transform: translate3d(28px, -18px, 0) scale(1.08); opacity: 1; }
+}
+
+@keyframes callWave {
+  from { opacity: 0.7; transform: translate(-50%, -50%) scale(0.76); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(2.25); }
 }
 
 @keyframes logoFloat {

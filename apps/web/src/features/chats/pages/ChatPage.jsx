@@ -9,6 +9,8 @@ import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { NexusLoader } from '../../../shared/ui/NexusLoader.jsx';
 import { deleteMessage, editMessage, getChat, getMessages, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
+import { CallOverlay } from '../components/CallOverlay.jsx';
+import { isCallSignal, useDirectCall } from '../hooks/useDirectCall.js';
 
 const REACTION_EMOJIS = [
   '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏', '😍', '🥰',
@@ -293,11 +295,24 @@ export function ChatPage() {
   const suppressRecordClickRef = useRef(false);
   const stopAfterPendingRecordStartRef = useRef(false);
   const cancelAfterPendingRecordStartRef = useRef(false);
+  const callSignalHandlerRef = useRef(null);
   const isChatIdValid = isValidChatId(chatId);
   const isSavedChat = chat?.type === 'saved';
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', t);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
+  const call = useDirectCall({
+    chatId,
+    currentUserId: session.user?.id,
+    peer: chat?.peer,
+    socket,
+    t,
+    onError: setError,
+  });
+
+  useEffect(() => {
+    callSignalHandlerRef.current = call.handleSignal;
+  }, [call.handleSignal]);
 
   async function loadMessages() {
     if (!isChatIdValid) return;
@@ -344,6 +359,10 @@ export function ChatPage() {
       });
       socket.addEventListener('message', (event) => {
         const payload = JSON.parse(event.data);
+        if (isCallSignal(payload)) {
+          void callSignalHandlerRef.current?.(payload);
+          return;
+        }
         if (payload.event === 'connection.authenticated') {
           setRealtimeStatus('connected');
         }
@@ -968,7 +987,21 @@ export function ChatPage() {
             ) : null}
           </div>
         </div>
+        {!isSavedChat ? (
+          <button
+            className="chat-call-button"
+            type="button"
+            onClick={call.startCall}
+            disabled={!call.canUseCalls || call.callState !== 'idle'}
+            aria-label={t('calls.start')}
+            title={call.canUseCalls ? t('calls.start') : t('calls.unavailable')}
+          >
+            <span aria-hidden="true">☎</span>
+            <strong>{t('calls.call')}</strong>
+          </button>
+        ) : null}
       </header>
+      <CallOverlay call={call} peer={chat?.peer} t={t} />
       {chat?.pinned_message ? (
         <button className="pinned-message-bar" type="button" onClick={() => document.getElementById(`message-${chat.pinned_message_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
           <span className="pinned-message-icon" aria-hidden="true">📌</span>

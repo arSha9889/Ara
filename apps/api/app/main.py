@@ -137,6 +137,38 @@ def create_app() -> FastAPI:
                     )
                     continue
 
+                if event in {
+                    'call.invite',
+                    'call.accept',
+                    'call.reject',
+                    'call.cancel',
+                    'call.end',
+                    'call.offer',
+                    'call.answer',
+                    'call.ice_candidate',
+                    'call.screen_stopped',
+                }:
+                    chat_id = _parse_uuid(message.get('chat_id'))
+                    if not chat_id:
+                        await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'invalid_chat_id'})
+                        continue
+                    if not await _is_chat_participant(user_id, chat_id):
+                        await _safe_send_json(websocket, {'event': 'error.unauthorized', 'reason': 'chat_not_available'})
+                        continue
+                    await realtime_manager.broadcast_to_chat(
+                        chat_id,
+                        {
+                            'event': event,
+                            'chat_id': str(chat_id),
+                            'user_id': str(user_id),
+                            'call_id': message.get('call_id'),
+                            'description': message.get('description'),
+                            'candidate': message.get('candidate'),
+                            'reason': message.get('reason'),
+                        },
+                    )
+                    continue
+
                 await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'unsupported_event'})
         except (RuntimeError, WebSocketDisconnect):
             disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)

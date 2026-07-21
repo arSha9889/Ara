@@ -4,8 +4,8 @@ import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher.jsx';
 import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 
 const updatedAt = '21 июля 2026 года';
-const operatorName = 'УКАЖИТЕ ФИО';
-const operatorEmail = 'УКАЖИТЕ EMAIL';
+const operatorName = 'Антонов А.Е';
+const operatorEmail = 'artenaantonov@yandex.ru';
 const betaUserLimit = 100;
 
 export function PrivacyPolicyPage() {

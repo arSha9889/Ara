@@ -6,6 +6,7 @@
 - `api` — FastAPI-приложение;
 - `postgres` — основная база данных;
 - `redis` — инфраструктурный Redis для текущего контура и будущего масштабирования realtime;
+- `turn` — coturn для стабильных WebRTC-звонков за NAT;
 - `caddy` — внешний reverse proxy с автоматическим HTTPS от Let's Encrypt.
 
 В этом варианте фронтенд, API, WebSocket и загруженные файлы находятся на одном домене:
@@ -27,6 +28,11 @@
 - Docker и Docker Compose v2;
 - 2+ ГБ RAM для комфортного baseline-запуска;
 - постоянный диск под PostgreSQL и загрузки пользователей.
+
+Для аудиозвонков и демонстрации экрана также откройте на firewall/security group:
+
+- `3478/udp` и `3478/tcp` — TURN/STUN;
+- UDP-диапазон `49160-49200` — relay-порты coturn из production-конфига.
 
 Если хостинг окажется не VPS, а панельным/shared-хостингом без Docker, схема будет другой. Тогда нужно будет адаптировать запуск под конкретную панель.
 
@@ -55,7 +61,7 @@ TTL: по умолчанию
 
 Добавлены production-шаблоны:
 
-- `deploy/compose.production.yml` — Docker Compose для `postgres`, `redis`, `api`, `web`, `caddy`;
+- `deploy/compose.production.yml` — Docker Compose для `postgres`, `redis`, `api`, `web`, `turn`, `caddy`;
 - `deploy/Caddyfile` — публичный HTTPS reverse proxy;
 - `deploy/production.env.example` — шаблон переменных окружения для сервера.
 
@@ -91,6 +97,11 @@ NEXUS_TELEGRAM_BOT_TOKEN=<токен-бота>
 NEXUS_TELEGRAM_BOT_NAME=<username-бота-без-@>
 NEXUS_TELEGRAM_WEBHOOK_SECRET=<длинная-случайная-строка>
 NEXUS_EARLY_ACCESS_BYPASS_LIMIT=100
+NEXUS_TURN_REALM=<ваш-домен>
+NEXUS_TURN_EXTERNAL_IP=<публичный-IPv4-сервера>
+NEXUS_TURN_USERNAME=<turn-логин>
+NEXUS_TURN_PASSWORD=<длинный-случайный-turn-пароль>
+VITE_RTC_ICE_SERVERS=[{"urls":["stun:<ваш-домен>:3478","turn:<ваш-домен>:3478?transport=udp","turn:<ваш-домен>:3478?transport=tcp"],"username":"<turn-логин>","credential":"<turn-пароль>"}]
 ```
 
 `NEXUS_EARLY_ACCESS_BYPASS_LIMIT=100` ограничивает регистрацию закрытой беты первыми 100 активными аккаунтами. Значение `0` отключает лимит.
@@ -115,7 +126,8 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 2. поднимется Redis;
 3. API применит Alembic-миграции и запустит FastAPI;
 4. web соберёт React-приложение и запустит Nginx;
-5. Caddy выпустит HTTPS-сертификат и начнёт принимать внешний трафик.
+5. coturn начнёт принимать TURN/STUN-трафик;
+6. Caddy выпустит HTTPS-сертификат и начнёт принимать внешний трафик.
 
 Проверка статуса:
 
@@ -123,6 +135,7 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 docker compose --env-file deploy/production.env -f deploy/compose.production.yml ps
 docker compose --env-file deploy/production.env -f deploy/compose.production.yml logs -f caddy
 docker compose --env-file deploy/production.env -f deploy/compose.production.yml logs -f api
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml logs -f turn
 ```
 
 ## 6. Telegram webhook
@@ -163,7 +176,25 @@ pip install -r requirements.txt
 .venv/bin/python -c "import base64; from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat; from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print('NEXUS_VAPID_PRIVATE_KEY=' + base64.urlsafe_b64encode(v.private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())).rstrip(b'=').decode()); print('NEXUS_VAPID_PUBLIC_KEY=' + base64.urlsafe_b64encode(v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)).rstrip(b'=').decode())"
 ```
 
-## 8. Smoke-check после запуска
+## 8. TURN/WebRTC звонки
+
+Фронтенд получает ICE-конфигурацию из runtime-переменной `VITE_RTC_ICE_SERVERS`. Значение — JSON-массив для `RTCPeerConnection`, например:
+
+```dotenv
+VITE_RTC_ICE_SERVERS=[{"urls":["stun:nexus.example.ru:3478","turn:nexus.example.ru:3478?transport=udp","turn:nexus.example.ru:3478?transport=tcp"],"username":"nexus-turn","credential":"<turn-password>"}]
+```
+
+Текущая конфигурация использует static TURN credentials. Это нормально для первого production-baseline, но перед публичной нагрузкой лучше перейти на временные TURN credentials через backend endpoint.
+
+Проверить порты на сервере:
+
+```bash
+sudo ss -lunpt | grep 3478
+```
+
+Проверить снаружи можно через WebRTC ICE checker, указав `turn:<домен>:3478?transport=udp`, username и credential из production env. Для реального smoke-check откройте direct chat у двух пользователей на разных сетях, начните звонок и включите демонстрацию экрана.
+
+## 9. Smoke-check после запуска
 
 Проверьте:
 
@@ -178,8 +209,9 @@ pip install -r requirements.txt
 9. Realtime-сообщения приходят во второй вкладке без обновления страницы.
 10. Загруженные файлы открываются по URL `/storage/uploads/...`.
 11. Push-подписка включается в профиле/настройках, если заполнены VAPID-ключи.
+12. Аудиозвонок соединяется между двумя пользователями в разных сетях, микрофон mute/unmute работает, демонстрация экрана стартует и останавливается.
 
-## 9. Обновление production
+## 10. Обновление production
 
 На сервере из корня проекта:
 
@@ -194,7 +226,7 @@ API-контейнер при старте применяет миграции:
 alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
 ```
 
-## 10. Резервные копии
+## 11. Резервные копии
 
 Перед реальными пользователями обязательно настройте backup PostgreSQL и uploads volume.
 
@@ -207,12 +239,13 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 
 Uploads лежат в Docker volume `nexus-production_nexus_api_uploads`. Их тоже нужно регулярно копировать или переносить в production object storage.
 
-## 11. Важные ограничения текущего MVP
+## 12. Важные ограничения текущего MVP
 
 - Realtime fan-out пока in-memory в одном API-процессе. Не запускайте несколько API-инстансов до внедрения Redis pub/sub fan-out.
 - Локальное файловое хранилище подходит для одного сервера, но для полноценного production лучше перейти на object storage с private ACL/signed links.
 - Загруженные файлы сейчас раздаются публичным static URL.
 - Email-регистрация подтверждается через Telegram-бота: это связывает указанный email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику. Для полноценной email-verification нужно добавить SMTP/почтовый провайдер.
+- TURN сейчас использует static credentials, которые видны браузеру как часть ICE-конфигурации. Для публичного масштаба нужны временные credentials и rate limiting.
 - Нужны регулярные backup базы и uploads.
 
 ## Старый вариант: Railway/Vercel/Amvera

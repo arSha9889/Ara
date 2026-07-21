@@ -77,11 +77,32 @@ services:
       NEXUS_API_UPSTREAM: http://api:8000
       VITE_API_BASE_URL: ""
       VITE_WS_BASE_URL: ""
+      VITE_RTC_ICE_SERVERS: ${VITE_RTC_ICE_SERVERS:-}
     depends_on:
       api:
         condition: service_healthy
     expose:
       - "8080"
+
+  turn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --realm=${NEXUS_TURN_REALM:?Set NEXUS_TURN_REALM in deploy/production.env}
+      - --server-name=${NEXUS_TURN_REALM:?Set NEXUS_TURN_REALM in deploy/production.env}
+      - --listening-port=3478
+      - --tls-listening-port=5349
+      - --min-port=${NEXUS_TURN_MIN_PORT:-49160}
+      - --max-port=${NEXUS_TURN_MAX_PORT:-49200}
+      - --external-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/production.env}
+      - --user=${NEXUS_TURN_USERNAME:?Set NEXUS_TURN_USERNAME in deploy/production.env}:${NEXUS_TURN_PASSWORD:?Set NEXUS_TURN_PASSWORD in deploy/production.env}
+      - --fingerprint
+      - --lt-cred-mech
+      - --no-multicast-peers
+      - --no-cli
+      - --no-tls
+      - --no-dtls
 
   caddy:
     image: caddy:2.8-alpine
