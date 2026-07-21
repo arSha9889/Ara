@@ -26,8 +26,9 @@ class PhoneVerificationError(ValueError):
 PHONE_VERIFICATION_TTL_MINUTES = 10
 START_PAYLOAD_PREFIX = 'phone_'
 CONFIRM_CALLBACK_PREFIX = 'phone_confirm:'
-SUPPORTED_PHONE_COUNTRIES = {'RU', 'KZ', 'UA'}
+SUPPORTED_PHONE_COUNTRIES = {'RU', 'KZ', 'KG', 'UA'}
 KAZAKHSTAN_MOBILE_PREFIXES = {'700', '701', '702', '705', '707', '708', '747', '771', '775', '776', '777', '778'}
+KYRGYZSTAN_MOBILE_PREFIXES = {'500', '501', '502', '505', '507', '508', '509', '550', '551', '552', '553', '554', '555', '556', '557', '558', '559', '700', '701', '702', '703', '704', '705', '706', '707', '708', '709', '770', '771', '772', '773', '774', '775', '776', '777', '778', '779', '990', '991', '992', '993', '994', '995', '996', '997', '998', '999'}
 UKRAINE_MOBILE_PREFIXES = {'39', '50', '63', '66', '67', '68', '73', '91', '92', '93', '94', '95', '96', '97', '98', '99'}
 
 
@@ -324,6 +325,10 @@ def normalize_phone(value: str, country: str | None = None) -> str:
         cleaned = f'+380{cleaned[1:]}'
     if normalized_country == 'UA' and cleaned.isdigit() and len(cleaned) == 9:
         cleaned = f'+380{cleaned}'
+    if normalized_country == 'KG' and cleaned.isdigit() and len(cleaned) == 10 and cleaned.startswith('0'):
+        cleaned = f'+996{cleaned[1:]}'
+    if normalized_country == 'KG' and cleaned.isdigit() and len(cleaned) == 9:
+        cleaned = f'+996{cleaned}'
     if cleaned.startswith('+'):
         digits = cleaned[1:]
     else:
@@ -335,6 +340,8 @@ def normalize_phone(value: str, country: str | None = None) -> str:
         raise PhoneVerificationError('Only Russian mobile numbers are supported')
     if normalized_country == 'KZ' and not _is_kazakhstan_mobile_phone(cleaned):
         raise PhoneVerificationError('Only Kazakhstan mobile numbers are supported')
+    if normalized_country == 'KG' and not _is_kyrgyzstan_mobile_phone(cleaned):
+        raise PhoneVerificationError('Only Kyrgyzstan mobile numbers are supported')
     if normalized_country == 'UA' and not _is_ukraine_mobile_phone(cleaned):
         raise PhoneVerificationError('Only Ukrainian mobile numbers are supported')
     return cleaned
@@ -351,6 +358,10 @@ def _is_kazakhstan_mobile_phone(phone: str) -> bool:
     return bool(re.fullmatch(r'\+7\d{10}', phone)) and phone[2:5] in KAZAKHSTAN_MOBILE_PREFIXES
 
 
+def _is_kyrgyzstan_mobile_phone(phone: str) -> bool:
+    return bool(re.fullmatch(r'\+996\d{9}', phone)) and phone[4:7] in KYRGYZSTAN_MOBILE_PREFIXES
+
+
 def _is_ukraine_mobile_phone(phone: str) -> bool:
     return bool(re.fullmatch(r'\+380\d{9}', phone)) and phone[4:6] in UKRAINE_MOBILE_PREFIXES
 
@@ -360,6 +371,8 @@ def _phone_country_name(country: str) -> str:
         return 'Украина'
     if country == 'KZ':
         return 'Казахстан'
+    if country == 'KG':
+        return 'Кыргызстан'
     return 'Россия'
 
 

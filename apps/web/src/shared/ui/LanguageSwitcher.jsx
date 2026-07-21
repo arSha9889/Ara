@@ -3,8 +3,8 @@ import { SUPPORTED_LANGUAGES, useI18n } from '../../app/providers/I18nProvider.j
 const LANGUAGE_OPTIONS = [
   { id: 'ru', label: 'Русский', icon: '🇷🇺', code: 'RU' },
   { id: 'en', label: 'English', icon: '🇬🇧', code: 'EN' },
-  { id: 'es', label: 'Español', icon: '🇪🇸', code: 'ES' },
-  { id: 'fr', label: 'Français', icon: '🇫🇷', code: 'FR' },
+  { id: 'kk', label: 'Қазақша', icon: '🇰🇿', code: 'KK' },
+  { id: 'ky', label: 'Кыргызча', icon: '🇰🇬', code: 'KY' },
   { id: 'uk', label: 'Українська', icon: '🇺🇦', code: 'UK' },
 ].filter((item) => SUPPORTED_LANGUAGES.includes(item.id));
 

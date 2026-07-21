@@ -31,6 +31,9 @@ def test_normalize_phone() -> None:
     assert normalize_phone('+1 555 123 4567') == '+15551234567'
     assert normalize_phone('9991234567', 'RU') == '+79991234567'
     assert normalize_phone('7011234567', 'KZ') == '+77011234567'
+    assert normalize_phone('+996 700 123 456', 'KG') == '+996700123456'
+    assert normalize_phone('0700 123 456', 'KG') == '+996700123456'
+    assert normalize_phone('700123456', 'KG') == '+996700123456'
     assert normalize_phone('+380 67 123 45 67', 'UA') == '+380671234567'
     assert normalize_phone('067 123 45 67', 'UA') == '+380671234567'
     assert normalize_phone('671234567', 'UA') == '+380671234567'
@@ -38,6 +41,8 @@ def test_normalize_phone() -> None:
         normalize_phone('+1 555 123 4567', 'RU')
     with pytest.raises(ValueError):
         normalize_phone('+7 999 123 45 67', 'KZ')
+    with pytest.raises(ValueError):
+        normalize_phone('+996 312 123 456', 'KG')
     with pytest.raises(ValueError):
         normalize_phone('+380 44 123 45 67', 'UA')
 
