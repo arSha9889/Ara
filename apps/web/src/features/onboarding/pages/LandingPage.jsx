@@ -22,6 +22,26 @@ export function LandingPage() {
     t('onboarding.stageRealtime'),
     t('onboarding.stageMobile'),
   ];
+  const installCards = [
+    {
+      icon: '📱',
+      title: t('onboarding.installPhoneTitle'),
+      steps: [
+        t('onboarding.installPhoneStep1'),
+        t('onboarding.installPhoneStep2'),
+        t('onboarding.installPhoneStep3'),
+      ],
+    },
+    {
+      icon: '💻',
+      title: t('onboarding.installDesktopTitle'),
+      steps: [
+        t('onboarding.installDesktopStep1'),
+        t('onboarding.installDesktopStep2'),
+        t('onboarding.installDesktopStep3'),
+      ],
+    },
+  ];
 
   return (
     <main className="auth-page landing-page">
@@ -76,6 +96,27 @@ export function LandingPage() {
                 <span aria-hidden="true">{item.icon}</span>
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <div className="landing-section landing-install-section">
+          <div className="landing-install-copy">
+            <p className="eyebrow">{t('onboarding.installEyebrow')}</p>
+            <h2>{t('onboarding.installTitle')}</h2>
+            <p>{t('onboarding.installText')}</p>
+          </div>
+          <div className="landing-install-grid">
+            {installCards.map((card) => (
+              <article className="landing-install-card" key={card.title}>
+                <div className="landing-install-card-head">
+                  <span aria-hidden="true">{card.icon}</span>
+                  <h3>{card.title}</h3>
+                </div>
+                <ol>
+                  {card.steps.map((step) => <li key={step}>{step}</li>)}
+                </ol>
               </article>
             ))}
           </div>

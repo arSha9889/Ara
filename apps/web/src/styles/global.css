@@ -494,6 +494,91 @@ p { margin-bottom: 14px; }
 .landing-feature-card h3 { margin-bottom: 6px; }
 .landing-feature-card p { color: var(--muted); margin-bottom: 0; }
 
+.landing-install-section {
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 82%);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--primary), transparent 86%), transparent 14rem),
+    color-mix(in srgb, var(--surface-elevated), transparent 10%);
+  padding: clamp(14px, 2.2vw, 20px);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.landing-install-copy p:not(.eyebrow) {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.landing-install-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.landing-install-card {
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 84%);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface), transparent 8%);
+  padding: 14px;
+}
+
+.landing-install-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.landing-install-card-head > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), transparent 86%), color-mix(in srgb, var(--secondary), transparent 88%));
+  font-size: 1.12rem;
+}
+
+.landing-install-card h3 { margin-bottom: 0; }
+
+.landing-install-card ol {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: install-step;
+}
+
+.landing-install-card li {
+  position: relative;
+  min-height: 28px;
+  padding-left: 36px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.landing-install-card li::before {
+  counter-increment: install-step;
+  content: counter(install-step);
+  position: absolute;
+  left: 0;
+  top: -2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
 .landing-compact-row {
   display: grid;
   grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
@@ -3864,6 +3949,7 @@ code {
   .landing-topbar { align-items: flex-start; }
   .landing-switchers { width: min-content; }
   .landing-hero-grid,
+  .landing-install-section,
   .landing-compact-row,
   .landing-stage-card { grid-template-columns: 1fr; }
   .landing-copy { justify-items: stretch; }
@@ -3879,6 +3965,9 @@ code {
     animation: none;
   }
   .landing-feature-cards { grid-template-columns: 1fr; }
+  .landing-install-grid { grid-template-columns: 1fr; }
+  .landing-install-card { padding: 12px; }
+  .landing-install-card li { font-size: 0.86rem; }
   .landing-stage-card,
   .landing-final-cta { border-radius: 22px; }
 
