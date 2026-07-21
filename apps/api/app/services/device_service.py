@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.chats import PushSubscription
 from app.models.sessions import LoginHistory, Session
 from app.schemas.devices import DeviceOut, LoginHistoryOut
 
@@ -25,6 +26,9 @@ async def revoke_device(session: AsyncSession, user_id, device_id: str) -> None:
         from datetime import datetime, timezone
 
         item.revoked_at = datetime.now(timezone.utc)
+    subscriptions = await session.execute(select(PushSubscription).where(PushSubscription.user_id == user_id, PushSubscription.device_id == device_id))
+    for subscription in subscriptions.scalars():
+        await session.delete(subscription)
     await session.commit()
 
 

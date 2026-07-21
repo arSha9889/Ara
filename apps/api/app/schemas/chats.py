@@ -96,12 +96,14 @@ class PushSubscriptionKeys(BaseModel):
 
 class PushSubscriptionCreateRequest(BaseModel):
     endpoint: str = Field(min_length=1, max_length=4096)
+    device_id: str | None = Field(default=None, min_length=8, max_length=128)
     expirationTime: datetime | None = None
     keys: PushSubscriptionKeys
 
 
 class PushSubscriptionDeleteRequest(BaseModel):
     endpoint: str = Field(min_length=1, max_length=4096)
+    device_id: str | None = Field(default=None, min_length=8, max_length=128)
 
 
 class PushConfigOut(BaseModel):

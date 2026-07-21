@@ -11,7 +11,7 @@ from app.services.auth_service import AuthError
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
 
-MESSAGE_TYPES = {'text', 'photo', 'video', 'voice', 'emoji', 'file'}
+MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'file'}
 REACTION_EMOJIS = {
     '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏', '😍', '🥰',
     '😁', '😆', '🤣', '😊', '😎', '🤩', '😘', '😋', '😜', '🤪',
@@ -319,10 +319,10 @@ def _validate_message_request(request: MessageCreateRequest) -> None:
         raise AuthError('Text message cannot be empty')
     if request.type == 'emoji' and request.text.strip() not in REACTION_EMOJIS:
         raise AuthError('Unsupported emoji message')
-    if request.type in {'photo', 'video', 'voice', 'file'} and not request.media_url:
+    if request.type in {'photo', 'video', 'video_note', 'voice', 'file'} and not request.media_url:
         raise AuthError('Media message requires media_url')
-    if request.type == 'voice' and not request.duration_seconds:
-        raise AuthError('Voice message requires duration_seconds')
+    if request.type in {'voice', 'video_note'} and not request.duration_seconds:
+        raise AuthError('Timed media message requires duration_seconds')
 
 
 async def _create_delivery_receipts(session: AsyncSession, message: Message) -> None:

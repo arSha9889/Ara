@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from pywebpush import WebPushException, webpush
 from py_vapid import Vapid
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -54,12 +54,14 @@ async def save_push_subscription(
     )).scalar_one_or_none()
     if subscription:
         subscription.user_id = user_id
+        subscription.device_id = request.device_id
         subscription.p256dh = request.keys.p256dh
         subscription.auth = request.keys.auth
         subscription.expiration_time = request.expirationTime
     else:
         session.add(PushSubscription(
             user_id=user_id,
+            device_id=request.device_id,
             endpoint=request.endpoint,
             p256dh=request.keys.p256dh,
             auth=request.keys.auth,
@@ -68,12 +70,15 @@ async def save_push_subscription(
     await session.commit()
 
 
-async def remove_push_subscription(session: AsyncSession, user_id: UUID, endpoint: str) -> None:
+async def remove_push_subscription(session: AsyncSession, user_id: UUID, endpoint: str, device_id: str | None = None) -> None:
+    conditions = [
+        PushSubscription.user_id == user_id,
+        PushSubscription.endpoint == endpoint,
+    ]
+    if device_id is not None:
+        conditions.append(or_(PushSubscription.device_id == device_id, PushSubscription.device_id.is_(None)))
     subscription = (await session.execute(
-        select(PushSubscription).where(
-            PushSubscription.user_id == user_id,
-            PushSubscription.endpoint == endpoint,
-        )
+        select(PushSubscription).where(*conditions)
     )).scalar_one_or_none()
     if subscription:
         await session.delete(subscription)
@@ -222,6 +227,7 @@ def _message_preview(message: MessageOut) -> str:
     labels = {
         'photo': '📷 Фото',
         'video': '🎬 Видео',
+        'video_note': '🎥 Видеосообщение',
         'voice': '🎤 Голосовое сообщение',
         'file': '📎 Файл',
     }

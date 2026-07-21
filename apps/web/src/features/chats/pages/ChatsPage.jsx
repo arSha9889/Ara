@@ -33,6 +33,9 @@ function chatSubtitle(chat, currentUserId, t) {
   if (chat.last_message.type === 'text' || chat.last_message.type === 'emoji') {
     return `${prefix}${chat.last_message.payload}`;
   }
+  if (chat.last_message.type === 'video_note') {
+    return `${prefix}${t('messages.videoNote')}`;
+  }
   return `${prefix}${chat.last_message.media_name || chat.last_message.type}`;
 }
 

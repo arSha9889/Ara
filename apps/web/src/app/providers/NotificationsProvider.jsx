@@ -14,6 +14,7 @@ import { playNotificationSound, primeNotificationSound } from '../../features/no
 import { useSession } from './SessionProvider.jsx';
 
 const NotificationsContext = createContext(null);
+const DEVICE_PUSH_ENABLED_KEY = 'nexus_push_enabled_device';
 
 function sortNotifications(items) {
   return [...items].sort((left, right) => new Date(right.created_at) - new Date(left.created_at));
@@ -74,13 +75,16 @@ export function NotificationsProvider({ children }) {
         knownNotificationIdsRef.current = new Set(items.map((item) => item.id));
         setNotifications(sortNotifications(items));
         setPermission('Notification' in window ? Notification.permission : 'unsupported');
-        if (config.enabled && config.public_key && Notification.permission === 'granted') {
+        const existingSubscription = await getPushSubscription();
+        const devicePushEnabled = localStorage.getItem(DEVICE_PUSH_ENABLED_KEY) === 'true' || Boolean(existingSubscription);
+        if (config.enabled && config.public_key && Notification.permission === 'granted' && devicePushEnabled) {
           const subscription = await ensurePushSubscription(config.public_key);
           await savePushSubscription(session.accessToken, subscription.toJSON());
+          localStorage.setItem(DEVICE_PUSH_ENABLED_KEY, 'true');
           setHasSubscription(true);
           return;
         }
-        setHasSubscription(Boolean(await getPushSubscription()));
+        setHasSubscription(Boolean(existingSubscription));
       } finally {
         if (active) setIsLoading(false);
       }
@@ -140,6 +144,7 @@ export function NotificationsProvider({ children }) {
       const subscription = await subscribeToPush(config.public_key);
       await savePushSubscription(session.accessToken, subscription.toJSON());
       setHasSubscription(true);
+      localStorage.setItem(DEVICE_PUSH_ENABLED_KEY, 'true');
       localStorage.setItem('nexus_notifications_prompt_dismissed', 'true');
       try {
         await sendTestPushNotification(session.accessToken);
@@ -159,6 +164,7 @@ export function NotificationsProvider({ children }) {
       await deletePushSubscription(session.accessToken, subscription.endpoint);
       await subscription.unsubscribe();
     }
+    localStorage.setItem(DEVICE_PUSH_ENABLED_KEY, 'false');
     setHasSubscription(false);
   }
 

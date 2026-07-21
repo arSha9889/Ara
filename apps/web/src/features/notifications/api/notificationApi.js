@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../shared/api/httpClient.js';
+import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { authHeaders } from '../../profile/api/userApi.js';
 
 export function getPushConfig(accessToken) {
@@ -9,7 +10,7 @@ export function savePushSubscription(accessToken, subscription) {
   return apiRequest('/api/notifications/subscriptions', {
     method: 'POST',
     headers: authHeaders(accessToken),
-    body: subscription,
+    body: { ...subscription, device_id: getDeviceId() },
   });
 }
 
@@ -24,7 +25,7 @@ export function deletePushSubscription(accessToken, endpoint) {
   return apiRequest('/api/notifications/subscriptions', {
     method: 'DELETE',
     headers: authHeaders(accessToken),
-    body: { endpoint },
+    body: { endpoint, device_id: getDeviceId() },
   });
 }
 

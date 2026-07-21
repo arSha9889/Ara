@@ -65,7 +65,7 @@ async def delete_push_subscription(
     current_user: Annotated[UserOut, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, bool]:
-    await remove_push_subscription(session, current_user.id, request.endpoint)
+    await remove_push_subscription(session, current_user.id, request.endpoint, request.device_id)
     return {'ok': True}
 
 

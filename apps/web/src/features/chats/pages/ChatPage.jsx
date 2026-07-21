@@ -22,7 +22,7 @@ const REACTION_EMOJIS = [
   '😈', '👻', '🤖', '👽', '🙈', '🙉', '🙊', '🐱', '🐶', '🦊',
   '🐼', '🦄', '🍀', '🌹', '🍕', '🍓', '🍿', '☕', '🎵', '🎮',
 ];
-const MEDIA_MESSAGE_TYPES = ['photo', 'video', 'voice', 'file'];
+const MEDIA_MESSAGE_TYPES = ['photo', 'video', 'video_note', 'voice', 'file'];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function appendUniqueMessage(messages, nextMessage) {
@@ -106,6 +106,45 @@ function VoiceMessage({ message, t }) {
   );
 }
 
+function VideoNoteMessage({ message, t }) {
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const duration = message.duration_seconds || videoRef.current?.duration || 0;
+
+  function togglePlayback() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      return;
+    }
+    video.pause();
+    setIsPlaying(false);
+  }
+
+  function handleTimeUpdate() {
+    const video = videoRef.current;
+    if (!video) return;
+    const nextDuration = video.duration || duration || 0;
+    setProgress(nextDuration ? Math.min(1, video.currentTime / nextDuration) : 0);
+  }
+
+  function handleEnded() {
+    setIsPlaying(false);
+    setProgress(0);
+  }
+
+  return (
+    <button className={`video-note ${isPlaying ? 'is-playing' : ''}`} type="button" onClick={togglePlayback} aria-label={isPlaying ? t('messages.pauseVideoNote') : t('messages.playVideoNote')} style={{ '--video-note-progress': progress }}>
+      <video ref={videoRef} src={message.media_url} playsInline preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+      <span className="video-note-ring" aria-hidden="true" />
+      <span className="video-note-play" aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span>
+      <span className="video-note-duration">{formatVoiceTime(duration)}</span>
+    </button>
+  );
+}
+
 function renderMessageContent(message, t) {
   if (message.deleted_at) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
@@ -115,6 +154,9 @@ function renderMessageContent(message, t) {
   }
   if (message.type === 'video') {
     return <video className="message-media" src={message.media_url} controls />;
+  }
+  if (message.type === 'video_note') {
+    return <VideoNoteMessage message={message} t={t} />;
   }
   if (message.type === 'voice') {
     return <VoiceMessage message={message} t={t} />;
@@ -190,6 +232,7 @@ function previewPinnedMessage(message, t) {
   if (!message) return '';
   if (message.type === 'photo') return t('messages.photoAlt');
   if (message.type === 'voice') return t('messages.voice');
+  if (message.type === 'video_note') return t('messages.videoNote');
   if (message.type === 'file') return message.media_name || t('messages.file');
   if (message.type === 'video') return t('messages.video');
   return message.payload;
@@ -214,7 +257,9 @@ export function ChatPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
+  const [isVideoRecording, setIsVideoRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [videoRecordingSeconds, setVideoRecordingSeconds] = useState(0);
   const [error, setError] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState('connecting');
   const [activityText, setActivityText] = useState('');
@@ -224,11 +269,16 @@ export function ChatPage() {
   const [openReactionPickerMessageId, setOpenReactionPickerMessageId] = useState(null);
   const [isComposerEmojiPickerOpen, setIsComposerEmojiPickerOpen] = useState(false);
   const mediaRecorderRef = useRef(null);
+  const videoRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
+  const videoRecordingChunksRef = useRef([]);
   const recordingStartedAtRef = useRef(0);
+  const videoRecordingStartedAtRef = useRef(0);
   const recordingTimerRef = useRef(null);
+  const videoRecordingTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const recordingCancelledRef = useRef(false);
+  const videoRecordingCancelledRef = useRef(false);
   const reconnectTimerRef = useRef(null);
   const typingStopTimerRef = useRef(null);
   const lastTypingSentAtRef = useRef(0);
@@ -386,6 +436,7 @@ export function ChatPage() {
 
   useEffect(() => () => {
     cancelVoiceRecording();
+    cancelVideoRecording();
     if (typingStopTimerRef.current) window.clearTimeout(typingStopTimerRef.current);
   }, []);
 
@@ -430,7 +481,7 @@ export function ChatPage() {
     event.preventDefault();
     if (messageType === 'text' && !text.trim()) return;
     if (MEDIA_MESSAGE_TYPES.includes(messageType) && !selectedFile) return;
-    if (isRecording) return;
+    if (isRecording || isVideoRecording) return;
     const isMediaMessage = MEDIA_MESSAGE_TYPES.includes(messageType);
     setError('');
     setIsUploading(true);
@@ -448,7 +499,7 @@ export function ChatPage() {
         media_name: uploadedMedia?.media_name ?? null,
         media_mime_type: uploadedMedia?.media_mime_type ?? null,
         media_size_bytes: uploadedMedia?.media_size_bytes ?? null,
-        duration_seconds: messageType === 'voice' && durationSeconds ? Number(durationSeconds) : null,
+        duration_seconds: ['voice', 'video_note'].includes(messageType) && durationSeconds ? Number(durationSeconds) : null,
       });
       setMessages((current) => appendUniqueMessage(current, message));
       setText('');
@@ -557,6 +608,7 @@ export function ChatPage() {
     setSelectedFile(null);
     setDurationSeconds('');
     setRecordingSeconds(0);
+    setVideoRecordingSeconds(0);
     setMessageType('text');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -567,6 +619,7 @@ export function ChatPage() {
     setSelectedFile(file ?? null);
     setMessageType(messageTypeForFile(file));
     setDurationSeconds('');
+    setVideoRecordingSeconds(0);
   }
 
   async function startVoiceRecording() {
@@ -644,6 +697,86 @@ export function ChatPage() {
     mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
     mediaRecorderRef.current = null;
     setIsRecording(false);
+  }
+
+  async function startVideoRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setError(t('messages.videoNoteUnsupported'));
+      return;
+    }
+
+    setError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+      });
+      const recorder = new MediaRecorder(stream);
+      videoRecordingChunksRef.current = [];
+      videoRecordingCancelledRef.current = false;
+      videoRecordingStartedAtRef.current = Date.now();
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          videoRecordingChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        if (videoRecordingCancelledRef.current) {
+          stopVideoRecordingTracks();
+          videoRecordingChunksRef.current = [];
+          return;
+        }
+        const mimeType = recorder.mimeType || 'video/webm';
+        const recordedSeconds = Math.max(1, Math.round((Date.now() - videoRecordingStartedAtRef.current) / 1000));
+        const blob = new Blob(videoRecordingChunksRef.current, { type: mimeType });
+        const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const file = new File([blob], `video-note-${Date.now()}.${extension}`, { type: mimeType });
+        setMessageType('video_note');
+        setSelectedFile(file);
+        setDurationSeconds(String(recordedSeconds));
+        setVideoRecordingSeconds(recordedSeconds);
+        stopVideoRecordingTracks();
+      };
+      videoRecorderRef.current = recorder;
+      recorder.start();
+      clearSelectedMedia();
+      setIsVideoRecording(true);
+      setVideoRecordingSeconds(0);
+      videoRecordingTimerRef.current = window.setInterval(() => {
+        setVideoRecordingSeconds(Math.max(1, Math.round((Date.now() - videoRecordingStartedAtRef.current) / 1000)));
+      }, 500);
+    } catch (err) {
+      setError(err.message || t('messages.videoNoteStartError'));
+      stopVideoRecordingTracks();
+    }
+  }
+
+  function stopVideoRecording() {
+    videoRecordingCancelledRef.current = false;
+    if (videoRecorderRef.current?.state === 'recording') {
+      videoRecorderRef.current.stop();
+    } else {
+      stopVideoRecordingTracks();
+    }
+  }
+
+  function cancelVideoRecording() {
+    videoRecordingCancelledRef.current = true;
+    if (videoRecorderRef.current?.state === 'recording') {
+      videoRecorderRef.current.stop();
+    } else {
+      stopVideoRecordingTracks();
+    }
+  }
+
+  function stopVideoRecordingTracks() {
+    if (videoRecordingTimerRef.current) {
+      window.clearInterval(videoRecordingTimerRef.current);
+      videoRecordingTimerRef.current = null;
+    }
+    videoRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+    videoRecorderRef.current = null;
+    setIsVideoRecording(false);
   }
 
   if (!isChatIdValid) {
@@ -840,26 +973,37 @@ export function ChatPage() {
             className={`composer-icon-button voice-button ${isRecording ? 'is-recording' : ''}`}
             type="button"
             onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+            disabled={isVideoRecording}
             aria-label={isRecording ? t('messages.stopVoice') : t('messages.recordVoice')}
             title={isRecording ? t('messages.stopRecording') : t('messages.voiceMessage')}
           >
             <span aria-hidden="true">{isRecording ? '■' : '🎙'}</span>
           </button>
           <button
+            className={`composer-icon-button video-note-button ${isVideoRecording ? 'is-recording' : ''}`}
+            type="button"
+            onClick={isVideoRecording ? stopVideoRecording : startVideoRecording}
+            disabled={isRecording}
+            aria-label={isVideoRecording ? t('messages.stopVideoNote') : t('messages.recordVideoNote')}
+            title={isVideoRecording ? t('messages.stopRecording') : t('messages.videoNote')}
+          >
+            <span aria-hidden="true">{isVideoRecording ? '■' : '◉'}</span>
+          </button>
+          <button
             className="send-fab"
             type="submit"
-            disabled={isUploading || isRecording || (!text.trim() && !selectedFile)}
+            disabled={isUploading || isRecording || isVideoRecording || (!text.trim() && !selectedFile)}
             aria-label={isUploading ? t('messages.sendingMessage') : t('messages.send')}
             title={t('messages.send')}
           >
             <span aria-hidden="true">{isUploading ? '…' : '➤'}</span>
           </button>
         </div>
-        {(selectedFile || isRecording) ? (
+        {(selectedFile || isRecording || isVideoRecording) ? (
           <div className="composer-preview">
-            <span className="composer-preview-icon" aria-hidden="true">{messageType === 'voice' || isRecording ? '🎙' : '📎'}</span>
-            <span>{isRecording ? `${t('messages.recording')} · ${recordingSeconds}s` : selectedFile.name}</span>
-            {!isRecording ? <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')}>×</button> : null}
+            <span className="composer-preview-icon" aria-hidden="true">{messageType === 'video_note' || isVideoRecording ? '🎥' : messageType === 'voice' || isRecording ? '🎙' : '📎'}</span>
+            <span>{isVideoRecording ? `${t('messages.recordingVideoNote')} · ${videoRecordingSeconds}s` : isRecording ? `${t('messages.recording')} · ${recordingSeconds}s` : selectedFile.name}</span>
+            {!isRecording && !isVideoRecording ? <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')}>×</button> : null}
           </div>
         ) : null}
       </form>
