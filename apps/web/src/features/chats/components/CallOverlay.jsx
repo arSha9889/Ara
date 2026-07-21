@@ -58,6 +58,7 @@ export function CallOverlay({ call, peer, t }) {
   const hasRemoteScreen = remoteVideoTracks.some((track) => track.readyState === 'live');
   const title = peer?.display_name || peer?.username || t('chats.directChat');
   const subtitle = call.statusText || (isActive ? t('calls.connected') : t('calls.calling'));
+  const callModeLabel = hasRemoteScreen ? t('calls.remoteScreen') : (isIncoming ? t('calls.incomingLabel') : t('calls.audioLabel'));
 
   if (!isVisible) return null;
 
@@ -70,21 +71,17 @@ export function CallOverlay({ call, peer, t }) {
       </div>
       {call.remoteStream ? <StreamAudio stream={call.remoteStream} /> : null}
 
-      <section className={`call-card ${hasRemoteScreen ? 'with-screen' : ''}`}>
+      <section className={`call-card ${hasRemoteScreen ? 'with-screen' : 'audio-only'}`}>
         <div className="call-card-glow" aria-hidden="true" />
         <header className="call-topbar">
-          <div className="call-peer">
-            <UserAvatar profile={peer} fallback={title[0] || 'N'} />
+          <div className="call-peer-compact">
+            <span className={`call-live-dot ${isActive ? 'active' : ''}`} aria-hidden="true" />
             <div>
-              <p className="call-kicker">{isIncoming ? t('calls.incomingLabel') : t('calls.audioLabel')}</p>
-              <h2>{title}</h2>
-              <span>{subtitle}</span>
+              <span>{callModeLabel}</span>
+              <strong>{isIncoming ? t('calls.waitingForAnswer') : subtitle}</strong>
             </div>
           </div>
-          <div className="call-quality-badge">
-            <span aria-hidden="true">HD</span>
-            {t('calls.hdScreen')}
-          </div>
+          <div className="call-duration-pill" aria-label={`${t('calls.duration')}: ${duration}`}>{duration}</div>
         </header>
 
         <div className="call-content">
@@ -92,24 +89,23 @@ export function CallOverlay({ call, peer, t }) {
             {hasRemoteScreen ? (
               <StreamVideo className="call-screen-video" label={t('calls.remoteScreen')} stream={call.remoteStream} muted />
             ) : (
-              <div className="call-avatar-orbit">
-                <span className="call-wave one" />
-                <span className="call-wave two" />
-                <span className="call-wave three" />
-                <UserAvatar profile={peer} fallback={title[0] || 'N'} />
+              <div className="call-hero">
+                <div className="call-avatar-orbit">
+                  <span className="call-wave one" />
+                  <span className="call-wave two" />
+                  <span className="call-wave three" />
+                  <UserAvatar profile={peer} fallback={title[0] || 'N'} />
+                </div>
+                <div className="call-hero-copy">
+                  <p>{callModeLabel}</p>
+                  <h2>{title}</h2>
+                  <span>{subtitle}</span>
+                </div>
               </div>
             )}
           </div>
 
-          <aside className="call-side-panel">
-            <div className="call-timer-card">
-              <span>{t('calls.duration')}</span>
-              <strong>{duration}</strong>
-            </div>
-            <div className="call-status-card">
-              <span className={`call-live-dot ${isActive ? 'active' : ''}`} aria-hidden="true" />
-              <span>{isIncoming ? t('calls.waitingForAnswer') : subtitle}</span>
-            </div>
+          <aside className="call-side-panel" aria-label={t('calls.hdScreen')}>
             {call.screenStream ? (
               <div className="call-local-preview">
                 <StreamVideo className="call-local-video" label={t('calls.yourScreen')} stream={call.screenStream} muted />
