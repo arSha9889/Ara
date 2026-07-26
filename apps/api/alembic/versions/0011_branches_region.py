@@ -1,6 +1,6 @@
 """public branches and registration country
 
-Revision ID: 0011_public_branches_and_registration_country
+Revision ID: 0011_branches_region
 Revises: 0010_password_confirmations
 Create Date: 2026-07-26
 """
@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = '0011_public_branches_and_registration_country'
+revision = '0011_branches_region'
 down_revision = '0010_password_confirmations'
 branch_labels = None
 depends_on = None
