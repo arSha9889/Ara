@@ -9,7 +9,7 @@ import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx'
 import { RegionSelectionPage } from '../features/onboarding/pages/RegionSelectionPage.jsx';
 import { ChatPage } from '../features/chats/pages/ChatPage.jsx';
 import { ChatsPage } from '../features/chats/pages/ChatsPage.jsx';
-import { WelcomeChatPage } from '../features/chats/pages/WelcomeChatPage.jsx';
+import { PublicBranchesPage } from '../features/chats/pages/PublicBranchesPage.jsx';
 import { PrivacyPolicyPage } from '../features/legal/pages/PrivacyPolicyPage.jsx';
 import { TermsPage } from '../features/legal/pages/TermsPage.jsx';
 import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
@@ -49,13 +49,14 @@ export function App() {
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route element={<ProtectedRoute />}>
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/app" element={<AppShell />}>
           <Route index element={<ChatsPage />} />
-          <Route path="welcome" element={<WelcomeChatPage />} />
+          <Route path="branches" element={<PublicBranchesPage />} />
           <Route path="chats/:chatId" element={<ChatPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="admin" element={<AdminPage />} />
+          <Route path="admin" element={<Navigate to="/admin" replace />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

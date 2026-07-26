@@ -57,7 +57,7 @@ export function LandingPage() {
 
         <div className="landing-hero-grid">
           <div className="landing-copy">
-            <p className="eyebrow">AraChat Web / Messenger v1</p>
+            <p className="eyebrow">AraChat Web / Beta</p>
             <h1>{t('onboarding.title')}</h1>
             <p>{t('onboarding.subtitle')}</p>
             <div className="feature-grid landing-feature-pills" aria-label="AraChat highlights">
@@ -78,12 +78,11 @@ export function LandingPage() {
           </div>
 
           <div className="landing-showcase" aria-label={t('onboarding.previewLabel')}>
-            <img className="landing-brand-art" src="/images/arachat-parrot-hero.jpeg" alt="" aria-hidden="true" />
             <div className="landing-phone">
               <div className="landing-phone-header">
                 <img className="avatar landing-chat-avatar" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" />
                 <div>
-                  <strong>AraChat Chat</strong>
+                  <strong>AraChat</strong>
                   <span>{t('messages.online')}</span>
                 </div>
               </div>

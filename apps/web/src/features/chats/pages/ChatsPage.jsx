@@ -10,8 +10,7 @@ import { Button } from '../../../shared/ui/Button.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
-import { createDirectChat, createSavedChat, getChats, getPublicBranches, subscribeToBranch } from '../api/chatApi.js';
-import { welcomeChat } from '../config/welcomeChat.js';
+import { createDirectChat, createSavedChat, getChats } from '../api/chatApi.js';
 
 const PHONE_COUNTRIES = [
   { code: 'RU', dialCode: '+7', flag: '🇷🇺', labelKey: 'phoneCountryRussia', placeholder: '+7 999 123-45-67' },
@@ -47,7 +46,6 @@ export function ChatsPage() {
   const { session } = useSession();
   const navigate = useNavigate();
   const [chats, setChats] = useState([]);
-  const [publicBranches, setPublicBranches] = useState([]);
   const [newChatCountry, setNewChatCountry] = useState('RU');
   const [newChatPhone, setNewChatPhone] = useState('');
   const [chatSearch, setChatSearch] = useState('');
@@ -63,7 +61,7 @@ export function ChatsPage() {
   const [notificationPromptStatus, setNotificationPromptStatus] = useState('');
   const selectedNewChatCountry = PHONE_COUNTRIES.find((country) => country.code === newChatCountry) ?? PHONE_COUNTRIES[0];
   const savedChat = chats.find((chat) => chat.type === 'saved');
-  const regularChats = chats.filter((chat) => chat.type !== 'saved');
+  const regularChats = chats.filter((chat) => chat.type !== 'saved' && chat.type !== 'branch');
   const normalizedChatSearch = chatSearch.trim().toLowerCase();
   const visibleRegularChats = normalizedChatSearch
     ? regularChats.filter((chat) => [
@@ -79,13 +77,7 @@ export function ChatsPage() {
     savedChat ? chatSubtitle(savedChat, session.user?.id, t) : t('chats.savedSubtitle'),
     t('chats.savedBadge'),
   ].join(' ').toLowerCase().includes(normalizedChatSearch);
-  const isWelcomeChatVisible = !normalizedChatSearch || [
-    welcomeChat.title,
-    welcomeChat.username,
-    t(welcomeChat.subtitleKey),
-    t('chats.newBadge'),
-  ].join(' ').toLowerCase().includes(normalizedChatSearch);
-  const hasVisibleChats = isSavedChatVisible || isWelcomeChatVisible || visibleRegularChats.length > 0;
+  const hasVisibleChats = isSavedChatVisible || visibleRegularChats.length > 0;
 
   useEffect(() => {
     chatsRef.current = chats;
@@ -102,9 +94,7 @@ export function ChatsPage() {
   async function loadChats({ showLoading = true } = {}) {
     try {
       if (showLoading) setIsLoading(true);
-      const [chatItems, branches] = await Promise.all([getChats(session.accessToken), getPublicBranches(session.accessToken)]);
-      setChats(chatItems);
-      setPublicBranches(branches);
+      setChats(await getChats(session.accessToken));
     } finally {
       if (showLoading) setIsLoading(false);
     }
@@ -227,17 +217,6 @@ export function ChatsPage() {
       const chat = savedChat || await createSavedChat(session.accessToken);
       setChats((current) => [chat, ...current.filter((item) => item.id !== chat.id)]);
       navigate(`/app/chats/${chat.id}`);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleSubscribeToBranch(chatId) {
-    setError('');
-    try {
-      const branch = await subscribeToBranch(session.accessToken, chatId);
-      setPublicBranches((current) => current.map((item) => item.id === branch.id ? branch : item));
-      setChats((current) => [branch, ...current.filter((item) => item.id !== branch.id)]);
     } catch (err) {
       setError(err.message);
     }
@@ -388,23 +367,6 @@ export function ChatsPage() {
               <span className="chat-list-badge">{t('chats.savedBadge')}</span>
             </button>
           ) : null}
-          {isWelcomeChatVisible ? (
-            <Link className="info-card welcome-chat-card" to="/app/welcome">
-              <div className="chat-list-avatar" aria-hidden="true">{welcomeChat.avatar}</div>
-              <div>
-                <strong>{welcomeChat.title}</strong>
-                <span className="muted">{t(welcomeChat.subtitleKey)}</span>
-              </div>
-              <span className="chat-list-badge">{t('chats.newBadge')}</span>
-            </Link>
-          ) : null}
-          {publicBranches.filter((branch) => !chats.some((chat) => chat.id === branch.id)).map((branch) => (
-            <article className="info-card branch-card" key={branch.id}>
-              <div className="chat-list-avatar branch-avatar" aria-hidden="true">{branch.avatar_ref || '◎'}</div>
-              <div className="chat-thread-copy"><strong>{branch.title} {branch.is_official ? <span className="official-badge" title="Официальная ветвь">✓</span> : null}</strong><span className="muted">{branch.description}</span></div>
-              <button className="button button-secondary" type="button" onClick={() => handleSubscribeToBranch(branch.id)}>Подписаться</button>
-            </article>
-          ))}
           {visibleRegularChats.map((chat) => (
             <Link className="info-card chat-thread-card" key={chat.id} to={`/app/chats/${chat.id}`}>
               <span className="chat-list-avatar-wrap">

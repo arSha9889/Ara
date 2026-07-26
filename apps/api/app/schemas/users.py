@@ -28,6 +28,7 @@ class UserOut(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     display_name: str | None = Field(default=None, max_length=80)
+    email: str | None = Field(default=None, max_length=255)
     optional_phone: str | None = Field(default=None, max_length=32)
     phone_public: bool | None = None
     language: str | None = None

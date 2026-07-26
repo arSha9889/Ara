@@ -16,9 +16,9 @@ export function AppShell() {
   const isChatRoute = location.pathname.startsWith('/app/chats/');
   const navItems = [
     { to: '/app', icon: '💬', label: t('chats.title') },
+    { to: '/app/branches', icon: '📣', label: t('chats.publicBranches') },
     { to: '/app/profile', icon: '👤', label: t('profile.title') },
     { to: '/app/settings', icon: '⚙️', label: t('settings.title') },
-    ...(session.user?.is_official ? [{ to: '/app/admin', icon: '🛡️', label: 'Админ-панель' }] : []),
   ];
 
   useEffect(() => {

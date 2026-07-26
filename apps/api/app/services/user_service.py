@@ -7,6 +7,7 @@ from app.domain.validators import is_valid_username
 from app.models.users import User, UserProfile
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, get_user_with_profile, to_user_out
+from app.services.email_verification_service import EmailVerificationError, normalize_email
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
 
@@ -23,6 +24,16 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
         raise AuthError('Profile not found')
     if request.display_name is not None:
         profile.display_name = request.display_name
+    if request.email is not None:
+        try:
+            email = normalize_email(request.email) if request.email else None
+        except EmailVerificationError as exc:
+            raise AuthError(str(exc)) from exc
+        if email != profile.email and email:
+            existing_user_id = await session.scalar(select(UserProfile.user_id).where(UserProfile.email == email))
+            if existing_user_id and existing_user_id != user_id:
+                raise AuthError('Email is already registered')
+        profile.email = email
     if request.optional_phone is not None:
         try:
             requested_phone = normalize_phone(request.optional_phone) if request.optional_phone else None

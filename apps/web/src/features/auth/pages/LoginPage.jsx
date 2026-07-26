@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -13,12 +12,17 @@ export function LoginPage() {
   const { t } = useI18n();
   const { saveSession } = useSession();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ identifier: '', password: '', pin: '', device_id: getDeviceId() });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  function navigateAfterLogin() {
+    navigate(location.state?.from?.pathname || '/app', { replace: true });
   }
 
   async function handleSubmit(event) {
@@ -28,7 +32,7 @@ export function LoginPage() {
     try {
       const result = await loginWithPassword({ identifier: form.identifier, password: form.password, device_id: form.device_id });
       saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user: result.user });
-      navigate('/app');
+      navigateAfterLogin();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -42,7 +46,7 @@ export function LoginPage() {
     try {
       const result = await loginWithPin({ identifier: form.identifier, pin: form.pin, device_id: form.device_id });
       saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user: result.user });
-      navigate('/app');
+      navigateAfterLogin();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -74,6 +78,14 @@ export function LoginPage() {
           <Button type="button" variant="secondary" disabled={isLoading || !form.identifier || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
         </div>
         <Link to="/region" className="auth-switch-link">{t('auth.createAccount')}</Link>
+        <Link to="/admin" className="admin-entry-link">
+          <span className="admin-entry-icon" aria-hidden="true">✦</span>
+          <span className="admin-entry-copy">
+            <strong>Админ-панель</strong>
+            <small>Защищённое рабочее пространство</small>
+          </span>
+          <span className="admin-entry-arrow" aria-hidden="true">→</span>
+        </Link>
       </form>
     </main>
   );
