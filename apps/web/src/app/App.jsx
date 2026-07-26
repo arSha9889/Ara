@@ -18,6 +18,14 @@ import { AdminPage } from '../features/admin/pages/AdminPage.jsx';
 import { AraChatLoader } from '../shared/ui/AraChatLoader.jsx';
 import { useSession } from './providers/SessionProvider.jsx';
 
+
+function RegistrationRoute() {
+  return localStorage.getItem('nexus_registration_country')
+    ? <RegisterPage />
+    : <Navigate to="/region" replace />;
+}
+
+
 export function App() {
   const { isSessionLoading } = useSession();
 
