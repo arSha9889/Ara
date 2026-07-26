@@ -4,7 +4,7 @@ Revision ID: 0006_phone_verifications
 Revises: 0005_avatar_ref_length
 Create Date: 2026-07-18
 """
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 
@@ -15,19 +15,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    connection = op.get_bind()
-    duplicate_phone = connection.execute(sa.text(
-        """
-        SELECT optional_phone
-        FROM user_profiles
-        WHERE optional_phone IS NOT NULL
-        GROUP BY optional_phone
-        HAVING COUNT(*) > 1
-        LIMIT 1
-        """
-    )).scalar()
-    if duplicate_phone is not None:
-        raise RuntimeError('Cannot add a unique phone index: duplicate user profile phones exist')
+    if not context.is_offline_mode():
+        connection = op.get_bind()
+        duplicate_phone = connection.execute(sa.text(
+            """
+            SELECT optional_phone
+            FROM user_profiles
+            WHERE optional_phone IS NOT NULL
+            GROUP BY optional_phone
+            HAVING COUNT(*) > 1
+            LIMIT 1
+            """
+        )).scalar()
+        if duplicate_phone is not None:
+            raise RuntimeError('Cannot add a unique phone index: duplicate user profile phones exist')
 
     op.create_index('ix_user_profiles_optional_phone', 'user_profiles', ['optional_phone'], unique=True)
     op.create_table(

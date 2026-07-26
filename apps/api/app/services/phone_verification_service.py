@@ -16,6 +16,7 @@ from app.services.email_verification_service import (
     handle_email_callback_query,
     handle_email_start_command,
 )
+from app.services.password_confirmation_service import handle_password_confirmation_callback
 from app.services.telegram_bot_client import answer_telegram_callback, send_telegram_message
 
 
@@ -164,7 +165,7 @@ async def _handle_start_command(
     if not payload.startswith(START_PAYLOAD_PREFIX):
         await send_telegram_message(
             chat_id,
-            'Привет! Я бот Nexus. Начните регистрацию в приложении и выберите подтверждение телефона или email, чтобы я отправил код подтверждения.',
+            'Привет! Я бот AraChat. Начните регистрацию в приложении и выберите подтверждение телефона или email, чтобы я отправил код подтверждения.',
         )
         return
 
@@ -174,13 +175,13 @@ async def _handle_start_command(
         if verification:
             verification.status = 'expired'
             await session.commit()
-        await send_telegram_message(chat_id, 'Заявка на подтверждение телефона истекла. Запросите новый код в приложении Nexus.')
+        await send_telegram_message(chat_id, 'Заявка на подтверждение телефона истекла. Запросите новый код в приложении AraChat.')
         return
     if verification.consumed_at:
         await send_telegram_message(chat_id, 'Эта заявка уже использована. Если нужно, запросите новый код в приложении.')
         return
     if verification.telegram_user_id and verification.telegram_user_id != telegram_user_id:
-        await send_telegram_message(chat_id, 'Эта заявка уже привязана к другому Telegram-аккаунту. Запросите новый код в приложении Nexus.')
+        await send_telegram_message(chat_id, 'Эта заявка уже привязана к другому Telegram-аккаунту. Запросите новый код в приложении AraChat.')
         return
 
     verification.telegram_chat_id = chat_id
@@ -197,7 +198,7 @@ async def _handle_contact(session: AsyncSession, contact: dict, chat_id: str, te
 
     verification = await _get_active_verification_by_chat(session, chat_id)
     if not verification:
-        await send_telegram_message(chat_id, 'Сначала запросите код в приложении Nexus, затем откройте бота по ссылке.')
+        await send_telegram_message(chat_id, 'Сначала запросите код в приложении AraChat, затем откройте бота по ссылке.')
         return
 
     try:
@@ -212,7 +213,7 @@ async def _handle_contact(session: AsyncSession, contact: dict, chat_id: str, te
 async def _handle_phone_text(session: AsyncSession, text: str, chat_id: str) -> None:
     verification = await _get_active_verification_by_chat(session, chat_id)
     if not verification:
-        await send_telegram_message(chat_id, 'Сначала запросите код в приложении Nexus, затем откройте бота по ссылке.')
+        await send_telegram_message(chat_id, 'Сначала запросите код в приложении AraChat, затем откройте бота по ссылке.')
         return
 
     try:
@@ -225,6 +226,8 @@ async def _handle_phone_text(session: AsyncSession, text: str, chat_id: str) -> 
 
 
 async def _handle_callback_query(session: AsyncSession, callback_query: dict) -> None:
+    if await handle_password_confirmation_callback(session, callback_query):
+        return
     if await handle_email_callback_query(session, callback_query):
         return
 
@@ -244,7 +247,7 @@ async def _handle_callback_query(session: AsyncSession, callback_query: dict) ->
             await session.commit()
         if callback_query_id:
             await answer_telegram_callback(callback_query_id, 'Заявка истекла')
-        await send_telegram_message(chat_id, 'Заявка истекла. Запросите новый код в приложении Nexus.')
+        await send_telegram_message(chat_id, 'Заявка истекла. Запросите новый код в приложении AraChat.')
         return
     if verification.telegram_user_id != telegram_user_id:
         if callback_query_id:
@@ -260,7 +263,7 @@ async def _handle_callback_query(session: AsyncSession, callback_query: dict) ->
         await answer_telegram_callback(callback_query_id, 'Код отправлен')
     await send_telegram_message(
         chat_id,
-        f'Ваш код подтверждения Nexus: {code}\nВведите его в приложении. Код действует {PHONE_VERIFICATION_TTL_MINUTES} минут.',
+        f'Ваш код подтверждения AraChat: {code}\nВведите его в приложении. Код действует {PHONE_VERIFICATION_TTL_MINUTES} минут.',
         {'remove_keyboard': True},
     )
 
@@ -269,7 +272,7 @@ async def _send_phone_confirmation_prompt(chat_id: str, verification: PhoneVerif
     await send_telegram_message(
         chat_id,
         (
-            'Привет! Подтвердите номер для регистрации в Nexus.\n\n'
+            'Привет! Подтвердите номер для регистрации в AraChat.\n\n'
             f'Страна: {_phone_country_name(verification.phone_country)}\n'
             f'Номер из приложения: {verification.phone}\n\n'
             'Если это ваш номер, нажмите «Подтвердить». Если нужен другой номер — отправьте контакт кнопкой ниже или напишите номер сообщением.'

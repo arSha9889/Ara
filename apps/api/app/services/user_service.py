@@ -7,6 +7,7 @@ from app.domain.validators import is_valid_username
 from app.models.users import User, UserProfile
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, get_user_with_profile, to_user_out
+from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
 
 async def get_current_user_out(session: AsyncSession, user_id):
@@ -23,7 +24,12 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
     if request.display_name is not None:
         profile.display_name = request.display_name
     if request.optional_phone is not None:
-        profile.optional_phone = request.optional_phone or None
+        try:
+            requested_phone = normalize_phone(request.optional_phone) if request.optional_phone else None
+        except PhoneVerificationError as exc:
+            raise AuthError(str(exc)) from exc
+        if requested_phone != profile.optional_phone:
+            raise AuthError('Phone number can only be changed through Telegram verification')
     if request.phone_public is not None:
         profile.phone_public = request.phone_public
     if request.avatar_type is not None or request.avatar_ref is not None:

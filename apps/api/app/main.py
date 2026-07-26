@@ -10,7 +10,7 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.domain.tokens import decode_access_token
-from app.models.chats import ChatParticipant
+from app.models.chats import Chat, ChatParticipant
 from app.models.users import User
 from app.db.health import check_database
 from app.services.realtime_manager import realtime_manager
@@ -36,7 +36,7 @@ def create_app() -> FastAPI:
 
     @app.get('/health')
     async def health() -> dict[str, str]:
-        return {'status': 'ok', 'service': 'nexus-api'}
+        return {'status': 'ok', 'service': 'arachat-api'}
 
     @app.get('/health/infrastructure')
     async def infrastructure_health() -> dict[str, str]:
@@ -96,7 +96,7 @@ def create_app() -> FastAPI:
                     if not chat_id:
                         await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'invalid_chat_id'})
                         continue
-                    if not await _is_chat_participant(user_id, chat_id):
+                    if not await _can_subscribe_to_chat(user_id, chat_id):
                         await _safe_send_json(websocket, {'event': 'error.unauthorized', 'reason': 'chat_not_available'})
                         continue
                     await realtime_manager.subscribe(websocket, chat_id)
@@ -137,35 +137,10 @@ def create_app() -> FastAPI:
                     )
                     continue
 
-                if event in {
-                    'call.invite',
-                    'call.accept',
-                    'call.reject',
-                    'call.cancel',
-                    'call.end',
-                    'call.offer',
-                    'call.answer',
-                    'call.ice_candidate',
-                    'call.screen_stopped',
-                }:
-                    chat_id = _parse_uuid(message.get('chat_id'))
-                    if not chat_id:
-                        await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'invalid_chat_id'})
-                        continue
-                    if not await _is_chat_participant(user_id, chat_id):
-                        await _safe_send_json(websocket, {'event': 'error.unauthorized', 'reason': 'chat_not_available'})
-                        continue
-                    await realtime_manager.broadcast_to_chat(
-                        chat_id,
-                        {
-                            'event': event,
-                            'chat_id': str(chat_id),
-                            'user_id': str(user_id),
-                            'call_id': message.get('call_id'),
-                            'description': message.get('description'),
-                            'candidate': message.get('candidate'),
-                            'reason': message.get('reason'),
-                        },
+                if isinstance(event, str) and event.startswith('call.'):
+                    await _safe_send_json(
+                        websocket,
+                        {'event': 'error.validation_failed', 'reason': 'calls_temporarily_unavailable'},
                     )
                     continue
 
@@ -190,6 +165,15 @@ def _parse_uuid(value: object) -> UUID | None:
 
 async def _is_chat_participant(user_id: UUID, chat_id: UUID) -> bool:
     async with AsyncSessionLocal() as session:
+        participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
+        return participant is not None
+
+
+async def _can_subscribe_to_chat(user_id: UUID, chat_id: UUID) -> bool:
+    async with AsyncSessionLocal() as session:
+        chat = await session.get(Chat, chat_id)
+        if chat and chat.type == 'branch':
+            return True
         participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
         return participant is not None
 

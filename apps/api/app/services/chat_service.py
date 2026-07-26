@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.chats import Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification
 from app.models.users import User, UserProfile
 from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageCreateRequest, MessageOut, MessageReactionOut
+from app.services.branch_service import can_post_to_branch, ensure_official_branch
 from app.services.auth_service import AuthError
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
@@ -27,6 +28,7 @@ REACTION_EMOJIS = {
 
 
 async def list_chats(session: AsyncSession, user_id: UUID) -> list[ChatOut]:
+    await ensure_official_branch(session)
     result = await session.execute(
         select(Chat)
         .join(ChatParticipant, ChatParticipant.chat_id == Chat.id)
@@ -88,21 +90,27 @@ async def create_or_get_saved_chat(session: AsyncSession, user_id: UUID) -> Chat
 
 
 async def get_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> ChatOut:
-    await _ensure_participant(session, user_id, chat_id)
     chat = await session.get(Chat, chat_id)
     if not chat:
         raise AuthError('Chat not found')
+    await _ensure_can_view(session, user_id, chat)
     return await _chat_out(session, chat, user_id)
 
 
 async def list_messages(session: AsyncSession, user_id: UUID, chat_id: UUID) -> list[MessageOut]:
-    await _ensure_participant(session, user_id, chat_id)
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    await _ensure_can_view(session, user_id, chat)
     result = await session.execute(select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.asc()).limit(100))
     return [await _message_out(session, message, user_id) for message in result.scalars()]
 
 
 async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, request: MessageCreateRequest) -> MessageOut:
-    await _ensure_participant(session, user_id, chat_id)
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    await _ensure_can_post(session, user_id, chat)
     _validate_message_request(request)
     message = Message(
         chat_id=chat_id,
@@ -119,16 +127,17 @@ async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, re
     session.add(message)
     await session.flush()
     await _create_delivery_receipts(session, message)
-    chat = await session.get(Chat, chat_id)
-    if chat:
-        chat.last_message_id = message.id
+    chat.last_message_id = message.id
     await _activate_direct_chat_participants(session, chat_id)
     await session.commit()
     return await _message_out(session, message, user_id)
 
 
 async def edit_message(session: AsyncSession, user_id: UUID, chat_id: UUID, message_id: UUID, text: str) -> MessageOut:
-    await _ensure_participant(session, user_id, chat_id)
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    await _ensure_can_post(session, user_id, chat)
     message = await session.get(Message, message_id)
     if not message or message.chat_id != chat_id:
         raise AuthError('Message not found')
@@ -150,7 +159,10 @@ async def edit_message(session: AsyncSession, user_id: UUID, chat_id: UUID, mess
 
 
 async def delete_message(session: AsyncSession, user_id: UUID, chat_id: UUID, message_id: UUID) -> MessageOut:
-    await _ensure_participant(session, user_id, chat_id)
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    await _ensure_can_post(session, user_id, chat)
     message = await session.get(Message, message_id)
     if not message or message.chat_id != chat_id:
         raise AuthError('Message not found')
@@ -166,13 +178,13 @@ async def delete_message(session: AsyncSession, user_id: UUID, chat_id: UUID, me
 
 
 async def toggle_pin_message(session: AsyncSession, user_id: UUID, chat_id: UUID, message_id: UUID) -> ChatOut:
-    await _ensure_participant(session, user_id, chat_id)
-    message = await session.get(Message, message_id)
-    if not message or message.chat_id != chat_id or message.deleted_at:
-        raise AuthError('Message not found')
     chat = await session.get(Chat, chat_id)
     if not chat:
         raise AuthError('Chat not found')
+    await _ensure_can_post(session, user_id, chat)
+    message = await session.get(Message, message_id)
+    if not message or message.chat_id != chat_id or message.deleted_at:
+        raise AuthError('Message not found')
     chat.pinned_message_id = None if chat.pinned_message_id == message_id else message_id
     await session.commit()
     await session.refresh(chat)
@@ -180,6 +192,11 @@ async def toggle_pin_message(session: AsyncSession, user_id: UUID, chat_id: UUID
 
 
 async def toggle_reaction(session: AsyncSession, user_id: UUID, chat_id: UUID, message_id: UUID, emoji: str) -> MessageOut:
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    if chat.type == 'branch':
+        raise AuthError('Reactions are unavailable in public branches')
     await _ensure_participant(session, user_id, chat_id)
     message = await session.get(Message, message_id)
     if not message or message.chat_id != chat_id:
@@ -221,7 +238,10 @@ async def mark_messages_read(
     chat_id: UUID,
     message_ids: list[UUID],
 ) -> list[MessageOut]:
-    await _ensure_participant(session, user_id, chat_id)
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    await _ensure_can_view(session, user_id, chat)
     result = await session.execute(
         select(Message).where(
             Message.chat_id == chat_id,
@@ -301,6 +321,20 @@ async def _ensure_participant(session: AsyncSession, user_id: UUID, chat_id: UUI
         raise AuthError('Chat not found')
 
 
+async def _ensure_can_view(session: AsyncSession, user_id: UUID, chat: Chat) -> None:
+    if chat.type == 'branch':
+        return
+    await _ensure_participant(session, user_id, chat.id)
+
+
+async def _ensure_can_post(session: AsyncSession, user_id: UUID, chat: Chat) -> None:
+    if chat.type == 'branch':
+        if not await can_post_to_branch(session, user_id, chat.id):
+            raise AuthError('Only branch administrators can post')
+        return
+    await _ensure_participant(session, user_id, chat.id)
+
+
 async def _activate_direct_chat_participants(session: AsyncSession, chat_id: UUID) -> None:
     chat = await session.get(Chat, chat_id)
     if not chat or chat.type != 'direct':
@@ -356,6 +390,13 @@ async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | N
         last_message=await _chat_preview_message_out(session, chat.last_message_id),
         pinned_message=await _chat_preview_message_out(session, chat.pinned_message_id),
         unread_count=await _unread_count(session, chat.id, current_user_id),
+        title=chat.title,
+        slug=chat.slug,
+        description=chat.description,
+        avatar_ref=chat.avatar_ref,
+        is_official=chat.is_official,
+        is_subscribed=bool(current_user_id and await session.get(ChatParticipant, {'chat_id': chat.id, 'user_id': current_user_id})),
+        can_post=bool(current_user_id and await can_post_to_branch(session, current_user_id, chat.id)) if chat.type == 'branch' else True,
     )
 
 
@@ -373,6 +414,7 @@ async def _chat_peer_out(session: AsyncSession, participant_ids: list[UUID], cur
         avatar_type=profile.avatar_type,
         avatar_ref=profile.avatar_ref,
         is_online=realtime_manager.is_user_online(peer_id),
+        is_official=_is_official_profile(profile),
     )
 
 
@@ -464,3 +506,9 @@ async def _reaction_summary(session: AsyncSession, message_id: UUID, current_use
         MessageReactionOut(emoji=emoji, count=int(item['count']), reacted_by_me=bool(item['reacted_by_me']))
         for emoji, item in summary.items()
     ]
+
+
+def _is_official_profile(profile: UserProfile) -> bool:
+    from app.services.admin_service import is_configured_admin_profile
+
+    return is_configured_admin_profile(profile)

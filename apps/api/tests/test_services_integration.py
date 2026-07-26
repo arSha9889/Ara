@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app import models  # noqa: F401
 from app.db.base import Base
 from app.domain.registration_proof import create_registration_proof
+from app.models.users import UserProfile
 from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.chats import MessageCreateRequest, MessageOut
 from app.schemas.users import ProfileUpdateRequest
@@ -37,7 +38,7 @@ async def _prepare_database(engine) -> None:
 async def _create_user(session_factory, username: str, telegram_id: str):
     async with session_factory() as session:
         proof_identity = telegram_id if telegram_id.startswith('dev-') else f'dev-{telegram_id}'
-        user, access_token, refresh_token = await complete_registration(
+        completion = await complete_registration(
             session,
             RegisterCompleteRequest(
                 registration_proof=create_registration_proof(proof_identity),
@@ -47,9 +48,12 @@ async def _create_user(session_factory, username: str, telegram_id: str):
                 device_id=f'device-{uuid4()}',
                 language='ru',
                 design_theme='halo',
+                accepted_terms=True,
+                accepted_privacy_policy=True,
             ),
         )
-        return user, access_token, refresh_token
+        assert completion.user and completion.access_token and completion.refresh_token
+        return completion.user, completion.access_token, completion.refresh_token
 
 
 @pytest.mark.anyio
@@ -86,19 +90,17 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             updated_user = await update_profile(
                 session,
                 first_user.id,
-                ProfileUpdateRequest(language='en', design_theme='aurora', optional_phone='+79990000001', phone_public=True),
+                ProfileUpdateRequest(language='en', design_theme='aurora', phone_public=True),
             )
             assert updated_user.profile.language == 'en'
             assert updated_user.profile.design_theme == 'aurora'
-            assert updated_user.profile.optional_phone == '+79990000001'
+            assert updated_user.profile.optional_phone is None
             assert updated_user.profile.phone_public is True
 
         async with session_factory() as session:
-            await update_profile(
-                session,
-                second_user.id,
-                ProfileUpdateRequest(optional_phone='+79990000002'),
-            )
+            second_profile = await session.get(UserProfile, second_user.id)
+            second_profile.optional_phone = '+79990000002'
+            await session.commit()
 
         async with session_factory() as session:
             chat = await create_or_get_direct_chat(session, first_user.id, 'RU', '+7 999 000-00-02')

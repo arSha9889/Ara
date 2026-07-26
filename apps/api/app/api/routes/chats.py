@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import get_current_user
 from app.db.session import get_db_session
 from app.models.chats import ChatParticipant
-from app.schemas.chats import ChatOut, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut
+from app.schemas.chats import ChatOut, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
@@ -18,6 +18,7 @@ from app.services.chat_service import edit_message as edit_chat_message
 from app.services.chat_service import list_chats as list_user_chats
 from app.services.chat_service import list_messages as list_chat_messages
 from app.services.chat_service import mark_messages_read, toggle_pin_message, toggle_reaction
+from app.services.branch_service import create_public_branch, list_public_branches, subscribe_to_branch
 from app.services.realtime_manager import realtime_manager
 from app.services.notification_service import create_message_notifications
 
@@ -53,6 +54,48 @@ async def create_saved_chat(
         return await create_or_get_saved_chat(session, current_user.id)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get('/branches/public')
+async def list_public_branches_route(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[ChatOut]:
+    branches = await list_public_branches(session, current_user.id)
+    return [await get_user_chat(session, current_user.id, branch.id) for branch in branches]
+
+
+@router.post('/branches')
+async def create_branch(
+    request: PublicBranchCreateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        branch = await create_public_branch(
+            session,
+            current_user.id,
+            request.title,
+            request.slug,
+            request.description,
+            request.avatar_ref,
+        )
+        return await get_user_chat(session, current_user.id, branch.id)
+    except (AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/branches/{chat_id}/subscribe')
+async def subscribe_branch(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        branch = await subscribe_to_branch(session, current_user.id, chat_id)
+        return await get_user_chat(session, current_user.id, branch.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get('/{chat_id}')

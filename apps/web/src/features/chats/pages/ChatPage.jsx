@@ -6,11 +6,11 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
-import { NexusLoader } from '../../../shared/ui/NexusLoader.jsx';
+import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { deleteMessage, editMessage, getChat, getMessages, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
-import { isCallSignal, useDirectCall } from '../hooks/useDirectCall.js';
+import { useDirectCall } from '../hooks/useDirectCall.js';
 
 const REACTION_EMOJIS = [
   '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏', '😍', '🥰',
@@ -272,6 +272,7 @@ export function ChatPage() {
   const [isComposerEmojiPickerOpen, setIsComposerEmojiPickerOpen] = useState(false);
   const [recordingMode, setRecordingMode] = useState('voice');
   const [isRecordMenuOpen, setIsRecordMenuOpen] = useState(false);
+  const [isCallUnavailableDialogOpen, setIsCallUnavailableDialogOpen] = useState(false);
   const mediaRecorderRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -295,12 +296,13 @@ export function ChatPage() {
   const suppressRecordClickRef = useRef(false);
   const stopAfterPendingRecordStartRef = useRef(false);
   const cancelAfterPendingRecordStartRef = useRef(false);
-  const callSignalHandlerRef = useRef(null);
   const isChatIdValid = isValidChatId(chatId);
   const isSavedChat = chat?.type === 'saved';
+  const isPublicBranch = chat?.type === 'branch';
+  const canPost = !isPublicBranch || chat?.can_post;
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', t);
-  const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
-  const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
+  const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || 'Ветвь' : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
+  const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || 'Публичная ветвь' : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
   const call = useDirectCall({
     chatId,
     currentUserId: session.user?.id,
@@ -309,10 +311,6 @@ export function ChatPage() {
     t,
     onError: setError,
   });
-
-  useEffect(() => {
-    callSignalHandlerRef.current = call.handleSignal;
-  }, [call.handleSignal]);
 
   async function loadMessages() {
     if (!isChatIdValid) return;
@@ -359,8 +357,7 @@ export function ChatPage() {
       });
       socket.addEventListener('message', (event) => {
         const payload = JSON.parse(event.data);
-        if (isCallSignal(payload)) {
-          void callSignalHandlerRef.current?.(payload);
+        if (payload.event?.startsWith('call.')) {
           return;
         }
         if (payload.event === 'connection.authenticated') {
@@ -967,6 +964,10 @@ export function ChatPage() {
   return (
     <section className="panel chat-panel">
       <header className="chat-header">
+        <Link className="chat-back-button" to="/app" aria-label={t('messages.backToChats')} title={t('messages.backToChats')}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
+          <span>{t('messages.backToChats')}</span>
+        </Link>
         <div className="chat-avatar-wrap">
           {isSavedChat ? (
             <div className="avatar saved-avatar" aria-hidden="true">★</div>
@@ -979,7 +980,7 @@ export function ChatPage() {
           <h1>{chatDisplayTitle}</h1>
           <div className="chat-subtitle">
             <span>{chatDisplaySubtitle}</span>
-            {!isSavedChat ? (
+          {!isSavedChat && !isPublicBranch ? (
               <span className={`presence-pill ${peerStatus.tone}`}>
                 <span aria-hidden="true" />
                 {peerStatus.label}
@@ -987,20 +988,32 @@ export function ChatPage() {
             ) : null}
           </div>
         </div>
-        {!isSavedChat ? (
+            {!isSavedChat && !isPublicBranch ? (
           <button
-            className="chat-call-button"
+            className="chat-call-button is-temporarily-disabled"
             type="button"
-            onClick={call.startCall}
-            disabled={!call.canUseCalls || call.callState !== 'idle'}
+            onClick={() => setIsCallUnavailableDialogOpen(true)}
             aria-label={t('calls.start')}
-            title={call.canUseCalls ? t('calls.start') : t('calls.unavailable')}
+            title={t('calls.temporarilyUnavailable')}
           >
             <span aria-hidden="true">☎</span>
             <strong>{t('calls.call')}</strong>
           </button>
         ) : null}
       </header>
+      {isCallUnavailableDialogOpen ? (
+        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setIsCallUnavailableDialogOpen(false)}>
+          <section className="app-dialog call-unavailable-dialog" role="dialog" aria-modal="true" aria-labelledby="call-unavailable-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="app-dialog-icon" aria-hidden="true">☎</div>
+            <div className="app-dialog-copy">
+              <p className="eyebrow">AraChat</p>
+              <h2 id="call-unavailable-title">{t('calls.temporarilyUnavailable')}</h2>
+              <p>{t('calls.temporarilyUnavailableText')}</p>
+            </div>
+            <button className="button button-primary" type="button" onClick={() => setIsCallUnavailableDialogOpen(false)}>{t('common.gotIt')}</button>
+          </section>
+        </div>
+      ) : null}
       <CallOverlay call={call} peer={chat?.peer} t={t} />
       {chat?.pinned_message ? (
         <button className="pinned-message-bar" type="button" onClick={() => document.getElementById(`message-${chat.pinned_message_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
@@ -1013,7 +1026,7 @@ export function ChatPage() {
         </button>
       ) : null}
       <div className="message-list" ref={messageListRef}>
-        {isLoadingMessages ? <NexusLoader compact title={t('messages.openingTitle')} text={t('messages.openingText')} /> : null}
+        {isLoadingMessages ? <AraChatLoader compact title={t('messages.openingTitle')} text={t('messages.openingText')} /> : null}
         {messages.map((message) => (
           <article
             id={`message-${message.id}`}
@@ -1027,7 +1040,7 @@ export function ChatPage() {
             onKeyDown={(event) => handleMessageBubbleKeyDown(event, message)}
             aria-label={!message.deleted_at ? t('messages.openReactions') : undefined}
           >
-            {!message.deleted_at ? (
+            {!message.deleted_at && !isPublicBranch ? (
               <div className="message-actions">
                 <button className="message-action-button" type="button" onClick={() => handlePin(message.id)} aria-label={message.is_pinned ? t('messages.unpin') : t('messages.pin')} title={message.is_pinned ? t('messages.unpin') : t('messages.pin')}>
                   <span aria-hidden="true">{message.is_pinned ? '↧' : '📌'}</span>
@@ -1065,7 +1078,7 @@ export function ChatPage() {
               {message.edited_at && !message.deleted_at ? <span>{t('messages.edited')}</span> : null}
               {message.sender_id === session.user?.id ? <DeliveryStatus status={message.delivery_status} t={t} /> : null}
             </div>
-            {!message.deleted_at ? <div className="reaction-row">
+            {!message.deleted_at && !isPublicBranch ? <div className="reaction-row">
               {message.reactions?.map((reaction) => (
                 <button className={`reaction-chip ${reaction.reacted_by_me ? 'active' : ''}`} type="button" key={reaction.emoji} onClick={() => handleReaction(message.id, reaction.emoji)}>
                   {reaction.emoji} {reaction.count}
@@ -1110,7 +1123,7 @@ export function ChatPage() {
         ) : null}
         {error ? <p className="error-text">{error}</p> : null}
       </div>
-      <form className="composer" onSubmit={handleSend}>
+      {canPost ? <form className="composer" onSubmit={handleSend}>
         <div className="composer-input-shell">
           <label className="composer-icon-button attachment-button" aria-label={t('messages.attachFile')} title={t('messages.attachFileTitle')}>
             <span aria-hidden="true">＋</span>
@@ -1200,7 +1213,7 @@ export function ChatPage() {
             {!isRecording && !isVideoRecording ? <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')}>×</button> : null}
           </div>
         ) : null}
-      </form>
+      </form> : <div className="branch-read-only-note">Публичная ветвь доступна для чтения. Публикации делает только владелец или администратор.</div>}
     </section>
   );
 }

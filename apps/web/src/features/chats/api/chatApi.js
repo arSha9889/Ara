@@ -20,6 +20,25 @@ export function createSavedChat(accessToken) {
   });
 }
 
+export function getPublicBranches(accessToken) {
+  return apiRequest('/api/chats/branches/public', { headers: authHeaders(accessToken) });
+}
+
+export function subscribeToBranch(accessToken, chatId) {
+  return apiRequest(`/api/chats/branches/${chatId}/subscribe`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function createPublicBranch(accessToken, payload) {
+  return apiRequest('/api/chats/branches', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
 export function getChat(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}`, { headers: authHeaders(accessToken) });
 }

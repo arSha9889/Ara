@@ -14,7 +14,7 @@ class DevRegistrationProofResponse(BaseModel):
 
 
 class PhoneVerificationStartRequest(BaseModel):
-    country: str = Field(pattern=r'^(RU|KZ|UA)$')
+    country: str = Field(pattern=r'^(RU|KZ|KG|UA)$')
     phone: str = Field(min_length=7, max_length=32)
     device_id: str = Field(min_length=8, max_length=128)
 
@@ -65,6 +65,7 @@ class RegisterCompleteRequest(BaseModel):
     pin: str | None = Field(default=None, min_length=4, max_length=8)
     device_id: str = Field(min_length=8, max_length=128)
     language: str = 'ru'
+    registration_country: str = Field(default='GLOBAL', pattern=r'^(RU|KZ|KG|UA|GLOBAL)$')
     design_theme: str = 'halo'
     display_name: str | None = Field(default=None, max_length=80)
     avatar_type: str = Field(default='built_in', max_length=32)
@@ -74,6 +75,20 @@ class RegisterCompleteRequest(BaseModel):
 
 
 class RegisterCompleteResponse(BaseModel):
+    password_confirmation_id: UUID | None = None
+    password_confirmation_token: str | None = None
+    bot_url: str = ''
+    access_token: str | None = None
+    refresh_token: str | None = None
+    user: UserOut | None = None
+
+
+class RegisterConfirmRequest(BaseModel):
+    password_confirmation_id: UUID
+    password_confirmation_token: str = Field(min_length=1, max_length=64)
+
+
+class RegisterConfirmResponse(BaseModel):
     access_token: str
     refresh_token: str
     user: UserOut
@@ -100,3 +115,20 @@ class RefreshRequest(BaseModel):
 
 class LogoutRequest(BaseModel):
     refresh_token: str | None = None
+
+
+class PasswordChangeStartRequest(BaseModel):
+    current_password: str = Field(min_length=5, max_length=30)
+    new_password: str = Field(min_length=5, max_length=30)
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class PasswordChangeStartResponse(BaseModel):
+    password_confirmation_id: UUID
+    password_confirmation_token: str
+    bot_url: str
+
+
+class PasswordChangeConfirmRequest(BaseModel):
+    password_confirmation_id: UUID
+    password_confirmation_token: str = Field(min_length=1, max_length=64)

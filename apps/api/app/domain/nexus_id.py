@@ -15,5 +15,5 @@ def is_valid_nexus_id(value: str) -> bool:
 
 def format_nexus_id(value: str) -> str:
     if not is_valid_nexus_id(value):
-        raise ValueError('Nexus ID must contain exactly 16 digits')
+        raise ValueError('AraChat ID must contain exactly 16 digits')
     return ' '.join(value[index:index + 4] for index in range(0, len(value), 4))

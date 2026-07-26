@@ -12,6 +12,11 @@ class Chat(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     type: Mapped[str] = mapped_column(String(32), default='direct')
+    title: Mapped[str | None] = mapped_column(String(120))
+    slug: Mapped[str | None] = mapped_column(String(64), unique=True, index=True)
+    description: Mapped[str | None] = mapped_column(String(500))
+    avatar_ref: Mapped[str | None] = mapped_column(String(255))
+    is_official: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_message_id: Mapped[UUID | None] = mapped_column(index=True)

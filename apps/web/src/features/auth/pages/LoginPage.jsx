@@ -55,8 +55,8 @@ export function LoginPage() {
       <form className="panel auth-card" onSubmit={handleSubmit}>
         <div className="auth-card-head">
           <Link to="/" className="brand compact">
-            <img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" />
-            <span>Nexus</span>
+            <img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" />
+            <span>AraChat</span>
           </Link>
           <div>
             <h1>{t('auth.loginTitle')}</h1>
@@ -73,7 +73,7 @@ export function LoginPage() {
           <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
           <Button type="button" variant="secondary" disabled={isLoading || !form.identifier || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
         </div>
-        <Link to="/register" className="auth-switch-link">{t('auth.createAccount')}</Link>
+        <Link to="/region" className="auth-switch-link">{t('auth.createAccount')}</Link>
       </form>
     </main>
   );

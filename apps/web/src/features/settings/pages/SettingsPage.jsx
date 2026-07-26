@@ -7,7 +7,7 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
-import { createPin, deleteAccount, resetPin } from '../../auth/api/authApi.js';
+import { confirmPasswordChange, createPin, deleteAccount, resetPin, startPasswordChange } from '../../auth/api/authApi.js';
 import { updateMyProfile } from '../../profile/api/userApi.js';
 import { getDevices, getLoginHistory, revokeDevice } from '../api/deviceApi.js';
 
@@ -29,6 +29,8 @@ export function SettingsPage() {
   const { disableNotifications, enableNotifications, isEnabled: notificationsEnabled, isSupported, permission: notificationPermission, pushConfigured } = useNotifications();
   const [activeTab, setActiveTab] = useState('appearance');
   const [pinForm, setPinForm] = useState({ current_password: '', pin: '' });
+  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '' });
+  const [passwordConfirmation, setPasswordConfirmation] = useState(null);
   const settingsTabs = [
     { id: 'appearance', icon: '🎨', label: t('settings.appearance') },
     { id: 'notifications', icon: '🔔', label: t('settings.notifications') },
@@ -162,6 +164,38 @@ export function SettingsPage() {
     }
   }
 
+  async function handleStartPasswordChange(event) {
+    event.preventDefault();
+    setStatus('');
+    try {
+      const confirmation = await startPasswordChange(session.accessToken, { ...passwordForm, device_id: getDeviceId() });
+      setPasswordConfirmation(confirmation);
+      setStatusKind('success');
+      setStatus(t('settings.passwordConfirmationSent'));
+    } catch (err) {
+      setStatusKind('error');
+      setStatus(err.message);
+    }
+  }
+
+  async function handleConfirmPasswordChange() {
+    if (!passwordConfirmation) return;
+    setStatus('');
+    try {
+      await confirmPasswordChange(session.accessToken, {
+        password_confirmation_id: passwordConfirmation.password_confirmation_id,
+        password_confirmation_token: passwordConfirmation.password_confirmation_token,
+      });
+      setPasswordForm({ current_password: '', new_password: '' });
+      setPasswordConfirmation(null);
+      setStatusKind('success');
+      setStatus(t('settings.passwordChanged'));
+    } catch (err) {
+      setStatusKind('error');
+      setStatus(err.message);
+    }
+  }
+
   async function handleDeleteAccount() {
     setStatus('');
     if (!window.confirm(t('settings.deleteAccountConfirm'))) return;
@@ -261,6 +295,19 @@ export function SettingsPage() {
               </article>
             ))}
           </div>
+          <form className="info-card" onSubmit={handleStartPasswordChange}>
+            <h3>{t('settings.changePasswordTitle')}</h3>
+            <p className="muted">{t('settings.changePasswordText')}</p>
+            <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={passwordForm.current_password} onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))} required />
+            <input className="text-input" type="password" placeholder={t('settings.newPassword')} value={passwordForm.new_password} onChange={(event) => setPasswordForm((current) => ({ ...current, new_password: event.target.value }))} required />
+            <button className="button button-secondary" type="submit">{t('settings.requestPasswordConfirmation')}</button>
+            {passwordConfirmation ? (
+              <div className="password-confirmation-actions">
+                {passwordConfirmation.bot_url ? <a className="button button-secondary" href={passwordConfirmation.bot_url} target="_blank" rel="noreferrer">{t('settings.openTelegram')}</a> : null}
+                <button className="button button-primary" type="button" onClick={handleConfirmPasswordChange}>{t('settings.completeAfterTelegram')}</button>
+              </div>
+            ) : null}
+          </form>
           <form className="info-card" onSubmit={handleCreatePin}>
             <h3>{t('settings.devicePinTitle')}</h3>
             <p className="muted">{t('settings.devicePinText')}</p>

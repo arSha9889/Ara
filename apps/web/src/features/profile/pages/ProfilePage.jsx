@@ -5,7 +5,7 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS, UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
-import { NexusLoader } from '../../../shared/ui/NexusLoader.jsx';
+import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { getMyProfile, updateMyProfile, updateUsername } from '../api/userApi.js';
@@ -16,7 +16,7 @@ export function ProfilePage() {
   const { t } = useI18n();
   const { session, saveSession } = useSession();
   const [user, setUser] = useState(session.user);
-  const [form, setForm] = useState({ display_name: '', username: '', optional_phone: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
+  const [form, setForm] = useState({ display_name: '', username: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
@@ -33,7 +33,6 @@ export function ProfilePage() {
         setForm({
           display_name: result.profile?.display_name ?? '',
           username: result.profile?.username ?? '',
-          optional_phone: result.profile?.optional_phone ?? '',
           phone_public: Boolean(result.profile?.phone_public),
           avatar_type: result.profile?.avatar_type ?? 'built_in',
           avatar_ref: result.profile?.avatar_ref ?? 'animal-01',
@@ -65,10 +64,9 @@ export function ProfilePage() {
         const uploaded = await uploadAvatar(session.accessToken, avatarFile);
         avatarPayload = { avatar_type: 'uploaded', avatar_ref: uploaded.media_url };
       }
-      let nextUser = await updateMyProfile(session.accessToken, {
-        display_name: form.display_name,
-        optional_phone: form.optional_phone,
-        phone_public: form.phone_public,
+        let nextUser = await updateMyProfile(session.accessToken, {
+          display_name: form.display_name,
+          phone_public: form.phone_public,
         ...avatarPayload,
       });
       if (form.username && form.username !== user.profile?.username) {
@@ -154,13 +152,13 @@ export function ProfilePage() {
   return (
     <form className="panel readable" onSubmit={handleSave}>
       <h1>{t('profile.title')}</h1>
-      {isLoading ? <NexusLoader compact title={t('profile.loadingTitle')} text={t('profile.loadingText')} /> : null}
+      {isLoading ? <AraChatLoader compact title={t('profile.loadingTitle')} text={t('profile.loadingText')} /> : null}
       <div className="profile-card">
         <UserAvatar profile={{ ...user?.profile, avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} size="large" />
         <div>
           <p className="muted">{t('profile.displayNameLabel')}</p>
-          <h2>{user?.profile?.display_name ?? 'Nexus User'}</h2>
-          <p className="muted">@{user?.profile?.username ?? 'nexus'}</p>
+          <h2>{user?.profile?.display_name ?? 'AraChat User'}</h2>
+          <p className="muted">@{user?.profile?.username ?? 'arachat'}</p>
         </div>
       </div>
       <section className="avatar-picker profile-avatar-picker" aria-label={t('profile.avatarTitle')}>
@@ -195,7 +193,7 @@ export function ProfilePage() {
         ) : null}
       </section>
       <div className="info-card halo-outline">
-        <span>Nexus ID</span>
+        <span>AraChat ID</span>
         <strong>{user?.nexus_id ?? '0000000000000000'}</strong>
       </div>
       <section className="info-card notification-profile-card">
@@ -212,7 +210,7 @@ export function ProfilePage() {
       </section>
       <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
       <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} />
-      <TextInput label={t('profile.optionalPhone')} value={form.optional_phone} onChange={(event) => updateField('optional_phone', event.target.value)} />
+      {user?.profile?.optional_phone ? <div className="info-card"><span>{t('profile.optionalPhone')}</span><strong>{user.profile.optional_phone}</strong></div> : null}
       <label className="field inline-field">
         <span>{t('profile.phonePublic')}</span>
         <input type="checkbox" checked={form.phone_public} onChange={(event) => updateField('phone_public', event.target.checked)} />

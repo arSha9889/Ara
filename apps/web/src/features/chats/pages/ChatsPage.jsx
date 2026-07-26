@@ -8,9 +8,9 @@ import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
-import { NexusLoader } from '../../../shared/ui/NexusLoader.jsx';
+import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
-import { createDirectChat, createSavedChat, getChats } from '../api/chatApi.js';
+import { createDirectChat, createSavedChat, getChats, getPublicBranches, subscribeToBranch } from '../api/chatApi.js';
 import { welcomeChat } from '../config/welcomeChat.js';
 
 const PHONE_COUNTRIES = [
@@ -22,10 +22,12 @@ const PHONE_COUNTRIES = [
 
 function chatTitle(chat, t) {
   if (chat.type === 'saved') return t('chats.savedTitle');
+  if (chat.type === 'branch') return chat.title || 'Ветвь';
   return chat.peer?.display_name || chat.peer?.username || t('chats.directChat');
 }
 
 function chatSubtitle(chat, currentUserId, t) {
+  if (chat.type === 'branch' && !chat.last_message) return chat.description || 'Публичная ветвь';
   if (!chat.last_message) {
     if (chat.type === 'saved') return t('chats.savedSubtitle');
     return chat.peer?.username ? `@${chat.peer.username}` : t('chats.noMessages');
@@ -45,6 +47,7 @@ export function ChatsPage() {
   const { session } = useSession();
   const navigate = useNavigate();
   const [chats, setChats] = useState([]);
+  const [publicBranches, setPublicBranches] = useState([]);
   const [newChatCountry, setNewChatCountry] = useState('RU');
   const [newChatPhone, setNewChatPhone] = useState('');
   const [chatSearch, setChatSearch] = useState('');
@@ -99,7 +102,9 @@ export function ChatsPage() {
   async function loadChats({ showLoading = true } = {}) {
     try {
       if (showLoading) setIsLoading(true);
-      setChats(await getChats(session.accessToken));
+      const [chatItems, branches] = await Promise.all([getChats(session.accessToken), getPublicBranches(session.accessToken)]);
+      setChats(chatItems);
+      setPublicBranches(branches);
     } finally {
       if (showLoading) setIsLoading(false);
     }
@@ -163,19 +168,17 @@ export function ChatsPage() {
   useEffect(() => {
     if (!isCreateChatOpen) return undefined;
 
-    function closeCreateChatMenu(event) {
-      const isInsideCreateMenu = event.target instanceof Element && event.target.closest('.chat-create-menu');
-      if (event.key === 'Escape' || !isInsideCreateMenu) {
+    function closeCreateChatDialog(event) {
+      if (event.key === 'Escape') {
         setIsCreateChatOpen(false);
+        setIsChatCountryPickerOpen(false);
       }
     }
 
-    document.addEventListener('keydown', closeCreateChatMenu);
-    document.addEventListener('pointerdown', closeCreateChatMenu);
+    document.addEventListener('keydown', closeCreateChatDialog);
 
     return () => {
-      document.removeEventListener('keydown', closeCreateChatMenu);
-      document.removeEventListener('pointerdown', closeCreateChatMenu);
+      document.removeEventListener('keydown', closeCreateChatDialog);
     };
   }, [isCreateChatOpen]);
 
@@ -224,6 +227,17 @@ export function ChatsPage() {
       const chat = savedChat || await createSavedChat(session.accessToken);
       setChats((current) => [chat, ...current.filter((item) => item.id !== chat.id)]);
       navigate(`/app/chats/${chat.id}`);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleSubscribeToBranch(chatId) {
+    setError('');
+    try {
+      const branch = await subscribeToBranch(session.accessToken, chatId);
+      setPublicBranches((current) => current.map((item) => item.id === branch.id ? branch : item));
+      setChats((current) => [branch, ...current.filter((item) => item.id !== branch.id)]);
     } catch (err) {
       setError(err.message);
     }
@@ -294,20 +308,25 @@ export function ChatsPage() {
               </button>
             ) : null}
           </label>
-          <div className={`chat-create-menu ${isCreateChatOpen ? 'is-open' : ''}`}>
-            <button
-              className="chat-create-trigger"
-              type="button"
-              aria-label={t('chats.createChat')}
-              aria-expanded={isCreateChatOpen}
-              onClick={() => setIsCreateChatOpen((current) => !current)}
-            >
-              <span aria-hidden="true">＋</span>
-            </button>
-            <form className="chat-create-panel" onSubmit={handleCreateChat}>
+          <button
+            className="chat-create-trigger"
+            type="button"
+            aria-label={t('chats.createChat')}
+            onClick={() => setIsCreateChatOpen(true)}
+          >
+            <span aria-hidden="true">＋</span>
+          </button>
+        </div>
+        {isCreateChatOpen ? (
+          <div className="app-dialog-backdrop chat-create-backdrop" role="presentation" onMouseDown={() => setIsCreateChatOpen(false)}>
+            <form className="app-dialog chat-create-dialog" role="dialog" aria-modal="true" aria-labelledby="new-chat-title" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleCreateChat}>
+              <div className="app-dialog-heading">
               <div className="chat-create-copy">
-                <strong>{t('chats.newChatTitle')}</strong>
+                  <p className="eyebrow">AraChat</p>
+                  <strong id="new-chat-title">{t('chats.newChatTitle')}</strong>
                 <span className="muted">{t('chats.newChatText')}</span>
+              </div>
+                <button className="app-dialog-close" type="button" onClick={() => setIsCreateChatOpen(false)} aria-label={t('common.close')}>×</button>
               </div>
               <div className="chat-create-phone-row">
                 <div className="phone-country-field chat-create-country">
@@ -355,9 +374,9 @@ export function ChatsPage() {
               <Button type="submit" disabled={!newChatPhone.trim()}>{t('chats.createChat')}</Button>
             </form>
           </div>
-        </div>
+        ) : null}
         {error ? <p className="error-text">{error}</p> : null}
-        {isLoading ? <NexusLoader compact title={t('chats.loadingTitle')} text={t('chats.loadingText')} /> : null}
+        {isLoading ? <AraChatLoader compact title={t('chats.loadingTitle')} text={t('chats.loadingText')} /> : null}
         <div className="list-stack">
           {isSavedChatVisible ? (
             <button className="info-card saved-chat-card" type="button" onClick={handleOpenSavedChat}>
@@ -379,6 +398,13 @@ export function ChatsPage() {
               <span className="chat-list-badge">{t('chats.newBadge')}</span>
             </Link>
           ) : null}
+          {publicBranches.filter((branch) => !chats.some((chat) => chat.id === branch.id)).map((branch) => (
+            <article className="info-card branch-card" key={branch.id}>
+              <div className="chat-list-avatar branch-avatar" aria-hidden="true">{branch.avatar_ref || '◎'}</div>
+              <div className="chat-thread-copy"><strong>{branch.title} {branch.is_official ? <span className="official-badge" title="Официальная ветвь">✓</span> : null}</strong><span className="muted">{branch.description}</span></div>
+              <button className="button button-secondary" type="button" onClick={() => handleSubscribeToBranch(branch.id)}>Подписаться</button>
+            </article>
+          ))}
           {visibleRegularChats.map((chat) => (
             <Link className="info-card chat-thread-card" key={chat.id} to={`/app/chats/${chat.id}`}>
               <span className="chat-list-avatar-wrap">
@@ -386,7 +412,7 @@ export function ChatsPage() {
                 {chat.peer?.is_online ? <span className="presence-dot online" aria-hidden="true" /> : null}
               </span>
               <div className="chat-thread-copy">
-                <strong>{chatTitle(chat, t)}</strong>
+                <strong>{chatTitle(chat, t)} {(chat.type === 'branch' && chat.is_official) || chat.peer?.is_official ? <span className="official-badge" title="Официальный аккаунт">✓</span> : null}</strong>
                 <span className="muted">{chatSubtitle(chat, session.user?.id, t)}</span>
               </div>
               {chat.unread_count ? (

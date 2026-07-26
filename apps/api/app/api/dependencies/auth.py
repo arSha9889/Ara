@@ -22,6 +22,6 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid access token') from exc
 
     user = await get_user_with_profile(session, user_id)
-    if not user:
+    if not user or user.status != 'active':
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='User not found')
     return to_user_out(user)

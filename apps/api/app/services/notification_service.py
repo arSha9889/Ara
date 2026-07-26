@@ -120,7 +120,7 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
         return
 
     sender = await session.get(UserProfile, message.sender_id)
-    title = sender.display_name if sender else 'Nexus'
+    title = sender.display_name if sender else 'AraChat'
     body = _message_preview(message)
     notifications = [
         Notification(
@@ -150,7 +150,7 @@ async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> b
         id=uuid4(),
         chat_id=None,
         message_id=None,
-        title='Nexus',
+        title='AraChat',
         body='Проверка push-уведомлений',
         url='/app/settings',
         created_at=datetime.now(timezone.utc),

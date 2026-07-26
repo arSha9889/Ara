@@ -1,6 +1,6 @@
-# Nexus / N-Web v1
+# AraChat Web v1
 
-Рабочий репозиторий для реализации Web Core проекта Nexus (Nex).
+Рабочий репозиторий для реализации Web Core проекта AraChat.
 
 ## Этапы реализации
 
@@ -14,7 +14,7 @@
 - React + JavaScript фронтенд;
 - базовый routing;
 - i18n RU/EN;
-- дизайн-токены Nexus Halo, Nexus Orbit, Nexus Aurora;
+- дизайн-токены AraChat Halo, AraChat Orbit, AraChat Aurora;
 - стартовый набор UI-компонентов;
 - экраны-заготовки onboarding/auth/app shell/chats/profile/settings;
 - HTTP API client и WebSocket client на фронтенде;
@@ -40,7 +40,7 @@
 - health endpoint для инфраструктуры;
 - SQLAlchemy-модели Web Core;
 - Alembic-конфигурация и первая миграция;
-- генерация и форматирование Nexus ID;
+- генерация и форматирование AraChat ID;
 - validation rules для username, password и PIN;
 - Argon2-хеширование секретов;
 - минимальные backend-тесты доменных правил и регистрации моделей.
@@ -54,9 +54,9 @@
 - регистрация через подтверждение телефона или email в Telegram-боте;
 - registration proof после подтверждения 4-значного кода из бота;
 - завершение регистрации с username, password, optional PIN, language и theme;
-- выдача уникального Nexus ID;
+- выдача уникального AraChat ID;
 - создание password credential, trusted PIN device и session;
-- login по телефону, email или Nexus ID + password;
+- login по телефону, email или AraChat ID + password;
 - JWT access token;
 - refresh token с серверным Argon2-хешем и отдельным lookup hash;
 - logout по refresh token;
@@ -68,7 +68,7 @@
 - экран завершения регистрации под proof от Telegram-бота;
 - проверка username на экране регистрации;
 - подключённый login form;
-- быстрый вход по PIN на доверенном устройстве по телефону, email или Nexus ID;
+- быстрый вход по PIN на доверенном устройстве по телефону, email или AraChat ID;
 - создание, замена и отключение PIN для текущего устройства.
 
 Ограничение этапа: для реальной регистрации нужен настроенный Telegram-бот (`NEXUS_TELEGRAM_BOT_TOKEN`, `NEXUS_TELEGRAM_BOT_NAME`) и webhook `/api/auth/telegram/webhook`. Email-регистрация сейчас подтверждает связь указанного email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику; для строгой проверки потребуется SMTP/почтовая отправка. Временный endpoint `POST /api/auth/dev/registration-proof` доступен только при `NEXUS_ENVIRONMENT=dev`, скрыт из OpenAPI и dev-кнопка не попадает в production build.
@@ -81,7 +81,7 @@
 
 - authenticated `/api/users/me`;
 - обновление профиля: display name, optional phone, phone visibility, language, theme;
-- поиск пользователя по Nexus ID / username;
+- поиск пользователя по AraChat ID / username;
 - проверка и смена username;
 - список активных устройств;
 - отзыв сессии устройства;
@@ -99,7 +99,7 @@
 Входит:
 
 - authenticated список чатов;
-- создание или получение direct-чата по Nexus ID / username;
+- создание или получение direct-чата по AraChat ID / username;
 - получение одного чата;
 - список последних сообщений чата;
 - отправка текстового сообщения;
@@ -156,7 +156,7 @@
 Входит:
 
 - Telegram registration/login baseline;
-- Nexus ID + password login;
+- AraChat ID + password login;
 - PIN login на доверенном устройстве;
 - direct chats;
 - text/photo/video/file/voice/emoji messages;
@@ -199,9 +199,9 @@
 3. `cd apps/api && .venv/bin/alembic upgrade head` на целевой базе.
 4. Проверить `/health` и `/health/infrastructure`.
 5. Зарегистрировать двух пользователей через Telegram/dev-flow в dev.
-6. Проверить login по Nexus ID + password.
+6. Проверить login по AraChat ID + password.
 7. Проверить создание PIN, выход и вход по PIN на том же устройстве.
-8. Создать direct chat по username/Nexus ID.
+8. Создать direct chat по username/AraChat ID.
 9. Отправить text/photo/file/voice/emoji, реакцию и read status в двух вкладках.
 10. Обновить страницу чата и убедиться, что история и WebSocket reconnect работают.
 11. Открыть приложение на mobile width и проверить manifest/installability в браузере.

@@ -3,6 +3,10 @@ map $http_upgrade $connection_upgrade {
   '' close;
 }
 
+# The Caddy container is the only public entrypoint and supplies X-Real-IP.
+# This limit protects registration and sign-in flows from simple online guessing.
+limit_req_zone $http_x_real_ip zone=auth_requests:10m rate=5r/m;
+
 server {
   listen ${PORT};
   server_name _;
@@ -21,21 +25,33 @@ server {
   location /api/ {
     proxy_pass ${NEXUS_API_UPSTREAM};
     proxy_http_version 1.1;
-    proxy_set_header Host $proxy_host;
+    proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $http_x_real_ip;
+    proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+  }
+
+  location ~ ^/api/auth/(?:login|refresh|phone-verification/(?:start|confirm)|email-verification/(?:start|confirm)|register/complete)$ {
+    limit_req zone=auth_requests burst=10 nodelay;
+    limit_req_status 429;
+    proxy_pass ${NEXUS_API_UPSTREAM};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $http_x_real_ip;
+    proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
   }
 
   location /health {
     proxy_pass ${NEXUS_API_UPSTREAM};
     proxy_http_version 1.1;
-    proxy_set_header Host $proxy_host;
+    proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $http_x_real_ip;
+    proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
   }
 
   location /ws {
@@ -43,21 +59,21 @@ server {
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
-    proxy_set_header Host $proxy_host;
+    proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $http_x_real_ip;
+    proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
   }
 
   location /storage/uploads/ {
     proxy_pass ${NEXUS_API_UPSTREAM};
     proxy_http_version 1.1;
-    proxy_set_header Host $proxy_host;
+    proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $http_x_real_ip;
+    proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
   }
 
   location / {

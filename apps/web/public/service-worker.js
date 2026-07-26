@@ -12,20 +12,20 @@ self.addEventListener('push', (event) => {
     notification = event.data?.json() ?? {};
   } catch {
     notification = {
-      title: 'Nexus — проверка Push',
+      title: 'AraChat — проверка Push',
       body: event.data?.text() || 'Тестовое push-уведомление',
       url: '/app',
     };
   }
   const options = {
-    body: notification.body || 'Новое сообщение в Nexus',
-    icon: '/icons/nexus-icon-192.png',
-    badge: '/icons/nexus-icon-192.png',
-    tag: notification.chat_id || notification.id || 'nexus-push-test',
+    body: notification.body || 'Новое сообщение в AraChat',
+    icon: '/icons/arachat-parrot-icon-192.png',
+    badge: '/icons/arachat-parrot-icon-192.png',
+    tag: notification.chat_id || notification.id || 'arachat-push-test',
     renotify: true,
     data: { url: notification.url || '/app' },
   };
-  event.waitUntil(self.registration.showNotification(notification.title || 'Nexus', options));
+  event.waitUntil(self.registration.showNotification(notification.title || 'AraChat', options));
 });
 
 self.addEventListener('notificationclick', (event) => {

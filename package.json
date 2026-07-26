@@ -1,8 +1,8 @@
 {
-  "name": "nexus",
+  "name": "arachat",
   "private": true,
   "version": "0.1.0",
-  "description": "Nexus / N-Web v1 Web Core monorepo",
+  "description": "AraChat Web v1 Web Core monorepo",
   "type": "module",
   "workspaces": [
     "apps/*",

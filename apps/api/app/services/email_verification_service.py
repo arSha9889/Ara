@@ -118,13 +118,13 @@ async def handle_email_start_command(
     if _is_expired(verification):
         verification.status = 'expired'
         await session.commit()
-        await send_telegram_message(chat_id, 'Заявка на подтверждение email истекла. Запросите новый код в приложении Nexus.')
+        await send_telegram_message(chat_id, 'Заявка на подтверждение email истекла. Запросите новый код в приложении AraChat.')
         return True
     if verification.consumed_at:
         await send_telegram_message(chat_id, 'Эта заявка уже использована. Если нужно, запросите новый код в приложении.')
         return True
     if verification.telegram_user_id and verification.telegram_user_id != telegram_user_id:
-        await send_telegram_message(chat_id, 'Эта заявка уже привязана к другому Telegram-аккаунту. Запросите новый код в приложении Nexus.')
+        await send_telegram_message(chat_id, 'Эта заявка уже привязана к другому Telegram-аккаунту. Запросите новый код в приложении AraChat.')
         return True
 
     verification.telegram_chat_id = chat_id
@@ -155,7 +155,7 @@ async def handle_email_callback_query(session: AsyncSession, callback_query: dic
             await session.commit()
         if callback_query_id:
             await answer_telegram_callback(callback_query_id, 'Заявка истекла')
-        await send_telegram_message(chat_id, 'Заявка истекла. Запросите новый код в приложении Nexus.')
+        await send_telegram_message(chat_id, 'Заявка истекла. Запросите новый код в приложении AraChat.')
         return True
     if verification.telegram_user_id != telegram_user_id:
         if callback_query_id:
@@ -171,7 +171,7 @@ async def handle_email_callback_query(session: AsyncSession, callback_query: dic
         await answer_telegram_callback(callback_query_id, 'Код отправлен')
     await send_telegram_message(
         chat_id,
-        f'Ваш код подтверждения email в Nexus: {code}\nВведите его в приложении. Код действует {EMAIL_VERIFICATION_TTL_MINUTES} минут.',
+        f'Ваш код подтверждения email в AraChat: {code}\nВведите его в приложении. Код действует {EMAIL_VERIFICATION_TTL_MINUTES} минут.',
         {'remove_keyboard': True},
     )
     return True
@@ -181,7 +181,7 @@ async def send_email_confirmation_prompt(chat_id: str, verification: EmailVerifi
     await send_telegram_message(
         chat_id,
         (
-            'Привет! Подтвердите email для регистрации в Nexus.\n\n'
+            'Привет! Подтвердите email для регистрации в AraChat.\n\n'
             f'Email из приложения: {verification.email}\n\n'
             'Если это ваш email, нажмите «Подтвердить». Важно: Telegram подтверждает связь email с вашим Telegram-аккаунтом, но не доказывает доступ к почтовому ящику.'
         ),

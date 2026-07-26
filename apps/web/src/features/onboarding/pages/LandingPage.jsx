@@ -9,12 +9,12 @@ export function LandingPage() {
   const { t } = useI18n();
   const { session } = useSession();
   const isAuthenticated = Boolean(session?.accessToken);
-  const ctaPath = isAuthenticated ? '/app' : '/register';
+  const ctaPath = isAuthenticated ? '/app' : '/region';
   const ctaLabel = isAuthenticated ? t('onboarding.enterMessenger') : t('onboarding.openMessenger');
   const featureCards = [
     { icon: '💬', title: t('onboarding.directChatsTitle'), text: t('onboarding.directChatsText') },
     { icon: '🎙', title: t('onboarding.voiceTitle'), text: t('onboarding.voiceText') },
-    { icon: '🟢', title: t('onboarding.presenceTitle'), text: t('onboarding.presenceText') },
+    { icon: '📣', title: t('onboarding.branchesTitle'), text: t('onboarding.branchesText') },
     { icon: '🔔', title: t('onboarding.notificationsTitle'), text: t('onboarding.notificationsText') },
   ];
   const stageItems = [
@@ -48,7 +48,7 @@ export function LandingPage() {
       <section className="hero-card landing-hero">
         <div className="halo-ring" aria-hidden="true" />
         <header className="landing-topbar">
-          <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" /><span>Nexus</span></Link>
+          <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
           <div className="landing-switchers">
             <LanguageSwitcher />
             <ThemeSwitcher />
@@ -57,13 +57,14 @@ export function LandingPage() {
 
         <div className="landing-hero-grid">
           <div className="landing-copy">
-            <p className="eyebrow">N-Web / Messenger v1</p>
+            <p className="eyebrow">AraChat Web / Messenger v1</p>
             <h1>{t('onboarding.title')}</h1>
             <p>{t('onboarding.subtitle')}</p>
-            <div className="feature-grid landing-feature-pills" aria-label="Nexus highlights">
+            <div className="feature-grid landing-feature-pills" aria-label="AraChat highlights">
               <span>{t('onboarding.nexusIdFeature')}</span>
               <span>{t('onboarding.directChatsFeature')}</span>
               <span>{t('onboarding.languagesFeature')}</span>
+              <span>{t('onboarding.branchesFeature')}</span>
             </div>
             <div className="stack landing-actions">
               <Link to={ctaPath} className="button button-primary">{ctaLabel}</Link>
@@ -76,17 +77,20 @@ export function LandingPage() {
             </nav>
           </div>
 
-          <div className="landing-phone" aria-label={t('onboarding.previewLabel')}>
-            <div className="landing-phone-header">
-              <span className="avatar">N</span>
-              <div>
-                <strong>Nexus Chat</strong>
-                <span>{t('messages.online')}</span>
+          <div className="landing-showcase" aria-label={t('onboarding.previewLabel')}>
+            <img className="landing-brand-art" src="/images/arachat-parrot-hero.jpeg" alt="" aria-hidden="true" />
+            <div className="landing-phone">
+              <div className="landing-phone-header">
+                <img className="avatar landing-chat-avatar" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" />
+                <div>
+                  <strong>AraChat Chat</strong>
+                  <span>{t('messages.online')}</span>
+                </div>
               </div>
+              <div className="landing-message incoming">{t('onboarding.previewMessage1')}</div>
+              <div className="landing-message outgoing">{t('onboarding.previewMessage2')}</div>
+              <div className="landing-typing" aria-hidden="true"><span /><span /><span /></div>
             </div>
-            <div className="landing-message incoming">{t('onboarding.previewMessage1')}</div>
-            <div className="landing-message outgoing">{t('onboarding.previewMessage2')}</div>
-            <div className="landing-typing" aria-hidden="true"><span /><span /><span /></div>
           </div>
         </div>
 
@@ -134,9 +138,9 @@ export function LandingPage() {
               <h2>{t('onboarding.stageTitle')}</h2>
               <p>{t('onboarding.stageText')}</p>
             </div>
-            <ul className="landing-stage-list">
-              {stageItems.map((item) => <li key={item}>{item}</li>)}
-            </ul>
+              <ul className="landing-stage-list">
+                {stageItems.map((item) => <li key={item}>{item}</li>)}
+              </ul>
           </div>
 
           <div className="landing-final-cta">

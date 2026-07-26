@@ -17,6 +17,9 @@ from app.schemas.auth import (
     EmailVerificationStartResponse,
     LoginRequest,
     LogoutRequest,
+    PasswordChangeConfirmRequest,
+    PasswordChangeStartRequest,
+    PasswordChangeStartResponse,
     PhoneVerificationConfirmRequest,
     PhoneVerificationConfirmResponse,
     PhoneVerificationStartRequest,
@@ -24,16 +27,21 @@ from app.schemas.auth import (
     RefreshRequest,
     RegisterCompleteRequest,
     RegisterCompleteResponse,
+    RegisterConfirmRequest,
+    RegisterConfirmResponse,
     TokenPairResponse,
 )
 from app.schemas.users import UserOut
 from app.services.auth_service import (
     AuthError,
     complete_registration,
+    confirm_password_change,
+    confirm_registration_password,
     delete_account,
     login_with_password,
     logout_by_refresh_token,
     refresh_access_token,
+    start_password_change,
 )
 from app.services.email_verification_service import (
     EMAIL_VERIFICATION_TTL_MINUTES,
@@ -150,18 +158,85 @@ async def register_complete(
     request: RegisterCompleteRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> RegisterCompleteResponse:
+    if settings.environment != 'dev' and (not settings.telegram_bot_name or not settings.telegram_bot_token):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Telegram bot is not configured')
     try:
-        user, access_token, refresh_token = await complete_registration(session, request)
+        completion = await complete_registration(session, request)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+    if completion.confirmation:
+        return RegisterCompleteResponse(
+            password_confirmation_id=completion.confirmation.confirmation.id,
+            password_confirmation_token=completion.confirmation.confirmation.public_token,
+            bot_url=completion.confirmation.bot_url,
+        )
     return RegisterCompleteResponse(
-        user=user,
-        access_token=access_token,
-        refresh_token=refresh_token,
+        access_token=completion.access_token,
+        refresh_token=completion.refresh_token,
+        user=completion.user,
     )
+
+
+@router.post('/register/confirm', response_model=RegisterConfirmResponse)
+async def register_confirm(
+    request: RegisterConfirmRequest,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> RegisterConfirmResponse:
+    try:
+        user, access_token, refresh_token = await confirm_registration_password(
+            session,
+            request.password_confirmation_id,
+            request.password_confirmation_token,
+        )
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return RegisterConfirmResponse(user=user, access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post('/password/change/start', response_model=PasswordChangeStartResponse)
+async def password_change_start(
+    request: PasswordChangeStartRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PasswordChangeStartResponse:
+    if not settings.telegram_bot_name or not settings.telegram_bot_token:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Telegram bot is not configured')
+    try:
+        confirmation = await start_password_change(
+            session,
+            current_user.id,
+            request.current_password,
+            request.new_password,
+            request.device_id,
+        )
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return PasswordChangeStartResponse(
+        password_confirmation_id=confirmation.confirmation.id,
+        password_confirmation_token=confirmation.confirmation.public_token,
+        bot_url=confirmation.bot_url,
+    )
+
+
+@router.post('/password/change/confirm')
+async def password_change_confirm(
+    request: PasswordChangeConfirmRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, str]:
+    try:
+        await confirm_password_change(
+            session,
+            current_user.id,
+            request.password_confirmation_id,
+            request.password_confirmation_token,
+        )
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {'status': 'ok'}
 
 
 @router.post('/login', response_model=TokenPairResponse)

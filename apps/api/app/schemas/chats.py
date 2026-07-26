@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class DirectChatCreateRequest(BaseModel):
-    country: str = Field(pattern=r'^(RU|KZ|UA)$')
+    country: str = Field(pattern=r'^(RU|KZ|KG|UA)$')
     phone: str = Field(min_length=7, max_length=32)
 
 
@@ -44,6 +44,7 @@ class ChatPeerOut(BaseModel):
     avatar_type: str
     avatar_ref: str
     is_online: bool = False
+    is_official: bool = False
 
 
 class ChatPreviewMessageOut(BaseModel):
@@ -67,6 +68,20 @@ class ChatOut(BaseModel):
     last_message: ChatPreviewMessageOut | None = None
     pinned_message: ChatPreviewMessageOut | None = None
     unread_count: int = 0
+    title: str | None = None
+    slug: str | None = None
+    description: str | None = None
+    avatar_ref: str | None = None
+    is_official: bool = False
+    is_subscribed: bool = True
+    can_post: bool = False
+
+
+class PublicBranchCreateRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=120)
+    slug: str = Field(pattern=r'^[a-z0-9-]{3,64}$')
+    description: str = Field(default='', max_length=500)
+    avatar_ref: str | None = Field(default=None, max_length=255)
 
 
 class MessageOut(BaseModel):

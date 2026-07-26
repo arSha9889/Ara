@@ -18,6 +18,7 @@ export function AppShell() {
     { to: '/app', icon: '💬', label: t('chats.title') },
     { to: '/app/profile', icon: '👤', label: t('profile.title') },
     { to: '/app/settings', icon: '⚙️', label: t('settings.title') },
+    ...(session.user?.is_official ? [{ to: '/app/admin', icon: '🛡️', label: 'Админ-панель' }] : []),
   ];
 
   useEffect(() => {
@@ -41,9 +42,9 @@ export function AppShell() {
     <div className={`app-shell ${isMenuOpen ? 'is-mobile-menu-open' : ''} ${isChatRoute ? 'is-chat-route' : ''}`}>
       <aside className="app-sidebar" aria-label={t('common.navigation')}>
         <div className="app-sidebar-topbar">
-          <NavLink className="brand" to="/app" aria-label="Nexus" onClick={() => setIsMenuOpen(false)}>
-            <img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" />
-            <span>Nexus</span>
+          <NavLink className="brand" to="/app" aria-label="AraChat" onClick={() => setIsMenuOpen(false)}>
+            <img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" />
+            <span>AraChat</span>
           </NavLink>
           <NotificationsMenu />
         </div>

@@ -1,6 +1,6 @@
-# Production deployment: домен reg.ru и российский сервер
+# Публичный релиз AraChat: домен REG.RU и VPS
 
-Проект уже готовится к варианту, где пользователь открывает один публичный домен, например `https://nexus.example.ru`, а внутри сервера работают:
+Этот документ описывает запуск AraChat на одном публичном домене, например `https://chat.example.ru`. Внутри сервера работают:
 
 - `web` — React/Vite-приложение в Nginx-контейнере;
 - `api` — FastAPI-приложение;
@@ -18,7 +18,7 @@
 
 Такой same-origin деплой проще и надёжнее для MVP: браузеру не нужны отдельные публичные API-домены, CORS становится менее хрупким, а Web Push работает через HTTPS.
 
-## 1. Что нужно от хостинга
+## 1. До запуска: обязательные условия
 
 Минимально желательно:
 
@@ -29,6 +29,14 @@
 - 2+ ГБ RAM для комфортного baseline-запуска;
 - постоянный диск под PostgreSQL и загрузки пользователей.
 
+Не публикуйте PostgreSQL (`5432`), Redis (`6379`), API (`8000`) или web-контейнер (`8080`) в интернет: в production-конфигурации наружу открыты только Caddy на портах `80/443` и coturn для звонков.
+
+На сервере используйте отдельного пользователя с `sudo`, SSH по ключу и отключите вход `root` по паролю. В панели REG.RU и в локальном firewall разрешите только нужные входящие порты:
+
+- `22/tcp` — SSH, лучше ограничить вашим IP;
+- `80/tcp`, `443/tcp` — сайт и выпуск TLS-сертификата;
+- `3478/tcp`, `3478/udp` и `49160-49200/udp` — только если публично включаете звонки.
+
 Для аудиозвонков и демонстрации экрана также откройте на firewall/security group:
 
 - `3478/udp` и `3478/tcp` — TURN/STUN;
@@ -36,7 +44,7 @@
 
 Если хостинг окажется не VPS, а панельным/shared-хостингом без Docker, схема будет другой. Тогда нужно будет адаптировать запуск под конкретную панель.
 
-## 2. DNS в reg.ru
+## 2. DNS в REG.RU
 
 В панели reg.ru для домена создайте запись:
 
@@ -57,6 +65,14 @@ TTL: по умолчанию
 
 Важно: HTTPS-сертификат выпустится только после того, как DNS уже указывает на сервер и порты `80/443` доступны извне.
 
+Проверьте распространение DNS до запуска контейнеров:
+
+```bash
+dig +short <ваш-домен> A
+```
+
+Команда должна вернуть публичный IPv4 VPS. Не включайте прокси/CDN перед первым выпуском сертификата, если не уверены, что он пропускает ACME-проверку.
+
 ## 3. Файлы деплоя в репозитории
 
 Добавлены production-шаблоны:
@@ -72,8 +88,8 @@ TTL: по умолчанию
 На сервере установите Docker и Compose по инструкции вашего хостинга/дистрибутива. Затем получите код проекта, например через Git:
 
 ```bash
-git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> nexus
-cd nexus
+git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> arachat
+cd arachat
 ```
 
 Создайте production env:
@@ -104,13 +120,21 @@ NEXUS_TURN_PASSWORD=<длинный-случайный-turn-пароль>
 VITE_RTC_ICE_SERVERS=[{"urls":["stun:<ваш-домен>:3478","turn:<ваш-домен>:3478?transport=udp","turn:<ваш-домен>:3478?transport=tcp"],"username":"<turn-логин>","credential":"<turn-пароль>"}]
 ```
 
-`NEXUS_EARLY_ACCESS_BYPASS_LIMIT=100` ограничивает регистрацию закрытой беты первыми 100 активными аккаунтами. Значение `0` отключает лимит.
+Для публичного релиза укажите `NEXUS_EARLY_ACCESS_BYPASS_LIMIT=0`. Положительное значение включает ограничение на число активных аккаунтов и подходит только для закрытой беты.
 
 Секреты можно сгенерировать так:
 
 ```bash
 openssl rand -hex 32
 ```
+
+Права на секретный файл должны быть доступны только владельцу:
+
+```bash
+chmod 600 deploy/production.env
+```
+
+Перед запуском убедитесь, что в `production.env` не осталось примерных значений `change-me`, `example.ru` или `203.0.113.10`.
 
 ## 5. Первый запуск
 
@@ -128,6 +152,12 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 4. web соберёт React-приложение и запустит Nginx;
 5. coturn начнёт принимать TURN/STUN-трафик;
 6. Caddy выпустит HTTPS-сертификат и начнёт принимать внешний трафик.
+
+Перед `up` можно проверить итоговую конфигурацию без запуска контейнеров:
+
+```bash
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml config -q
+```
 
 Проверка статуса:
 
@@ -157,6 +187,8 @@ curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
 curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
 ```
 
+В ответе `getWebhookInfo` не должно быть `last_error_message`. Токен бота и URL webhook не публикуйте в issues, чатах или коммитах.
+
 ## 7. Web Push/VAPID
 
 Для фоновых push-уведомлений production должен работать по HTTPS и иметь заполненные переменные:
@@ -176,12 +208,12 @@ pip install -r requirements.txt
 .venv/bin/python -c "import base64; from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat; from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print('NEXUS_VAPID_PRIVATE_KEY=' + base64.urlsafe_b64encode(v.private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())).rstrip(b'=').decode()); print('NEXUS_VAPID_PUBLIC_KEY=' + base64.urlsafe_b64encode(v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)).rstrip(b'=').decode())"
 ```
 
-## 8. TURN/WebRTC звонки
+## 8. TURN/WebRTC-звонки
 
 Фронтенд получает ICE-конфигурацию из runtime-переменной `VITE_RTC_ICE_SERVERS`. Значение — JSON-массив для `RTCPeerConnection`, например:
 
 ```dotenv
-VITE_RTC_ICE_SERVERS=[{"urls":["stun:nexus.example.ru:3478","turn:nexus.example.ru:3478?transport=udp","turn:nexus.example.ru:3478?transport=tcp"],"username":"nexus-turn","credential":"<turn-password>"}]
+VITE_RTC_ICE_SERVERS=[{"urls":["stun:<ваш-домен>:3478","turn:<ваш-домен>:3478?transport=udp","turn:<ваш-домен>:3478?transport=tcp"],"username":"<turn-логин>","credential":"<turn-пароль>"}]
 ```
 
 Текущая конфигурация использует static TURN credentials. Это нормально для первого production-baseline, но перед публичной нагрузкой лучше перейти на временные TURN credentials через backend endpoint.
@@ -199,17 +231,26 @@ sudo ss -lunpt | grep 3478
 Проверьте:
 
 1. `https://<ваш-домен>` открывается без VPN с обычного российского интернета.
-2. `https://<ваш-домен>/health` возвращает `{"status":"ok","service":"nexus-api"}`.
+2. `https://<ваш-домен>/health` возвращает `{"status":"ok","service":"arachat-api"}`.
 3. `https://<ваш-домен>/health/infrastructure` показывает `database: ok` и `redis: ok`.
 4. Регистрация через Telegram-бота создаёт пользователя.
-5. Вход по Nexus ID + password работает.
+5. Вход по AraChat ID + password работает.
 6. PIN создаётся и работает на доверенном устройстве.
-7. Direct chat создаётся по username/Nexus ID.
+7. Direct chat создаётся по username/AraChat ID.
 8. Text/photo/video/file/voice/emoji сообщения отправляются и сохраняются.
 9. Realtime-сообщения приходят во второй вкладке без обновления страницы.
 10. Загруженные файлы открываются по URL `/storage/uploads/...`.
 11. Push-подписка включается в профиле/настройках, если заполнены VAPID-ключи.
 12. Аудиозвонок соединяется между двумя пользователями в разных сетях, микрофон mute/unmute работает, демонстрация экрана стартует и останавливается.
+
+Дополнительно проверьте HTTP-заголовки и отсутствие открытых служебных портов:
+
+```bash
+curl -sS -D- -o /dev/null https://<ваш-домен>
+sudo ss -lntup
+```
+
+У ответа сайта должны быть `Strict-Transport-Security`, `Content-Security-Policy` и `X-Content-Type-Options`. В `ss` не должны быть слушающими на внешнем интерфейсе порты PostgreSQL, Redis, API и Nginx.
 
 ## 10. Обновление production
 
@@ -239,7 +280,19 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 
 Uploads лежат в Docker volume `nexus-production_nexus_api_uploads`. Их тоже нужно регулярно копировать или переносить в production object storage.
 
-## 12. Важные ограничения текущего MVP
+Минимальный план: ежедневный зашифрованный дамп PostgreSQL и копия uploads вне VPS с проверкой восстановления не реже раза в месяц. Один дамп на том же сервере не является резервной копией.
+
+Перед обновлениями с миграциями всегда делайте отдельный дамп:
+
+```bash
+mkdir -p backups
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml exec -T postgres \
+  sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "backups/arachat-$(date +%F-%H%M).sql.gz"
+```
+
+Команда использует переменные `POSTGRES_USER` и `POSTGRES_DB` внутри контейнера и не требует загрузки production-секретов в shell.
+
+## 12. Ограничения перед массовым запуском
 
 - Realtime fan-out пока in-memory в одном API-процессе. Не запускайте несколько API-инстансов до внедрения Redis pub/sub fan-out.
 - Локальное файловое хранилище подходит для одного сервера, но для полноценного production лучше перейти на object storage с private ACL/signed links.
@@ -247,6 +300,7 @@ Uploads лежат в Docker volume `nexus-production_nexus_api_uploads`. Их �
 - Email-регистрация подтверждается через Telegram-бота: это связывает указанный email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику. Для полноценной email-verification нужно добавить SMTP/почтовый провайдер.
 - TURN сейчас использует static credentials, которые видны браузеру как часть ICE-конфигурации. Для публичного масштаба нужны временные credentials и rate limiting.
 - Нужны регулярные backup базы и uploads.
+- Перед запуском необходимо самостоятельно проверить актуальность пользовательского соглашения и политики конфиденциальности, реквизитов оператора и применимых требований к персональным данным. Этот репозиторий не заменяет юридическую консультацию.
 
 ## Старый вариант: Railway/Vercel/Amvera
 

@@ -10,6 +10,7 @@ class UserProfileOut(BaseModel):
     avatar_ref: str
     optional_phone: str | None
     email: str | None
+    registration_country: str | None
     phone_public: bool
     language: str
     design_theme: str
@@ -21,6 +22,7 @@ class UserOut(BaseModel):
     nexus_id: str
     telegram_id: str | None
     status: str
+    is_official: bool = False
     profile: UserProfileOut | None
 
 

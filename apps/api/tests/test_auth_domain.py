@@ -89,6 +89,100 @@ async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
 
 
 @pytest.mark.anyio
+async def test_dev_registration_bypasses_telegram_password_confirmation(anyio_backend, monkeypatch) -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.db.base import Base
+    from app.schemas.auth import RegisterCompleteRequest
+    from app.services.auth_service import complete_registration
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+    monkeypatch.setattr('app.services.auth_service.settings.environment', 'dev')
+
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            completion = await complete_registration(
+                session,
+                RegisterCompleteRequest(
+                    registration_proof=create_registration_proof('dev-password-confirmation'),
+                    username='devconfirm',
+                    password='password123',
+                    device_id='device-dev-confirmation',
+                    accepted_terms=True,
+                    accepted_privacy_policy=True,
+                ),
+            )
+
+            assert completion.confirmation is None
+            assert completion.user and completion.user.status == 'active'
+            assert completion.access_token and completion.refresh_token
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_profile_update_cannot_claim_configured_administrator_phone(anyio_backend, monkeypatch) -> None:
+    from app.models.users import User, UserProfile
+    from app.schemas.users import ProfileUpdateRequest
+    from app.services.admin_service import AdminError, require_admin
+    from app.services.auth_service import AuthError, to_user_out
+    from app.services.user_service import update_profile
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    monkeypatch.setattr('app.services.admin_service.settings.admin_phone', '+79990000001')
+
+    user = User(id=uuid4(), nexus_id='1234567890123456', telegram_id='non-admin', status='active')
+    profile = UserProfile(
+        user_id=user.id,
+        display_name='Non-admin',
+        username='nonadmin',
+        avatar_type='built_in',
+        avatar_ref='animal-01',
+        optional_phone=None,
+        email=None,
+        registration_country=None,
+        phone_public=False,
+        language='ru',
+        design_theme='halo',
+        current_mode='regular',
+    )
+    user.profile = profile
+
+    class ProfileSession:
+        async def get(self, model, _user_id):
+            if model is UserProfile:
+                return profile
+            if model is User:
+                return user
+            return None
+
+        async def commit(self):
+            return None
+
+    session = ProfileSession()
+    with pytest.raises(AuthError, match='Phone number can only be changed through Telegram verification'):
+        await update_profile(
+            session,
+            user.id,
+            ProfileUpdateRequest(optional_phone='+7 (999) 000-00-01'),
+        )
+
+    current_user = to_user_out(user)
+    assert current_user.profile.optional_phone is None
+    assert current_user.is_official is False
+    with pytest.raises(AdminError, match='Administrator access is required'):
+        await require_admin(session, user.id)
+
+
+@pytest.mark.anyio
 async def test_phone_verification_bot_flow(anyio_backend, monkeypatch) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -144,7 +238,7 @@ async def test_phone_verification_bot_flow(anyio_backend, monkeypatch) -> None:
                 },
             })
 
-            code_message = next(text for _, text, _ in sent_messages if 'Ваш код подтверждения Nexus:' in text)
+            code_message = next(text for _, text, _ in sent_messages if 'Ваш код подтверждения AraChat:' in text)
             code = code_message.split(': ')[1][:4]
             result = await verify_phone_code(session, verification.id, code)
 

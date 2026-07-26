@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -12,6 +12,7 @@ import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { checkUsername, updateMyProfile } from '../../profile/api/userApi.js';
 import {
   completeRegistration,
+  confirmRegistrationPassword,
   confirmEmailVerification,
   confirmPhoneVerification,
   createDevRegistrationProof,
@@ -29,15 +30,17 @@ const PHONE_COUNTRIES = [
 
 export function RegisterPage() {
   const { t, language } = useI18n();
+  const location = useLocation();
   const navigate = useNavigate();
   const { saveSession } = useSession();
   const isDevMode = import.meta.env.DEV;
+  const selectedCountry = location.state?.country ?? localStorage.getItem('nexus_registration_country') ?? 'RU';
   const [form, setForm] = useState({
     registration_proof: '',
-    access_method: 'phone',
+    access_method: selectedCountry === 'GLOBAL' ? 'email' : 'phone',
     phone_verification_id: null,
     email_verification_id: null,
-    country: 'RU',
+    country: selectedCountry === 'GLOBAL' ? 'RU' : selectedCountry,
     phone: '',
     phone_code: '',
     email: '',
@@ -72,6 +75,8 @@ export function RegisterPage() {
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isCountryPickerOpen, setIsCountryPickerOpen] = useState(false);
+  const [passwordConfirmation, setPasswordConfirmation] = useState(null);
+  const [isPasswordConfirmLoading, setIsPasswordConfirmLoading] = useState(false);
   const selectedPhoneCountry = PHONE_COUNTRIES.find((country) => country.code === form.country) ?? PHONE_COUNTRIES[0];
 
   useEffect(() => () => {
@@ -182,6 +187,7 @@ export function RegisterPage() {
       const registrationPayload = avatarFile
         ? { ...form, avatar_type: 'built_in', avatar_ref: 'animal-01' }
         : { ...form };
+      registrationPayload.registration_country = selectedCountry;
       delete registrationPayload.country;
       delete registrationPayload.phone;
       delete registrationPayload.phone_code;
@@ -195,6 +201,39 @@ export function RegisterPage() {
         delete registrationPayload.email_verification_id;
       }
       const result = await completeRegistration({ ...registrationPayload, pin: form.pin || null });
+      if (result.access_token && result.refresh_token && result.user) {
+        let user = result.user;
+        if (avatarFile) {
+          try {
+            const uploaded = await uploadAvatar(result.access_token, avatarFile);
+            user = await updateMyProfile(result.access_token, { avatar_type: 'uploaded', avatar_ref: uploaded.media_url });
+          } catch {
+            user = result.user;
+          }
+        }
+        flushSync(() => {
+          saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user });
+        });
+        navigate('/app', { replace: true });
+        return;
+      }
+      setPasswordConfirmation(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleConfirmPasswordRegistration() {
+    if (!passwordConfirmation) return;
+    setError('');
+    setIsPasswordConfirmLoading(true);
+    try {
+      const result = await confirmRegistrationPassword({
+        password_confirmation_id: passwordConfirmation.password_confirmation_id,
+        password_confirmation_token: passwordConfirmation.password_confirmation_token,
+      });
       let user = result.user;
       if (avatarFile) {
         try {
@@ -211,7 +250,7 @@ export function RegisterPage() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setIsLoading(false);
+      setIsPasswordConfirmLoading(false);
     }
   }
 
@@ -393,7 +432,7 @@ export function RegisterPage() {
   return (
     <main className="auth-page">
       <form className="panel readable" onSubmit={submitHandler}>
-        <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/nexus-icon-192.png" alt="" aria-hidden="true" /><span>Nexus</span></Link>
+        <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
         <h1>{t('register.title')}</h1>
         <p className="muted">{t('register.subtitle')}</p>
         <div className="info-card halo-outline beta-limit-card">
@@ -584,7 +623,7 @@ export function RegisterPage() {
             <Button type="submit">{t('common.continue')}</Button>
           </>
         ) : null}
-        {step === 'password' ? (
+        {step === 'password' && !passwordConfirmation ? (
           <>
             <div className="info-card halo-outline">
               <strong>{t('register.passwordTitle')}</strong>
@@ -612,6 +651,17 @@ export function RegisterPage() {
             <button className="button button-secondary" type="button" onClick={() => setStep('profile')}>{t('register.backToProfile')}</button>
             <Button type="submit" disabled={isLoading || !form.registration_proof || !form.accepted_terms || !form.accepted_privacy_policy}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
           </>
+        ) : null}
+        {step === 'password' && passwordConfirmation ? (
+          <section className="info-card halo-outline password-confirmation-card">
+            <strong>{t('register.passwordConfirmTitle')}</strong>
+            <p className="muted">{t('register.passwordConfirmText')}</p>
+            {passwordConfirmation.bot_url ? <a className="button button-secondary" href={passwordConfirmation.bot_url} target="_blank" rel="noreferrer">{t('register.openTelegram')}</a> : null}
+            {error ? <p className="error-text">{error}</p> : null}
+            <Button type="button" onClick={handleConfirmPasswordRegistration} disabled={isPasswordConfirmLoading}>
+              {isPasswordConfirmLoading ? t('register.checkingPasswordConfirmation') : t('register.completeAfterTelegram')}
+            </Button>
+          </section>
         ) : null}
       </form>
     </main>

@@ -7,6 +7,13 @@ export function completeRegistration(payload) {
   });
 }
 
+export function confirmRegistrationPassword(payload) {
+  return apiRequest('/api/auth/register/confirm', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
 export function createDevRegistrationProof(telegramId) {
   return apiRequest('/api/auth/dev/registration-proof', {
     method: 'POST',
@@ -45,6 +52,22 @@ export function confirmEmailVerification(payload) {
 export function loginWithPassword(payload) {
   return apiRequest('/api/auth/login', {
     method: 'POST',
+    body: payload,
+  });
+}
+
+export function startPasswordChange(accessToken, payload) {
+  return apiRequest('/api/auth/password/change/start', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: payload,
+  });
+}
+
+export function confirmPasswordChange(accessToken, payload) {
+  return apiRequest('/api/auth/password/change/confirm', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
     body: payload,
   });
 }

@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -21,11 +22,26 @@ from app.models.users import User, UserProfile
 from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.users import UserOut, UserProfileOut
 from app.services.email_verification_service import EmailVerificationError, consume_verified_email, normalize_email
+from app.services.password_confirmation_service import (
+    PasswordConfirmationError,
+    PasswordConfirmationStart,
+    consume_password_confirmation,
+    create_password_confirmation,
+    send_password_confirmation_prompt,
+)
 from app.services.phone_verification_service import PhoneVerificationError, consume_verified_phone, normalize_phone
 
 
 class AuthError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class RegistrationCompletion:
+    confirmation: PasswordConfirmationStart | None = None
+    user: UserOut | None = None
+    access_token: str | None = None
+    refresh_token: str | None = None
 
 
 async def find_user_by_telegram_id(session: AsyncSession, telegram_id: str) -> User | None:
@@ -44,12 +60,13 @@ async def get_user_with_profile(session: AsyncSession, user_id: UUID) -> User | 
     return user
 
 
-async def complete_registration(session: AsyncSession, request: RegisterCompleteRequest) -> tuple[UserOut, str, str]:
+async def complete_registration(session: AsyncSession, request: RegisterCompleteRequest) -> RegistrationCompletion:
     telegram_id = verify_registration_proof(request.registration_proof)
     _validate_registration_request(request)
     verified_phone = None
     verified_email = None
     is_dev_registration = telegram_id.startswith('dev-')
+    bypass_password_confirmation = settings.environment == 'dev' and is_dev_registration
 
     if await find_user_by_telegram_id(session, telegram_id):
         raise AuthError('Этот Telegram-аккаунт уже зарегистрирован')
@@ -84,7 +101,7 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
     user = User(
         nexus_id=nexus_id,
         telegram_id=telegram_id,
-        status='active',
+        status='active' if bypass_password_confirmation else 'pending_password_confirmation',
         terms_accepted_at=consented_at,
         terms_version=TERMS_VERSION,
         privacy_policy_accepted_at=consented_at,
@@ -101,28 +118,125 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
         avatar_ref=request.avatar_ref,
         optional_phone=verified_phone,
         email=verified_email,
+        registration_country=request.registration_country,
         language=request.language,
         design_theme=request.design_theme,
     )
     session.add(profile)
-    session.add(PasswordCredential(user_id=user.id, password_hash=hash_secret(request.password)))
+    confirmation = None
+    if bypass_password_confirmation:
+        session.add(PasswordCredential(user_id=user.id, password_hash=hash_secret(request.password)))
+    else:
+        try:
+            confirmation = await create_password_confirmation(
+                session,
+                user.id,
+                telegram_id,
+                request.password,
+                request.device_id,
+                'registration',
+            )
+        except PasswordConfirmationError as exc:
+            raise AuthError(str(exc)) from exc
+        session.add(PasswordCredential(user_id=user.id, password_hash=confirmation.confirmation.password_hash))
 
     if request.pin:
         session.add(_create_trusted_pin(user.id, request.device_id, request.pin))
 
-    refresh_token = _generate_refresh_token()
-    session.add(_create_session(user.id, request.device_id, refresh_token))
-    session.add(_login_history(user.id, request.device_id, 'telegram_register', 'success'))
-    await session.commit()
-    await session.refresh(user)
-    set_committed_value(user, 'profile', profile)
+    refresh_token = None
+    if bypass_password_confirmation:
+        refresh_token = _generate_refresh_token()
+        session.add(_create_session(user.id, request.device_id, refresh_token))
+        session.add(_login_history(user.id, request.device_id, 'dev_register', 'success'))
 
+    await session.commit()
+    if bypass_password_confirmation:
+        await _load_profile(session, user)
+        return RegistrationCompletion(
+            user=to_user_out(user),
+            access_token=create_access_token(user.id),
+            refresh_token=refresh_token,
+        )
+
+    await send_password_confirmation_prompt(confirmation.confirmation)
+    return RegistrationCompletion(confirmation=confirmation)
+
+
+async def confirm_registration_password(
+    session: AsyncSession,
+    confirmation_id: UUID,
+    confirmation_token: str,
+) -> tuple[UserOut, str, str]:
+    try:
+        confirmation = await consume_password_confirmation(session, confirmation_id, confirmation_token)
+    except PasswordConfirmationError as exc:
+        raise AuthError(str(exc)) from exc
+    if confirmation.purpose != 'registration':
+        raise AuthError('Password confirmation has invalid purpose')
+
+    user = await find_user_by_id(session, confirmation.user_id)
+    if not user or user.status != 'pending_password_confirmation':
+        raise AuthError('Pending registration not found')
+    user.status = 'active'
+    refresh_token = _generate_refresh_token()
+    session.add(_create_session(user.id, confirmation.device_id, refresh_token))
+    session.add(_login_history(user.id, confirmation.device_id, 'telegram_register', 'success'))
+    await session.commit()
+    await _load_profile(session, user)
     return to_user_out(user), create_access_token(user.id), refresh_token
+
+
+async def start_password_change(
+    session: AsyncSession,
+    user_id: UUID,
+    current_password: str,
+    new_password: str,
+    device_id: str,
+) -> PasswordConfirmationStart:
+    if not is_valid_password(new_password):
+        raise AuthError('Password must contain only Latin letters and digits and be 5–30 characters long')
+    user = await find_user_by_id(session, user_id)
+    credential = await session.get(PasswordCredential, user_id)
+    if not user or user.status != 'active' or not credential or not verify_secret(current_password, credential.password_hash):
+        raise AuthError('Current password is incorrect')
+    if not user.telegram_id:
+        raise AuthError('Telegram is not connected to this account')
+    confirmation = await create_password_confirmation(
+        session,
+        user_id,
+        user.telegram_id,
+        new_password,
+        device_id,
+        'password_change',
+    )
+    await session.commit()
+    await send_password_confirmation_prompt(confirmation.confirmation)
+    return confirmation
+
+
+async def confirm_password_change(
+    session: AsyncSession,
+    user_id: UUID,
+    confirmation_id: UUID,
+    confirmation_token: str,
+) -> None:
+    try:
+        confirmation = await consume_password_confirmation(session, confirmation_id, confirmation_token, user_id)
+    except PasswordConfirmationError as exc:
+        raise AuthError(str(exc)) from exc
+    if confirmation.purpose != 'password_change':
+        raise AuthError('Password confirmation has invalid purpose')
+    credential = await session.get(PasswordCredential, user_id)
+    if not credential:
+        raise AuthError('Password credential not found')
+    credential.password_hash = confirmation.password_hash
+    credential.password_updated_at = datetime.now(timezone.utc)
+    await session.commit()
 
 
 async def login_with_password(session: AsyncSession, identifier: str, password: str, device_id: str) -> tuple[UserOut, str, str]:
     user = await _find_user_by_login_identifier(session, identifier)
-    if not user:
+    if not user or user.status != 'active':
         raise AuthError('Invalid login identifier or password')
 
     credential = await session.get(PasswordCredential, user.id)
@@ -264,7 +378,7 @@ async def _generate_unique_nexus_id(session: AsyncSession) -> str:
         result = await session.execute(select(User.id).where(User.nexus_id == nexus_id))
         if result.scalar_one_or_none() is None:
             return nexus_id
-    raise AuthError('Could not generate unique Nexus ID')
+    raise AuthError('Could not generate unique AraChat ID')
 
 
 def _validate_registration_request(request: RegisterCompleteRequest) -> None:
@@ -334,6 +448,7 @@ def to_user_out(user: User) -> UserOut:
         nexus_id=user.nexus_id,
         telegram_id=user.telegram_id,
         status=user.status,
+        is_official=_is_configured_admin(profile),
         profile=UserProfileOut(
             display_name=profile.display_name,
             username=profile.username,
@@ -341,9 +456,19 @@ def to_user_out(user: User) -> UserOut:
             avatar_ref=profile.avatar_ref,
             optional_phone=profile.optional_phone,
             email=profile.email,
+            registration_country=profile.registration_country,
             phone_public=profile.phone_public,
             language=profile.language,
             design_theme=profile.design_theme,
             current_mode=profile.current_mode,
         ) if profile else None,
     )
+
+
+def _is_configured_admin(profile: UserProfile | None) -> bool:
+    if not profile or not settings.admin_phone.strip():
+        return False
+    try:
+        return profile.optional_phone == normalize_phone(settings.admin_phone)
+    except PhoneVerificationError:
+        return False

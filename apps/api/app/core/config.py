@@ -8,7 +8,7 @@ API_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    app_name: str = 'Nexus API'
+    app_name: str = 'AraChat API'
     environment: str = 'dev'
     api_prefix: str = '/api'
     allowed_origins: list[str] = ['http://localhost:5173']
@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ''
     telegram_bot_name: str = ''
     telegram_webhook_secret: str = ''
+    admin_phone: str = ''
     registration_proof_secret: str = 'dev-registration-proof-secret-change-me'
     access_token_secret: str = 'dev-access-token-secret-change-me'
     access_token_algorithm: str = 'HS256'
