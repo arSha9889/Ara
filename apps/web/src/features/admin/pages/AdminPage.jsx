@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -20,8 +20,27 @@ import {
   updateAdminUserStatus,
 } from '../api/adminApi.js';
 
-const TABS = ['overview', 'users', 'branches'];
+const TABS = ['overview', 'users', 'branches', 'audit'];
 const EMPTY_BRANCH_FORM = { title: '', slug: '', description: '', avatar_ref: '📢' };
+
+function AdminIcon({ name, size = 20 }) {
+  const paths = {
+    overview: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
+    users: <><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20" /><circle cx="9" cy="7" r="4" /><path d="M22 20v-1.5a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    branches: <><path d="M4 20V4m0 3h9l-1 4 4 2H4" /><path d="M4 20h16" /></>,
+    audit: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    shield: <><path d="M12 3 4 6v5c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10V6l-8-3Z" /><path d="m8.5 12 2.2 2.2 4.8-5" /></>,
+    search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>,
+    plus: <><path d="M12 5v14M5 12h14" /></>,
+    refresh: <><path d="M20 11a8.1 8.1 0 0 0-14.4-4.8L4 8" /><path d="M4 4v4h4M4 13a8.1 8.1 0 0 0 14.4 4.8L20 16" /><path d="M20 20v-4h-4" /></>,
+    arrow: <path d="m9 18 6-6-6-6" />,
+    close: <path d="m6 6 12 12M18 6 6 18" />,
+    more: <><circle cx="5" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="19" cy="12" r="1" fill="currentColor" /></>,
+    external: <><path d="M14 4h6v6" /><path d="m20 4-9 9" /><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6" /></>,
+    filter: <><path d="M4 6h16M7 12h10m-7 6h4" /></>,
+  };
+  return <svg className="admin-icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+}
 
 function statusLabel(status, t) {
   return t(`admin.statuses.${status}`);
@@ -29,6 +48,14 @@ function statusLabel(status, t) {
 
 function actionLabel(action, t) {
   return t(`admin.auditActions.${action}`);
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString() : '—';
+}
+
+function countryLabel(country) {
+  return country === 'GLOBAL' ? 'Global' : country;
 }
 
 export function AdminPage() {
@@ -48,6 +75,7 @@ export function AdminPage() {
   const [filters, setFilters] = useState({ query: '', status: 'all', country: '', sort: 'newest' });
   const [selectedUser, setSelectedUser] = useState(null);
   const [isLoadingUserDetails, setIsLoadingUserDetails] = useState(false);
+  const userDetailsRequestId = useRef(0);
   const [pendingAction, setPendingAction] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
@@ -62,6 +90,7 @@ export function AdminPage() {
 
   const countries = overview?.countries ?? [];
   const countryOptions = useMemo(() => countries.map((item) => item.country), [countries]);
+  const navigationItems = TABS.map((tab) => ({ tab, icon: tab }));
 
   async function loadOverview() {
     setIsLoadingOverview(true);
@@ -130,21 +159,36 @@ export function AdminPage() {
     setFilters((current) => ({ ...current, [name]: value }));
   }
 
+  function switchTab(tab) {
+    setActiveTab(tab);
+    setError('');
+  }
+
   function openUserAction(user, status) {
     setPendingAction({ user, status });
     setDeleteConfirmation('');
   }
 
+  function closeUserDetails() {
+    userDetailsRequestId.current += 1;
+    setSelectedUser(null);
+  }
+
   async function openUserDetails(user) {
+    const requestId = userDetailsRequestId.current + 1;
+    userDetailsRequestId.current = requestId;
     setSelectedUser(user);
     setIsLoadingUserDetails(true);
     try {
-      setSelectedUser(await getAdminUser(session.accessToken, user.id));
+      const userDetails = await getAdminUser(session.accessToken, user.id);
+      if (userDetailsRequestId.current === requestId) setSelectedUser(userDetails);
     } catch (err) {
-      setSelectedUser(null);
-      setError(err.message);
+      if (userDetailsRequestId.current === requestId) {
+        setSelectedUser(null);
+        setError(err.message);
+      }
     } finally {
-      setIsLoadingUserDetails(false);
+      if (userDetailsRequestId.current === requestId) setIsLoadingUserDetails(false);
     }
   }
 
@@ -153,7 +197,7 @@ export function AdminPage() {
     setIsUpdatingUser(true);
     try {
       await updateAdminUserStatus(session.accessToken, pendingAction.user.id, pendingAction.status);
-      setSelectedUser(null);
+      closeUserDetails();
       setPendingAction(null);
       await Promise.all([loadUsers(), loadOverview()]);
     } catch (err) {
@@ -189,7 +233,7 @@ export function AdminPage() {
     try {
       await createPublicBranch(session.accessToken, payload);
       setBranchForm(EMPTY_BRANCH_FORM);
-      setBranchStatus(t('admin.branchCreated'));
+      setIsBranchDialogOpen(false);
       await Promise.all([loadBranches(), loadOverview()]);
     } catch (err) {
       setBranchStatus(err.message);
@@ -229,6 +273,7 @@ export function AdminPage() {
   async function toggleBranchArchive(branch) {
     try {
       await setAdminBranchArchived(session.accessToken, branch.id, !branch.is_archived);
+      if (editingBranch?.id === branch.id) setEditingBranch(null);
       await Promise.all([loadBranches(), loadOverview()]);
     } catch (err) {
       setError(err.message);
@@ -257,30 +302,93 @@ export function AdminPage() {
     }
   }
 
+  if (isLoadingOverview && !overview) {
+    return <main className="admin-page"><section className="admin-loading"><AraChatLoader title={t('admin.loadingTitle')} text={t('admin.loadingText')} /></section></main>;
+  }
+
   return (
     <main className="admin-page">
-      <section className="admin-workspace">
-        <header className="admin-workspace-header"><Link to="/app" className="admin-back-link"><span aria-hidden="true">←</span>{t('admin.backToMessenger')}</Link><div className="admin-access-label"><span aria-hidden="true">✦</span>{t('admin.secureAccess')}</div></header>
-        <section className="panel admin-panel">
-          <header className="admin-panel-header"><div className="admin-title-mark" aria-hidden="true">🛡</div><div><p className="eyebrow">AraChat Control</p><h1>{t('admin.title')}</h1><p className="muted">{t('admin.subtitle')}</p></div></header>
-          <nav className="admin-tabs" aria-label={t('admin.navigation')}>{TABS.map((tab) => <button key={tab} type="button" className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>{t(`admin.tabs.${tab}`)}</button>)}</nav>
-          {error ? <p className="error-text">{error}</p> : null}
-          {isLoadingOverview ? <AraChatLoader compact title={t('admin.loadingTitle')} text={t('admin.loadingText')} /> : null}
-          {overview && activeTab === 'overview' ? <section className="admin-tab-content">
-            <div className="admin-stats-grid"><article className="info-card"><span>{t('admin.totalUsers')}</span><strong>{overview.total_users}</strong></article><article className="info-card"><span>{t('admin.activeUsers')}</span><strong>{overview.active_users}</strong></article><article className="info-card"><span>{t('admin.registrationCountries')}</span><strong>{countries.length}</strong></article></div>
-            <section className="admin-quick-actions"><button type="button" onClick={() => setActiveTab('users')}><span aria-hidden="true">⌕</span><strong>{t('admin.findUser')}</strong><small>{t('admin.findUserText')}</small></button><button type="button" onClick={() => { setActiveTab('branches'); setIsBranchDialogOpen(true); }}><span aria-hidden="true">＋</span><strong>{t('admin.createBranch')}</strong><small>{t('admin.createBranchText')}</small></button><button type="button" onClick={() => { setActiveTab('users'); setFilters((current) => ({ ...current, status: 'blocked' })); }}><span aria-hidden="true">◉</span><strong>{t('admin.blockedUsers')}</strong><small>{t('admin.blockedUsersText')}</small></button></section>
-            {securityMetrics ? <section><header className="admin-section-heading"><div><h2>{t('admin.securityTitle')}</h2><p className="muted">{t('admin.securityText')}</p></div></header><div className="admin-security-grid"><article><span>{t('admin.activeSessions')}</span><strong>{securityMetrics.active_sessions}</strong></article><article><span>{t('admin.lockedPasswords')}</span><strong>{securityMetrics.locked_passwords}</strong></article><article><span>{t('admin.lockedPins')}</span><strong>{securityMetrics.locked_pins}</strong></article><article><span>{t('admin.archivedBranches')}</span><strong>{securityMetrics.archived_branches}</strong></article></div></section> : null}
-            <section className="settings-section"><h2>{t('admin.registrationCountries')}</h2><div className="admin-country-list">{countries.map((item) => <span key={item.country}>{item.country}: <strong>{item.count}</strong></span>)}</div></section>
-            <section><header className="admin-section-heading"><div><h2>{t('admin.auditTitle')}</h2><p className="muted">{t('admin.auditText')}</p></div></header><div className="admin-audit-list">{auditLogs.length ? auditLogs.map((item) => <article key={item.id}><div><strong>{actionLabel(item.action, t)}</strong><span>{item.target_type ? `${item.target_type} · ${item.target_id ?? '—'}` : '—'}</span></div><time>{new Date(item.created_at).toLocaleString()}</time></article>) : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</div></section>
-          </section> : null}
-          {overview && activeTab === 'users' ? <section className="admin-tab-content"><header className="admin-section-heading"><div><h2>{t('admin.usersTitle')}</h2><p className="muted">{t('admin.usersFound').replace('{count}', String(usersTotal))}</p></div></header><div className="admin-user-filters"><label><span>{t('admin.search')}</span><input value={filters.query} onChange={(event) => updateFilter('query', event.target.value)} placeholder={t('admin.searchPlaceholder')} /></label><label><span>{t('admin.status')}</span><select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>{['all', 'active', 'blocked', 'deleted'].map((status) => <option key={status} value={status}>{status === 'all' ? t('admin.allStatuses') : statusLabel(status, t)}</option>)}</select></label><label><span>{t('admin.country')}</span><select value={filters.country} onChange={(event) => updateFilter('country', event.target.value)}><option value="">{t('admin.allCountries')}</option>{countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}</select></label><label><span>{t('admin.sort')}</span><select value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)}>{['newest', 'oldest', 'name'].map((sort) => <option key={sort} value={sort}>{t(`admin.sortOptions.${sort}`)}</option>)}</select></label></div>{isLoadingUsers ? <AraChatLoader compact title={t('admin.usersTitle')} text={t('admin.loadingUsers')} /> : null}{!isLoadingUsers && users.length === 0 ? <p className="admin-empty-state">{t('admin.noUsers')}</p> : null}<div className="admin-users-table" role="table">{users.map((user) => <article className="admin-user-row" key={user.id} role="row"><div><strong>{user.display_name} {user.is_official ? <span className="official-badge">✓</span> : null}</strong><span>@{user.username} · {user.nexus_id}</span></div><div><span>{user.country} · {new Date(user.created_at).toLocaleDateString()}</span><small>{t('admin.contactsHidden')}</small></div><div className="admin-user-actions"><span className={`admin-status ${user.status}`}>{statusLabel(user.status, t)}</span><button className="button button-secondary" type="button" onClick={() => void openUserDetails(user)}>{t('admin.details')}</button></div></article>)}</div></section> : null}
-          {overview && activeTab === 'branches' ? <section className="admin-tab-content"><header className="admin-section-heading"><div><h2>{t('admin.branchesTitle')}</h2><p className="muted">{t('admin.branchesText')}</p></div><Button type="button" onClick={() => { setBranchForm(EMPTY_BRANCH_FORM); setBranchStatus(''); setIsBranchDialogOpen(true); }}>{t('admin.createBranch')}</Button></header>{isLoadingBranches ? <AraChatLoader compact title={t('admin.branchesTitle')} text={t('admin.loadingBranches')} /> : null}<div className="admin-branches-list">{branches.map((branch) => <article className={`admin-branch-row${branch.is_archived ? ' archived' : ''}`} key={branch.id}><div className="admin-branch-icon">{branch.avatar_ref || '📣'}</div><div><strong>{branch.title} {branch.is_official ? <span className="official-badge">✓</span> : null}</strong><span>#{branch.slug} · {t('admin.subscribers').replace('{count}', String(branch.subscriber_count))}</span><small>{branch.owner_name ? `${t('admin.owner')}: ${branch.owner_name} (@${branch.owner_username})` : t('admin.ownerMissing')}</small></div><div className="admin-branch-actions"><span className={`admin-status ${branch.is_archived ? 'deleted' : 'active'}`}>{branch.is_archived ? t('admin.archived') : t('admin.published')}</span><Button variant="secondary" type="button" onClick={() => openBranchEditor(branch)}>{t('admin.edit')}</Button>{!branch.is_official ? <Button variant={branch.is_archived ? 'secondary' : 'danger'} type="button" onClick={() => void toggleBranchArchive(branch)}>{branch.is_archived ? t('admin.restore') : t('admin.archive')}</Button> : null}</div></article>)}</div>{!isLoadingBranches && !branches.length ? <p className="admin-empty-state">{t('admin.noBranches')}</p> : null}</section> : null}
-        </section>
+      <section className="admin-control-room">
+        <header className="admin-topbar">
+          <Link to="/app" className="admin-brand" aria-label="AraChat Control">
+            <span className="admin-brand-mark"><AdminIcon name="shield" /></span>
+            <span><strong>AraChat</strong><small>Control Room</small></span>
+          </Link>
+          <div className="admin-topbar-actions">
+            <span className="admin-secure-indicator"><span />{t('admin.secureAccess')}</span>
+            <Link to="/app" className="admin-exit-link"><span>{t('admin.backToMessenger')}</span><AdminIcon name="external" size={16} /></Link>
+          </div>
+        </header>
+
+        <div className="admin-layout">
+          <aside className="admin-sidebar" aria-label={t('admin.navigation')}>
+            <p>{t('admin.navigation')}</p>
+            <nav>
+              {navigationItems.map(({ tab, icon }) => (
+                <button className={activeTab === tab ? 'active' : ''} type="button" key={tab} onClick={() => switchTab(tab)}>
+                  <AdminIcon name={icon} />
+                  <span>{t(`admin.tabs.${tab}`)}</span>
+                  {tab === 'audit' && auditLogs.length ? <small>{auditLogs.length}</small> : null}
+                </button>
+              ))}
+            </nav>
+            <div className="admin-sidebar-footer">
+              <AdminIcon name="shield" size={17} />
+              <span>{t('admin.controlFooter')}</span>
+            </div>
+          </aside>
+
+          <section className="admin-content" aria-live="polite">
+            {error ? <div className="admin-error"><span>!</span><p>{error}</p><button type="button" onClick={() => setError('')} aria-label={t('common.close')}><AdminIcon name="close" size={16} /></button></div> : null}
+
+            {activeTab === 'overview' ? (
+              <>
+                <header className="admin-page-heading">
+                  <div><p className="eyebrow">AraChat Control</p><h1>{t('admin.overviewTitle')}</h1><p>{t('admin.overviewText')}</p></div>
+                  <button className="admin-icon-button" type="button" onClick={() => void loadOverview()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button>
+                </header>
+                <div className="admin-metric-grid">
+                  <article><span className="admin-metric-icon users"><AdminIcon name="users" /></span><p>{t('admin.totalUsers')}</p><strong>{overview?.total_users ?? 0}</strong></article>
+                  <article><span className="admin-metric-icon active"><AdminIcon name="overview" /></span><p>{t('admin.activeUsers')}</p><strong>{overview?.active_users ?? 0}</strong></article>
+                  <article><span className="admin-metric-icon warning"><AdminIcon name="shield" /></span><p>{t('admin.blockedUsers')}</p><strong>{securityMetrics?.blocked_users ?? 0}</strong></article>
+                  <article><span className="admin-metric-icon sessions"><AdminIcon name="audit" /></span><p>{t('admin.activeSessions')}</p><strong>{securityMetrics?.active_sessions ?? 0}</strong></article>
+                </div>
+                <div className="admin-overview-grid">
+                  <section className="admin-surface admin-activity-card"><header><div><h2>{t('admin.recentActivity')}</h2><p>{t('admin.auditText')}</p></div><button type="button" onClick={() => switchTab('audit')}>{t('admin.viewAll')}<AdminIcon name="arrow" size={16} /></button></header>{auditLogs.length ? <ol className="admin-activity-list">{auditLogs.slice(0, 5).map((entry) => <li key={entry.id}><span className="admin-activity-dot" /><div><strong>{actionLabel(entry.action, t)}</strong><small>{formatDate(entry.created_at)}</small></div></li>)}</ol> : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</section>
+                  <section className="admin-surface admin-quick-card"><h2>{t('admin.quickActions')}</h2><div className="admin-quick-actions"><button type="button" onClick={() => { setBranchForm(EMPTY_BRANCH_FORM); setBranchStatus(''); setIsBranchDialogOpen(true); }}><span><AdminIcon name="plus" /></span><div><strong>{t('admin.createBranch')}</strong><small>{t('admin.createBranchText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => switchTab('users')}><span><AdminIcon name="search" /></span><div><strong>{t('admin.findUser')}</strong><small>{t('admin.findUserText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => switchTab('audit')}><span><AdminIcon name="audit" /></span><div><strong>{t('admin.auditTitle')}</strong><small>{t('admin.auditText')}</small></div><AdminIcon name="arrow" size={16} /></button></div></section>
+                  <section className="admin-surface admin-security-card"><header><div><h2>{t('admin.securityTitle')}</h2><p>{t('admin.securityText')}</p></div><AdminIcon name="shield" /></header><div className="admin-security-list"><div><span>{t('admin.lockedPasswords')}</span><strong>{securityMetrics?.locked_passwords ?? 0}</strong></div><div><span>{t('admin.lockedPins')}</span><strong>{securityMetrics?.locked_pins ?? 0}</strong></div><div><span>{t('admin.archivedBranches')}</span><strong>{securityMetrics?.archived_branches ?? 0}</strong></div></div></section>
+                  <section className="admin-surface admin-country-card"><header><div><h2>{t('admin.registrationCountries')}</h2><p>{t('admin.countryDistribution')}</p></div></header><div className="admin-country-bars">{countries.map((item) => <div key={item.country}><span>{countryLabel(item.country)}</span><i><b style={{ width: `${Math.max(8, ((item.count / Math.max(overview?.total_users || 1, 1)) * 100))}%` }} /></i><strong>{item.count}</strong></div>)}</div></section>
+                </div>
+              </>
+            ) : null}
+
+            {activeTab === 'users' ? (
+              <>
+                <header className="admin-page-heading"><div><p className="eyebrow">{t('admin.tabs.users')}</p><h1>{t('admin.usersTitle')}</h1><p>{t('admin.usersFound').replace('{count}', String(usersTotal))}</p></div><button className="admin-icon-button" type="button" onClick={() => void loadUsers()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button></header>
+                <section className="admin-surface admin-user-tools"><div className="admin-search-input"><AdminIcon name="search" size={18} /><input value={filters.query} onChange={(event) => updateFilter('query', event.target.value)} placeholder={t('admin.searchPlaceholder')} aria-label={t('admin.search')} /></div><div className="admin-filter-group"><span><AdminIcon name="filter" size={16} />{t('admin.filters')}</span><select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)} aria-label={t('admin.status')}><option value="all">{t('admin.allStatuses')}</option><option value="active">{statusLabel('active', t)}</option><option value="blocked">{statusLabel('blocked', t)}</option><option value="deleted">{statusLabel('deleted', t)}</option></select><select value={filters.country} onChange={(event) => updateFilter('country', event.target.value)} aria-label={t('admin.country')}><option value="">{t('admin.allCountries')}</option>{countryOptions.map((country) => <option key={country} value={country}>{countryLabel(country)}</option>)}</select><select value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)} aria-label={t('admin.sort')}><option value="newest">{t('admin.sortOptions.newest')}</option><option value="oldest">{t('admin.sortOptions.oldest')}</option><option value="name">{t('admin.sortOptions.name')}</option></select></div></section>
+                <section className="admin-user-table admin-surface"><div className="admin-table-head"><span>{t('admin.userColumn')}</span><span>{t('admin.idColumn')}</span><span>{t('admin.country')}</span><span>{t('admin.registeredAt')}</span><span>{t('admin.status')}</span></div>{isLoadingUsers ? <AraChatLoader compact title={t('admin.usersTitle')} text={t('admin.loadingUsers')} /> : users.map((user) => <button className="admin-table-row" type="button" key={user.id} onClick={() => void openUserDetails(user)}><span className="admin-user-identity"><i>{user.display_name?.[0] || user.username?.[0] || 'A'}</i><span><strong>{user.display_name}{user.is_official ? <em>✓</em> : null}</strong><small>@{user.username}</small></span></span><span className="admin-user-id">{user.nexus_id}</span><span>{countryLabel(user.country)}</span><span>{formatDate(user.created_at)}</span><span className="admin-row-status"><b className={`admin-status ${user.status}`}>{statusLabel(user.status, t)}</b><AdminIcon name="arrow" size={16} /></span></button>)}{!isLoadingUsers && !users.length ? <p className="admin-empty-state">{t('admin.noUsers')}</p> : null}</section>
+              </>
+            ) : null}
+
+            {activeTab === 'branches' ? (
+              <>
+                <header className="admin-page-heading"><div><p className="eyebrow">{t('admin.tabs.branches')}</p><h1>{t('admin.branchesTitle')}</h1><p>{t('admin.branchesText')}</p></div><Button type="button" onClick={() => { setBranchForm(EMPTY_BRANCH_FORM); setBranchStatus(''); setIsBranchDialogOpen(true); }}><AdminIcon name="plus" size={17} />{t('admin.createBranch')}</Button></header>
+                {isLoadingBranches ? <AraChatLoader title={t('admin.branchesTitle')} text={t('admin.loadingBranches')} /> : <section className="admin-branch-catalog">{branches.map((branch) => <article className={`admin-branch-card ${branch.is_archived ? 'archived' : ''}`} key={branch.id}><div className="admin-branch-avatar">{branch.avatar_ref || '📣'}</div><div className="admin-branch-copy"><div><strong>{branch.title}</strong>{branch.is_official ? <span className="official-badge">✓</span> : null}<b className={`admin-status ${branch.is_archived ? 'deleted' : 'active'}`}>{branch.is_archived ? t('admin.archived') : t('admin.published')}</b></div><span>#{branch.slug} · {t('admin.subscribers').replace('{count}', String(branch.subscriber_count))}</span><small>{branch.owner_name ? `${t('admin.owner')}: ${branch.owner_name} (@${branch.owner_username})` : t('admin.ownerMissing')}</small></div><button className="admin-more-button" type="button" onClick={() => openBranchEditor(branch)} aria-label={t('admin.edit')} title={t('admin.edit')}><AdminIcon name="more" /></button></article>)}</section>}{!isLoadingBranches && !branches.length ? <p className="admin-empty-state">{t('admin.noBranches')}</p> : null}
+              </>
+            ) : null}
+
+            {activeTab === 'audit' ? <><header className="admin-page-heading"><div><p className="eyebrow">{t('admin.tabs.audit')}</p><h1>{t('admin.auditTitle')}</h1><p>{t('admin.auditText')}</p></div><button className="admin-icon-button" type="button" onClick={() => void loadOverview()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button></header><section className="admin-surface admin-audit-feed">{auditLogs.length ? auditLogs.map((entry) => <article key={entry.id}><span className="admin-audit-icon"><AdminIcon name="audit" size={17} /></span><div><strong>{actionLabel(entry.action, t)}</strong><small>{entry.target_type ? `${entry.target_type} · ` : ''}{entry.target_id || t('admin.systemEvent')}</small></div><time>{formatDate(entry.created_at)}</time></article>) : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</section></> : null}
+          </section>
+        </div>
       </section>
-      {selectedUser ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setSelectedUser(null)}><section className="app-dialog admin-user-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-user-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-dialog-close" type="button" onClick={() => setSelectedUser(null)} aria-label={t('common.close')}>×</button><p className="eyebrow">{t('admin.userDetails')}</p><h2 id="admin-user-title">{selectedUser.display_name}</h2><p className="muted">@{selectedUser.username} · {selectedUser.nexus_id}</p>{isLoadingUserDetails ? <AraChatLoader compact title={t('admin.userDetails')} text={t('admin.loadingUserDetails')} /> : <><dl className="admin-user-details"><div><dt>{t('admin.status')}</dt><dd><span className={`admin-status ${selectedUser.status}`}>{statusLabel(selectedUser.status, t)}</span></dd></div><div><dt>{t('admin.country')}</dt><dd>{selectedUser.country}</dd></div><div><dt>{t('admin.registeredAt')}</dt><dd>{new Date(selectedUser.created_at).toLocaleString()}</dd></div><div><dt>{t('admin.contactDetails')}</dt><dd>{selectedUser.phone || selectedUser.email || '—'}</dd></div></dl>{!selectedUser.is_official && selectedUser.status !== 'deleted' ? <div className="admin-dialog-actions"><Button variant="secondary" type="button" onClick={() => openUserAction(selectedUser, selectedUser.status === 'blocked' ? 'active' : 'blocked')}>{selectedUser.status === 'blocked' ? t('admin.unblock') : t('admin.block')}</Button><Button variant="danger" type="button" onClick={() => openUserAction(selectedUser, 'deleted')}>{t('admin.delete')}</Button></div> : null}</>}</section></div> : null}
+
+      {selectedUser ? <div className="admin-drawer-layer" role="presentation" onMouseDown={closeUserDetails}><aside className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-user-title" onMouseDown={(event) => event.stopPropagation()}><header><button className="admin-drawer-close" type="button" onClick={closeUserDetails} aria-label={t('common.close')}><AdminIcon name="close" /></button><p className="eyebrow">{t('admin.userDetails')}</p>{isLoadingUserDetails ? <AraChatLoader compact title={t('admin.userDetails')} text={t('admin.loadingUserDetails')} /> : <><div className="admin-drawer-person"><span>{selectedUser.display_name?.[0] || selectedUser.username?.[0] || 'A'}</span><div><h2 id="admin-user-title">{selectedUser.display_name}</h2><p>@{selectedUser.username}</p></div></div><p className="admin-drawer-id">{selectedUser.nexus_id}</p><dl className="admin-drawer-data"><div><dt>{t('admin.status')}</dt><dd><b className={`admin-status ${selectedUser.status}`}>{statusLabel(selectedUser.status, t)}</b></dd></div><div><dt>{t('admin.country')}</dt><dd>{countryLabel(selectedUser.country)}</dd></div><div><dt>{t('admin.registeredAt')}</dt><dd>{formatDate(selectedUser.created_at)}</dd></div><div><dt>{t('admin.contactDetails')}</dt><dd>{selectedUser.phone || selectedUser.email || '—'}</dd></div></dl>{!selectedUser.is_official && selectedUser.status !== 'deleted' ? <div className="admin-drawer-actions"><Button variant="secondary" type="button" onClick={() => openUserAction(selectedUser, selectedUser.status === 'blocked' ? 'active' : 'blocked')}>{selectedUser.status === 'blocked' ? t('admin.unblock') : t('admin.block')}</Button><Button variant="danger" type="button" onClick={() => openUserAction(selectedUser, 'deleted')}>{t('admin.delete')}</Button></div> : null}</>}</header></aside></div> : null}
+
       {pendingAction ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setPendingAction(null)}><section className="app-dialog admin-confirm-dialog" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}><p className="eyebrow">{pendingAction.status === 'deleted' ? t('admin.irreversibleAction') : t('admin.confirmAction')}</p><h2>{pendingAction.status === 'deleted' ? t('admin.deleteUserTitle') : pendingAction.status === 'blocked' ? t('admin.blockUserTitle') : t('admin.unblockUserTitle')}</h2><p>{t('admin.actionTarget').replace('{name}', pendingAction.user.display_name)}</p>{pendingAction.status === 'deleted' ? <label className="field"><span>{t('admin.deleteConfirmation').replace('{word}', t('admin.deleteConfirmWord'))}</span><input className="text-input" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoFocus /></label> : null}<div className="admin-dialog-actions"><Button variant="secondary" type="button" onClick={() => setPendingAction(null)}>{t('messages.cancel')}</Button><Button variant={pendingAction.status === 'deleted' ? 'danger' : 'primary'} type="button" disabled={isUpdatingUser || (pendingAction.status === 'deleted' && deleteConfirmation !== t('admin.deleteConfirmWord'))} onClick={confirmUserAction}>{isUpdatingUser ? '…' : pendingAction.status === 'deleted' ? t('admin.delete') : pendingAction.status === 'blocked' ? t('admin.block') : t('admin.unblock')}</Button></div></section></div> : null}
-      {isBranchDialogOpen ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setIsBranchDialogOpen(false)}><section className="app-dialog admin-branch-dialog" role="dialog" aria-modal="true" aria-labelledby="branch-dialog-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-dialog-close" type="button" onClick={() => setIsBranchDialogOpen(false)} aria-label={t('common.close')}>×</button><p className="eyebrow">AraChat Control</p><h2 id="branch-dialog-title">{t('admin.createBranch')}</h2><p className="muted">{t('admin.createBranchDescription')}</p><form className="admin-branch-form" onSubmit={createBranch}><TextInput label={t('admin.branchTitle')} value={branchForm.title} minLength="2" maxLength="120" required onChange={(event) => updateBranchField('title', event.target.value)} /><TextInput label={t('admin.branchAddress')} value={branchForm.slug} minLength="3" maxLength="64" required placeholder="product-news" onChange={(event) => updateBranchField('slug', event.target.value)} /><TextInput label={t('admin.branchIcon')} value={branchForm.avatar_ref} maxLength="255" onChange={(event) => updateBranchField('avatar_ref', event.target.value)} /><label className="field admin-branch-description"><span>{t('admin.branchDescription')}</span><textarea className="text-input" value={branchForm.description} maxLength="500" onChange={(event) => updateBranchField('description', event.target.value)} /></label><Button type="submit" disabled={isCreatingBranch}>{isCreatingBranch ? t('admin.creatingBranch') : t('admin.createBranch')}</Button></form>{branchStatus ? <p className={branchStatus === t('admin.branchCreated') ? 'success-text' : 'error-text'}>{branchStatus}</p> : null}</section></div> : null}
-      {editingBranch ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setEditingBranch(null)}><section className="app-dialog admin-branch-dialog" role="dialog" aria-modal="true" aria-labelledby="edit-branch-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-dialog-close" type="button" onClick={() => setEditingBranch(null)} aria-label={t('common.close')}>×</button><p className="eyebrow">{t('admin.branchManagement')}</p><h2 id="edit-branch-title">{editingBranch.title}</h2><form className="admin-branch-form" onSubmit={saveBranch}><TextInput label={t('admin.branchTitle')} value={branchForm.title} minLength="2" maxLength="120" required onChange={(event) => updateBranchField('title', event.target.value)} /><TextInput label={t('admin.branchAddress')} value={branchForm.slug} minLength="3" maxLength="64" required onChange={(event) => updateBranchField('slug', event.target.value)} /><TextInput label={t('admin.branchIcon')} value={branchForm.avatar_ref} maxLength="255" onChange={(event) => updateBranchField('avatar_ref', event.target.value)} /><label className="field admin-branch-description"><span>{t('admin.branchDescription')}</span><textarea className="text-input" value={branchForm.description} maxLength="500" onChange={(event) => updateBranchField('description', event.target.value)} /></label><Button type="submit" disabled={isSavingBranch}>{t('admin.saveBranch')}</Button></form><form className="admin-member-form" onSubmit={assignBranchMember}><h3>{t('admin.assignMember')}</h3><p className="muted">{t('admin.assignMemberText')}</p><label className="field"><span>{t('admin.userSearch')}</span><input className="text-input" value={memberUserQuery} onChange={(event) => setMemberUserQuery(event.target.value)} placeholder={t('admin.userSearchPlaceholder')} required /></label><label className="field"><span>{t('admin.memberRole')}</span><select className="text-input" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}><option value="admin">{t('admin.branchAdmin')}</option><option value="owner">{t('admin.branchOwner')}</option></select></label><Button variant="secondary" type="submit" disabled={isSavingBranch}>{t('admin.assign')}</Button></form>{branchStatus ? <p className={branchStatus === t('admin.memberAssigned') ? 'success-text' : 'error-text'}>{branchStatus}</p> : null}</section></div> : null}
+
+      {isBranchDialogOpen ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setIsBranchDialogOpen(false)}><section className="app-dialog admin-branch-dialog" role="dialog" aria-modal="true" aria-labelledby="branch-dialog-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-dialog-close" type="button" onClick={() => setIsBranchDialogOpen(false)} aria-label={t('common.close')}>×</button><p className="eyebrow">AraChat Control</p><h2 id="branch-dialog-title">{t('admin.createBranch')}</h2><p className="muted">{t('admin.createBranchDescription')}</p><form className="admin-branch-form" onSubmit={createBranch}><TextInput label={t('admin.branchTitle')} value={branchForm.title} minLength="2" maxLength="120" required onChange={(event) => updateBranchField('title', event.target.value)} /><TextInput label={t('admin.branchAddress')} value={branchForm.slug} minLength="3" maxLength="64" required placeholder="product-news" onChange={(event) => updateBranchField('slug', event.target.value)} /><TextInput label={t('admin.branchIcon')} value={branchForm.avatar_ref} maxLength="255" onChange={(event) => updateBranchField('avatar_ref', event.target.value)} /><label className="field admin-branch-description"><span>{t('admin.branchDescription')}</span><textarea className="text-input" value={branchForm.description} maxLength="500" onChange={(event) => updateBranchField('description', event.target.value)} /></label><Button type="submit" disabled={isCreatingBranch}>{isCreatingBranch ? t('admin.creatingBranch') : t('admin.createBranch')}</Button></form>{branchStatus ? <p className="error-text">{branchStatus}</p> : null}</section></div> : null}
+
+      {editingBranch ? <div className="admin-drawer-layer" role="presentation" onMouseDown={() => setEditingBranch(null)}><aside className="admin-drawer admin-branch-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-branch-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-drawer-close" type="button" onClick={() => setEditingBranch(null)} aria-label={t('common.close')}><AdminIcon name="close" /></button><p className="eyebrow">{t('admin.branchManagement')}</p><h2 id="edit-branch-title">{editingBranch.title}</h2><form className="admin-drawer-form" onSubmit={saveBranch}><TextInput label={t('admin.branchTitle')} value={branchForm.title} minLength="2" maxLength="120" required onChange={(event) => updateBranchField('title', event.target.value)} /><TextInput label={t('admin.branchAddress')} value={branchForm.slug} minLength="3" maxLength="64" required onChange={(event) => updateBranchField('slug', event.target.value)} /><TextInput label={t('admin.branchIcon')} value={branchForm.avatar_ref} maxLength="255" onChange={(event) => updateBranchField('avatar_ref', event.target.value)} /><label className="field"><span>{t('admin.branchDescription')}</span><textarea className="text-input" value={branchForm.description} maxLength="500" onChange={(event) => updateBranchField('description', event.target.value)} /></label><Button type="submit" disabled={isSavingBranch}>{t('admin.saveBranch')}</Button></form><form className="admin-member-form" onSubmit={assignBranchMember}><h3>{t('admin.assignMember')}</h3><p>{t('admin.assignMemberText')}</p><label className="field"><span>{t('admin.userSearch')}</span><input className="text-input" value={memberUserQuery} onChange={(event) => setMemberUserQuery(event.target.value)} placeholder={t('admin.userSearchPlaceholder')} required /></label><label className="field"><span>{t('admin.memberRole')}</span><select className="text-input" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}><option value="admin">{t('admin.branchAdmin')}</option><option value="owner">{t('admin.branchOwner')}</option></select></label><Button variant="secondary" type="submit" disabled={isSavingBranch}>{t('admin.assign')}</Button></form>{!editingBranch.is_official ? <section className="admin-danger-zone"><p>{t('admin.dangerZone')}</p><strong>{editingBranch.is_archived ? t('admin.restoreBranchText') : t('admin.archiveBranchText')}</strong><Button variant={editingBranch.is_archived ? 'secondary' : 'danger'} type="button" onClick={() => void toggleBranchArchive(editingBranch)}>{editingBranch.is_archived ? t('admin.restore') : t('admin.archive')}</Button></section> : null}{branchStatus ? <p className={branchStatus === t('admin.memberAssigned') ? 'success-text' : 'error-text'}>{branchStatus}</p> : null}</aside></div> : null}
     </main>
   );
 }

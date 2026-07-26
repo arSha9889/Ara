@@ -434,7 +434,7 @@ export const dictionaries = {
     admin: {
       title: 'Панель управления', subtitle: 'Пользователи, доступ и публичные ветви AraChat.', navigation: 'Разделы панели управления',
       backToMessenger: 'К мессенджеру', secureAccess: 'Защищённый доступ', loadingTitle: 'Загружаем панель', loadingText: 'Проверяем актуальные данные AraChat…',
-      tabs: { overview: 'Обзор', users: 'Пользователи', branches: 'Публичные ветви' },
+      tabs: { overview: 'Обзор', users: 'Пользователи', branches: 'Публичные ветви', audit: 'Журнал' },
       totalUsers: 'Всего пользователей', activeUsers: 'Активных пользователей', registrationCountries: 'Страны регистрации',
       findUser: 'Найти пользователя', findUserText: 'Поиск, фильтры и статусы аккаунтов.', createBranch: 'Создать ветвь', createBranchText: 'Опубликуйте новостную или тематическую ветвь.',
       blockedUsers: 'Заблокированные', blockedUsersText: 'Проверьте аккаунты с ограниченным доступом.', usersTitle: 'Пользователи', usersFound: 'Найдено: {count}', loadingUsers: 'Загружаем пользователей…', loadingUserDetails: 'Запрашиваем данные пользователя…', noUsers: 'По этим условиям пользователи не найдены.',
@@ -451,6 +451,7 @@ export const dictionaries = {
       securityTitle: 'Безопасность и доступ', securityText: 'Сводка по активным сессиям и временным ограничениям.', activeSessions: 'Активные сессии', lockedPasswords: 'Заблокированные пароли', lockedPins: 'Заблокированные PIN', archivedBranches: 'Ветви в архиве',
       auditTitle: 'Журнал действий', auditText: 'Последние административные изменения.', auditEmpty: 'Административных действий пока нет.',
       auditActions: { 'user.active': 'Пользователь разблокирован', 'user.blocked': 'Пользователь заблокирован', 'user.deleted': 'Пользователь удалён', 'branch.created': 'Ветвь создана', 'branch.updated': 'Ветвь изменена', 'branch.archived': 'Ветвь архивирована', 'branch.restored': 'Ветвь восстановлена', 'branch.member_admin': 'Назначен администратор ветви', 'branch.member_owner': 'Назначен владелец ветви' },
+      overviewTitle: 'Состояние платформы', overviewText: 'Ключевые показатели, безопасность и последние действия команды.', refresh: 'Обновить данные', viewAll: 'Открыть журнал', recentActivity: 'Последние действия', quickActions: 'Быстрые действия', filters: 'Фильтры', userColumn: 'Пользователь', idColumn: 'AraChat ID', countryDistribution: 'Распределение активных регистраций.', systemEvent: 'Системное событие', controlFooter: 'Защищённая зона управления', dangerZone: 'Опасная зона', archiveBranchText: 'Архивная ветвь станет недоступна в каталоге и личных списках.', restoreBranchText: 'Ветвь снова станет доступна пользователям.',
     },
     loading: {
       bootTitle: 'Загрузка AraChat',
@@ -901,7 +902,7 @@ export const dictionaries = {
     admin: {
       title: 'Control room', subtitle: 'AraChat users, access, and public branches.', navigation: 'Control room sections',
       backToMessenger: 'Back to messenger', secureAccess: 'Secure access', loadingTitle: 'Loading control room', loadingText: 'Checking the latest AraChat data…',
-      tabs: { overview: 'Overview', users: 'Users', branches: 'Public branches' },
+      tabs: { overview: 'Overview', users: 'Users', branches: 'Public branches', audit: 'Activity log' },
       totalUsers: 'Total users', activeUsers: 'Active users', registrationCountries: 'Registration countries',
       findUser: 'Find a user', findUserText: 'Search, filters, and account statuses.', createBranch: 'Create a branch', createBranchText: 'Publish a news or topic branch.',
       blockedUsers: 'Blocked users', blockedUsersText: 'Review accounts with restricted access.', usersTitle: 'Users', usersFound: 'Found: {count}', loadingUsers: 'Loading users…', loadingUserDetails: 'Loading user details…', noUsers: 'No users match these filters.',
@@ -918,6 +919,7 @@ export const dictionaries = {
       securityTitle: 'Security and access', securityText: 'Summary of active sessions and temporary restrictions.', activeSessions: 'Active sessions', lockedPasswords: 'Locked passwords', lockedPins: 'Locked PINs', archivedBranches: 'Archived branches',
       auditTitle: 'Action log', auditText: 'Most recent administrative changes.', auditEmpty: 'There are no administrative actions yet.',
       auditActions: { 'user.active': 'User unblocked', 'user.blocked': 'User blocked', 'user.deleted': 'User deleted', 'branch.created': 'Branch created', 'branch.updated': 'Branch updated', 'branch.archived': 'Branch archived', 'branch.restored': 'Branch restored', 'branch.member_admin': 'Branch administrator assigned', 'branch.member_owner': 'Branch owner assigned' },
+      overviewTitle: 'Platform status', overviewText: 'Key metrics, security, and the team’s latest actions.', refresh: 'Refresh data', viewAll: 'Open activity log', recentActivity: 'Recent activity', quickActions: 'Quick actions', filters: 'Filters', userColumn: 'User', idColumn: 'AraChat ID', countryDistribution: 'Distribution of active registrations.', systemEvent: 'System event', controlFooter: 'Secure control area', dangerZone: 'Danger zone', archiveBranchText: 'An archived branch is hidden from the catalog and personal lists.', restoreBranchText: 'The branch will become available to users again.',
     },
     loading: {
       bootTitle: 'Loading AraChat',
