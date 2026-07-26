@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
@@ -7,7 +7,7 @@ import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { deleteMessage, editMessage, getChat, getMessages, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
+import { createDirectChatForUser, deleteMessage, editMessage, getChat, getMessages, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
 import { useDirectCall } from '../hooks/useDirectCall.js';
@@ -280,6 +280,7 @@ export function ChatPage() {
   const { chatId } = useParams();
   const { markMessageNotificationsRead } = useNotifications();
   const { session } = useSession();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [chat, setChat] = useState(null);
   const [socket, setSocket] = useState(null);
@@ -307,6 +308,9 @@ export function ChatPage() {
   const [recordingMode, setRecordingMode] = useState('voice');
   const [isRecordMenuOpen, setIsRecordMenuOpen] = useState(false);
   const [isCallUnavailableDialogOpen, setIsCallUnavailableDialogOpen] = useState(false);
+  const [profileCardAuthor, setProfileCardAuthor] = useState(null);
+  const [isOpeningProfileChat, setIsOpeningProfileChat] = useState(false);
+  const [profileCardError, setProfileCardError] = useState('');
   const mediaRecorderRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -395,6 +399,15 @@ export function ChatPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mediaMessages, mediaViewerIndex, mediaViewerMessage]);
+
+  useEffect(() => {
+    if (!profileCardAuthor) return undefined;
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') setProfileCardAuthor(null);
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [profileCardAuthor]);
 
   useEffect(() => {
     if (!session.accessToken || !chatId || !isChatIdValid) return undefined;
@@ -754,6 +767,27 @@ export function ChatPage() {
   function openMediaViewer(message) {
     setMediaViewerMessage(message);
     setOpenReactionPickerMessageId(null);
+  }
+
+  function openProfileCard(author) {
+    if (!author || author.id === session.user?.id) return;
+    setProfileCardError('');
+    setProfileCardAuthor(author);
+  }
+
+  async function openProfileDirectChat() {
+    if (!profileCardAuthor || isOpeningProfileChat) return;
+    try {
+      setIsOpeningProfileChat(true);
+      setProfileCardError('');
+      const directChat = await createDirectChatForUser(session.accessToken, profileCardAuthor.id);
+      setProfileCardAuthor(null);
+      navigate(`/app/chats/${directChat.id}`);
+    } catch (err) {
+      setProfileCardError(err.message);
+    } finally {
+      setIsOpeningProfileChat(false);
+    }
   }
 
   function clearSelectedMedia() {
@@ -1175,6 +1209,21 @@ export function ChatPage() {
               </form>
             ) : (
               <>
+                {message.sender_id !== session.user?.id && message.author ? (
+                  <button
+                    className="message-author"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openProfileCard(message.author);
+                    }}
+                    aria-label={`${t('messages.openProfile')}: ${message.author.display_name || message.author.username}`}
+                  >
+                    <UserAvatar profile={message.author} fallback={message.author.display_name?.[0] || message.author.username?.[0] || 'N'} className="message-author-avatar" />
+                    <span>{message.author.display_name || message.author.username}</span>
+                    {message.author.is_official ? <span className="message-author-official" aria-label={t('messages.officialAccount')}>✓</span> : null}
+                  </button>
+                ) : null}
                 {message.reply_to ? (
                   <button className="message-reply-preview" type="button" onClick={() => jumpToMessage(message.reply_to.id)}>
                     <span>{message.reply_to.sender_id === session.user?.id ? t('messages.you') : chatDisplayTitle}</span>
@@ -1348,6 +1397,24 @@ export function ChatPage() {
             {mediaViewerIndex > 0 ? <button className="media-viewer-nav previous" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex - 1])} aria-label={t('messages.previousMedia')}>‹</button> : null}
             {mediaViewerMessage.type === 'photo' ? <img src={mediaViewerMessage.media_url} alt={mediaViewerMessage.media_name || t('messages.photoAlt')} /> : <video src={mediaViewerMessage.media_url} controls autoPlay playsInline />}
             {mediaViewerIndex >= 0 && mediaViewerIndex < mediaMessages.length - 1 ? <button className="media-viewer-nav next" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex + 1])} aria-label={t('messages.nextMedia')}>›</button> : null}
+          </section>
+        </div>
+      ) : null}
+      {profileCardAuthor ? (
+        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setProfileCardAuthor(null)}>
+          <section className="app-dialog message-profile-card" role="dialog" aria-modal="true" aria-labelledby="message-profile-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="message-profile-close" type="button" onClick={() => setProfileCardAuthor(null)} aria-label={t('messages.closeProfile')}>×</button>
+            <UserAvatar profile={profileCardAuthor} fallback={profileCardAuthor.display_name?.[0] || profileCardAuthor.username?.[0] || 'N'} className="message-profile-avatar" />
+            <div className="message-profile-copy">
+              <p className="eyebrow">AraChat</p>
+              <h2 id="message-profile-title">{profileCardAuthor.display_name || profileCardAuthor.username}</h2>
+              <p>@{profileCardAuthor.username}</p>
+              {profileCardAuthor.is_official ? <span className="message-profile-official">✓ {t('messages.officialAccount')}</span> : null}
+            </div>
+            {profileCardError ? <p className="error-text">{profileCardError}</p> : null}
+            <button className="button button-primary" type="button" onClick={openProfileDirectChat} disabled={isOpeningProfileChat}>
+              {isOpeningProfileChat ? t('messages.openingDirectChat') : t('messages.writeToUser')}
+            </button>
           </section>
         </div>
       ) : null}

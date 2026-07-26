@@ -123,6 +123,10 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             assert isinstance(message, MessageOut)
             assert message.payload == 'Привет'
             assert message.delivery_status == 'delivered'
+            assert message.author and message.author.id == first_user.id
+            assert message.author.display_name == 'alicenexus'
+            assert 'optional_phone' not in message.author.model_dump()
+            assert 'email' not in message.author.model_dump()
             reply = await create_message(
                 session,
                 second_user.id,

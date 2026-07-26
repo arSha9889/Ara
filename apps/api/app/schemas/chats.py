@@ -57,6 +57,15 @@ class ChatPeerOut(BaseModel):
     is_official: bool = False
 
 
+class MessageAuthorOut(BaseModel):
+    id: UUID
+    display_name: str
+    username: str
+    avatar_type: str
+    avatar_ref: str
+    is_official: bool = False
+
+
 class ChatPreviewMessageOut(BaseModel):
     id: UUID
     sender_id: UUID
@@ -98,6 +107,7 @@ class MessageOut(BaseModel):
     id: UUID
     chat_id: UUID
     sender_id: UUID
+    author: MessageAuthorOut | None = None
     type: str
     payload: str
     media_url: str | None

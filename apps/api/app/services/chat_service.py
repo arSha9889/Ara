@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chats import Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification
 from app.models.users import User, UserProfile
-from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageCreateRequest, MessageOut, MessageReactionOut, MessageReplyOut
+from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageAuthorOut, MessageCreateRequest, MessageOut, MessageReactionOut, MessageReplyOut
 from app.services.branch_service import can_post_to_branch, ensure_official_branch
 from app.services.auth_service import AuthError
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
@@ -32,7 +32,11 @@ async def list_chats(session: AsyncSession, user_id: UUID) -> list[ChatOut]:
     result = await session.execute(
         select(Chat)
         .join(ChatParticipant, ChatParticipant.chat_id == Chat.id)
-        .where(ChatParticipant.user_id == user_id, ChatParticipant.role != 'pending')
+        .where(
+            ChatParticipant.user_id == user_id,
+            ChatParticipant.role != 'pending',
+            (Chat.type != 'branch') | Chat.is_archived.is_(False),
+        )
         .order_by(Chat.updated_at.desc())
     )
     return [await _chat_out(session, chat, user_id) for chat in result.scalars()]
@@ -338,6 +342,8 @@ async def _ensure_participant(session: AsyncSession, user_id: UUID, chat_id: UUI
 
 async def _ensure_can_view(session: AsyncSession, user_id: UUID, chat: Chat) -> None:
     if chat.type == 'branch':
+        if chat.is_archived:
+            raise AuthError('Public branch not found')
         return
     await _ensure_participant(session, user_id, chat.id)
 
@@ -470,6 +476,7 @@ async def _message_out(session: AsyncSession, message: Message, current_user_id:
         id=message.id,
         chat_id=message.chat_id,
         sender_id=message.sender_id,
+        author=await _message_author_out(session, message.sender_id),
         type=message.type,
         payload=message.payload,
         media_url=message.media_url,
@@ -485,6 +492,20 @@ async def _message_out(session: AsyncSession, message: Message, current_user_id:
         edited_at=message.edited_at,
         deleted_at=message.deleted_at,
         is_pinned=await _is_pinned(session, message),
+    )
+
+
+async def _message_author_out(session: AsyncSession, user_id: UUID) -> MessageAuthorOut | None:
+    profile = await session.get(UserProfile, user_id)
+    if not profile:
+        return None
+    return MessageAuthorOut(
+        id=user_id,
+        display_name=profile.display_name,
+        username=profile.username,
+        avatar_type=profile.avatar_type,
+        avatar_ref=profile.avatar_ref,
+        is_official=_is_official_profile(profile),
     )
 
 
