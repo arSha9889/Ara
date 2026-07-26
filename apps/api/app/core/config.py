@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     access_token_secret: str = 'dev-access-token-secret-change-me'
     access_token_algorithm: str = 'HS256'
     access_token_minutes: int = 15
-    refresh_token_days: int = 30
+    refresh_token_days: int = 180
     pin_trusted_days: int = 365
     pin_lock_minutes: int = 30
     max_auth_attempts: int = 5

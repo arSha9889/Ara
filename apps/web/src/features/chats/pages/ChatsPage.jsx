@@ -10,7 +10,8 @@ import { Button } from '../../../shared/ui/Button.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
-import { createDirectChat, createSavedChat, getChats } from '../api/chatApi.js';
+import { searchUsers } from '../../profile/api/userApi.js';
+import { createDirectChat, createDirectChatForUser, createSavedChat, getChats } from '../api/chatApi.js';
 
 const PHONE_COUNTRIES = [
   { code: 'RU', dialCode: '+7', flag: '🇷🇺', labelKey: 'phoneCountryRussia', placeholder: '+7 999 123-45-67' },
@@ -46,12 +47,17 @@ export function ChatsPage() {
   const { session } = useSession();
   const navigate = useNavigate();
   const [chats, setChats] = useState([]);
+  const [newChatQuery, setNewChatQuery] = useState('');
+  const [newChatResults, setNewChatResults] = useState([]);
+  const [isNewChatSearchLoading, setIsNewChatSearchLoading] = useState(false);
+  const [newChatSearchError, setNewChatSearchError] = useState('');
   const [newChatCountry, setNewChatCountry] = useState('RU');
   const [newChatPhone, setNewChatPhone] = useState('');
   const [chatSearch, setChatSearch] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateChatOpen, setIsCreateChatOpen] = useState(false);
+  const [isPhoneSearchOpen, setIsPhoneSearchOpen] = useState(false);
   const [isChatCountryPickerOpen, setIsChatCountryPickerOpen] = useState(false);
   const reconnectTimerRef = useRef(null);
   const socketRef = useRef(null);
@@ -173,6 +179,40 @@ export function ChatsPage() {
   }, [isCreateChatOpen]);
 
   useEffect(() => {
+    const query = newChatQuery.trim().replace(/^@/, '');
+    if (!isCreateChatOpen || query.length < 2) {
+      setNewChatResults([]);
+      setIsNewChatSearchLoading(false);
+      setNewChatSearchError('');
+      return undefined;
+    }
+
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setIsNewChatSearchLoading(true);
+      setNewChatSearchError('');
+      searchUsers(session.accessToken, query)
+        .then((users) => {
+          if (active) setNewChatResults(users.filter((user) => user.id !== session.user?.id));
+        })
+        .catch((err) => {
+          if (active) {
+            setNewChatResults([]);
+            setNewChatSearchError(err.message);
+          }
+        })
+        .finally(() => {
+          if (active) setIsNewChatSearchLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [isCreateChatOpen, newChatQuery, session.accessToken, session.user?.id]);
+
+  useEffect(() => {
     if (!isChatCountryPickerOpen) return undefined;
 
     function closeChatCountryPicker(event) {
@@ -197,18 +237,41 @@ export function ChatsPage() {
     setIsChatCountryPickerOpen(false);
   }
 
-  async function handleCreateChat(event) {
-    event.preventDefault();
+  function openCreateChatDialog() {
+    setNewChatQuery('');
+    setNewChatResults([]);
+    setNewChatSearchError('');
+    setNewChatPhone('');
+    setIsPhoneSearchOpen(false);
+    setIsChatCountryPickerOpen(false);
+    setIsCreateChatOpen(true);
+  }
+
+  function closeCreateChatDialog() {
+    setIsCreateChatOpen(false);
+    setIsChatCountryPickerOpen(false);
+  }
+
+  async function openDirectChat(createChat) {
     setError('');
     try {
-      const chat = await createDirectChat(session.accessToken, { country: newChatCountry, phone: newChatPhone });
+      const chat = await createChat();
       setChats((current) => [chat, ...current.filter((item) => item.id !== chat.id)]);
-      setNewChatPhone('');
-      setIsCreateChatOpen(false);
+      closeCreateChatDialog();
       navigate(`/app/chats/${chat.id}`);
     } catch (err) {
-      setError(err.message);
+      setNewChatSearchError(err.message);
     }
+  }
+
+  function handleCreateChatForUser(userId) {
+    return openDirectChat(() => createDirectChatForUser(session.accessToken, userId));
+  }
+
+  async function handleCreateChat(event) {
+    event.preventDefault();
+    if (!newChatPhone.trim()) return;
+    await openDirectChat(() => createDirectChat(session.accessToken, { country: newChatCountry, phone: newChatPhone }));
   }
 
   async function handleOpenSavedChat() {
@@ -291,66 +354,110 @@ export function ChatsPage() {
             className="chat-create-trigger"
             type="button"
             aria-label={t('chats.createChat')}
-            onClick={() => setIsCreateChatOpen(true)}
+            onClick={openCreateChatDialog}
           >
             <span aria-hidden="true">＋</span>
           </button>
         </div>
         {isCreateChatOpen ? (
-          <div className="app-dialog-backdrop chat-create-backdrop" role="presentation" onMouseDown={() => setIsCreateChatOpen(false)}>
+          <div className="app-dialog-backdrop chat-create-backdrop" role="presentation" onMouseDown={closeCreateChatDialog}>
             <form className="app-dialog chat-create-dialog" role="dialog" aria-modal="true" aria-labelledby="new-chat-title" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleCreateChat}>
               <div className="app-dialog-heading">
-              <div className="chat-create-copy">
+                <div className="chat-create-copy">
                   <p className="eyebrow">AraChat</p>
                   <strong id="new-chat-title">{t('chats.newChatTitle')}</strong>
-                <span className="muted">{t('chats.newChatText')}</span>
-              </div>
-                <button className="app-dialog-close" type="button" onClick={() => setIsCreateChatOpen(false)} aria-label={t('common.close')}>×</button>
-              </div>
-              <div className="chat-create-phone-row">
-                <div className="phone-country-field chat-create-country">
-                  <span className="phone-country-label">{t('register.phoneCountry')}</span>
-                  <div className="phone-country-menu">
-                    <button
-                      className="phone-country-trigger"
-                      type="button"
-                      aria-haspopup="listbox"
-                      aria-expanded={isChatCountryPickerOpen}
-                      onClick={() => setIsChatCountryPickerOpen((current) => !current)}
-                    >
-                      <span className="phone-country-flag" aria-hidden="true">{selectedNewChatCountry.flag}</span>
-                      <span className="phone-country-trigger-copy">
-                        <strong>{selectedNewChatCountry.code}</strong>
-                        <small>{selectedNewChatCountry.dialCode}</small>
-                      </span>
-                      <span className="phone-country-chevron" aria-hidden="true">⌄</span>
-                    </button>
-                    {isChatCountryPickerOpen ? (
-                      <div className="phone-country-list" role="listbox" aria-label={t('register.phoneCountry')}>
-                        {PHONE_COUNTRIES.map((country) => (
-                          <button
-                            className={`phone-country-option ${newChatCountry === country.code ? 'active' : ''}`}
-                            type="button"
-                            role="option"
-                            aria-selected={newChatCountry === country.code}
-                            key={country.code}
-                            onClick={() => selectNewChatCountry(country)}
-                          >
-                            <span className="phone-country-flag" aria-hidden="true">{country.flag}</span>
-                            <span className="phone-country-option-copy">
-                              <strong>{t(`register.${country.labelKey}`)}</strong>
-                              <small>{country.dialCode} · {country.code}</small>
-                            </span>
-                            <span className="phone-country-check" aria-hidden="true">✓</span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
+                  <span className="muted">{t('chats.newChatText')}</span>
                 </div>
-                <TextInput label={t('chats.phone')} inputMode="tel" placeholder={selectedNewChatCountry.placeholder} value={newChatPhone} onChange={(event) => setNewChatPhone(event.target.value)} />
+                <button className="app-dialog-close" type="button" onClick={closeCreateChatDialog} aria-label={t('common.close')}>×</button>
               </div>
-              <Button type="submit" disabled={!newChatPhone.trim()}>{t('chats.createChat')}</Button>
+              <div className="chat-create-search">
+                <TextInput
+                  label={t('chats.newChatSearchLabel')}
+                  autoFocus
+                  autoComplete="off"
+                  value={newChatQuery}
+                  placeholder={t('chats.newChatSearchPlaceholder')}
+                  onChange={(event) => setNewChatQuery(event.target.value)}
+                />
+                <span className="chat-create-search-hint">{t('chats.newChatSearchHint')}</span>
+                {isNewChatSearchLoading ? <span className="chat-create-search-status">{t('chats.newChatSearching')}</span> : null}
+                {newChatSearchError ? <p className="error-text">{newChatSearchError}</p> : null}
+                {!isNewChatSearchLoading && !newChatSearchError && newChatQuery.trim().replace(/^@/, '').length >= 2 && newChatResults.length === 0 ? (
+                  <p className="chat-create-search-status">{t('chats.newChatSearchEmpty')}</p>
+                ) : null}
+                <div className="chat-create-results" aria-live="polite">
+                  {newChatResults.map((user) => (
+                    <article className="chat-create-result" key={user.id}>
+                      <UserAvatar baseClass="chat-create-result-avatar" profile={user.profile} fallback={user.profile?.display_name?.[0] || user.profile?.username?.[0] || 'A'} />
+                      <div className="chat-create-result-copy">
+                        <strong>{user.profile?.display_name || user.profile?.username}</strong>
+                        <span>@{user.profile?.username}</span>
+                      </div>
+                      <Button type="button" onClick={() => handleCreateChatForUser(user.id)}>{t('chats.newChatWrite')}</Button>
+                    </article>
+                  ))}
+                </div>
+              </div>
+              <div className="chat-create-phone-fallback">
+                <button
+                  className="chat-create-phone-toggle"
+                  type="button"
+                  aria-expanded={isPhoneSearchOpen}
+                  onClick={() => setIsPhoneSearchOpen((current) => !current)}
+                >
+                  <span>{t('chats.newChatFindByPhone')}</span>
+                  <span aria-hidden="true">{isPhoneSearchOpen ? '⌃' : '⌄'}</span>
+                </button>
+                {isPhoneSearchOpen ? (
+                  <div className="chat-create-phone-content">
+                    <span className="muted">{t('chats.newChatFindByPhoneText')}</span>
+                    <div className="chat-create-phone-row">
+                      <div className="phone-country-field chat-create-country">
+                        <span className="phone-country-label">{t('register.phoneCountry')}</span>
+                        <div className="phone-country-menu">
+                          <button
+                            className="phone-country-trigger"
+                            type="button"
+                            aria-haspopup="listbox"
+                            aria-expanded={isChatCountryPickerOpen}
+                            onClick={() => setIsChatCountryPickerOpen((current) => !current)}
+                          >
+                            <span className="phone-country-flag" aria-hidden="true">{selectedNewChatCountry.flag}</span>
+                            <span className="phone-country-trigger-copy">
+                              <strong>{selectedNewChatCountry.code}</strong>
+                              <small>{selectedNewChatCountry.dialCode}</small>
+                            </span>
+                            <span className="phone-country-chevron" aria-hidden="true">⌄</span>
+                          </button>
+                          {isChatCountryPickerOpen ? (
+                            <div className="phone-country-list" role="listbox" aria-label={t('register.phoneCountry')}>
+                              {PHONE_COUNTRIES.map((country) => (
+                                <button
+                                  className={`phone-country-option ${newChatCountry === country.code ? 'active' : ''}`}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={newChatCountry === country.code}
+                                  key={country.code}
+                                  onClick={() => selectNewChatCountry(country)}
+                                >
+                                  <span className="phone-country-flag" aria-hidden="true">{country.flag}</span>
+                                  <span className="phone-country-option-copy">
+                                    <strong>{t(`register.${country.labelKey}`)}</strong>
+                                    <small>{country.dialCode} · {country.code}</small>
+                                  </span>
+                                  <span className="phone-country-check" aria-hidden="true">✓</span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                      <TextInput label={t('chats.phone')} inputMode="tel" placeholder={selectedNewChatCountry.placeholder} value={newChatPhone} onChange={(event) => setNewChatPhone(event.target.value)} />
+                    </div>
+                    <Button type="submit" disabled={!newChatPhone.trim()}>{t('chats.newChatFind')}</Button>
+                  </div>
+                ) : null}
+              </div>
             </form>
           </div>
         ) : null}

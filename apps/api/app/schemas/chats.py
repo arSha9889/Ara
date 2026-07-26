@@ -12,6 +12,7 @@ class DirectChatCreateRequest(BaseModel):
 class MessageCreateRequest(BaseModel):
     text: str = Field(default='', max_length=4000)
     type: str = Field(default='text', max_length=32)
+    reply_to_message_id: UUID | None = None
     media_url: str | None = None
     media_name: str | None = Field(default=None, max_length=255)
     media_mime_type: str | None = Field(default=None, max_length=128)
@@ -35,6 +36,15 @@ class MessageReactionOut(BaseModel):
     emoji: str
     count: int
     reacted_by_me: bool
+
+
+class MessageReplyOut(BaseModel):
+    id: UUID
+    sender_id: UUID
+    type: str
+    payload: str
+    media_name: str | None
+    deleted_at: datetime | None
 
 
 class ChatPeerOut(BaseModel):
@@ -97,6 +107,7 @@ class MessageOut(BaseModel):
     duration_seconds: int | None
     encryption_state: str
     delivery_status: str
+    reply_to: MessageReplyOut | None = None
     reactions: list[MessageReactionOut]
     created_at: datetime
     edited_at: datetime | None

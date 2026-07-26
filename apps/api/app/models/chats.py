@@ -39,6 +39,7 @@ class Message(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     chat_id: Mapped[UUID] = mapped_column(ForeignKey('chats.id', ondelete='CASCADE'), index=True)
     sender_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    reply_to_message_id: Mapped[UUID | None] = mapped_column(ForeignKey('messages.id', ondelete='SET NULL'), index=True)
     type: Mapped[str] = mapped_column(String(32), default='text')
     payload: Mapped[str] = mapped_column(Text)
     media_url: Mapped[str | None] = mapped_column(Text)

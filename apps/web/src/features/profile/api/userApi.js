@@ -15,6 +15,12 @@ export function getMyProfile(accessToken) {
   return apiRequest('/api/users/me', { headers: authHeaders(accessToken) });
 }
 
+export function searchUsers(accessToken, query) {
+  return apiRequest(`/api/users/search?query=${encodeURIComponent(query)}`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function updateMyProfile(accessToken, payload) {
   return apiRequest('/api/users/me/profile', {
     method: 'PATCH',

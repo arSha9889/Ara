@@ -13,6 +13,13 @@ export function createDirectChat(accessToken, payload) {
   });
 }
 
+export function createDirectChatForUser(accessToken, userId) {
+  return apiRequest(`/api/chats/direct/users/${userId}`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function createSavedChat(accessToken) {
   return apiRequest('/api/chats/saved', {
     method: 'POST',

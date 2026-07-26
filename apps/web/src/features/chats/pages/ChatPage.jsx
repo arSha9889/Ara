@@ -43,9 +43,15 @@ function syncPinnedState(messages, pinnedMessageId) {
 }
 
 function upsertMessageKeepingStatus(messages, nextMessage) {
-  return messages.map((message) => (
-    message.id === nextMessage.id ? { ...nextMessage, delivery_status: message.delivery_status } : message
-  ));
+  return messages.map((message) => {
+    if (message.id === nextMessage.id) {
+      return { ...nextMessage, delivery_status: message.delivery_status };
+    }
+    if (message.reply_to?.id === nextMessage.id) {
+      return { ...message, reply_to: { ...nextMessage, media_name: nextMessage.media_name } };
+    }
+    return message;
+  });
 }
 
 function formatVoiceTime(value) {
@@ -147,15 +153,26 @@ function VideoNoteMessage({ message, t }) {
   );
 }
 
-function renderMessageContent(message, t) {
+function renderMessageContent(message, t, onOpenMedia) {
   if (message.deleted_at) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
   }
   if (message.type === 'photo') {
-    return <img className="message-media" src={message.media_url} alt={message.media_name || t('messages.photoAlt')} />;
+    return (
+      <button className="message-media-button" type="button" onClick={() => onOpenMedia(message)} aria-label={t('messages.openMedia')}>
+        <img className="message-media" src={message.media_url} alt={message.media_name || t('messages.photoAlt')} />
+      </button>
+    );
   }
   if (message.type === 'video') {
-    return <video className="message-media" src={message.media_url} controls />;
+    return (
+      <div className="message-video-wrap">
+        <video className="message-media" src={message.media_url} controls />
+        <button className="message-video-expand" type="button" onClick={() => onOpenMedia(message)} aria-label={t('messages.openMedia')} title={t('messages.openMedia')}>
+          <span aria-hidden="true">⛶</span>
+        </button>
+      </div>
+    );
   }
   if (message.type === 'video_note') {
     return <VideoNoteMessage message={message} t={t} />;
@@ -240,8 +257,22 @@ function previewPinnedMessage(message, t) {
   return message.payload;
 }
 
+function previewReplyMessage(message, t) {
+  if (!message || message.deleted_at) return t('messages.deleted');
+  if (message.type === 'photo') return t('messages.photoAlt');
+  if (message.type === 'video') return t('messages.video');
+  if (message.type === 'video_note') return t('messages.videoNote');
+  if (message.type === 'voice') return t('messages.voice');
+  if (message.type === 'file') return message.media_name || t('messages.file');
+  return message.payload;
+}
+
+function draftStorageKey(userId, chatId) {
+  return userId && chatId ? `arachat:draft:${userId}:${chatId}` : null;
+}
+
 function isInteractiveMessageTarget(target) {
-  return Boolean(target.closest('button, a, input, label, form, .message-actions, .reaction-row'));
+  return Boolean(target.closest('button, a, input, label, form, video, audio, .message-actions, .reaction-row'));
 }
 
 export function ChatPage() {
@@ -268,6 +299,9 @@ export function ChatPage() {
   const [activityType, setActivityType] = useState('');
   const [editingMessage, setEditingMessage] = useState(null);
   const [editText, setEditText] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [mediaViewerMessage, setMediaViewerMessage] = useState(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [openReactionPickerMessageId, setOpenReactionPickerMessageId] = useState(null);
   const [isComposerEmojiPickerOpen, setIsComposerEmojiPickerOpen] = useState(false);
   const [recordingMode, setRecordingMode] = useState('voice');
@@ -300,6 +334,9 @@ export function ChatPage() {
   const isSavedChat = chat?.type === 'saved';
   const isPublicBranch = chat?.type === 'branch';
   const canPost = !isPublicBranch || chat?.can_post;
+  const currentDraftStorageKey = draftStorageKey(session.user?.id, chatId);
+  const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(message.type) && message.media_url);
+  const mediaViewerIndex = mediaViewerMessage ? mediaMessages.findIndex((message) => message.id === mediaViewerMessage.id) : -1;
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', t);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || 'Ветвь' : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || 'Публичная ветвь' : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
@@ -338,6 +375,26 @@ export function ChatPage() {
     loadMessages().catch((err) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isChatIdValid, session.accessToken]);
+
+  useEffect(() => {
+    if (!currentDraftStorageKey) return;
+    try {
+      setText(window.localStorage.getItem(currentDraftStorageKey) || '');
+    } catch {
+      setText('');
+    }
+  }, [currentDraftStorageKey]);
+
+  useEffect(() => {
+    if (!mediaViewerMessage) return undefined;
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') setMediaViewerMessage(null);
+      if (event.key === 'ArrowLeft' && mediaViewerIndex > 0) setMediaViewerMessage(mediaMessages[mediaViewerIndex - 1]);
+      if (event.key === 'ArrowRight' && mediaViewerIndex >= 0 && mediaViewerIndex < mediaMessages.length - 1) setMediaViewerMessage(mediaMessages[mediaViewerIndex + 1]);
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mediaMessages, mediaViewerIndex, mediaViewerMessage]);
 
   useEffect(() => {
     if (!session.accessToken || !chatId || !isChatIdValid) return undefined;
@@ -502,7 +559,7 @@ export function ChatPage() {
     list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
   }, [messages.length, activityText, isLoadingMessages]);
 
-  async function sendMediaMessage(file, type, mediaDurationSeconds = null, { clearComposer = false, messageText = '' } = {}) {
+  async function sendMediaMessage(file, type, mediaDurationSeconds = null, { clearComposer = true, messageText = '' } = {}) {
     setError('');
     setIsUploading(true);
     try {
@@ -511,6 +568,7 @@ export function ChatPage() {
       const message = await sendMessage(session.accessToken, chatId, {
         type,
         text: messageText,
+        reply_to_message_id: replyingTo?.id ?? null,
         media_url: uploadedMedia?.media_url ?? null,
         media_name: uploadedMedia?.media_name ?? null,
         media_mime_type: uploadedMedia?.media_mime_type ?? null,
@@ -520,6 +578,8 @@ export function ChatPage() {
       setMessages((current) => appendUniqueMessage(current, message));
       if (clearComposer) {
         setText('');
+        clearDraft();
+        setReplyingTo(null);
         clearSelectedMedia();
       }
       safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
@@ -550,6 +610,7 @@ export function ChatPage() {
       const message = await sendMessage(session.accessToken, chatId, {
         type: messageType,
         text: messageType === 'emoji' ? text : text.trim(),
+        reply_to_message_id: replyingTo?.id ?? null,
         media_url: null,
         media_name: null,
         media_mime_type: null,
@@ -558,6 +619,8 @@ export function ChatPage() {
       });
       setMessages((current) => appendUniqueMessage(current, message));
       setText('');
+      clearDraft();
+      setReplyingTo(null);
       clearSelectedMedia();
       safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
     } catch (err) {
@@ -581,7 +644,7 @@ export function ChatPage() {
     setError('');
     try {
       const message = await editMessage(session.accessToken, chatId, editingMessage.id, editText.trim());
-      setMessages((current) => upsertMessage(current, message));
+      setMessages((current) => upsertMessageKeepingStatus(current, message));
       setEditingMessage(null);
       setEditText('');
     } catch (err) {
@@ -593,7 +656,7 @@ export function ChatPage() {
     setError('');
     try {
       const message = await deleteMessage(session.accessToken, chatId, messageId);
-      setMessages((current) => upsertMessage(current, message));
+      setMessages((current) => upsertMessageKeepingStatus(current, message));
       setChat((current) => current?.pinned_message_id === messageId ? { ...current, pinned_message_id: null, pinned_message: null } : current);
     } catch (err) {
       setError(err.message);
@@ -638,6 +701,14 @@ export function ChatPage() {
       setMessageType('text');
     }
     setText(value);
+    if (currentDraftStorageKey) {
+      try {
+        if (value) window.localStorage.setItem(currentDraftStorageKey, value);
+        else window.localStorage.removeItem(currentDraftStorageKey);
+      } catch {
+        // Drafts are a local convenience; messaging must work if storage is unavailable.
+      }
+    }
     if (typingStopTimerRef.current) {
       window.clearTimeout(typingStopTimerRef.current);
       typingStopTimerRef.current = null;
@@ -657,6 +728,32 @@ export function ChatPage() {
       safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
       typingStopTimerRef.current = null;
     }, 1800);
+  }
+
+  function clearDraft() {
+    if (!currentDraftStorageKey) return;
+    try {
+      window.localStorage.removeItem(currentDraftStorageKey);
+    } catch {
+      // Ignore unavailable browser storage.
+    }
+  }
+
+  function startReply(message) {
+    setReplyingTo(message);
+    setEditingMessage(null);
+    setOpenReactionPickerMessageId(null);
+  }
+
+  function jumpToMessage(messageId) {
+    document.getElementById(`message-${messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedMessageId(messageId);
+    window.setTimeout(() => setHighlightedMessageId((current) => current === messageId ? null : current), 1500);
+  }
+
+  function openMediaViewer(message) {
+    setMediaViewerMessage(message);
+    setOpenReactionPickerMessageId(null);
   }
 
   function clearSelectedMedia() {
@@ -1032,7 +1129,7 @@ export function ChatPage() {
             id={`message-${message.id}`}
             data-message-id={message.id}
             data-incoming-message={message.sender_id !== session.user?.id}
-            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''}`}
+            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
             key={message.id}
             role={!message.deleted_at ? 'button' : undefined}
             tabIndex={!message.deleted_at ? 0 : undefined}
@@ -1042,6 +1139,10 @@ export function ChatPage() {
           >
             {!message.deleted_at && !isPublicBranch ? (
               <div className="message-actions">
+                <button className="message-action-button" type="button" onClick={() => startReply(message)} aria-label={t('messages.reply')} title={t('messages.reply')}>
+                  <span aria-hidden="true">↩</span>
+                  <span className="action-label">{t('messages.reply')}</span>
+                </button>
                 <button className="message-action-button" type="button" onClick={() => handlePin(message.id)} aria-label={message.is_pinned ? t('messages.unpin') : t('messages.pin')} title={message.is_pinned ? t('messages.unpin') : t('messages.pin')}>
                   <span aria-hidden="true">{message.is_pinned ? '↧' : '📌'}</span>
                   <span className="action-label">{message.is_pinned ? t('messages.unpin') : t('messages.pin')}</span>
@@ -1072,7 +1173,17 @@ export function ChatPage() {
                   </button>
                 </div>
               </form>
-            ) : <div>{renderMessageContent(message, t)}</div>}
+            ) : (
+              <>
+                {message.reply_to ? (
+                  <button className="message-reply-preview" type="button" onClick={() => jumpToMessage(message.reply_to.id)}>
+                    <span>{message.reply_to.sender_id === session.user?.id ? t('messages.you') : chatDisplayTitle}</span>
+                    <strong>{previewReplyMessage(message.reply_to, t)}</strong>
+                  </button>
+                ) : null}
+                <div>{renderMessageContent(message, t, openMediaViewer)}</div>
+              </>
+            )}
             <div className="message-meta">
               {message.is_pinned ? <span>{t('messages.pinnedShort')}</span> : null}
               {message.edited_at && !message.deleted_at ? <span>{t('messages.edited')}</span> : null}
@@ -1124,6 +1235,16 @@ export function ChatPage() {
         {error ? <p className="error-text">{error}</p> : null}
       </div>
       {canPost ? <form className="composer" onSubmit={handleSend}>
+        {replyingTo ? (
+          <div className="composer-reply-preview">
+            <span className="composer-reply-icon" aria-hidden="true">↩</span>
+            <div>
+              <strong>{replyingTo.sender_id === session.user?.id ? t('messages.you') : chatDisplayTitle}</strong>
+              <span>{previewReplyMessage(replyingTo, t)}</span>
+            </div>
+            <button type="button" onClick={() => setReplyingTo(null)} aria-label={t('messages.cancelReply')} title={t('messages.cancelReply')}>×</button>
+          </div>
+        ) : null}
         <div className="composer-input-shell">
           <label className="composer-icon-button attachment-button" aria-label={t('messages.attachFile')} title={t('messages.attachFileTitle')}>
             <span aria-hidden="true">＋</span>
@@ -1214,6 +1335,22 @@ export function ChatPage() {
           </div>
         ) : null}
       </form> : <div className="branch-read-only-note">Публичная ветвь доступна для чтения. Публикации делает только владелец или администратор.</div>}
+      {mediaViewerMessage ? (
+        <div className="media-viewer-backdrop" role="presentation" onMouseDown={() => setMediaViewerMessage(null)}>
+          <section className="media-viewer" role="dialog" aria-modal="true" aria-label={t('messages.mediaViewer')} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="media-viewer-toolbar">
+              <span>{mediaViewerMessage.media_name || (mediaViewerMessage.type === 'photo' ? t('messages.photoAlt') : t('messages.video'))}</span>
+              <div>
+                <a href={mediaViewerMessage.media_url} download target="_blank" rel="noreferrer" aria-label={t('messages.downloadMedia')} title={t('messages.downloadMedia')}>↓</a>
+                <button type="button" onClick={() => setMediaViewerMessage(null)} aria-label={t('messages.closeMedia')} title={t('messages.closeMedia')}>×</button>
+              </div>
+            </div>
+            {mediaViewerIndex > 0 ? <button className="media-viewer-nav previous" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex - 1])} aria-label={t('messages.previousMedia')}>‹</button> : null}
+            {mediaViewerMessage.type === 'photo' ? <img src={mediaViewerMessage.media_url} alt={mediaViewerMessage.media_name || t('messages.photoAlt')} /> : <video src={mediaViewerMessage.media_url} controls autoPlay playsInline />}
+            {mediaViewerIndex >= 0 && mediaViewerIndex < mediaMessages.length - 1 ? <button className="media-viewer-nav next" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex + 1])} aria-label={t('messages.nextMedia')}>›</button> : null}
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

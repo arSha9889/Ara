@@ -12,7 +12,7 @@ from app.schemas.chats import ChatOut, DirectChatCreateRequest, MessageCreateReq
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
-from app.services.chat_service import create_or_get_direct_chat, create_or_get_saved_chat, get_chat as get_user_chat
+from app.services.chat_service import create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, get_chat as get_user_chat
 from app.services.chat_service import delete_message as delete_chat_message
 from app.services.chat_service import edit_message as edit_chat_message
 from app.services.chat_service import list_chats as list_user_chats
@@ -41,6 +41,18 @@ async def create_direct_chat(
 ) -> ChatOut:
     try:
         return await create_or_get_direct_chat(session, current_user.id, request.country, request.phone)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/direct/users/{user_id}')
+async def create_direct_chat_for_user(
+    user_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        return await create_or_get_direct_chat_for_user(session, current_user.id, user_id)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

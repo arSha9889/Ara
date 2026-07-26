@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chats import Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification
 from app.models.users import User, UserProfile
-from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageCreateRequest, MessageOut, MessageReactionOut
+from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageCreateRequest, MessageOut, MessageReactionOut, MessageReplyOut
 from app.services.branch_service import can_post_to_branch, ensure_official_branch
 from app.services.auth_service import AuthError
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
@@ -40,6 +40,13 @@ async def list_chats(session: AsyncSession, user_id: UUID) -> list[ChatOut]:
 
 async def create_or_get_direct_chat(session: AsyncSession, user_id: UUID, country: str, phone: str) -> ChatOut:
     other_user = await _find_user_by_phone(session, country, phone)
+    return await create_or_get_direct_chat_for_user(session, user_id, other_user.id)
+
+
+async def create_or_get_direct_chat_for_user(session: AsyncSession, user_id: UUID, other_user_id: UUID) -> ChatOut:
+    other_user = await session.get(User, other_user_id)
+    if not other_user or other_user.deleted_at:
+        raise AuthError('User not found')
     if other_user.id == user_id:
         raise AuthError('Cannot create direct chat with yourself')
 
@@ -112,9 +119,17 @@ async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, re
         raise AuthError('Chat not found')
     await _ensure_can_post(session, user_id, chat)
     _validate_message_request(request)
+    reply_to_message = None
+    if request.reply_to_message_id:
+        reply_to_message = await session.get(Message, request.reply_to_message_id)
+        if not reply_to_message or reply_to_message.chat_id != chat_id:
+            raise AuthError('Reply message not found')
+        if reply_to_message.deleted_at:
+            raise AuthError('Cannot reply to a deleted message')
     message = Message(
         chat_id=chat_id,
         sender_id=user_id,
+        reply_to_message_id=reply_to_message.id if reply_to_message else None,
         type=request.type,
         payload=request.text.strip(),
         media_url=request.media_url,
@@ -464,11 +479,28 @@ async def _message_out(session: AsyncSession, message: Message, current_user_id:
         duration_seconds=message.duration_seconds,
         encryption_state=message.encryption_state,
         delivery_status=await _delivery_status(session, message, current_user_id),
+        reply_to=await _message_reply_out(session, message.reply_to_message_id),
         reactions=await _reaction_summary(session, message.id, current_user_id),
         created_at=message.created_at,
         edited_at=message.edited_at,
         deleted_at=message.deleted_at,
         is_pinned=await _is_pinned(session, message),
+    )
+
+
+async def _message_reply_out(session: AsyncSession, message_id: UUID | None) -> MessageReplyOut | None:
+    if not message_id:
+        return None
+    message = await session.get(Message, message_id)
+    if not message:
+        return None
+    return MessageReplyOut(
+        id=message.id,
+        sender_id=message.sender_id,
+        type=message.type,
+        payload=message.payload,
+        media_name=message.media_name,
+        deleted_at=message.deleted_at,
     )
 
 
