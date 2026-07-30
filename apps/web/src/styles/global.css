@@ -2201,6 +2201,7 @@ p { margin-bottom: 14px; }
 
 .chat-header {
   min-height: 64px;
+  flex: 0 0 auto;
   padding: 2px 2px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--primary), transparent 86%);
 }
@@ -5697,6 +5698,40 @@ code {
   }
 
   .chat-workspace-sidebar { display: none; }
+
+  .chat-header {
+    display: grid;
+    grid-template-columns: 42px 44px minmax(0, 1fr) 38px;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .chat-header > div:not(.chat-avatar-wrap) {
+    grid-column: 3;
+    min-width: 0;
+  }
+
+  .chat-call-button { grid-column: 4; }
+
+  .chat-subtitle {
+    display: block;
+    min-width: 0;
+  }
+
+  .chat-subtitle > span:first-child { display: none; }
+
+  .presence-status {
+    width: fit-content;
+    max-width: 100%;
+    display: inline-flex;
+    margin-top: 2px;
+  }
+
+  .presence-status > :last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   .app-sidebar {
     position: fixed;
