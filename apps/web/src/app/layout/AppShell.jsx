@@ -6,6 +6,7 @@ import { NotificationsMenu } from '../../features/notifications/components/Notif
 import { useI18n } from '../providers/I18nProvider.jsx';
 import { useNotifications } from '../providers/NotificationsProvider.jsx';
 import { useSession } from '../providers/SessionProvider.jsx';
+import { Icon } from '../../shared/ui/Icon.jsx';
 
 export function AppShell() {
   const { t } = useI18n();
@@ -15,10 +16,10 @@ export function AppShell() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isChatRoute = location.pathname.startsWith('/app/chats/');
   const navItems = [
-    { to: '/app', icon: '💬', label: t('chats.title') },
-    { to: '/app/branches', icon: '📣', label: t('chats.publicBranches') },
-    { to: '/app/profile', icon: '👤', label: t('profile.title') },
-    { to: '/app/settings', icon: '⚙️', label: t('settings.title') },
+    { to: '/app', icon: 'chat', label: t('chats.title') },
+    { to: '/app/branches', icon: 'branches', label: t('chats.publicBranches') },
+    { to: '/app/profile', icon: 'user', label: t('profile.title') },
+    { to: '/app/settings', icon: 'settings', label: t('settings.title') },
   ];
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export function AppShell() {
             aria-expanded={isMenuOpen}
             onClick={() => setIsMenuOpen((current) => !current)}
           >
-            <span className="app-menu-orb" aria-hidden="true">☰</span>
+            <span className="app-menu-orb" aria-hidden="true"><Icon name="settings" size={18} /></span>
             <span>Меню</span>
             <span className="app-menu-chevron" aria-hidden="true">⌄</span>
           </button>
@@ -64,17 +65,17 @@ export function AppShell() {
             <nav className="nav-list">
               {navItems.map((item) => (
                 <NavLink to={item.to} key={item.to} end={item.to === '/app'} onClick={() => setIsMenuOpen(false)}>
-                  <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                  <span className="nav-icon" aria-hidden="true"><Icon name={item.icon} size={18} /></span>
                   <span>{item.label}</span>
                 </NavLink>
               ))}
             </nav>
             <button className="button button-secondary account-action-button logout-button" type="button" onClick={handleLogout}>
-              <span className="account-action-icon" aria-hidden="true">↩</span>
+              <span className="account-action-icon" aria-hidden="true"><Icon name="logout" size={18} /></span>
               <span>{t('common.logout')}</span>
             </button>
             <button className="button button-danger account-action-button delete-account-button" type="button" onClick={handleDeleteAccount}>
-              <span className="account-action-icon" aria-hidden="true">🗑</span>
+              <span className="account-action-icon" aria-hidden="true"><Icon name="trash" size={18} /></span>
               <span>{t('settings.deleteAccount')}</span>
             </button>
           </div>
@@ -87,7 +88,7 @@ export function AppShell() {
         <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
           {navItems.map((item) => (
             <NavLink className="mobile-bottom-nav-item" to={item.to} key={item.to} end={item.to === '/app'} onClick={() => setIsMenuOpen(false)}>
-              <span className="mobile-bottom-nav-icon" aria-hidden="true">{item.icon}</span>
+              <span className="mobile-bottom-nav-icon" aria-hidden="true"><Icon name={item.icon} size={18} /></span>
               <span>{item.label}</span>
             </NavLink>
           ))}

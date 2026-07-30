@@ -6,10 +6,12 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { createDirectChatForUser, deleteMessage, editMessage, getChat, getMessages, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
+import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
 import { useDirectCall } from '../hooks/useDirectCall.js';
 
 const REACTION_EMOJIS = [
@@ -212,14 +214,96 @@ function DeliveryStatus({ status, t }) {
   );
 }
 
-function realtimeStatusView(status, t) {
+const DATE_LOCALES = {
+  ru: 'ru-RU',
+  en: 'en-US',
+  kk: 'kk-KZ',
+  ky: 'ky-KG',
+  uk: 'uk-UA',
+};
+
+function interpolate(template, values) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replace(`{${key}}`, value),
+    template,
+  );
+}
+
+function calendarDayStart(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function realtimeStatusView(status, lastSeenAt, t, language) {
   if (status === true || status === 'online') {
     return { label: t('messages.online'), tone: 'online' };
   }
   if (status === 'connecting') {
     return { label: t('messages.connecting'), tone: 'connecting' };
   }
-  return { label: t('messages.offline'), tone: 'offline' };
+
+  const lastSeen = lastSeenAt ? new Date(lastSeenAt) : null;
+  if (!lastSeen || Number.isNaN(lastSeen.getTime())) {
+    return { label: t('messages.offline'), tone: 'offline' };
+  }
+
+  const now = new Date();
+  const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - lastSeen.getTime()) / 60000));
+  const locale = DATE_LOCALES[language] || DATE_LOCALES.ru;
+  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(lastSeen);
+  const todayStart = calendarDayStart(now);
+  const yesterdayStart = todayStart - 86400000;
+  const lastSeenDayStart = calendarDayStart(lastSeen);
+
+  if (elapsedMinutes < 5) {
+    return { label: t('messages.lastSeenJustNow'), tone: 'recent', dateTime: lastSeen.toISOString() };
+  }
+  if (elapsedMinutes < 60) {
+    return {
+      label: interpolate(t('messages.lastSeenMinutes'), { count: elapsedMinutes }),
+      tone: 'recent',
+      dateTime: lastSeen.toISOString(),
+    };
+  }
+  if (lastSeenDayStart === todayStart) {
+    return {
+      label: interpolate(t('messages.lastSeenToday'), { time }),
+      tone: 'offline',
+      dateTime: lastSeen.toISOString(),
+    };
+  }
+  if (lastSeenDayStart === yesterdayStart) {
+    return {
+      label: interpolate(t('messages.lastSeenYesterday'), { time }),
+      tone: 'offline',
+      dateTime: lastSeen.toISOString(),
+    };
+  }
+
+  const date = new Intl.DateTimeFormat(locale, {
+    day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+  }).format(lastSeen);
+  return {
+    label: interpolate(t('messages.lastSeenDate'), { date }),
+    tone: 'offline',
+    dateTime: lastSeen.toISOString(),
+  };
+}
+
+function PresenceStatus({ status, lastSeenAt, t, language }) {
+  const [, setCurrentTime] = useState(Date.now());
+  const view = realtimeStatusView(status, lastSeenAt, t, language);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <span className={`presence-status ${view.tone}`}>
+      <span className="presence-status-indicator" aria-hidden="true" />
+      {view.dateTime ? <time dateTime={view.dateTime}>{view.label}</time> : <span>{view.label}</span>}
+    </span>
+  );
 }
 
 function acceptedFileTypes() {
@@ -276,7 +360,7 @@ function isInteractiveMessageTarget(target) {
 }
 
 export function ChatPage() {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const { chatId } = useParams();
   const { markMessageNotificationsRead } = useNotifications();
   const { session } = useSession();
@@ -341,7 +425,7 @@ export function ChatPage() {
   const currentDraftStorageKey = draftStorageKey(session.user?.id, chatId);
   const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(message.type) && message.media_url);
   const mediaViewerIndex = mediaViewerMessage ? mediaMessages.findIndex((message) => message.id === mediaViewerMessage.id) : -1;
-  const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', t);
+  const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', chat?.peer?.last_seen_at, t, language);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || 'Ветвь' : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || 'Публичная ветвь' : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
   const call = useDirectCall({
@@ -490,7 +574,14 @@ export function ChatPage() {
         }
         if (payload.event === 'presence.status' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
           setChat((current) => current?.peer?.id === payload.user_id
-            ? { ...current, peer: { ...current.peer, is_online: Boolean(payload.is_online) } }
+            ? {
+              ...current,
+              peer: {
+                ...current.peer,
+                is_online: Boolean(payload.is_online),
+                last_seen_at: payload.last_seen_at ?? current.peer.last_seen_at,
+              },
+            }
             : current);
           if (!payload.is_online) {
             setActivityText('');
@@ -1093,10 +1184,12 @@ export function ChatPage() {
   }
 
   return (
-    <section className="panel chat-panel">
+    <section className="chat-workspace">
+      <ChatWorkspaceSidebar activeChatId={chatId} />
+      <section className="panel chat-panel">
       <header className="chat-header">
         <Link className="chat-back-button" to="/app" aria-label={t('messages.backToChats')} title={t('messages.backToChats')}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
+          <Icon name="arrowLeft" size={19} />
           <span>{t('messages.backToChats')}</span>
         </Link>
         <div className="chat-avatar-wrap">
@@ -1112,22 +1205,24 @@ export function ChatPage() {
           <div className="chat-subtitle">
             <span>{chatDisplaySubtitle}</span>
           {!isSavedChat && !isPublicBranch ? (
-              <span className={`presence-pill ${peerStatus.tone}`}>
-                <span aria-hidden="true" />
-                {peerStatus.label}
-              </span>
+              <PresenceStatus
+                status={isSavedChat ? false : chat?.peer?.is_online ?? 'connecting'}
+                lastSeenAt={chat?.peer?.last_seen_at}
+                t={t}
+                language={language}
+              />
             ) : null}
           </div>
         </div>
             {!isSavedChat && !isPublicBranch ? (
           <button
-            className="chat-call-button is-temporarily-disabled"
+            className="chat-call-button"
             type="button"
             onClick={() => setIsCallUnavailableDialogOpen(true)}
             aria-label={t('calls.start')}
             title={t('calls.temporarilyUnavailable')}
           >
-            <span aria-hidden="true">☎</span>
+            <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
             <strong>{t('calls.call')}</strong>
           </button>
         ) : null}
@@ -1135,7 +1230,7 @@ export function ChatPage() {
       {isCallUnavailableDialogOpen ? (
         <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setIsCallUnavailableDialogOpen(false)}>
           <section className="app-dialog call-unavailable-dialog" role="dialog" aria-modal="true" aria-labelledby="call-unavailable-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="app-dialog-icon" aria-hidden="true">☎</div>
+            <div className="app-dialog-icon" aria-hidden="true"><Icon name="phone" size={23} /></div>
             <div className="app-dialog-copy">
               <p className="eyebrow">AraChat</p>
               <h2 id="call-unavailable-title">{t('calls.temporarilyUnavailable')}</h2>
@@ -1296,7 +1391,7 @@ export function ChatPage() {
         ) : null}
         <div className="composer-input-shell">
           <label className="composer-icon-button attachment-button" aria-label={t('messages.attachFile')} title={t('messages.attachFileTitle')}>
-            <span aria-hidden="true">＋</span>
+            <Icon name="paperclip" size={20} />
             <input ref={fileInputRef} type="file" accept={acceptedFileTypes()} onChange={(event) => handleFileChange(event.target.files?.[0])} />
           </label>
           <input className="composer-input" placeholder={t('messages.placeholder')} value={text} onChange={(event) => handleTextChange(event.target.value)} />
@@ -1309,7 +1404,7 @@ export function ChatPage() {
               aria-label={t('messages.openEmojiPanel')}
               title={t('messages.openEmojiPanel')}
             >
-              <span aria-hidden="true">☺</span>
+              <Icon name="smile" size={20} />
             </button>
             {isComposerEmojiPickerOpen ? (
               <div className="composer-emoji-panel" role="menu" aria-label={t('messages.emojiPanel')}>
@@ -1350,16 +1445,16 @@ export function ChatPage() {
               aria-label={isRecording || isVideoRecording ? t('messages.stopRecording') : t('messages.openRecordMenu')}
               title={isRecording || isVideoRecording ? t('messages.releaseToSend') : `${selectedRecordingLabel()} · ${t('messages.holdToRecord')}`}
             >
-              <span aria-hidden="true">{isRecording || isVideoRecording ? '■' : selectedRecordingIcon()}</span>
+              <span aria-hidden="true">{isRecording || isVideoRecording ? '■' : recordingMode === 'video_note' ? <Icon name="video" size={19} /> : <Icon name="microphone" size={19} />}</span>
             </button>
             {isRecordMenuOpen ? (
               <div className="record-mode-menu" role="menu" aria-label={t('messages.recordMenu')}>
                 <button className={recordingMode === 'voice' ? 'active' : ''} type="button" role="menuitem" onClick={() => chooseRecordingMode('voice')}>
-                  <span aria-hidden="true">🎙</span>
+                  <Icon name="microphone" size={18} />
                   <span>{t('messages.voiceMessage')}</span>
                 </button>
                 <button className={recordingMode === 'video_note' ? 'active' : ''} type="button" role="menuitem" onClick={() => chooseRecordingMode('video_note')}>
-                  <span aria-hidden="true">◉</span>
+                  <Icon name="video" size={18} />
                   <span>{t('messages.videoNote')}</span>
                 </button>
                 <small>{t('messages.holdToRecordHint')}</small>
@@ -1373,7 +1468,7 @@ export function ChatPage() {
             aria-label={isUploading ? t('messages.sendingMessage') : t('messages.send')}
             title={t('messages.send')}
           >
-            <span aria-hidden="true">{isUploading ? '…' : '➤'}</span>
+            <span aria-hidden="true">{isUploading ? '…' : <Icon name="send" size={19} />}</span>
           </button>
         </div>
         {(selectedFile || isRecording || isVideoRecording) ? (
@@ -1418,6 +1513,7 @@ export function ChatPage() {
           </section>
         </div>
       ) : null}
+      </section>
     </section>
   );
 }

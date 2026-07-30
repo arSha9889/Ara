@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
@@ -8,6 +8,7 @@ import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { searchUsers } from '../../profile/api/userApi.js';
@@ -46,6 +47,7 @@ export function ChatsPage() {
   const { t } = useI18n();
   const { session } = useSession();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [chats, setChats] = useState([]);
   const [newChatQuery, setNewChatQuery] = useState('');
   const [newChatResults, setNewChatResults] = useState([]);
@@ -131,7 +133,14 @@ export function ChatsPage() {
           }
           if (payload.event === 'presence.status') {
             setChats((current) => current.map((chat) => chat.peer?.id === payload.user_id
-              ? { ...chat, peer: { ...chat.peer, is_online: Boolean(payload.is_online) } }
+              ? {
+                ...chat,
+                peer: {
+                  ...chat.peer,
+                  is_online: Boolean(payload.is_online),
+                  last_seen_at: payload.last_seen_at ?? chat.peer.last_seen_at,
+                },
+              }
               : chat));
           }
         } catch {
@@ -160,6 +169,13 @@ export function ChatsPage() {
     const dismissed = localStorage.getItem('nexus_notifications_prompt_dismissed') === 'true';
     setShowNotificationPrompt(isSupported && pushConfigured && permission === 'default' && !dismissed && !isEnabled);
   }, [isEnabled, isSupported, permission, pushConfigured]);
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    openCreateChatDialog();
+    navigate('/app', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, searchParams]);
 
   useEffect(() => {
     if (!isCreateChatOpen) return undefined;
@@ -336,7 +352,7 @@ export function ChatsPage() {
         ) : null}
         <div className="chat-list-tools">
           <label className="chat-search-field">
-            <span className="chat-search-icon" aria-hidden="true">⌕</span>
+            <span className="chat-search-icon" aria-hidden="true"><Icon name="search" size={16} /></span>
             <input
               type="search"
               value={chatSearch}
@@ -356,7 +372,7 @@ export function ChatsPage() {
             aria-label={t('chats.createChat')}
             onClick={openCreateChatDialog}
           >
-            <span aria-hidden="true">＋</span>
+            <Icon name="plus" size={22} />
           </button>
         </div>
         {isCreateChatOpen ? (
@@ -492,15 +508,20 @@ export function ChatsPage() {
             </Link>
           ))}
         </div>
-        {!isLoading && !normalizedChatSearch && regularChats.length === 0 ? <EmptyState title={t('chats.emptyTitle')} text={t('chats.emptyText')} /> : null}
+        {!isLoading && !normalizedChatSearch && regularChats.length === 0 ? (
+          <EmptyState
+            title={t('chats.emptyTitle')}
+            text={t('chats.emptyText')}
+            action={<button className="empty-state-action" type="button" onClick={openCreateChatDialog}><Icon name="plus" size={18} />{t('chats.createChat')}</button>}
+          />
+        ) : null}
         {!isLoading && normalizedChatSearch && !hasVisibleChats ? <EmptyState title={t('chats.searchEmptyTitle')} text={t('chats.searchEmptyText')} /> : null}
       </div>
-      <div className="panel desktop-only">
-        <EmptyState
-          title={t('chats.selectedEmpty')}
-          text={t('chats.selectedEmptyText')}
-        />
-      </div>
+        <div className="panel desktop-only workspace-welcome-panel">
+          <div className="workspace-welcome-art" aria-hidden="true"><Icon name="sparkles" size={42} /></div>
+          <p className="workspace-kicker">AraChat</p>
+          <EmptyState title={t('chats.selectedEmpty')} text={t('chats.selectedEmptyText')} action={<button className="empty-state-action" type="button" onClick={openCreateChatDialog}><Icon name="plus" size={18} />{t('chats.createChat')}</button>} />
+        </div>
     </section>
   );
 }

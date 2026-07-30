@@ -7,6 +7,7 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 import { confirmPasswordChange, createPin, deleteAccount, resetPin, startPasswordChange } from '../../auth/api/authApi.js';
 import { updateMyProfile } from '../../profile/api/userApi.js';
 import { getDevices, getLoginHistory, revokeDevice } from '../api/deviceApi.js';
@@ -32,9 +33,9 @@ export function SettingsPage() {
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '' });
   const [passwordConfirmation, setPasswordConfirmation] = useState(null);
   const settingsTabs = [
-    { id: 'appearance', icon: '🎨', label: t('settings.appearance') },
-    { id: 'notifications', icon: '🔔', label: t('settings.notifications') },
-    { id: 'security', icon: '🔐', label: t('settings.security') },
+    { id: 'appearance', icon: 'palette', label: t('settings.appearance') },
+    { id: 'notifications', icon: 'bell', label: t('settings.notifications') },
+    { id: 'security', icon: 'shield', label: t('settings.security') },
   ];
 
   async function loadSecurityData() {
@@ -210,119 +211,149 @@ export function SettingsPage() {
   }
 
   return (
-    <section className="panel readable">
-      <h1>{t('settings.title')}</h1>
-      <div className="settings-tabs" role="tablist" aria-label={t('settings.title')}>
-        {settingsTabs.map((tab) => (
-          <button
-            className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <span className="settings-tab-icon" aria-hidden="true">{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-      {status ? <p className={statusKind === 'success' ? 'success-text settings-status-line' : 'error-text settings-status-line'}>{status}</p> : null}
-      {activeTab === 'appearance' ? (
-        <section className="settings-section" role="tabpanel">
-          <h2>{t('settings.appearance')}</h2>
-          {showLiquidGlassPrompt ? (
-            <div className="liquid-glass-prompt">
-              <div>
-                <strong>{t('settings.liquidGlassTitle')}</strong>
-                <p className="muted">{t('settings.liquidGlassText')}</p>
+    <section className="panel settings-control-center">
+      <header className="settings-page-header">
+        <div>
+          <p className="eyebrow">AraChat</p>
+          <h1>{t('settings.title')}</h1>
+        </div>
+      </header>
+      <div className="settings-layout">
+        <nav className="settings-tabs" role="tablist" aria-label={t('settings.title')}>
+          {settingsTabs.map((tab) => (
+            <button
+              className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <span className="settings-tab-icon" aria-hidden="true"><Icon name={tab.icon} size={17} /></span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="settings-content">
+          {status ? <p className={statusKind === 'success' ? 'success-text settings-status-line' : 'error-text settings-status-line'}>{status}</p> : null}
+          {activeTab === 'appearance' ? (
+            <section className="settings-section" role="tabpanel">
+              <div className="settings-section-heading">
+                <span className="settings-heading-icon"><Icon name="palette" size={20} /></span>
+                <div>
+                  <h2>{t('settings.appearance')}</h2>
+                  <p className="muted">{t('settings.theme')} · {t('settings.language')}</p>
+                </div>
               </div>
-              <div className="toolbar">
-                <button className="button button-primary" type="button" onClick={enableLiquidGlass}>{t('settings.enableLiquidGlass')}</button>
-                <button className="button button-secondary" type="button" onClick={dismissLiquidGlassPrompt}>{t('common.notNow')}</button>
-              </div>
-            </div>
+              {showLiquidGlassPrompt ? (
+                <div className="liquid-glass-prompt">
+                  <div>
+                    <strong>{t('settings.liquidGlassTitle')}</strong>
+                    <p className="muted">{t('settings.liquidGlassText')}</p>
+                  </div>
+                  <div className="toolbar">
+                    <button className="button button-primary" type="button" onClick={enableLiquidGlass}>{t('settings.enableLiquidGlass')}</button>
+                    <button className="button button-secondary" type="button" onClick={dismissLiquidGlassPrompt}>{t('common.notNow')}</button>
+                  </div>
+                </div>
+              ) : null}
+              <label className="field inline-field">
+                <span>{t('settings.theme')}</span>
+                <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference({ design_theme: designTheme })} />
+              </label>
+              <label className="field inline-field">
+                <span>{t('settings.language')}</span>
+                <LanguageSwitcher onChange={(language) => saveAppearancePreference({ language })} />
+              </label>
+            </section>
           ) : null}
-          <label className="field inline-field">
-            <span>{t('settings.theme')}</span>
-            <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference({ design_theme: designTheme })} />
-          </label>
-          <label className="field inline-field">
-            <span>{t('settings.language')}</span>
-            <LanguageSwitcher onChange={(language) => saveAppearancePreference({ language })} />
-          </label>
-        </section>
-      ) : null}
-      {activeTab === 'notifications' ? (
-        <section className="settings-section" role="tabpanel">
-          <h2>{t('settings.notifications')}</h2>
-          <p className="muted">{t('settings.notificationsText')}</p>
-          <div className="notification-settings-row">
-            <span className={`settings-status-pill ${notificationsEnabled && notificationPermission === 'granted' ? 'granted' : notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`}>
-              {notificationsEnabled && notificationPermission === 'granted'
-                ? t('settings.notificationStatus.granted')
-                : t(`settings.notificationStatus.${notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`)}
-            </span>
-            {notificationsEnabled ? (
-              <button className="button button-secondary" type="button" onClick={handleDisableNotifications}>{t('settings.disableNotifications')}</button>
-            ) : (
-              <button className="button button-primary" type="button" onClick={handleEnableNotifications} disabled={notificationPermission === 'denied'}>
-                {t('settings.enableNotifications')}
-              </button>
-            )}
-          </div>
-        </section>
-      ) : null}
-      {activeTab === 'security' ? (
-        <section className="settings-section" role="tabpanel">
-          <h2>{t('settings.security')}</h2>
-          <h3>{t('settings.activeDevices')}</h3>
-          <div className="list-stack">
-            {devices.map((device) => (
-              <article className="info-card" key={device.id}>
-                <strong>{device.device_id}</strong>
-                <span className="muted">{t('settings.until')} {new Date(device.expires_at).toLocaleString()}</span>
-                {device.revoked_at ? <span className="muted">{t('settings.revoked')}</span> : <button className="button button-secondary" type="button" onClick={() => handleRevokeDevice(device.device_id)}>{t('settings.revoke')}</button>}
-              </article>
-            ))}
-          </div>
-          <h3>{t('settings.loginHistory')}</h3>
-          <div className="list-stack">
-            {history.map((item) => (
-              <article className="info-card" key={item.id}>
-                <strong>{item.method} — {item.result}</strong>
-                <span className="muted">{new Date(item.created_at).toLocaleString()}</span>
-              </article>
-            ))}
-          </div>
-          <form className="info-card" onSubmit={handleStartPasswordChange}>
-            <h3>{t('settings.changePasswordTitle')}</h3>
-            <p className="muted">{t('settings.changePasswordText')}</p>
-            <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={passwordForm.current_password} onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))} required />
-            <input className="text-input" type="password" placeholder={t('settings.newPassword')} value={passwordForm.new_password} onChange={(event) => setPasswordForm((current) => ({ ...current, new_password: event.target.value }))} required />
-            <button className="button button-secondary" type="submit">{t('settings.requestPasswordConfirmation')}</button>
-            {passwordConfirmation ? (
-              <div className="password-confirmation-actions">
-                {passwordConfirmation.bot_url ? <a className="button button-secondary" href={passwordConfirmation.bot_url} target="_blank" rel="noreferrer">{t('settings.openTelegram')}</a> : null}
-                <button className="button button-primary" type="button" onClick={handleConfirmPasswordChange}>{t('settings.completeAfterTelegram')}</button>
+          {activeTab === 'notifications' ? (
+            <section className="settings-section" role="tabpanel">
+              <div className="settings-section-heading">
+                <span className="settings-heading-icon"><Icon name="bell" size={20} /></span>
+                <div>
+                  <h2>{t('settings.notifications')}</h2>
+                  <p className="muted">{t('settings.notificationsText')}</p>
+                </div>
               </div>
-            ) : null}
-          </form>
-          <form className="info-card" onSubmit={handleCreatePin}>
-            <h3>{t('settings.devicePinTitle')}</h3>
-            <p className="muted">{t('settings.devicePinText')}</p>
-            <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required />
-            <input className="text-input" inputMode="numeric" placeholder={t('settings.newPin')} value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value }))} required />
-            <button className="button button-secondary" type="submit">{t('settings.savePin')}</button>
-            <button className="button button-secondary" type="button" onClick={handleRemovePin} disabled={!pinForm.current_password}>{t('settings.removePin')}</button>
-          </form>
-          <section className="info-card danger-zone">
-            <h3>{t('settings.dangerZone')}</h3>
-            <p className="muted">{t('settings.deleteAccountText')}</p>
-            <button className="button button-danger" type="button" onClick={handleDeleteAccount}>{t('settings.deleteAccount')}</button>
-          </section>
-        </section>
-      ) : null}
+              <div className="notification-settings-row">
+                <span className={`settings-status-pill ${notificationsEnabled && notificationPermission === 'granted' ? 'granted' : notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`}>
+                  {notificationsEnabled && notificationPermission === 'granted'
+                    ? t('settings.notificationStatus.granted')
+                    : t(`settings.notificationStatus.${notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`)}
+                </span>
+                {notificationsEnabled ? (
+                  <button className="button button-secondary" type="button" onClick={handleDisableNotifications}>{t('settings.disableNotifications')}</button>
+                ) : (
+                  <button className="button button-primary" type="button" onClick={handleEnableNotifications} disabled={notificationPermission === 'denied'}>
+                    {t('settings.enableNotifications')}
+                  </button>
+                )}
+              </div>
+            </section>
+          ) : null}
+          {activeTab === 'security' ? (
+            <section className="settings-section security-settings-section" role="tabpanel">
+              <div className="settings-section-heading">
+                <span className="settings-heading-icon"><Icon name="shield" size={20} /></span>
+                <div>
+                  <h2>{t('settings.security')}</h2>
+                  <p className="muted">{t('settings.activeDevices')} · {t('settings.loginHistory')}</p>
+                </div>
+              </div>
+              <section className="settings-subsection">
+                <h3>{t('settings.activeDevices')}</h3>
+                <div className="list-stack">
+                  {devices.map((device) => (
+                    <article className="info-card" key={device.id}>
+                      <strong>{device.device_id}</strong>
+                      <span className="muted">{t('settings.until')} {new Date(device.expires_at).toLocaleString()}</span>
+                      {device.revoked_at ? <span className="muted">{t('settings.revoked')}</span> : <button className="button button-secondary" type="button" onClick={() => handleRevokeDevice(device.device_id)}>{t('settings.revoke')}</button>}
+                    </article>
+                  ))}
+                </div>
+              </section>
+              <section className="settings-subsection">
+                <h3>{t('settings.loginHistory')}</h3>
+                <div className="list-stack">
+                  {history.map((item) => (
+                    <article className="info-card" key={item.id}>
+                      <strong>{item.method} — {item.result}</strong>
+                      <span className="muted">{new Date(item.created_at).toLocaleString()}</span>
+                    </article>
+                  ))}
+                </div>
+              </section>
+              <form className="info-card" onSubmit={handleStartPasswordChange}>
+                <h3>{t('settings.changePasswordTitle')}</h3>
+                <p className="muted">{t('settings.changePasswordText')}</p>
+                <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={passwordForm.current_password} onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))} required />
+                <input className="text-input" type="password" placeholder={t('settings.newPassword')} value={passwordForm.new_password} onChange={(event) => setPasswordForm((current) => ({ ...current, new_password: event.target.value }))} required />
+                <button className="button button-secondary" type="submit">{t('settings.requestPasswordConfirmation')}</button>
+                {passwordConfirmation ? (
+                  <div className="password-confirmation-actions">
+                    {passwordConfirmation.bot_url ? <a className="button button-secondary" href={passwordConfirmation.bot_url} target="_blank" rel="noreferrer">{t('settings.openTelegram')}</a> : null}
+                    <button className="button button-primary" type="button" onClick={handleConfirmPasswordChange}>{t('settings.completeAfterTelegram')}</button>
+                  </div>
+                ) : null}
+              </form>
+              <form className="info-card" onSubmit={handleCreatePin}>
+                <h3>{t('settings.devicePinTitle')}</h3>
+                <p className="muted">{t('settings.devicePinText')}</p>
+                <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required />
+                <input className="text-input" inputMode="numeric" placeholder={t('settings.newPin')} value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value }))} required />
+                <button className="button button-secondary" type="submit">{t('settings.savePin')}</button>
+                <button className="button button-secondary" type="button" onClick={handleRemovePin} disabled={!pinForm.current_password}>{t('settings.removePin')}</button>
+              </form>
+              <section className="info-card danger-zone">
+                <h3>{t('settings.dangerZone')}</h3>
+                <p className="muted">{t('settings.deleteAccountText')}</p>
+                <button className="button button-danger" type="button" onClick={handleDeleteAccount}>{t('settings.deleteAccount')}</button>
+              </section>
+            </section>
+          ) : null}
+        </div>
+      </div>
     </section>
   );
 }

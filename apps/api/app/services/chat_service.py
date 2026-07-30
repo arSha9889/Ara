@@ -426,7 +426,8 @@ async def _chat_peer_out(session: AsyncSession, participant_ids: list[UUID], cur
     if peer_id is None:
         return None
     profile = await session.get(UserProfile, peer_id)
-    if not profile:
+    user = await session.get(User, peer_id)
+    if not profile or not user:
         return None
     return ChatPeerOut(
         id=peer_id,
@@ -435,6 +436,7 @@ async def _chat_peer_out(session: AsyncSession, participant_ids: list[UUID], cur
         avatar_type=profile.avatar_type,
         avatar_ref=profile.avatar_ref,
         is_online=realtime_manager.is_user_online(peer_id),
+        last_seen_at=user.last_seen_at,
         is_official=_is_official_profile(profile),
     )
 

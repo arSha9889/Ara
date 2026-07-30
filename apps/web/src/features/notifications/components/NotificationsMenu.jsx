@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 
 export function NotificationsMenu() {
   const { t, language } = useI18n();
@@ -34,7 +35,7 @@ export function NotificationsMenu() {
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}
       >
-        <span aria-hidden="true">🔔</span>
+        <Icon name="bell" size={19} />
         {unreadCount ? <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}
       </button>
       <section className="notifications-popover" aria-label={t('notifications.title')}>

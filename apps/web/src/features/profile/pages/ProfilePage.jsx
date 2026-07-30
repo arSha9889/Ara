@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS, UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { getMyProfile, updateMyProfile, updateUsername } from '../api/userApi.js';
@@ -20,7 +20,7 @@ export function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
-  const { disableNotifications, enableNotifications, isEnabled: notificationsEnabled, isSupported, permission: notificationPermission } = useNotifications();
+  const [isIdCopied, setIsIdCopied] = useState(false);
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(!session.user);
 
@@ -112,72 +112,67 @@ export function ProfilePage() {
     setForm((current) => ({ ...current, avatar_type: 'uploaded', avatar_ref: current.avatar_ref }));
   }
 
-  async function handleNotificationsToggle(event) {
-    const nextEnabled = event.target.checked;
-    if (!nextEnabled) {
-      await disableNotifications();
-      setStatus(t('profile.notificationsDisabled'));
-      return;
-    }
+  async function handleCopyId() {
+    const id = user?.nexus_id;
+    if (!id) return;
 
-    if (!isSupported) {
-      const result = await enableNotifications();
-      setStatus(result.status === 'ios_install_required'
-        ? t('profile.notificationsInstallRequired')
-        : result.status === 'insecure_context'
-          ? t('profile.notificationsHttpsRequired')
-          : t('profile.notificationsUnsupported'));
-      return;
-    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(id);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = id;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.append(input);
+        input.select();
+        const copied = document.execCommand('copy');
+        input.remove();
+        if (!copied) throw new Error(t('profile.copyIdError'));
+      }
 
-    const result = await enableNotifications();
-    if (result.status === 'granted') {
-      setStatus(t('profile.notificationsEnabled'));
-      return;
+      setIsIdCopied(true);
+      window.setTimeout(() => setIsIdCopied(false), 1800);
+    } catch (err) {
+      setStatus(err.message || t('profile.copyIdError'));
     }
-
-    setStatus(result.status === 'denied'
-      ? t('profile.notificationsDenied')
-      : result.status === 'unconfigured'
-        ? t('profile.notificationsUnavailable')
-        : result.status === 'subscription_failed'
-          ? t('profile.notificationsSubscriptionFailed')
-          : result.status === 'delivery_failed'
-            ? t('profile.notificationsDeliveryFailed')
-            : result.status === 'ios_install_required'
-              ? t('profile.notificationsInstallRequired')
-              : result.status === 'insecure_context'
-                ? t('profile.notificationsHttpsRequired')
-                : t('profile.notificationsNotEnabled'));
   }
 
   return (
-    <form className="panel readable" onSubmit={handleSave}>
-      <h1>{t('profile.title')}</h1>
+    <form className="panel profile-page" onSubmit={handleSave}>
       {isLoading ? <AraChatLoader compact title={t('profile.loadingTitle')} text={t('profile.loadingText')} /> : null}
-      <div className="profile-card">
-        <UserAvatar profile={{ ...user?.profile, avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} size="large" />
-        <div>
-          <p className="muted">{t('profile.displayNameLabel')}</p>
-          <h2>{user?.profile?.display_name ?? 'AraChat User'}</h2>
-          <p className="muted">@{user?.profile?.username ?? 'arachat'}</p>
+      <header className="profile-hero">
+        <div className="profile-hero-identity">
+          <UserAvatar profile={{ ...user?.profile, avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} size="large" />
+          <div>
+            <p className="eyebrow">AraChat</p>
+            <h1>{user?.profile?.display_name ?? 'AraChat User'}</h1>
+            <p className="muted">@{user?.profile?.username ?? 'arachat'}</p>
+          </div>
         </div>
-      </div>
-      <section className="avatar-picker profile-avatar-picker" aria-label={t('profile.avatarTitle')}>
-        <div className="avatar-picker-head">
+        <div className="profile-id-card">
+          <span>AraChat ID</span>
+          <strong>{user?.nexus_id ?? '0000000000000000'}</strong>
+          <button className={`profile-id-copy ${isIdCopied ? 'copied' : ''}`} type="button" onClick={handleCopyId} aria-label={t('profile.copyId')} title={t('profile.copyId')}>
+            <Icon name={isIdCopied ? 'check' : 'copy'} size={18} />
+          </button>
+        </div>
+      </header>
+      <section className="profile-editor-section profile-avatar-section" aria-label={t('profile.avatarTitle')}>
+        <div className="profile-section-heading">
           <div>
             <h2>{t('profile.avatarTitle')}</h2>
             <p className="muted">{t('profile.avatarText')}</p>
           </div>
           <button className="avatar-preview" type="button" onClick={() => setIsAvatarPickerOpen((current) => !current)} aria-expanded={isAvatarPickerOpen} aria-label={t('profile.avatarTitle')}>
             {avatarPreview ? <img src={avatarPreview} alt="" /> : <UserAvatar profile={{ avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} size="large" />}
-            <span className="avatar-preview-edit" aria-hidden="true">＋</span>
+            <span className="avatar-preview-edit" aria-hidden="true"><Icon name="pencil" size={13} /></span>
           </button>
         </div>
         {isAvatarPickerOpen ? (
           <div className="avatar-options-panel">
             <label className="avatar-upload">
-              <span className="avatar-upload-icon" aria-hidden="true">＋</span>
+              <span className="avatar-upload-icon" aria-hidden="true"><Icon name="plus" size={20} /></span>
               <span className="avatar-upload-copy">
                 <strong>{avatarFile ? avatarFile.name : t('profile.uploadAvatar')}</strong>
                 <small>PNG, JPG, GIF, WebP</small>
@@ -194,30 +189,24 @@ export function ProfilePage() {
           </div>
         ) : null}
       </section>
-      <div className="info-card halo-outline">
-        <span>AraChat ID</span>
-        <strong>{user?.nexus_id ?? '0000000000000000'}</strong>
-      </div>
-      <section className="info-card notification-profile-card">
-        <div>
-          <strong>{t('profile.notificationsTitle')}</strong>
-          <p className="muted">{t('profile.notificationsText')}</p>
+      <section className="profile-editor-section">
+        <div className="profile-section-heading">
+          <div>
+            <h2>{t('profile.title')}</h2>
+            <p className="muted">{t('profile.displayNameLabel')}</p>
+          </div>
         </div>
-        <label className="switch-row">
-          <span className={`settings-status-pill ${notificationsEnabled && notificationPermission === 'granted' ? 'granted' : 'default'}`}>
-            {notificationsEnabled && notificationPermission === 'granted' ? t('settings.notificationStatus.granted') : t('settings.notificationStatus.default')}
-          </span>
-          <input type="checkbox" checked={notificationsEnabled && notificationPermission === 'granted'} onChange={handleNotificationsToggle} disabled={notificationPermission === 'denied'} />
+        <div className="profile-fields-grid">
+          <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
+          <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} />
+          <TextInput label={t('profile.email')} type="email" inputMode="email" autoComplete="email" placeholder={t('profile.emailPlaceholder')} value={form.email} onChange={(event) => updateField('email', event.target.value)} />
+        </div>
+        {user?.profile?.optional_phone ? <div className="profile-phone-card"><span>{t('profile.optionalPhone')}</span><strong>{user.profile.optional_phone}</strong></div> : null}
+        <label className="field inline-field profile-visibility-row">
+          <span>{t('profile.phonePublic')}</span>
+          <input type="checkbox" checked={form.phone_public} onChange={(event) => updateField('phone_public', event.target.checked)} />
         </label>
       </section>
-      <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
-      <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} />
-      <TextInput label={t('profile.email')} type="email" inputMode="email" autoComplete="email" placeholder={t('profile.emailPlaceholder')} value={form.email} onChange={(event) => updateField('email', event.target.value)} />
-      {user?.profile?.optional_phone ? <div className="info-card"><span>{t('profile.optionalPhone')}</span><strong>{user.profile.optional_phone}</strong></div> : null}
-      <label className="field inline-field">
-        <span>{t('profile.phonePublic')}</span>
-        <input type="checkbox" checked={form.phone_public} onChange={(event) => updateField('phone_public', event.target.checked)} />
-      </label>
       {status ? <p className="muted">{status}</p> : null}
       <Button type="submit">{t('profile.save')}</Button>
     </form>

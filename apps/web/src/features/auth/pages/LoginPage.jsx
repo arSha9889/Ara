@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { loginWithPassword, loginWithPin } from '../api/authApi.js';
@@ -79,12 +80,9 @@ export function LoginPage() {
         </div>
         <Link to="/region" className="auth-switch-link">{t('auth.createAccount')}</Link>
         <Link to="/admin" className="admin-entry-link">
-          <span className="admin-entry-icon" aria-hidden="true">✦</span>
-          <span className="admin-entry-copy">
-            <strong>Админ-панель</strong>
-            <small>Защищённое рабочее пространство</small>
-          </span>
-          <span className="admin-entry-arrow" aria-hidden="true">→</span>
+          <Icon name="shield" size={17} />
+          <span>{t('auth.adminEntry')}</span>
+          <Icon name="arrowRight" className="admin-entry-arrow" size={17} />
         </Link>
       </form>
     </main>

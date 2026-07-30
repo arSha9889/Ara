@@ -54,6 +54,7 @@ class ChatPeerOut(BaseModel):
     avatar_type: str
     avatar_ref: str
     is_online: bool = False
+    last_seen_at: datetime | None = None
     is_official: bool = False
 
 

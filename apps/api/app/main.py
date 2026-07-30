@@ -1,9 +1,10 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, update
 from starlette.websockets import WebSocketDisconnect
 
 from app.api.router import api_router
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
                             'chat_id': str(chat_id),
                             'user_id': str(user_id),
                             'is_online': True,
+                            'last_seen_at': None,
                         },
                     )
                     continue
@@ -148,7 +150,8 @@ def create_app() -> FastAPI:
         except (RuntimeError, WebSocketDisconnect):
             disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
             if disconnected_user_id and went_offline:
-                await _broadcast_presence_to_user_chats(disconnected_user_id, False)
+                last_seen_at = await _mark_user_last_seen(disconnected_user_id)
+                await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
             return
 
     return app
@@ -184,7 +187,11 @@ async def _is_active_user(user_id: UUID) -> bool:
         return result.scalar_one_or_none() is not None
 
 
-async def _broadcast_presence_to_user_chats(user_id: UUID, is_online: bool) -> None:
+async def _broadcast_presence_to_user_chats(
+    user_id: UUID,
+    is_online: bool,
+    last_seen_at: datetime | None = None,
+) -> None:
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(ChatParticipant.chat_id).where(ChatParticipant.user_id == user_id))
         chat_ids = list(result.scalars())
@@ -194,7 +201,20 @@ async def _broadcast_presence_to_user_chats(user_id: UUID, is_online: bool) -> N
             'chat_id': str(chat_id),
             'user_id': str(user_id),
             'is_online': is_online,
+            'last_seen_at': last_seen_at.isoformat() if last_seen_at else None,
         })
+
+
+async def _mark_user_last_seen(user_id: UUID) -> datetime:
+    last_seen_at = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            update(User)
+            .where(User.id == user_id)
+            .values(last_seen_at=last_seen_at)
+        )
+        await session.commit()
+    return last_seen_at
 
 
 async def _safe_send_json(websocket: WebSocket, payload: dict) -> bool:
@@ -204,7 +224,8 @@ async def _safe_send_json(websocket: WebSocket, payload: dict) -> bool:
     except WebSocketDisconnect:
         disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
         if disconnected_user_id and went_offline:
-            await _broadcast_presence_to_user_chats(disconnected_user_id, False)
+            last_seen_at = await _mark_user_last_seen(disconnected_user_id)
+            await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
         return False
 
 
@@ -214,11 +235,13 @@ async def _safe_close_websocket(websocket: WebSocket, code: int = 1000) -> None:
     except (RuntimeError, WebSocketDisconnect):
         disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
         if disconnected_user_id and went_offline:
-            await _broadcast_presence_to_user_chats(disconnected_user_id, False)
+            last_seen_at = await _mark_user_last_seen(disconnected_user_id)
+            await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
     except RuntimeError:
         disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
         if disconnected_user_id and went_offline:
-            await _broadcast_presence_to_user_chats(disconnected_user_id, False)
+            last_seen_at = await _mark_user_last_seen(disconnected_user_id)
+            await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
         return False
 
 

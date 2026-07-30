@@ -7,6 +7,7 @@ import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { checkUsername, updateMyProfile } from '../../profile/api/userApi.js';
@@ -431,21 +432,31 @@ export function RegisterPage() {
 
   return (
     <main className="auth-page">
-      <form className="panel readable" onSubmit={submitHandler}>
+      <form className="panel registration-wizard" onSubmit={submitHandler}>
         <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
-        <h1>{t('register.title')}</h1>
-        <p className="muted">{t('register.subtitle')}</p>
-        <div className="info-card halo-outline beta-limit-card">
+        <header className="registration-wizard-header">
+          <p className="eyebrow">AraChat</p>
+          <h1>{t('register.title')}</h1>
+          <p className="muted">{t('register.subtitle')}</p>
+        </header>
+        <div className="registration-steps" aria-label={t('register.steps')}>
+          {[
+            { id: 'access', label: t('register.accessStep') },
+            { id: 'profile', label: t('register.profileStep') },
+            { id: 'password', label: t('register.passwordStep') },
+          ].map((item, index) => (
+            <div className={`registration-step ${step === item.id ? 'active' : ''}`} key={item.id} aria-current={step === item.id ? 'step' : undefined}>
+              <span>{index + 1}</span>
+              <strong>{item.label}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="info-card beta-limit-card">
           <strong>{t('register.betaLimitTitle')}</strong>
           <p className="muted">{t('register.betaLimitText')}</p>
         </div>
-        <div className="registration-steps" aria-label={t('register.steps')}>
-          <span className={step === 'access' ? 'active' : ''}>1. {t('register.accessStep')}</span>
-          <span className={step === 'profile' ? 'active' : ''}>2. {t('register.profileStep')}</span>
-          <span className={step === 'password' ? 'active' : ''}>3. {t('register.passwordStep')}</span>
-        </div>
         {step === 'access' ? (
-          <section className="access-step-shell" aria-label={t('register.accessStep')}>
+          <section className="access-step-shell registration-step-content" aria-label={t('register.accessStep')}>
             {isDevMode ? (
               <div className="info-card halo-outline">
                 <strong>{t('register.devTitle')}</strong>
@@ -584,7 +595,7 @@ export function RegisterPage() {
           </section>
         ) : null}
         {step === 'profile' ? (
-          <>
+          <section className="registration-step-content registration-profile-step" aria-label={t('register.profileStep')}>
             <section className="avatar-picker" aria-label={t('register.avatarTitle')}>
               <div className="avatar-picker-head">
                 <div>
@@ -593,13 +604,13 @@ export function RegisterPage() {
                 </div>
                 <button className="avatar-preview" type="button" onClick={() => setIsAvatarPickerOpen((current) => !current)} aria-expanded={isAvatarPickerOpen} aria-label={t('register.avatarTitle')}>
                   {avatarPreview ? <img src={avatarPreview} alt="" /> : <span>{AVATAR_EMOJIS[BUILT_IN_AVATARS.indexOf(form.avatar_ref)] || '🦊'}</span>}
-                  <span className="avatar-preview-edit" aria-hidden="true">＋</span>
+                  <span className="avatar-preview-edit" aria-hidden="true"><Icon name="pencil" size={13} /></span>
                 </button>
               </div>
               {isAvatarPickerOpen ? (
                 <div className="avatar-options-panel">
                   <label className="avatar-upload">
-                    <span className="avatar-upload-icon" aria-hidden="true">＋</span>
+                    <span className="avatar-upload-icon" aria-hidden="true"><Icon name="plus" size={20} /></span>
                     <span className="avatar-upload-copy">
                       <strong>{avatarFile ? avatarFile.name : t('register.uploadAvatar')}</strong>
                       <small>PNG, JPG, GIF, WebP</small>
@@ -619,12 +630,14 @@ export function RegisterPage() {
             <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={handleUsernameBlur} required />
             {usernameState ? <p className="muted">{usernameState}</p> : null}
             {error ? <p className="error-text">{error}</p> : null}
-            <button className="button button-secondary" type="button" onClick={() => setStep('access')}>{t('register.backToAccess')}</button>
-            <Button type="submit">{t('common.continue')}</Button>
-          </>
+            <div className="registration-step-actions">
+              <button className="button button-secondary" type="button" onClick={() => setStep('access')}>{t('register.backToAccess')}</button>
+              <Button type="submit">{t('common.continue')}</Button>
+            </div>
+          </section>
         ) : null}
         {step === 'password' && !passwordConfirmation ? (
-          <>
+          <section className="registration-step-content registration-password-step" aria-label={t('register.passwordStep')}>
             <div className="info-card halo-outline">
               <strong>{t('register.passwordTitle')}</strong>
               <p className="muted">{t('register.passwordText')}</p>
@@ -648,9 +661,11 @@ export function RegisterPage() {
               </label>
             </div>
             {error ? <p className="error-text">{error}</p> : null}
-            <button className="button button-secondary" type="button" onClick={() => setStep('profile')}>{t('register.backToProfile')}</button>
-            <Button type="submit" disabled={isLoading || !form.registration_proof || !form.accepted_terms || !form.accepted_privacy_policy}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
-          </>
+            <div className="registration-step-actions">
+              <button className="button button-secondary" type="button" onClick={() => setStep('profile')}>{t('register.backToProfile')}</button>
+              <Button type="submit" disabled={isLoading || !form.registration_proof || !form.accepted_terms || !form.accepted_privacy_policy}>{isLoading ? t('register.creatingAccount') : t('register.createAccount')}</Button>
+            </div>
+          </section>
         ) : null}
         {step === 'password' && passwordConfirmation ? (
           <section className="info-card halo-outline password-confirmation-card">

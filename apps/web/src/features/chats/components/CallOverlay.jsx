@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
+import { Icon } from '../../../shared/ui/Icon.jsx';
 import { startCallTone } from '../callTone.js';
 
 function formatDuration(totalSeconds) {
@@ -120,7 +121,7 @@ export function CallOverlay({ call, peer, t }) {
               </div>
             ) : (
               <div className="call-screen-placeholder">
-                <span aria-hidden="true">▣</span>
+                <span aria-hidden="true"><Icon name="monitor" size={23} /></span>
                 <p>{t('calls.screenReady')}</p>
               </div>
             )}
@@ -131,26 +132,26 @@ export function CallOverlay({ call, peer, t }) {
           {isIncoming ? (
             <>
               <button className="call-control-button decline" type="button" onClick={call.rejectCall} aria-label={t('calls.reject')}>
-                <span aria-hidden="true">✕</span>
+                <span aria-hidden="true"><Icon name="x" size={22} /></span>
                 <small>{t('calls.reject')}</small>
               </button>
               <button className="call-control-button accept" type="button" onClick={call.acceptCall} aria-label={t('calls.accept')}>
-                <span aria-hidden="true">✓</span>
+                <span aria-hidden="true"><Icon name="phone" size={21} /></span>
                 <small>{t('calls.accept')}</small>
               </button>
             </>
           ) : (
             <>
               <button className={`call-control-button ${call.isMuted ? 'active' : ''}`} type="button" onClick={call.toggleMute} aria-label={call.isMuted ? t('calls.unmute') : t('calls.mute')}>
-                <span aria-hidden="true">{call.isMuted ? '⌁' : '🎙'}</span>
+                <span aria-hidden="true"><Icon name={call.isMuted ? 'microphoneOff' : 'microphone'} size={22} /></span>
                 <small>{call.isMuted ? t('calls.unmuteShort') : t('calls.muteShort')}</small>
               </button>
               <button className={`call-control-button ${call.isScreenSharing ? 'active' : ''}`} type="button" onClick={call.toggleScreenShare} disabled={!isActive} aria-label={call.isScreenSharing ? t('calls.stopScreen') : t('calls.shareScreen')}>
-                <span aria-hidden="true">▣</span>
+                <span aria-hidden="true"><Icon name="monitor" size={22} /></span>
                 <small>{call.isScreenSharing ? t('calls.stopScreenShort') : t('calls.screenShort')}</small>
               </button>
               <button className="call-control-button hangup" type="button" onClick={call.endCall} aria-label={t('calls.hangUp')}>
-                <span aria-hidden="true">☎</span>
+                <span aria-hidden="true"><Icon name="phoneOff" size={22} /></span>
                 <small>{t('calls.hangUp')}</small>
               </button>
             </>
