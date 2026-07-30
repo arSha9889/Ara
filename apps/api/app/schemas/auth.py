@@ -117,6 +117,11 @@ class LogoutRequest(BaseModel):
     refresh_token: str | None = None
 
 
+class LegalDocumentsAcceptRequest(BaseModel):
+    accepted_terms: bool
+    accepted_privacy_policy: bool
+
+
 class PasswordChangeStartRequest(BaseModel):
     current_password: str = Field(min_length=5, max_length=30)
     new_password: str = Field(min_length=5, max_length=30)

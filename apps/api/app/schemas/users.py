@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     telegram_id: str | None
     status: str
     is_official: bool = False
+    legal_documents_current: bool = False
     profile: UserProfileOut | None
 
 

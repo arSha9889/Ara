@@ -26,6 +26,25 @@ def test_access_token_roundtrip() -> None:
     assert decode_access_token(token) == user_id
 
 
+def test_legal_documents_current_only_for_the_latest_accepted_versions() -> None:
+    from app.core.legal import PRIVACY_POLICY_VERSION, TERMS_VERSION
+    from app.models.users import User
+    from app.services.auth_service import legal_documents_are_current
+
+    user = User(
+        nexus_id='1234567890123456',
+        telegram_id='legal-user',
+        terms_version=TERMS_VERSION,
+        privacy_policy_version=PRIVACY_POLICY_VERSION,
+        terms_accepted_at=datetime.now(timezone.utc),
+        privacy_policy_accepted_at=datetime.now(timezone.utc),
+    )
+    assert legal_documents_are_current(user)
+
+    user.terms_version = '2026-07-21'
+    assert not legal_documents_are_current(user)
+
+
 def test_normalize_phone() -> None:
     assert normalize_phone('8 (999) 123-45-67') == '+79991234567'
     assert normalize_phone('+1 555 123 4567') == '+15551234567'

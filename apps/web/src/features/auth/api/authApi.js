@@ -116,6 +116,19 @@ export function getCurrentUser(accessToken) {
   });
 }
 
+export function acceptCurrentLegalDocuments(accessToken) {
+  return apiRequest('/api/auth/legal-documents/accept', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: {
+      accepted_terms: true,
+      accepted_privacy_policy: true,
+    },
+  });
+}
+
 export function refreshSession(refreshToken) {
   return apiRequest('/api/auth/refresh', {
     method: 'POST',

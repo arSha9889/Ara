@@ -13,6 +13,7 @@ import { NewChatPage } from '../features/chats/pages/NewChatPage.jsx';
 import { PublicBranchesPage } from '../features/chats/pages/PublicBranchesPage.jsx';
 import { PrivacyPolicyPage } from '../features/legal/pages/PrivacyPolicyPage.jsx';
 import { TermsPage } from '../features/legal/pages/TermsPage.jsx';
+import { LegalAcceptancePage } from '../features/legal/pages/LegalAcceptancePage.jsx';
 import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
 import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
 import { AdminPage } from '../features/admin/pages/AdminPage.jsx';
@@ -50,6 +51,7 @@ export function App() {
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route element={<ProtectedRoute />}>
+        <Route path="/legal/acceptance" element={<LegalAcceptancePage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/app" element={<AppShell />}>
           <Route index element={<ChatsPage />} />

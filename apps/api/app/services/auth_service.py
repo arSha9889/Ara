@@ -319,6 +319,29 @@ async def delete_account(session: AsyncSession, user_id: UUID) -> None:
     await session.commit()
 
 
+async def accept_legal_documents(session: AsyncSession, user_id: UUID) -> UserOut:
+    user = await get_user_with_profile(session, user_id)
+    if not user:
+        raise AuthError('User not found')
+
+    consented_at = datetime.now(timezone.utc)
+    user.terms_accepted_at = consented_at
+    user.terms_version = TERMS_VERSION
+    user.privacy_policy_accepted_at = consented_at
+    user.privacy_policy_version = PRIVACY_POLICY_VERSION
+    await session.commit()
+    return to_user_out(user)
+
+
+def legal_documents_are_current(user: User) -> bool:
+    return (
+        user.terms_version == TERMS_VERSION
+        and user.privacy_policy_version == PRIVACY_POLICY_VERSION
+        and user.terms_accepted_at is not None
+        and user.privacy_policy_accepted_at is not None
+    )
+
+
 async def _username_exists(session: AsyncSession, username: str) -> bool:
     result = await session.execute(select(UserProfile.user_id).where(UserProfile.username == username))
     return result.scalar_one_or_none() is not None
@@ -449,6 +472,7 @@ def to_user_out(user: User) -> UserOut:
         telegram_id=user.telegram_id,
         status=user.status,
         is_official=_is_configured_admin(profile),
+        legal_documents_current=legal_documents_are_current(user),
         profile=UserProfileOut(
             display_name=profile.display_name,
             username=profile.username,

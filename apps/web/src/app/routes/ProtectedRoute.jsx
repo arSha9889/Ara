@@ -14,5 +14,9 @@ export function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
+  if (!session.user?.legal_documents_current && location.pathname !== '/legal/acceptance') {
+    return <Navigate to="/legal/acceptance" replace state={{ from: location }} />;
+  }
+
   return <Outlet />;
 }

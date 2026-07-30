@@ -15,6 +15,7 @@ from app.schemas.auth import (
     EmailVerificationConfirmResponse,
     EmailVerificationStartRequest,
     EmailVerificationStartResponse,
+    LegalDocumentsAcceptRequest,
     LoginRequest,
     LogoutRequest,
     PasswordChangeConfirmRequest,
@@ -35,6 +36,7 @@ from app.schemas.users import UserOut
 from app.services.auth_service import (
     AuthError,
     complete_registration,
+    accept_legal_documents,
     confirm_password_change,
     confirm_registration_password,
     delete_account,
@@ -283,6 +285,23 @@ async def refresh(
 @router.get('/me', response_model=UserOut)
 async def me(current_user: Annotated[UserOut, Depends(get_current_user)]) -> UserOut:
     return current_user
+
+
+@router.post('/legal-documents/accept', response_model=UserOut)
+async def accept_current_legal_documents(
+    request: LegalDocumentsAcceptRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
+    if not request.accepted_terms or not request.accepted_privacy_policy:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Для продолжения нужно принять Политику конфиденциальности и Пользовательское соглашение',
+        )
+    try:
+        return await accept_legal_documents(session, current_user.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.delete('/account')
