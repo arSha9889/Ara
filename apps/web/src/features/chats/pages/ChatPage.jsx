@@ -29,6 +29,7 @@ const REACTION_EMOJIS = [
 ];
 const MEDIA_MESSAGE_TYPES = ['photo', 'video', 'video_note', 'voice', 'file'];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CELEBRATION_REACTIONS = new Set(['❤️', '🔥', '🎉']);
 
 function appendUniqueMessage(messages, nextMessage) {
   if (messages.some((message) => message.id === nextMessage.id)) {
@@ -389,6 +390,7 @@ export function ChatPage() {
   const [mediaViewerMessage, setMediaViewerMessage] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [openReactionPickerMessageId, setOpenReactionPickerMessageId] = useState(null);
+  const [reactionEffects, setReactionEffects] = useState({});
   const [isComposerEmojiPickerOpen, setIsComposerEmojiPickerOpen] = useState(false);
   const [recordingMode, setRecordingMode] = useState('voice');
   const [isRecordMenuOpen, setIsRecordMenuOpen] = useState(false);
@@ -413,6 +415,8 @@ export function ChatPage() {
   const messageListRef = useRef(null);
   const pendingReadMessageIdsRef = useRef(new Set());
   const readTimerRef = useRef(null);
+  const reactionEffectTimersRef = useRef(new Map());
+  const reactionRequestIdsRef = useRef(new Set());
   const recordHoldTimerRef = useRef(null);
   const recordHoldTriggeredRef = useRef(false);
   const recordPressActiveRef = useRef(false);
@@ -621,6 +625,8 @@ export function ChatPage() {
   }, [chatId, isChatIdValid, session.accessToken, session.user?.id]);
 
   useEffect(() => () => {
+    reactionEffectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    reactionEffectTimersRef.current.clear();
     cancelVoiceRecording();
     cancelVideoRecording();
     if (recordHoldTimerRef.current) window.clearTimeout(recordHoldTimerRef.current);
@@ -779,13 +785,38 @@ export function ChatPage() {
     }
   }
 
+  function showReactionEffect(messageId, emoji, effect) {
+    const effectKey = `${messageId}:${emoji}`;
+    const activeTimer = reactionEffectTimersRef.current.get(effectKey);
+    if (activeTimer) window.clearTimeout(activeTimer);
+    setReactionEffects((current) => ({ ...current, [effectKey]: effect }));
+    reactionEffectTimersRef.current.set(effectKey, window.setTimeout(() => {
+      setReactionEffects((current) => {
+        const { [effectKey]: _completedEffect, ...remaining } = current;
+        return remaining;
+      });
+      reactionEffectTimersRef.current.delete(effectKey);
+    }, 720));
+  }
+
   async function handleReaction(messageId, emoji) {
+    const reactionKey = `${messageId}:${emoji}`;
+    if (reactionRequestIdsRef.current.has(reactionKey)) return;
+    reactionRequestIdsRef.current.add(reactionKey);
     try {
       const message = await reactToMessage(session.accessToken, chatId, messageId, emoji);
       setMessages((current) => upsertMessage(current, message));
+      const nextReaction = message.reactions?.find((reaction) => reaction.emoji === emoji);
+      const addedByMe = Boolean(nextReaction?.reacted_by_me);
+      showReactionEffect(messageId, emoji, {
+        type: addedByMe ? 'added' : 'removed',
+        celebration: addedByMe && CELEBRATION_REACTIONS.has(emoji),
+      });
       setOpenReactionPickerMessageId(null);
     } catch (err) {
       setError(err.message);
+    } finally {
+      reactionRequestIdsRef.current.delete(reactionKey);
     }
   }
 
@@ -1339,11 +1370,25 @@ export function ChatPage() {
               {message.sender_id === session.user?.id ? <DeliveryStatus status={message.delivery_status} t={t} /> : null}
             </div>
             {!message.deleted_at && !isPublicBranch ? <div className="reaction-row">
-              {message.reactions?.map((reaction) => (
-                <button className={`reaction-chip ${reaction.reacted_by_me ? 'active' : ''}`} type="button" key={reaction.emoji} onClick={() => handleReaction(message.id, reaction.emoji)}>
-                  {reaction.emoji} {reaction.count}
-                </button>
-              ))}
+              {message.reactions?.map((reaction) => {
+                const effect = reactionEffects[`${message.id}:${reaction.emoji}`];
+                return (
+                  <button className={`reaction-chip ${reaction.reacted_by_me ? 'active' : ''} ${effect?.type === 'added' ? 'is-added' : ''} ${effect?.type === 'removed' ? 'is-removed' : ''}`} type="button" key={reaction.emoji} onClick={() => handleReaction(message.id, reaction.emoji)}>
+                    {reaction.emoji} {reaction.count}
+                  </button>
+                );
+              })}
+              {Object.entries(reactionEffects).map(([effectKey, effect]) => {
+                const [effectMessageId, emoji] = effectKey.split(':');
+                if (effectMessageId !== message.id) return null;
+                const reactionExists = message.reactions?.some((reaction) => reaction.emoji === emoji);
+                return (
+                  <span className={`reaction-effect ${effect.celebration ? 'is-celebration' : ''}`} key={effectKey} aria-hidden="true">
+                    {effect.type === 'removed' && !reactionExists ? <span className="reaction-vanishing-chip">{emoji}</span> : null}
+                    {effect.celebration ? <span className="reaction-celebration">{emoji}</span> : null}
+                  </span>
+                );
+              })}
               {openReactionPickerMessageId === message.id ? (
                 <div className="reaction-picker" role="menu" aria-label={t('messages.reactionPicker')}>
                   <div className="reaction-picker-head">
