@@ -26,6 +26,16 @@ export const dictionaries = {
       languagesFeature: 'RU / EN / KK / KY / UK',
       branchesFeature: 'Публичные ветви и Ara Updates',
       previewLabel: 'Превью Messenger',
+      previewSearch: 'Поиск',
+      previewPersonOne: 'Алина',
+      previewPersonOneMessage: 'До встречи!',
+      previewPersonTwo: 'Михаил',
+      previewVoiceMessage: 'Голосовое сообщение',
+      previewYesterday: 'Вчера',
+      previewToday: 'Сегодня',
+      previewComposer: 'Напишите сообщение...',
+      previewSend: 'Отправить',
+      previewPlayVoice: 'Воспроизвести голосовое сообщение',
       previewMessage1: 'Привет! Это быстрый личный чат в AraChat.',
       previewMessage2: 'Голосовые, файлы и статусы уже работают.',
       whatInside: 'Что внутри',
@@ -513,6 +523,16 @@ export const dictionaries = {
       languagesFeature: 'RU / EN / KK / KY / UK',
       branchesFeature: 'Public branches and Ara Updates',
       previewLabel: 'Messenger preview',
+      previewSearch: 'Search',
+      previewPersonOne: 'Alina',
+      previewPersonOneMessage: 'See you soon!',
+      previewPersonTwo: 'Michael',
+      previewVoiceMessage: 'Voice message',
+      previewYesterday: 'Yesterday',
+      previewToday: 'Today',
+      previewComposer: 'Write a message...',
+      previewSend: 'Send',
+      previewPlayVoice: 'Play voice message',
       previewMessage1: 'Hi! This is a fast direct chat in AraChat.',
       previewMessage2: 'Voice messages, files, and statuses already work.',
       whatInside: 'What is inside',
@@ -2780,5 +2800,23 @@ dictionaries.uk = mergeDictionary(dictionaries.uk, {
     UA: { title: 'Україна', text: 'Оберіть російську або українську мову' },
     GLOBAL: { title: 'Інші країни', text: 'English для глобальної реєстрації' },
     languages: { ru: 'Російська', en: 'English', kk: 'Қазақша', ky: 'Кыргызча', uk: 'Українська' },
+  },
+});
+
+dictionaries.kk = mergeDictionary(dictionaries.kk, {
+  onboarding: {
+    previewSearch: 'Іздеу', previewPersonOne: 'Алина', previewPersonOneMessage: 'Кездескенше!', previewPersonTwo: 'Михаил', previewVoiceMessage: 'Дауыстық хабарлама', previewYesterday: 'Кеше', previewToday: 'Бүгін', previewComposer: 'Хабарлама жазыңыз...', previewSend: 'Жіберу', previewPlayVoice: 'Дауыстық хабарламаны ойнату',
+  },
+});
+
+dictionaries.ky = mergeDictionary(dictionaries.ky, {
+  onboarding: {
+    previewSearch: 'Издөө', previewPersonOne: 'Алина', previewPersonOneMessage: 'Көрүшкөнчө!', previewPersonTwo: 'Михаил', previewVoiceMessage: 'Үн билдирүү', previewYesterday: 'Кечээ', previewToday: 'Бүгүн', previewComposer: 'Билдирүү жазыңыз...', previewSend: 'Жөнөтүү', previewPlayVoice: 'Үн билдирүүнү ойнотуу',
+  },
+});
+
+dictionaries.uk = mergeDictionary(dictionaries.uk, {
+  onboarding: {
+    previewSearch: 'Пошук', previewPersonOne: 'Аліна', previewPersonOneMessage: 'До зустрічі!', previewPersonTwo: 'Михайло', previewVoiceMessage: 'Голосове повідомлення', previewYesterday: 'Учора', previewToday: 'Сьогодні', previewComposer: 'Напишіть повідомлення...', previewSend: 'Надіслати', previewPlayVoice: 'Відтворити голосове повідомлення',
   },
 });
