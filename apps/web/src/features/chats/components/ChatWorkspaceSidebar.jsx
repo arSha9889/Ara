@@ -48,7 +48,7 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
           <p className="workspace-kicker">AraChat</p>
           <h2>{t('chats.title')}</h2>
         </div>
-        <Link className="workspace-new-chat" to="/app?new=1" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
+        <Link className="workspace-new-chat" to="/app/new-chat" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
           <Icon name="plus" size={20} />
         </Link>
       </div>

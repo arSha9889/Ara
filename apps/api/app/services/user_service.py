@@ -5,7 +5,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 from app.domain.nexus_id import is_valid_nexus_id
 from app.domain.validators import is_valid_username
 from app.models.users import User, UserProfile
-from app.schemas.users import ProfileUpdateRequest
+from app.schemas.users import ProfileUpdateRequest, PublicUserOut, PublicUserProfileOut
 from app.services.auth_service import AuthError, get_user_with_profile, to_user_out
 from app.services.email_verification_service import EmailVerificationError, normalize_email
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
@@ -94,7 +94,7 @@ async def search_users(session: AsyncSession, query: str):
     users = result.scalars().all()
     for user in users:
         set_committed_value(user, 'profile', await session.get(UserProfile, user.id))
-    return [to_user_out(user) for user in users]
+    return [to_public_user_out(user) for user in users]
 
 
 async def find_public_user(session: AsyncSession, identifier: str):
@@ -107,4 +107,21 @@ async def find_public_user(session: AsyncSession, identifier: str):
     if not user:
         raise AuthError('User not found')
     set_committed_value(user, 'profile', await session.get(UserProfile, user.id))
-    return to_user_out(user)
+    return to_public_user_out(user)
+
+
+def to_public_user_out(user: User) -> PublicUserOut:
+    from app.services.admin_service import is_configured_admin_profile
+
+    profile = user.profile
+    return PublicUserOut(
+        id=user.id,
+        is_official=is_configured_admin_profile(profile),
+        profile=PublicUserProfileOut(
+            display_name=profile.display_name,
+            username=profile.username,
+            avatar_type=profile.avatar_type,
+            avatar_ref=profile.avatar_ref,
+            optional_phone=profile.optional_phone if profile.phone_public else None,
+        ) if profile else None,
+    )

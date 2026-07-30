@@ -21,6 +21,12 @@ export function searchUsers(accessToken, query) {
   });
 }
 
+export function getPublicUser(accessToken, usernameOrId) {
+  return apiRequest(`/api/users/${encodeURIComponent(usernameOrId.replace(/^@/, ''))}`, {
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function updateMyProfile(accessToken, payload) {
   return apiRequest('/api/users/me/profile', {
     method: 'PATCH',

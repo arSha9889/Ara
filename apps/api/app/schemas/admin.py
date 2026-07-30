@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.chats import MessageOut
+
 
 class AdminCountryOut(BaseModel):
     country: str
@@ -92,3 +94,8 @@ class AdminBranchUpdateRequest(BaseModel):
 class AdminBranchMemberRequest(BaseModel):
     user_id: UUID
     role: str = Field(pattern=r'^(admin|owner)$')
+
+
+class AdminSystemBotOut(BaseModel):
+    branch: AdminBranchOut
+    messages: list[MessageOut]

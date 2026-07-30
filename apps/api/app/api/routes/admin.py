@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_user
@@ -14,10 +15,12 @@ from app.schemas.admin import (
     AdminBranchUpdateRequest,
     AdminOverviewOut,
     AdminSecurityMetricsOut,
+    AdminSystemBotOut,
     AdminUserListOut,
     AdminUserOut,
     AdminUserStatusRequest,
 )
+from app.schemas.chats import MessageCreateRequest, MessageOut, MessageUpdateRequest
 from app.schemas.users import UserOut
 from app.services.admin_service import (
     AdminError,
@@ -29,10 +32,96 @@ from app.services.admin_service import (
     list_admin_users,
     require_admin,
 )
+from app.services.auth_service import AuthError
 from app.services.branch_service import list_admin_branches, set_admin_branch_archived, set_admin_branch_member, update_admin_branch
+from app.models.chats import ChatParticipant
+from app.services.notification_service import create_message_notifications
+from app.services.realtime_manager import realtime_manager
+from app.services.system_bot_service import delete_system_bot_message, edit_system_bot_message, get_system_bot, publish_system_bot_message, toggle_system_bot_message_pin
 
 
 router = APIRouter()
+
+
+async def _broadcast_system_bot_event(session: AsyncSession, chat_id: UUID, event: str, message: MessageOut) -> None:
+    participant_ids = (await session.execute(
+        select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id)
+    )).scalars()
+    for participant_id in participant_ids:
+        await realtime_manager.broadcast_to_user(participant_id, {
+            'event': event,
+            'chat_id': str(chat_id),
+            'message': message.model_dump(mode='json'),
+        })
+
+
+@router.get('/system-bot', response_model=AdminSystemBotOut)
+async def get_system_bot_route(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminSystemBotOut:
+    try:
+        return AdminSystemBotOut.model_validate(await get_system_bot(session, current_user.id))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.post('/system-bot/messages', response_model=MessageOut)
+async def publish_system_bot_message_route(
+    request: MessageCreateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MessageOut:
+    try:
+        message = await publish_system_bot_message(session, current_user.id, request)
+    except (AdminError, AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await create_message_notifications(session, message)
+    await _broadcast_system_bot_event(session, message.chat_id, 'message.created', message)
+    return message
+
+
+@router.patch('/system-bot/messages/{message_id}', response_model=MessageOut)
+async def edit_system_bot_message_route(
+    message_id: UUID,
+    request: MessageUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MessageOut:
+    try:
+        message = await edit_system_bot_message(session, current_user.id, message_id, request.text)
+    except (AdminError, AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await _broadcast_system_bot_event(session, message.chat_id, 'message.updated', message)
+    return message
+
+
+@router.delete('/system-bot/messages/{message_id}', response_model=MessageOut)
+async def delete_system_bot_message_route(
+    message_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MessageOut:
+    try:
+        message = await delete_system_bot_message(session, current_user.id, message_id)
+    except (AdminError, AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await _broadcast_system_bot_event(session, message.chat_id, 'message.deleted', message)
+    return message
+
+
+@router.post('/system-bot/messages/{message_id}/pin', response_model=MessageOut)
+async def toggle_system_bot_message_pin_route(
+    message_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MessageOut:
+    try:
+        message, _ = await toggle_system_bot_message_pin(session, current_user.id, message_id)
+    except (AdminError, AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await _broadcast_system_bot_event(session, message.chat_id, 'message.updated', message)
+    return message
 
 
 @router.get('/overview', response_model=AdminOverviewOut)

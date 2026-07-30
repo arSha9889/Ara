@@ -8,19 +8,24 @@ import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { createPublicBranch } from '../../chats/api/chatApi.js';
 import {
+  deleteAdminSystemBotMessage,
+  editAdminSystemBotMessage,
   getAdminAuditLogs,
   getAdminBranches,
   getAdminOverview,
   getAdminSecurityMetrics,
+  getAdminSystemBot,
   getAdminUser,
   getAdminUsers,
+  publishAdminSystemBotMessage,
   setAdminBranchArchived,
   setAdminBranchMember,
+  toggleAdminSystemBotMessagePin,
   updateAdminBranch,
   updateAdminUserStatus,
 } from '../api/adminApi.js';
 
-const TABS = ['overview', 'users', 'branches', 'audit'];
+const TABS = ['overview', 'systemBot', 'users', 'branches', 'audit'];
 const EMPTY_BRANCH_FORM = { title: '', slug: '', description: '', avatar_ref: '📢' };
 
 function AdminIcon({ name, size = 20 }) {
@@ -28,6 +33,7 @@ function AdminIcon({ name, size = 20 }) {
     overview: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
     users: <><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20" /><circle cx="9" cy="7" r="4" /><path d="M22 20v-1.5a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
     branches: <><path d="M4 20V4m0 3h9l-1 4 4 2H4" /><path d="M4 20h16" /></>,
+    systemBot: <><rect x="4" y="5" width="16" height="14" rx="4" /><path d="M9 5V3m6 2V3M8.5 12h.01M15.5 12h.01M9 16h6" /></>,
     audit: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     shield: <><path d="M12 3 4 6v5c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10V6l-8-3Z" /><path d="m8.5 12 2.2 2.2 4.8-5" /></>,
     search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>,
@@ -38,6 +44,10 @@ function AdminIcon({ name, size = 20 }) {
     more: <><circle cx="5" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="19" cy="12" r="1" fill="currentColor" /></>,
     external: <><path d="M14 4h6v6" /><path d="m20 4-9 9" /><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6" /></>,
     filter: <><path d="M4 6h16M7 12h10m-7 6h4" /></>,
+    send: <><path d="m21 3-8.5 18-2.3-7.2L3 11.2 21 3Z" /><path d="m10.2 13.8 4.2-4.2" /></>,
+    pin: <><path d="M8 4h8l-1 6 3 3v2H6v-2l3-3-1-6Z" /><path d="M12 15v6" /></>,
+    pencil: <><path d="m14.5 5.5 4 4M4.5 19.5l3.2-.7 10.8-10.8a2.8 2.8 0 0 0-4-4L3.7 14.8l-.7 4.7Z" /></>,
+    trash: <><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></>,
   };
   return <svg className="admin-icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -87,6 +97,14 @@ export function AdminPage() {
   const [memberUserQuery, setMemberUserQuery] = useState('');
   const [memberRole, setMemberRole] = useState('admin');
   const [isSavingBranch, setIsSavingBranch] = useState(false);
+  const [systemBot, setSystemBot] = useState(null);
+  const [isLoadingSystemBot, setIsLoadingSystemBot] = useState(false);
+  const [systemBotPost, setSystemBotPost] = useState('');
+  const [systemBotStatus, setSystemBotStatus] = useState('');
+  const [isPublishingSystemBotPost, setIsPublishingSystemBotPost] = useState(false);
+  const [editingSystemBotMessageId, setEditingSystemBotMessageId] = useState(null);
+  const [editingSystemBotText, setEditingSystemBotText] = useState('');
+  const [isUpdatingSystemBotMessage, setIsUpdatingSystemBotMessage] = useState(false);
 
   const countries = overview?.countries ?? [];
   const countryOptions = useMemo(() => countries.map((item) => item.country), [countries]);
@@ -138,6 +156,20 @@ export function AdminPage() {
     }
   }
 
+  async function loadSystemBot() {
+    setIsLoadingSystemBot(true);
+    try {
+      const result = await getAdminSystemBot(session.accessToken);
+      setSystemBot(result);
+      setSystemBotStatus('');
+      setError('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoadingSystemBot(false);
+    }
+  }
+
   useEffect(() => {
     void loadOverview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,6 +184,11 @@ export function AdminPage() {
 
   useEffect(() => {
     if (activeTab === 'branches') void loadBranches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, session.accessToken]);
+
+  useEffect(() => {
+    if (activeTab === 'systemBot') void loadSystemBot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, session.accessToken]);
 
@@ -302,6 +339,60 @@ export function AdminPage() {
     }
   }
 
+  async function publishSystemBotPost(event) {
+    event.preventDefault();
+    const text = systemBotPost.trim();
+    if (!text) return;
+    setIsPublishingSystemBotPost(true);
+    try {
+      await publishAdminSystemBotMessage(session.accessToken, { text });
+      setSystemBotPost('');
+      setSystemBotStatus(t('admin.systemBotPostPublished'));
+      await Promise.all([loadSystemBot(), loadOverview()]);
+    } catch (err) {
+      setSystemBotStatus(err.message);
+    } finally {
+      setIsPublishingSystemBotPost(false);
+    }
+  }
+
+  function startSystemBotMessageEdit(message) {
+    setEditingSystemBotMessageId(message.id);
+    setEditingSystemBotText(message.payload);
+    setSystemBotStatus('');
+  }
+
+  async function saveSystemBotMessageEdit(messageId) {
+    const text = editingSystemBotText.trim();
+    if (!text) return;
+    setIsUpdatingSystemBotMessage(true);
+    try {
+      await editAdminSystemBotMessage(session.accessToken, messageId, text);
+      setEditingSystemBotMessageId(null);
+      setEditingSystemBotText('');
+      setSystemBotStatus(t('admin.systemBotPostUpdated'));
+      await Promise.all([loadSystemBot(), loadOverview()]);
+    } catch (err) {
+      setSystemBotStatus(err.message);
+    } finally {
+      setIsUpdatingSystemBotMessage(false);
+    }
+  }
+
+  async function updateSystemBotMessage(message, action) {
+    setIsUpdatingSystemBotMessage(true);
+    try {
+      if (action === 'pin') await toggleAdminSystemBotMessagePin(session.accessToken, message.id);
+      if (action === 'delete') await deleteAdminSystemBotMessage(session.accessToken, message.id);
+      setSystemBotStatus(action === 'delete' ? t('admin.systemBotPostDeleted') : message.is_pinned ? t('admin.systemBotPostUnpinned') : t('admin.systemBotPostPinned'));
+      await Promise.all([loadSystemBot(), loadOverview()]);
+    } catch (err) {
+      setSystemBotStatus(err.message);
+    } finally {
+      setIsUpdatingSystemBotMessage(false);
+    }
+  }
+
   if (isLoadingOverview && !overview) {
     return <main className="admin-page"><section className="admin-loading"><AraChatLoader title={t('admin.loadingTitle')} text={t('admin.loadingText')} /></section></main>;
   }
@@ -355,10 +446,47 @@ export function AdminPage() {
                 </div>
                 <div className="admin-overview-grid">
                   <section className="admin-surface admin-activity-card"><header><div><h2>{t('admin.recentActivity')}</h2><p>{t('admin.auditText')}</p></div><button type="button" onClick={() => switchTab('audit')}>{t('admin.viewAll')}<AdminIcon name="arrow" size={16} /></button></header>{auditLogs.length ? <ol className="admin-activity-list">{auditLogs.slice(0, 5).map((entry) => <li key={entry.id}><span className="admin-activity-dot" /><div><strong>{actionLabel(entry.action, t)}</strong><small>{formatDate(entry.created_at)}</small></div></li>)}</ol> : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</section>
-                  <section className="admin-surface admin-quick-card"><h2>{t('admin.quickActions')}</h2><div className="admin-quick-actions"><button type="button" onClick={() => { setBranchForm(EMPTY_BRANCH_FORM); setBranchStatus(''); setIsBranchDialogOpen(true); }}><span><AdminIcon name="plus" /></span><div><strong>{t('admin.createBranch')}</strong><small>{t('admin.createBranchText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => switchTab('users')}><span><AdminIcon name="search" /></span><div><strong>{t('admin.findUser')}</strong><small>{t('admin.findUserText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => switchTab('audit')}><span><AdminIcon name="audit" /></span><div><strong>{t('admin.auditTitle')}</strong><small>{t('admin.auditText')}</small></div><AdminIcon name="arrow" size={16} /></button></div></section>
+                  <section className="admin-surface admin-quick-card"><h2>{t('admin.quickActions')}</h2><div className="admin-quick-actions"><button type="button" onClick={() => switchTab('systemBot')}><span><AdminIcon name="systemBot" /></span><div><strong>{t('admin.systemBotQuickAction')}</strong><small>{t('admin.systemBotQuickActionText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => { setBranchForm(EMPTY_BRANCH_FORM); setBranchStatus(''); setIsBranchDialogOpen(true); }}><span><AdminIcon name="plus" /></span><div><strong>{t('admin.createBranch')}</strong><small>{t('admin.createBranchText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => switchTab('users')}><span><AdminIcon name="search" /></span><div><strong>{t('admin.findUser')}</strong><small>{t('admin.findUserText')}</small></div><AdminIcon name="arrow" size={16} /></button></div></section>
                   <section className="admin-surface admin-security-card"><header><div><h2>{t('admin.securityTitle')}</h2><p>{t('admin.securityText')}</p></div><AdminIcon name="shield" /></header><div className="admin-security-list"><div><span>{t('admin.lockedPasswords')}</span><strong>{securityMetrics?.locked_passwords ?? 0}</strong></div><div><span>{t('admin.lockedPins')}</span><strong>{securityMetrics?.locked_pins ?? 0}</strong></div><div><span>{t('admin.archivedBranches')}</span><strong>{securityMetrics?.archived_branches ?? 0}</strong></div></div></section>
                   <section className="admin-surface admin-country-card"><header><div><h2>{t('admin.registrationCountries')}</h2><p>{t('admin.countryDistribution')}</p></div></header><div className="admin-country-bars">{countries.map((item) => <div key={item.country}><span>{countryLabel(item.country)}</span><i><b style={{ width: `${Math.max(8, ((item.count / Math.max(overview?.total_users || 1, 1)) * 100))}%` }} /></i><strong>{item.count}</strong></div>)}</div></section>
                 </div>
+              </>
+            ) : null}
+
+            {activeTab === 'systemBot' ? (
+              <>
+                <header className="admin-page-heading">
+                  <div><p className="eyebrow">AraChat System</p><h1>{t('admin.systemBotTitle')}</h1><p>{t('admin.systemBotText')}</p></div>
+                  <button className="admin-icon-button" type="button" onClick={() => void loadSystemBot()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button>
+                </header>
+                {isLoadingSystemBot && !systemBot ? <AraChatLoader title={t('admin.systemBotTitle')} text={t('admin.loadingSystemBot')} /> : (
+                  <div className="system-bot-layout">
+                    <section className="system-bot-composer admin-surface">
+                      <div className="system-bot-profile">
+                        <span className="system-bot-avatar">{systemBot?.branch?.avatar_ref || '📣'}</span>
+                        <div><div className="system-bot-name"><h2>{systemBot?.branch?.title || 'Ara Updates'}</h2><span>✓</span></div><p>#{systemBot?.branch?.slug || 'ara-updates'} · {t('admin.subscribers').replace('{count}', String(systemBot?.branch?.subscriber_count ?? 0))}</p></div>
+                        {systemBot?.branch ? <button className="system-bot-settings-button" type="button" onClick={() => openBranchEditor(systemBot.branch)}><AdminIcon name="pencil" size={15} />{t('admin.systemBotSettings')}</button> : null}
+                      </div>
+                      <form onSubmit={publishSystemBotPost}>
+                        <label className="field"><span>{t('admin.systemBotNewPost')}</span><textarea className="text-input" value={systemBotPost} maxLength="4000" placeholder={t('admin.systemBotPostPlaceholder')} onChange={(event) => setSystemBotPost(event.target.value)} /></label>
+                        <div className="system-bot-composer-actions"><small>{systemBotPost.trim().length}/4000</small><Button type="submit" disabled={!systemBotPost.trim() || isPublishingSystemBotPost}><AdminIcon name="send" size={17} />{isPublishingSystemBotPost ? t('admin.systemBotPublishing') : t('admin.systemBotPublish')}</Button></div>
+                      </form>
+                      {systemBotStatus ? <p className={systemBotStatus === t('admin.systemBotPostPublished') || systemBotStatus === t('admin.systemBotPostUpdated') || systemBotStatus === t('admin.systemBotPostPinned') || systemBotStatus === t('admin.systemBotPostUnpinned') || systemBotStatus === t('admin.systemBotPostDeleted') ? 'success-text system-bot-status' : 'error-text system-bot-status'}>{systemBotStatus}</p> : null}
+                    </section>
+                    <section className="system-bot-posts admin-surface">
+                      <header><div><h2>{t('admin.systemBotPosts')}</h2><p>{t('admin.systemBotPostsText')}</p></div><span className="system-bot-post-count">{systemBot?.messages?.filter((message) => !message.deleted_at).length ?? 0}</span></header>
+                      <div className="system-bot-post-list">
+                        {systemBot?.messages?.filter((message) => !message.deleted_at).slice().reverse().map((message) => (
+                          <article className={`system-bot-post ${message.is_pinned ? 'pinned' : ''}`} key={message.id}>
+                            <div className="system-bot-post-head"><div><span className="system-bot-post-icon"><AdminIcon name={message.is_pinned ? 'pin' : 'systemBot'} size={16} /></span><time>{formatDate(message.created_at)}{message.edited_at ? ` · ${t('admin.systemBotEdited')}` : ''}</time></div><div className="system-bot-post-actions"><button type="button" onClick={() => void updateSystemBotMessage(message, 'pin')} disabled={isUpdatingSystemBotMessage} title={message.is_pinned ? t('admin.systemBotUnpin') : t('admin.systemBotPin')} aria-label={message.is_pinned ? t('admin.systemBotUnpin') : t('admin.systemBotPin')}><AdminIcon name="pin" size={16} /></button><button type="button" onClick={() => startSystemBotMessageEdit(message)} disabled={isUpdatingSystemBotMessage} title={t('admin.edit')} aria-label={t('admin.edit')}><AdminIcon name="pencil" size={16} /></button><button className="danger" type="button" onClick={() => void updateSystemBotMessage(message, 'delete')} disabled={isUpdatingSystemBotMessage} title={t('admin.delete')} aria-label={t('admin.delete')}><AdminIcon name="trash" size={16} /></button></div></div>
+                            {editingSystemBotMessageId === message.id ? <div className="system-bot-edit"><textarea className="text-input" value={editingSystemBotText} maxLength="4000" onChange={(event) => setEditingSystemBotText(event.target.value)} /><div><Button type="button" variant="secondary" onClick={() => { setEditingSystemBotMessageId(null); setEditingSystemBotText(''); }}>{t('messages.cancel')}</Button><Button type="button" onClick={() => void saveSystemBotMessageEdit(message.id)} disabled={!editingSystemBotText.trim() || isUpdatingSystemBotMessage}>{t('admin.systemBotSavePost')}</Button></div></div> : <p>{message.payload}</p>}
+                          </article>
+                        ))}
+                        {!systemBot?.messages?.some((message) => !message.deleted_at) ? <p className="admin-empty-state">{t('admin.systemBotNoPosts')}</p> : null}
+                      </div>
+                    </section>
+                  </div>
+                )}
               </>
             ) : null}
 

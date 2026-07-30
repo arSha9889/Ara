@@ -9,6 +9,7 @@ import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx'
 import { RegionSelectionPage } from '../features/onboarding/pages/RegionSelectionPage.jsx';
 import { ChatPage } from '../features/chats/pages/ChatPage.jsx';
 import { ChatsPage } from '../features/chats/pages/ChatsPage.jsx';
+import { NewChatPage } from '../features/chats/pages/NewChatPage.jsx';
 import { PublicBranchesPage } from '../features/chats/pages/PublicBranchesPage.jsx';
 import { PrivacyPolicyPage } from '../features/legal/pages/PrivacyPolicyPage.jsx';
 import { TermsPage } from '../features/legal/pages/TermsPage.jsx';
@@ -52,6 +53,7 @@ export function App() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/app" element={<AppShell />}>
           <Route index element={<ChatsPage />} />
+          <Route path="new-chat" element={<NewChatPage />} />
           <Route path="branches" element={<PublicBranchesPage />} />
           <Route path="chats/:chatId" element={<ChatPage />} />
           <Route path="profile" element={<ProfilePage />} />

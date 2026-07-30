@@ -26,6 +26,20 @@ class UserOut(BaseModel):
     profile: UserProfileOut | None
 
 
+class PublicUserProfileOut(BaseModel):
+    display_name: str
+    username: str
+    avatar_type: str
+    avatar_ref: str
+    optional_phone: str | None = None
+
+
+class PublicUserOut(BaseModel):
+    id: UUID
+    is_official: bool = False
+    profile: PublicUserProfileOut | None
+
+
 class ProfileUpdateRequest(BaseModel):
     display_name: str | None = Field(default=None, max_length=80)
     email: str | None = Field(default=None, max_length=255)

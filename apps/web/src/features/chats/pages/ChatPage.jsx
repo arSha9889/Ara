@@ -13,6 +13,7 @@ import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
 import { useDirectCall } from '../hooks/useDirectCall.js';
+import { PublicProfileSheet } from '../../profile/components/PublicProfileSheet.jsx';
 
 const REACTION_EMOJIS = [
   '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏', '😍', '🥰',
@@ -866,6 +867,10 @@ export function ChatPage() {
     setProfileCardAuthor(author);
   }
 
+  function openPeerProfile() {
+    if (!isSavedChat && !isPublicBranch && chat?.peer) openProfileCard(chat.peer);
+  }
+
   async function openProfileDirectChat() {
     if (!profileCardAuthor || isOpeningProfileChat) return;
     try {
@@ -1192,16 +1197,16 @@ export function ChatPage() {
           <Icon name="arrowLeft" size={19} />
           <span>{t('messages.backToChats')}</span>
         </Link>
-        <div className="chat-avatar-wrap">
+        <button className="chat-profile-trigger chat-avatar-wrap" type="button" onClick={openPeerProfile} disabled={isSavedChat || isPublicBranch} aria-label={!isSavedChat && !isPublicBranch ? `${t('messages.openProfile')}: ${chatDisplayTitle}` : undefined}>
           {isSavedChat ? (
             <div className="avatar saved-avatar" aria-hidden="true">★</div>
           ) : (
             <UserAvatar profile={chat?.peer} fallback={chat?.peer?.display_name?.[0] || chat?.peer?.username?.[0] || 'N'} />
           )}
           {!isSavedChat ? <span className={`presence-dot ${peerStatus.tone}`} aria-hidden="true" /> : null}
-        </div>
+        </button>
         <div>
-          <h1>{chatDisplayTitle}</h1>
+          {!isSavedChat && !isPublicBranch ? <button className="chat-profile-title" type="button" onClick={openPeerProfile}><h1>{chatDisplayTitle}</h1></button> : <h1>{chatDisplayTitle}</h1>}
           <div className="chat-subtitle">
             <span>{chatDisplaySubtitle}</span>
           {!isSavedChat && !isPublicBranch ? (
@@ -1495,24 +1500,15 @@ export function ChatPage() {
           </section>
         </div>
       ) : null}
-      {profileCardAuthor ? (
-        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setProfileCardAuthor(null)}>
-          <section className="app-dialog message-profile-card" role="dialog" aria-modal="true" aria-labelledby="message-profile-title" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="message-profile-close" type="button" onClick={() => setProfileCardAuthor(null)} aria-label={t('messages.closeProfile')}>×</button>
-            <UserAvatar profile={profileCardAuthor} fallback={profileCardAuthor.display_name?.[0] || profileCardAuthor.username?.[0] || 'N'} className="message-profile-avatar" />
-            <div className="message-profile-copy">
-              <p className="eyebrow">AraChat</p>
-              <h2 id="message-profile-title">{profileCardAuthor.display_name || profileCardAuthor.username}</h2>
-              <p>@{profileCardAuthor.username}</p>
-              {profileCardAuthor.is_official ? <span className="message-profile-official">✓ {t('messages.officialAccount')}</span> : null}
-            </div>
-            {profileCardError ? <p className="error-text">{profileCardError}</p> : null}
-            <button className="button button-primary" type="button" onClick={openProfileDirectChat} disabled={isOpeningProfileChat}>
-              {isOpeningProfileChat ? t('messages.openingDirectChat') : t('messages.writeToUser')}
-            </button>
-          </section>
-        </div>
-      ) : null}
+      <PublicProfileSheet
+        user={profileCardAuthor}
+        isOpen={Boolean(profileCardAuthor)}
+        onClose={() => setProfileCardAuthor(null)}
+        onWrite={isPublicBranch ? openProfileDirectChat : null}
+        isWriting={isOpeningProfileChat}
+        presence={!isPublicBranch ? peerStatus : null}
+      />
+      {profileCardError ? <p className="error-text">{profileCardError}</p> : null}
       </section>
     </section>
   );

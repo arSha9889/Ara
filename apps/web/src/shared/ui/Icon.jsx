@@ -9,6 +9,8 @@ const ICON_PATHS = {
   search: <><circle cx="10.5" cy="10.5" r="5.5" /><path d="m15 15 4 4" /></>,
   arrowLeft: <path d="M19 12H5m7-7-7 7 7 7" />,
   arrowRight: <path d="M5 12h14m-7-7 7 7-7 7" />,
+  chevronRight: <path d="m9 5 7 7-7 7" />,
+  activity: <><path d="M3 12h4l2.2-6 4 12 2.2-6H21" /></>,
   paperclip: <path d="m8.5 12.8 5.85-5.85a3 3 0 1 1 4.24 4.24l-7.62 7.62a5 5 0 0 1-7.07-7.07l7.43-7.43" />,
   smile: <><circle cx="12" cy="12" r="8" /><path d="M8.5 14.5s1.1 1.5 3.5 1.5 3.5-1.5 3.5-1.5M9 9.5h.01M15 9.5h.01" /></>,
   microphone: <><rect x="9" y="4" width="6" height="11" rx="3" /><path d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v3M9 20h6" /></>,

@@ -15,7 +15,7 @@ from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
 from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, list_chats, list_messages, mark_message_read, mark_messages_read, toggle_reaction
 from app.services.notification_service import create_message_notifications, list_notifications
-from app.services.user_service import update_profile
+from app.services.user_service import find_public_user, update_profile
 
 
 DATABASE_URL = os.getenv('NEXUS_TEST_DATABASE_URL')
@@ -110,6 +110,21 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             second_profile = await session.get(UserProfile, second_user.id)
             second_profile.optional_phone = '+79990000002'
             await session.commit()
+
+        async with session_factory() as session:
+            private_profile = await find_public_user(session, 'bobnexus')
+            assert private_profile.profile and private_profile.profile.optional_phone is None
+            assert 'nexus_id' not in private_profile.model_dump()
+            assert 'telegram_id' not in private_profile.model_dump()
+
+            second_profile = await session.get(UserProfile, second_user.id)
+            second_profile.phone_public = True
+            await session.commit()
+
+        async with session_factory() as session:
+            public_profile = await find_public_user(session, 'bobnexus')
+            assert public_profile.profile and public_profile.profile.optional_phone == '+79990000002'
+            assert 'email' not in public_profile.profile.model_dump()
 
         async with session_factory() as session:
             chat = await create_or_get_direct_chat(session, first_user.id, 'RU', '+7 999 000-00-02')

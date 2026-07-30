@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_user
 from app.db.session import get_db_session
-from app.schemas.users import ProfileUpdateRequest, UserOut, UsernameCheckRequest, UsernameCheckResponse, UsernameUpdateRequest
+from app.schemas.users import ProfileUpdateRequest, PublicUserOut, UserOut, UsernameCheckRequest, UsernameCheckResponse, UsernameUpdateRequest
 from app.services.auth_service import AuthError
 from app.services.user_service import find_public_user, get_current_user_out, is_username_available, search_users, update_profile, update_username
 
@@ -37,7 +37,7 @@ async def search(
     query: str,
     current_user: Annotated[UserOut, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> list[UserOut]:
+) -> list[PublicUserOut]:
     return await search_users(session, query)
 
 
@@ -46,7 +46,7 @@ async def get_user(
     nexus_id_or_username: str,
     current_user: Annotated[UserOut, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> UserOut:
+) -> PublicUserOut:
     try:
         return await find_public_user(session, nexus_id_or_username)
     except AuthError as exc:
