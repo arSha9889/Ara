@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
 import { AppNavigationTrigger } from '../../../app/layout/AppShell.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
-import { getChats } from '../api/chatApi.js';
+import { createSavedChat, getChats } from '../api/chatApi.js';
 
 function titleForChat(chat, t) {
   if (chat.type === 'saved') return t('chats.savedTitle');
@@ -27,6 +27,7 @@ function subtitleForChat(chat, currentUserId, t) {
 export function ChatWorkspaceSidebar({ activeChatId }) {
   const { t } = useI18n();
   const { session } = useSession();
+  const navigate = useNavigate();
   const { isMenuOpen, toggleNavigation } = useOutletContext();
   const [chats, setChats] = useState([]);
   const [query, setQuery] = useState('');
@@ -46,40 +47,69 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
       .filter(Boolean).join(' ').toLowerCase().includes(normalized));
   }, [chats, query, session.user?.id, t]);
 
+  const savedChat = chats.find((chat) => chat.type === 'saved');
+  const listedChats = visibleChats.filter((chat) => chat.type !== 'saved');
+  const normalizedQuery = query.trim().toLowerCase();
+  const isSavedChatVisible = !normalizedQuery || [
+    t('chats.savedTitle'),
+    savedChat ? subtitleForChat(savedChat, session.user?.id, t) : t('chats.savedSubtitle'),
+    t('chats.savedBadge'),
+  ].join(' ').toLowerCase().includes(normalizedQuery);
+
+  async function handleOpenSavedChat() {
+    try {
+      const chat = savedChat || await createSavedChat(session.accessToken);
+      setChats((current) => [chat, ...current.filter((item) => item.id !== chat.id)]);
+      navigate(`/app/chats/${chat.id}`);
+    } catch {
+      // The current chat remains available if the saved-messages request fails.
+    }
+  }
+
   return (
-    <aside className="chat-workspace-sidebar" aria-label={t('chats.title')}>
-      <div className="workspace-sidebar-heading">
-        <div>
-          <p className="workspace-kicker">AraChat</p>
-          <div className="workspace-title-row">
-            <h2>{t('chats.title')}</h2>
-            <AppNavigationTrigger className="workspace-navigation-trigger" isMenuOpen={isMenuOpen} onToggle={toggleNavigation} />
-          </div>
+    <aside className="panel chat-list-panel chat-workspace-sidebar" aria-label={t('chats.title')}>
+      <header className="section-header">
+        <div className="chat-list-heading">
+          <h1>{t('chats.title')}</h1>
+          <AppNavigationTrigger className="chat-list-navigation-trigger" isMenuOpen={isMenuOpen} onToggle={toggleNavigation} />
         </div>
-        <Link className="workspace-new-chat" to="/app/new-chat" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
-          <Icon name="plus" size={20} />
+      </header>
+      <div className="chat-list-tools">
+        <label className="chat-search-field">
+          <span className="chat-search-icon" aria-hidden="true"><Icon name="search" size={16} /></span>
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('chats.searchChats')} aria-label={t('chats.searchChats')} />
+          {query ? <button className="chat-search-clear" type="button" onClick={() => setQuery('')} aria-label={t('chats.clearSearch')}>×</button> : null}
+        </label>
+        <Link className="chat-create-trigger" to="/app/new-chat" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
+          <Icon name="plus" size={22} />
         </Link>
       </div>
-      <label className="workspace-search">
-        <Icon name="search" size={18} />
-        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('chats.searchChats')} aria-label={t('chats.searchChats')} />
-      </label>
-      <div className="workspace-chat-list">
-        {visibleChats.map((chat) => {
+      <div className="list-stack">
+        {isSavedChatVisible ? (
+          <button className={`info-card saved-chat-card ${savedChat?.id === activeChatId ? 'active' : ''}`} type="button" onClick={handleOpenSavedChat}>
+            <div className="chat-list-avatar saved-avatar" aria-hidden="true">★</div>
+            <div>
+              <strong>{t('chats.savedTitle')}</strong>
+              <span className="muted">{savedChat ? subtitleForChat(savedChat, session.user?.id, t) : t('chats.savedSubtitle')}</span>
+            </div>
+            <span className="chat-list-badge">{t('chats.savedBadge')}</span>
+          </button>
+        ) : null}
+        {listedChats.map((chat) => {
           const title = titleForChat(chat, t);
-          const isSaved = chat.type === 'saved';
-          const isBranch = chat.type === 'branch';
           return (
-            <Link className={`workspace-chat-row ${chat.id === activeChatId ? 'active' : ''}`} key={chat.id} to={`/app/chats/${chat.id}`}>
-              <span className="workspace-avatar-wrap">
-                {isSaved ? <span className="workspace-saved-icon"><Icon name="bookmark" size={18} /></span> : isBranch ? <span className="workspace-saved-icon workspace-branch-icon">{chat.avatar_ref || '◎'}</span> : <UserAvatar baseClass="workspace-chat-avatar" profile={chat.peer} fallback={title[0] || 'A'} />}
-                {!isSaved && chat.peer?.is_online ? <span className="workspace-presence" /> : null}
+            <Link className={`info-card chat-thread-card ${chat.id === activeChatId ? 'active' : ''}`} key={chat.id} to={`/app/chats/${chat.id}`}>
+              <span className="chat-list-avatar-wrap">
+                {chat.type === 'branch'
+                  ? <span className="chat-list-avatar branch-avatar" aria-hidden="true">{chat.avatar_ref || '◎'}</span>
+                  : <UserAvatar baseClass="chat-list-avatar" profile={chat.peer} fallback={title[0] || 'A'} />}
+                {chat.peer?.is_online ? <span className="presence-dot online" aria-hidden="true" /> : null}
               </span>
-              <span className="workspace-chat-copy">
-                <strong>{title} {isBranch && chat.is_official ? <span className="official-badge">✓</span> : null}</strong>
-                <span>{subtitleForChat(chat, session.user?.id, t)}</span>
+              <span className="chat-thread-copy">
+                <strong>{title} {(chat.type === 'branch' && chat.is_official) || chat.peer?.is_official ? <span className="official-badge">✓</span> : null}</strong>
+                <span className="muted">{subtitleForChat(chat, session.user?.id, t)}</span>
               </span>
-              {chat.unread_count ? <span className="workspace-unread">{chat.unread_count > 99 ? '99+' : chat.unread_count}</span> : null}
+              {chat.unread_count ? <span className="chat-unread-badge">{chat.unread_count > 99 ? '99+' : chat.unread_count}</span> : null}
             </Link>
           );
         })}

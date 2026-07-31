@@ -1,13 +1,17 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import models  # noqa: F401
 from app.db.base import Base
+from app.models.chats import PushSubscription
+from app.models.security import TrustedDevicePin
+from app.models.sessions import Session
 from app.models.users import User, UserProfile
-from app.services.admin_service import get_admin_user, list_admin_users
+from app.services.admin_service import change_user_status, get_admin_user, list_admin_users
 
 
 @pytest.mark.anyio
@@ -74,5 +78,64 @@ async def test_list_admin_users_searches_filters_and_includes_deleted(anyio_back
             deleted = await list_admin_users(session, admin.id, user_status='deleted')
             assert deleted['total'] == 1
             assert deleted['users'][0]['username'] == 'deleted'
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_administrator_can_delete_another_user_and_revoke_access(anyio_backend, monkeypatch) -> None:
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+    monkeypatch.setattr('app.services.admin_service.settings.admin_phone', '+79990000001')
+
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            admin = User(id=uuid4(), nexus_id='1111111111111111', telegram_id='admin', status='active')
+            target = User(id=uuid4(), nexus_id='2222222222222222', telegram_id='target', status='active')
+            session.add_all([
+                admin,
+                target,
+                UserProfile(user_id=admin.id, display_name='Administrator', username='admin', optional_phone='+79990000001'),
+                UserProfile(user_id=target.id, display_name='Target user', username='target', optional_phone='+79990000002'),
+                Session(
+                    user_id=target.id,
+                    device_id='target-device',
+                    refresh_token_lookup_hash='a' * 64,
+                    refresh_token_hash='hash',
+                    expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+                ),
+                TrustedDevicePin(
+                    user_id=target.id,
+                    device_id='target-device',
+                    pin_hash='hash',
+                    trusted_until=datetime.now(timezone.utc) + timedelta(days=1),
+                ),
+                PushSubscription(
+                    user_id=target.id,
+                    device_id='target-device',
+                    endpoint='https://push.example/target',
+                    p256dh='key',
+                    auth='auth',
+                ),
+            ])
+            await session.commit()
+
+            await change_user_status(session, admin.id, target.id, 'deleted')
+
+            deleted_user = await session.get(User, target.id)
+            assert deleted_user.status == 'deleted'
+            assert deleted_user.deleted_at is not None
+            target_session = (await session.execute(select(Session).where(Session.user_id == target.id))).scalar_one()
+            target_pin = (await session.execute(select(TrustedDevicePin).where(TrustedDevicePin.user_id == target.id))).scalar_one()
+            push_subscription = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == target.id))).scalar_one_or_none()
+            assert target_session.revoked_at is not None
+            assert target_pin.revoked_at is not None
+            assert push_subscription is None
     finally:
         await engine.dispose()

@@ -1,12 +1,12 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.audit import AuditLog
-from app.models.chats import Chat
+from app.models.chats import Chat, PushSubscription
 from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import Session
 from app.models.users import User, UserProfile
@@ -241,6 +241,8 @@ async def change_user_status(session: AsyncSession, admin_user_id: UUID, target_
     if next_status in {'blocked', 'deleted'}:
         await session.execute(update(Session).where(Session.user_id == user.id, Session.revoked_at.is_(None)).values(revoked_at=now))
         await session.execute(update(TrustedDevicePin).where(TrustedDevicePin.user_id == user.id, TrustedDevicePin.revoked_at.is_(None)).values(revoked_at=now))
+    if next_status == 'deleted':
+        await session.execute(delete(PushSubscription).where(PushSubscription.user_id == user.id))
     record_admin_audit(
         session,
         admin_user_id,

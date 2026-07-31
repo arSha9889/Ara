@@ -73,6 +73,10 @@ async def login_with_pin(session: AsyncSession, identifier: str, pin: str, devic
     user = await _find_user_by_login_identifier(session, identifier)
     if not user:
         raise SecurityError('Invalid login identifier or PIN')
+    if user.status == 'deleted' or user.deleted_at:
+        raise SecurityError('Account has been deleted')
+    if user.status != 'active':
+        raise SecurityError('Invalid login identifier or PIN')
 
     trusted_pin = await _get_active_pin_for_device(session, user.id, device_id)
     if not trusted_pin:
@@ -158,7 +162,7 @@ def _trusted_until() -> datetime:
 async def _find_user_by_login_identifier(session: AsyncSession, identifier: str) -> User | None:
     value = identifier.strip()
     if value.isdigit() and len(value) == settings.nexus_id_length:
-        result = await session.execute(select(User).where(User.nexus_id == value, User.deleted_at.is_(None)))
+        result = await session.execute(select(User).where(User.nexus_id == value))
         return result.scalar_one_or_none()
 
     if '@' in value:
@@ -169,7 +173,7 @@ async def _find_user_by_login_identifier(session: AsyncSession, identifier: str)
         result = await session.execute(
             select(User)
             .join(UserProfile, UserProfile.user_id == User.id)
-            .where(UserProfile.email == email, User.deleted_at.is_(None))
+            .where(UserProfile.email == email)
         )
         return result.scalar_one_or_none()
 
@@ -181,7 +185,7 @@ async def _find_user_by_login_identifier(session: AsyncSession, identifier: str)
     result = await session.execute(
         select(User)
         .join(UserProfile, UserProfile.user_id == User.id)
-        .where(UserProfile.optional_phone == phone, User.deleted_at.is_(None))
+        .where(UserProfile.optional_phone == phone)
     )
     return result.scalar_one_or_none()
 

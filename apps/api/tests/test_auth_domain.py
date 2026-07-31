@@ -67,6 +67,51 @@ def test_normalize_phone() -> None:
 
 
 @pytest.mark.anyio
+async def test_deleted_account_cannot_log_in_again(anyio_backend) -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app import models  # noqa: F401
+    from app.db.base import Base
+    from app.domain.security_hashing import hash_secret
+    from app.models.security import PasswordCredential
+    from app.models.users import User, UserProfile
+    from app.services.auth_service import AuthError, login_with_password
+    from app.services.security_service import SecurityError, login_with_pin
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            user = User(
+                id=uuid4(),
+                nexus_id='1234567890123456',
+                telegram_id='deleted-user',
+                status='deleted',
+                deleted_at=datetime.now(timezone.utc),
+            )
+            session.add_all([
+                user,
+                UserProfile(user_id=user.id, display_name='Deleted user', username='deleteduser'),
+                PasswordCredential(user_id=user.id, password_hash=hash_secret('password123')),
+            ])
+            await session.commit()
+
+            with pytest.raises(AuthError, match='Account has been deleted'):
+                await login_with_password(session, user.nexus_id, 'password123', 'deleted-device')
+            with pytest.raises(SecurityError, match='Account has been deleted'):
+                await login_with_pin(session, user.nexus_id, '1234', 'deleted-device')
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
 async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 

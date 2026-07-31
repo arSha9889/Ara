@@ -26,6 +26,7 @@ const API_ERROR_MESSAGES = {
   'Invalid phone or PIN': 'Неверный телефон или PIN.',
   'Invalid login identifier or password': 'Неверный телефон, email или AraChat ID либо пароль.',
   'Invalid login identifier or PIN': 'Неверный телефон, email или AraChat ID либо PIN.',
+  'Account has been deleted': 'Этот аккаунт удалён. Вход в него больше недоступен.',
   'Phone is required': 'Введите телефон.',
   'Login identifier is required': 'Введите телефон, email или AraChat ID.',
   'Phone number is already registered': 'Этот номер телефона уже зарегистрирован.',

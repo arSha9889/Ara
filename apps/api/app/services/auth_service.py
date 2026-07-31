@@ -236,7 +236,11 @@ async def confirm_password_change(
 
 async def login_with_password(session: AsyncSession, identifier: str, password: str, device_id: str) -> tuple[UserOut, str, str]:
     user = await _find_user_by_login_identifier(session, identifier)
-    if not user or user.status != 'active':
+    if not user:
+        raise AuthError('Invalid login identifier or password')
+    if user.status == 'deleted' or user.deleted_at:
+        raise AuthError('Account has been deleted')
+    if user.status != 'active':
         raise AuthError('Invalid login identifier or password')
 
     credential = await session.get(PasswordCredential, user.id)
@@ -254,6 +258,10 @@ async def login_with_password(session: AsyncSession, identifier: str, password: 
 
 
 async def issue_session_for_user(session: AsyncSession, user: User, device_id: str, method: str) -> tuple[UserOut, str, str]:
+    if user.status == 'deleted' or user.deleted_at:
+        raise AuthError('Account has been deleted')
+    if user.status != 'active':
+        raise AuthError('Invalid login identifier or password')
     refresh_token = _generate_refresh_token()
     session.add(_create_session(user.id, device_id, refresh_token))
     session.add(_login_history(user.id, device_id, method, 'success'))
@@ -274,7 +282,9 @@ async def refresh_access_token(session: AsyncSession, refresh_token: str) -> tup
     if item and item.expires_at > now and verify_secret(refresh_token, item.refresh_token_hash):
         user = await find_user_by_id(session, item.user_id)
         if not user:
-            raise AuthError('Session user not found')
+            raise AuthError('Invalid refresh token')
+        if user.status != 'active':
+            raise AuthError('Invalid refresh token')
         item.expires_at = now + timedelta(days=settings.refresh_token_days)
         await session.commit()
         await _load_profile(session, user)
@@ -367,7 +377,7 @@ async def _email_exists(session: AsyncSession, email: str) -> bool:
 async def _find_user_by_login_identifier(session: AsyncSession, identifier: str) -> User | None:
     value = identifier.strip()
     if value.isdigit() and len(value) == settings.nexus_id_length:
-        result = await session.execute(select(User).where(User.nexus_id == value, User.deleted_at.is_(None)))
+        result = await session.execute(select(User).where(User.nexus_id == value))
         return result.scalar_one_or_none()
 
     if '@' in value:
@@ -378,7 +388,7 @@ async def _find_user_by_login_identifier(session: AsyncSession, identifier: str)
         result = await session.execute(
             select(User)
             .join(UserProfile, UserProfile.user_id == User.id)
-            .where(UserProfile.email == email, User.deleted_at.is_(None))
+            .where(UserProfile.email == email)
         )
         return result.scalar_one_or_none()
 
@@ -390,7 +400,7 @@ async def _find_user_by_login_identifier(session: AsyncSession, identifier: str)
     result = await session.execute(
         select(User)
         .join(UserProfile, UserProfile.user_id == User.id)
-        .where(UserProfile.optional_phone == phone, User.deleted_at.is_(None))
+        .where(UserProfile.optional_phone == phone)
     )
     return result.scalar_one_or_none()
 
