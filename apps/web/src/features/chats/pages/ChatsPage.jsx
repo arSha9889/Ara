@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 
+import { AppNavigationTrigger } from '../../../app/layout/AppShell.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -37,6 +38,7 @@ export function ChatsPage() {
   const { t } = useI18n();
   const { session } = useSession();
   const navigate = useNavigate();
+  const { isMenuOpen, toggleNavigation } = useOutletContext();
   const [chats, setChats] = useState([]);
   const [chatSearch, setChatSearch] = useState('');
   const [error, setError] = useState('');
@@ -224,7 +226,10 @@ export function ChatsPage() {
     <section className="content-grid">
       <div className="panel chat-list-panel">
         <header className="section-header">
-          <h1>{t('chats.title')}</h1>
+          <div className="chat-list-heading">
+            <h1>{t('chats.title')}</h1>
+            <AppNavigationTrigger className="chat-list-navigation-trigger" isMenuOpen={isMenuOpen} onToggle={toggleNavigation} />
+          </div>
         </header>
         {showNotificationPrompt ? (
           <div className="notification-prompt">

@@ -8,6 +8,22 @@ import { useNotifications } from '../providers/NotificationsProvider.jsx';
 import { useSession } from '../providers/SessionProvider.jsx';
 import { Icon } from '../../shared/ui/Icon.jsx';
 
+export function AppNavigationTrigger({ isMenuOpen, onToggle, className = '' }) {
+  const { t } = useI18n();
+
+  return (
+    <button
+      className={`app-navigation-trigger ${className}`.trim()}
+      type="button"
+      aria-label={t('common.navigation')}
+      aria-expanded={isMenuOpen}
+      onClick={onToggle}
+    >
+      <Icon name={isMenuOpen ? 'x' : 'menu'} size={22} />
+    </button>
+  );
+}
+
 export function AppShell() {
   const { t } = useI18n();
   const { session, clearSession } = useSession();
@@ -15,6 +31,7 @@ export function AppShell() {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isChatRoute = location.pathname.startsWith('/app/chats/');
+  const isChatsWorkspace = location.pathname === '/app' || isChatRoute;
   const isAdministrator = session.user?.is_official === true;
   const navItems = [
     { to: '/app', icon: 'chat', label: t('chats.title') },
@@ -53,15 +70,7 @@ export function AppShell() {
 
   return (
     <div className={`app-shell ${isMenuOpen ? 'is-navigation-open' : ''} ${isChatRoute ? 'is-chat-route' : ''}`}>
-      <button
-        className="app-navigation-trigger"
-        type="button"
-        aria-label={t('common.navigation')}
-        aria-expanded={isMenuOpen}
-        onClick={() => setIsMenuOpen((current) => !current)}
-      >
-        <Icon name={isMenuOpen ? 'x' : 'menu'} size={22} />
-      </button>
+      {!isChatsWorkspace ? <AppNavigationTrigger isMenuOpen={isMenuOpen} onToggle={() => setIsMenuOpen((current) => !current)} /> : null}
       {isMenuOpen ? <button className="app-navigation-backdrop" type="button" aria-label={t('common.close')} onClick={() => setIsMenuOpen(false)} /> : null}
       <aside className="app-navigation-drawer" aria-label={t('common.navigation')} aria-hidden={!isMenuOpen} inert={!isMenuOpen ? '' : undefined}>
         <div className="app-navigation-topbar">
@@ -93,7 +102,7 @@ export function AppShell() {
         </div>
       </aside>
       <main className="app-main">
-        <Outlet />
+        <Outlet context={{ isMenuOpen, toggleNavigation: () => setIsMenuOpen((current) => !current) }} />
       </main>
       <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
           {mobileNavItems.map((item) => (

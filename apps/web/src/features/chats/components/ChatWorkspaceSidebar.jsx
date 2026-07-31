@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 
+import { AppNavigationTrigger } from '../../../app/layout/AppShell.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
@@ -26,6 +27,7 @@ function subtitleForChat(chat, currentUserId, t) {
 export function ChatWorkspaceSidebar({ activeChatId }) {
   const { t } = useI18n();
   const { session } = useSession();
+  const { isMenuOpen, toggleNavigation } = useOutletContext();
   const [chats, setChats] = useState([]);
   const [query, setQuery] = useState('');
 
@@ -49,7 +51,10 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
       <div className="workspace-sidebar-heading">
         <div>
           <p className="workspace-kicker">AraChat</p>
-          <h2>{t('chats.title')}</h2>
+          <div className="workspace-title-row">
+            <h2>{t('chats.title')}</h2>
+            <AppNavigationTrigger className="workspace-navigation-trigger" isMenuOpen={isMenuOpen} onToggle={toggleNavigation} />
+          </div>
         </div>
         <Link className="workspace-new-chat" to="/app/new-chat" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
           <Icon name="plus" size={20} />

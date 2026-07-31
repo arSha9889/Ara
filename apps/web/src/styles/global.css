@@ -1991,6 +1991,13 @@ p { margin-bottom: 14px; }
 
 .workspace-sidebar-heading h2 { margin: 0; font-size: 1.4rem; }
 
+.workspace-title-row,
+.chat-list-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .workspace-kicker {
   margin: 0 0 3px;
   color: var(--primary);
@@ -6765,6 +6772,26 @@ code {
   transform: translateY(-1px);
 }
 
+.chat-list-navigation-trigger,
+.workspace-navigation-trigger {
+  width: 38px;
+  height: 38px;
+  position: static;
+  z-index: auto;
+  flex: 0 0 auto;
+  border-radius: 13px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+.chat-list-navigation-trigger:hover,
+.chat-list-navigation-trigger:focus-visible,
+.workspace-navigation-trigger:hover,
+.workspace-navigation-trigger:focus-visible,
+.app-shell.is-navigation-open .chat-list-navigation-trigger,
+.app-shell.is-navigation-open .workspace-navigation-trigger {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 0 0 4px var(--ring);
+}
+
 .app-navigation-backdrop {
   position: fixed;
   z-index: 100;
@@ -6889,7 +6916,7 @@ code {
 }
 
 /* Tablet workspace: familiar two-pane messaging without turning navigation into a permanent sidebar. */
-@media (min-width: 861px) and (max-width: 1366px) {
+@media (min-width: 861px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) {
   .app-main {
     padding: 20px clamp(20px, 3vw, 36px) calc(112px + env(safe-area-inset-bottom));
     padding-left: max(84px, 3vw);
@@ -6979,7 +7006,7 @@ code {
   .workspace-welcome-panel { min-height: calc(100dvh - 132px - env(safe-area-inset-bottom)); }
 }
 
-@media (min-width: 861px) and (max-width: 1366px) and (orientation: portrait) {
+@media (min-width: 861px) and (max-width: 1366px) and (hover: none) and (pointer: coarse) and (orientation: portrait) {
   .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
   .app-shell.is-chat-route .app-main { padding-bottom: 20px; }
 
