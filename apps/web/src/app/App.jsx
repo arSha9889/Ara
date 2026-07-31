@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import { AppShell } from './layout/AppShell.jsx';
 import { ProtectedRoute } from './routes/ProtectedRoute.jsx';
@@ -27,6 +27,19 @@ function RegistrationRoute() {
     : <Navigate to="/region" replace />;
 }
 
+function AdminRoute() {
+  const { session } = useSession();
+
+  return session.user?.is_official
+    ? <AdminPage />
+    : <Navigate to="/app" replace />;
+}
+
+function ChatRoute() {
+  const { chatId } = useParams();
+  return <ChatPage key={chatId} />;
+}
+
 
 export function App() {
   const { isSessionLoading } = useSession();
@@ -52,12 +65,12 @@ export function App() {
       <Route path="/terms" element={<TermsPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/legal/acceptance" element={<LegalAcceptancePage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin" element={<AdminRoute />} />
         <Route path="/app" element={<AppShell />}>
           <Route index element={<ChatsPage />} />
           <Route path="new-chat" element={<NewChatPage />} />
           <Route path="branches" element={<PublicBranchesPage />} />
-          <Route path="chats/:chatId" element={<ChatPage />} />
+          <Route path="chats/:chatId" element={<ChatRoute />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="admin" element={<Navigate to="/admin" replace />} />

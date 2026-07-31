@@ -10,7 +10,7 @@ import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { getMyProfile, updateMyProfile, updateUsername } from '../api/userApi.js';
 
-const AVATAR_MAX_SIZE_BYTES = 50 * 1024 * 1024;
+const AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024;
 
 export function ProfilePage() {
   const { t } = useI18n();

@@ -9,7 +9,7 @@ from app.services.auth_service import AuthError
 
 API_ROOT = Path(__file__).resolve().parents[2]
 CHUNK_SIZE = 1024 * 1024
-AVATAR_MAX_SIZE_BYTES = 50 * 1024 * 1024
+AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024
 
 ALLOWED_MIME_TYPES = {
     'image/jpeg',

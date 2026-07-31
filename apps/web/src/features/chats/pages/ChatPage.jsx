@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -415,6 +415,7 @@ export function ChatPage() {
   const messageListRef = useRef(null);
   const pendingReadMessageIdsRef = useRef(new Set());
   const readTimerRef = useRef(null);
+  const isInitialMessageLoadRef = useRef(true);
   const reactionEffectTimersRef = useRef(new Map());
   const reactionRequestIdsRef = useRef(new Set());
   const recordHoldTimerRef = useRef(null);
@@ -445,7 +446,11 @@ export function ChatPage() {
   async function loadMessages() {
     if (!isChatIdValid) return;
     try {
+      isInitialMessageLoadRef.current = true;
       setIsLoadingMessages(true);
+      setChat(null);
+      setMessages([]);
+      setError('');
       const [chatDetails, items] = await Promise.all([
         getChat(session.accessToken, chatId),
         getMessages(session.accessToken, chatId),
@@ -468,6 +473,27 @@ export function ChatPage() {
     loadMessages().catch((err) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isChatIdValid, session.accessToken]);
+
+  useLayoutEffect(() => {
+    const viewport = window.visualViewport;
+
+    function syncChatViewportHeight() {
+      const height = Math.round(viewport?.height ?? window.innerHeight);
+      document.documentElement.style.setProperty('--chat-viewport-height', `${height}px`);
+    }
+
+    syncChatViewportHeight();
+    viewport?.addEventListener('resize', syncChatViewportHeight);
+    viewport?.addEventListener('scroll', syncChatViewportHeight);
+    window.addEventListener('resize', syncChatViewportHeight);
+
+    return () => {
+      viewport?.removeEventListener('resize', syncChatViewportHeight);
+      viewport?.removeEventListener('scroll', syncChatViewportHeight);
+      window.removeEventListener('resize', syncChatViewportHeight);
+      document.documentElement.style.removeProperty('--chat-viewport-height');
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentDraftStorageKey) return;
@@ -512,7 +538,6 @@ export function ChatPage() {
         reconnectAttempts = 0;
         safeSocketSend(socket, { event: 'chat.subscribe', chat_id: chatId });
         safeSocketSend(socket, { event: 'presence.active', chat_id: chatId });
-        loadMessages().catch(() => setIsLoadingMessages(false));
       });
       socket.addEventListener('message', (event) => {
         const payload = JSON.parse(event.data);
@@ -664,11 +689,12 @@ export function ChatPage() {
     };
   }, [chatId, messages, session.accessToken]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const list = messageListRef.current;
     if (!list) return;
-    list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, activityText, isLoadingMessages]);
+    list.scrollTo({ top: list.scrollHeight, behavior: isInitialMessageLoadRef.current ? 'auto' : 'smooth' });
+    isInitialMessageLoadRef.current = false;
+  }, [messages.length, isLoadingMessages]);
 
   async function sendMediaMessage(file, type, mediaDurationSeconds = null, { clearComposer = true, messageText = '' } = {}) {
     setError('');

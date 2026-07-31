@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     password_hash_memory_cost: int = Field(default=65536, ge=8192)
     password_hash_parallelism: int = Field(default=4, ge=1)
     upload_dir: str = 'storage/uploads'
-    upload_max_size_bytes: int = Field(default=100 * 1024 * 1024, ge=1)
+    upload_max_size_bytes: int = Field(default=30 * 1024 * 1024, ge=1)
     storage_public_url_prefix: str = '/storage/uploads'
     storage_public_base_url: str = ''
     vapid_private_key: str = ''

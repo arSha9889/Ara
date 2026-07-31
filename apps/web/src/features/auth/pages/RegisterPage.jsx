@@ -21,7 +21,7 @@ import {
   startPhoneVerification,
 } from '../api/authApi.js';
 
-const AVATAR_MAX_SIZE_BYTES = 50 * 1024 * 1024;
+const AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024;
 const PHONE_COUNTRIES = [
   { code: 'RU', dialCode: '+7', flag: '🇷🇺', labelKey: 'phoneCountryRussia', placeholder: '+7 999 123-45-67' },
   { code: 'KZ', dialCode: '+7', flag: '🇰🇿', labelKey: 'phoneCountryKazakhstan', placeholder: '+7 701 123-45-67' },
@@ -215,7 +215,7 @@ export function RegisterPage() {
         flushSync(() => {
           saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user });
         });
-        navigate('/app', { replace: true });
+        navigate('/app/branches?onboarding=1', { replace: true });
         return;
       }
       setPasswordConfirmation(result);
@@ -247,7 +247,7 @@ export function RegisterPage() {
       flushSync(() => {
         saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user });
       });
-      navigate('/app', { replace: true });
+      navigate('/app/branches?onboarding=1', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

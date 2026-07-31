@@ -126,7 +126,7 @@
 - metadata для фото/видео/voice: `media_url`, имя, mime type, размер, длительность;
 - authenticated upload endpoint `POST /api/uploads` для файлов и медиа;
 - local filesystem storage baseline в `apps/api/storage/uploads` с раздачей через `/storage/uploads/...`;
-- allow-list MIME типов, лимит размера 100 МБ и базовая проверка сигнатуры содержимого файла;
+- allow-list MIME типов, лимит размера 30 МБ и базовая проверка сигнатуры содержимого файла;
 - отправка фото/видео/voice из загруженных storage-файлов;
 - голосовая запись в браузере через `MediaRecorder` с отправкой записанного audio blob;
 - generic file-сообщения для поддерживаемых документов (`pdf`, `txt`) и медиа-файлов;
@@ -163,7 +163,7 @@
 - reactions, typing/presence baseline, read status baseline;
 - profile/settings/devices/login history;
 - PWA manifest и базовый mobile polish;
-- upload validation и лимит 100 МБ;
+- upload validation и лимит 30 МБ;
 - WebSocket reconnect на frontend.
 
 ### Веха Web Push — уведомления

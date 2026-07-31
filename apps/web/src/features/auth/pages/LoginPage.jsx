@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
-import { Icon } from '../../../shared/ui/Icon.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { loginWithPassword, loginWithPin } from '../api/authApi.js';
@@ -79,11 +78,6 @@ export function LoginPage() {
           <Button type="button" variant="secondary" disabled={isLoading || !form.identifier || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
         </div>
         <Link to="/region" className="auth-switch-link">{t('auth.createAccount')}</Link>
-        <Link to="/admin" className="admin-entry-link">
-          <Icon name="shield" size={17} />
-          <span>{t('auth.adminEntry')}</span>
-          <Icon name="arrowRight" className="admin-entry-arrow" size={17} />
-        </Link>
       </form>
     </main>
   );

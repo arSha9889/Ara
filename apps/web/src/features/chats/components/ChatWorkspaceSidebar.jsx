@@ -14,7 +14,11 @@ function titleForChat(chat, t) {
 }
 
 function subtitleForChat(chat, currentUserId, t) {
-  if (!chat.last_message) return chat.type === 'saved' ? t('chats.savedSubtitle') : chat.peer?.username ? `@${chat.peer.username}` : t('chats.noMessages');
+  if (!chat.last_message) {
+    if (chat.type === 'saved') return t('chats.savedSubtitle');
+    if (chat.type === 'branch') return chat.description || t('chats.publicBranches');
+    return chat.peer?.username ? `@${chat.peer.username}` : t('chats.noMessages');
+  }
   const prefix = chat.last_message.sender_id === currentUserId ? t('chats.youPrefix') : '';
   return `${prefix}${chat.last_message.payload || chat.last_message.media_name || chat.last_message.type}`;
 }
@@ -35,9 +39,8 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
 
   const visibleChats = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    const personalChats = chats.filter((chat) => chat.type !== 'branch');
-    if (!normalized) return personalChats;
-    return personalChats.filter((chat) => [titleForChat(chat, t), chat.peer?.username, subtitleForChat(chat, session.user?.id, t)]
+    if (!normalized) return chats;
+    return chats.filter((chat) => [titleForChat(chat, t), chat.description, chat.peer?.username, subtitleForChat(chat, session.user?.id, t)]
       .filter(Boolean).join(' ').toLowerCase().includes(normalized));
   }, [chats, query, session.user?.id, t]);
 
@@ -60,14 +63,15 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
         {visibleChats.map((chat) => {
           const title = titleForChat(chat, t);
           const isSaved = chat.type === 'saved';
+          const isBranch = chat.type === 'branch';
           return (
             <Link className={`workspace-chat-row ${chat.id === activeChatId ? 'active' : ''}`} key={chat.id} to={`/app/chats/${chat.id}`}>
               <span className="workspace-avatar-wrap">
-                {isSaved ? <span className="workspace-saved-icon"><Icon name="bookmark" size={18} /></span> : <UserAvatar baseClass="workspace-chat-avatar" profile={chat.peer} fallback={title[0] || 'A'} />}
+                {isSaved ? <span className="workspace-saved-icon"><Icon name="bookmark" size={18} /></span> : isBranch ? <span className="workspace-saved-icon workspace-branch-icon">{chat.avatar_ref || '◎'}</span> : <UserAvatar baseClass="workspace-chat-avatar" profile={chat.peer} fallback={title[0] || 'A'} />}
                 {!isSaved && chat.peer?.is_online ? <span className="workspace-presence" /> : null}
               </span>
               <span className="workspace-chat-copy">
-                <strong>{title}</strong>
+                <strong>{title} {isBranch && chat.is_official ? <span className="official-badge">✓</span> : null}</strong>
                 <span>{subtitleForChat(chat, session.user?.id, t)}</span>
               </span>
               {chat.unread_count ? <span className="workspace-unread">{chat.unread_count > 99 ? '99+' : chat.unread_count}</span> : null}
@@ -75,7 +79,6 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
           );
         })}
       </div>
-      <Link className="workspace-branches-link" to="/app/branches"><Icon name="branches" size={17} /><span>{t('chats.publicBranches')}</span></Link>
     </aside>
   );
 }

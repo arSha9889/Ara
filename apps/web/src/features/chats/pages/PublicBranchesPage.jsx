@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -10,6 +10,9 @@ import { getPublicBranches, subscribeToBranch } from '../api/chatApi.js';
 export function PublicBranchesPage() {
   const { t } = useI18n();
   const { session } = useSession();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isOnboarding = searchParams.get('onboarding') === '1';
   const [branches, setBranches] = useState([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -47,9 +50,11 @@ export function PublicBranchesPage() {
       <div className="panel chat-list-panel">
         <header className="section-header">
           <div>
-            <h1>{t('chats.publicBranches')}</h1>
-            <p className="muted">{t('chats.publicBranchesText')}</p>
+            <p className="eyebrow">AraChat</p>
+            <h1>{isOnboarding ? t('chats.branchOnboardingTitle') : t('chats.publicBranches')}</h1>
+            <p className="muted">{isOnboarding ? t('chats.branchOnboardingText') : t('chats.publicBranchesText')}</p>
           </div>
+          {isOnboarding ? <button className="button button-secondary branches-skip-button" type="button" onClick={() => navigate('/app', { replace: true })}>{t('chats.branchOnboardingSkip')}</button> : null}
         </header>
         {error ? <p className="error-text">{error}</p> : null}
         {isLoading ? <AraChatLoader compact title={t('chats.publicBranches')} text={t('chats.loadingText')} /> : null}
@@ -72,6 +77,7 @@ export function PublicBranchesPage() {
             </article>
           ))}
         </div>
+        {isOnboarding && !isLoading ? <button className="button button-primary branches-continue-button" type="button" onClick={() => navigate('/app', { replace: true })}>{t('chats.branchOnboardingContinue')}</button> : null}
       </div>
       <div className="panel desktop-only">
         <EmptyState title={t('chats.publicBranches')} text={t('chats.publicBranchesText')} />

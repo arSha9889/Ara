@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useLayoutEffect, useMemo, useState } from 'react';
 
 import { themeNames } from '../../shared/config/themes.js';
 
@@ -13,7 +13,7 @@ export function ThemeProvider({ children }) {
     setThemeState(normalized);
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = themeNames.includes(theme) ? theme : 'halo';
   }, [theme]);
 

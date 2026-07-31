@@ -29,6 +29,7 @@ const ICON_PATHS = {
   sparkles: <><path d="m12 3 .8 4.2L17 8l-4.2.8L12 13l-.8-4.2L7 8l4.2-.8L12 3ZM18.5 14l.45 2.05L21 16.5l-2.05.45L18.5 19l-.45-2.05L16 16.5l2.05-.45L18.5 14ZM5.5 14l.45 2.05L8 16.5l-2.05.45L5.5 19l-.45-2.05L3 16.5l2.05-.45L5.5 14Z" /></>,
   bookmark: <path d="M7 4.5A1.5 1.5 0 0 1 8.5 3h7A1.5 1.5 0 0 1 17 4.5V21l-5-3-5 3V4.5Z" />,
   bell: <><path d="M18 10a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 22h4" /></>,
+  menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
 };
 
 export function Icon({ name, size = 20, className = '', strokeWidth = 1.8 }) {

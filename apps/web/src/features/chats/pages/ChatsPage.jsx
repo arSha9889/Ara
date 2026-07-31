@@ -44,27 +44,31 @@ export function ChatsPage() {
   const reconnectTimerRef = useRef(null);
   const socketRef = useRef(null);
   const chatsRef = useRef([]);
+  const loadChatsRef = useRef(null);
+  const chatsRequestIdRef = useRef(0);
+  const lastResyncAtRef = useRef(0);
   const { enableNotifications, isEnabled, isSupported, permission, pushConfigured } = useNotifications();
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [notificationPromptStatus, setNotificationPromptStatus] = useState('');
   const savedChat = chats.find((chat) => chat.type === 'saved');
-  const regularChats = chats.filter((chat) => chat.type !== 'saved' && chat.type !== 'branch');
+  const listedChats = chats.filter((chat) => chat.type !== 'saved');
   const normalizedChatSearch = chatSearch.trim().toLowerCase();
-  const visibleRegularChats = normalizedChatSearch
-    ? regularChats.filter((chat) => [
+  const visibleChats = normalizedChatSearch
+    ? listedChats.filter((chat) => [
       chatTitle(chat, t),
+      chat.description || '',
       chat.peer?.username ? `@${chat.peer.username}` : '',
       chat.peer?.username || '',
       chat.peer?.nexus_id || '',
       chatSubtitle(chat, session.user?.id, t),
     ].join(' ').toLowerCase().includes(normalizedChatSearch))
-    : regularChats;
+    : listedChats;
   const isSavedChatVisible = !normalizedChatSearch || [
     t('chats.savedTitle'),
     savedChat ? chatSubtitle(savedChat, session.user?.id, t) : t('chats.savedSubtitle'),
     t('chats.savedBadge'),
   ].join(' ').toLowerCase().includes(normalizedChatSearch);
-  const hasVisibleChats = isSavedChatVisible || visibleRegularChats.length > 0;
+  const hasVisibleChats = isSavedChatVisible || visibleChats.length > 0;
 
   useEffect(() => {
     chatsRef.current = chats;
@@ -79,17 +83,43 @@ export function ChatsPage() {
   }
 
   async function loadChats({ showLoading = true } = {}) {
+    const requestId = chatsRequestIdRef.current + 1;
+    chatsRequestIdRef.current = requestId;
     try {
       if (showLoading) setIsLoading(true);
-      setChats(await getChats(session.accessToken));
+      const nextChats = await getChats(session.accessToken);
+      if (chatsRequestIdRef.current === requestId) setChats(nextChats);
     } finally {
-      if (showLoading) setIsLoading(false);
+      if (showLoading && chatsRequestIdRef.current === requestId) setIsLoading(false);
     }
   }
+
+  loadChatsRef.current = loadChats;
 
   useEffect(() => {
     loadChats().catch((err) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.accessToken]);
+
+  useEffect(() => {
+    if (!session.accessToken) return undefined;
+
+    function resyncChats() {
+      if (document.visibilityState === 'hidden') return;
+      const now = Date.now();
+      if (now - lastResyncAtRef.current < 500) return;
+      lastResyncAtRef.current = now;
+      loadChatsRef.current?.({ showLoading: false }).catch((err) => setError(err.message));
+    }
+
+    document.addEventListener('visibilitychange', resyncChats);
+    window.addEventListener('focus', resyncChats);
+    window.addEventListener('pageshow', resyncChats);
+    return () => {
+      document.removeEventListener('visibilitychange', resyncChats);
+      window.removeEventListener('focus', resyncChats);
+      window.removeEventListener('pageshow', resyncChats);
+    };
   }, [session.accessToken]);
 
   useEffect(() => {
@@ -106,6 +136,7 @@ export function ChatsPage() {
           const payload = JSON.parse(event.data);
           if (payload.event === 'connection.authenticated') {
             subscribeChatList(socket, chatsRef.current);
+            loadChatsRef.current?.({ showLoading: false }).catch((err) => setError(err.message));
           }
           if (payload.event === 'message.created') {
             loadChats({ showLoading: false }).catch((err) => setError(err.message));
@@ -247,10 +278,12 @@ export function ChatsPage() {
               <span className="chat-list-badge">{t('chats.savedBadge')}</span>
             </button>
           ) : null}
-          {visibleRegularChats.map((chat) => (
+          {visibleChats.map((chat) => (
             <Link className="info-card chat-thread-card" key={chat.id} to={`/app/chats/${chat.id}`}>
               <span className="chat-list-avatar-wrap">
-                <UserAvatar baseClass="chat-list-avatar" profile={chat.peer} fallback={chatTitle(chat, t)[0] || 'N'} />
+                {chat.type === 'branch'
+                  ? <span className="chat-list-avatar branch-avatar" aria-hidden="true">{chat.avatar_ref || '◎'}</span>
+                  : <UserAvatar baseClass="chat-list-avatar" profile={chat.peer} fallback={chatTitle(chat, t)[0] || 'N'} />}
                 {chat.peer?.is_online ? <span className="presence-dot online" aria-hidden="true" /> : null}
               </span>
               <div className="chat-thread-copy">
@@ -265,7 +298,7 @@ export function ChatsPage() {
             </Link>
           ))}
         </div>
-        {!isLoading && !normalizedChatSearch && regularChats.length === 0 ? (
+        {!isLoading && !normalizedChatSearch && listedChats.length === 0 ? (
           <EmptyState
             title={t('chats.emptyTitle')}
             text={t('chats.emptyText')}
