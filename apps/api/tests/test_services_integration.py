@@ -13,7 +13,7 @@ from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.chats import MessageCreateRequest, MessageOut
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
-from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, list_chats, list_messages, mark_message_read, mark_messages_read, toggle_reaction
+from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
 
@@ -160,6 +160,14 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             assert [item.id for item in await list_chats(session, second_user.id)] == [chat.id]
             unread_chat = await create_or_get_direct_chat(session, second_user.id, 'RU', '+7 999 000-00-01')
             assert unread_chat.unread_count == 1
+
+            await hide_chat(session, second_user.id, chat.id)
+            assert chat.id not in [item.id for item in await list_chats(session, second_user.id)]
+            restored_chat = await restore_chat(session, second_user.id, chat.id)
+            assert restored_chat.id == chat.id
+            await hide_chat(session, second_user.id, chat.id)
+            await create_message(session, first_user.id, chat.id, MessageCreateRequest(text='Новое входящее'))
+            assert chat.id in [item.id for item in await list_chats(session, second_user.id)]
 
             reacted_message = await toggle_reaction(session, second_user.id, chat.id, message.id, '👍')
             assert reacted_message.reactions[0].emoji == '👍'

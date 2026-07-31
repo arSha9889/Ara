@@ -2243,6 +2243,108 @@ p { margin-bottom: 14px; }
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
+.chat-panel.is-hiding {
+  pointer-events: none;
+  animation: chatPanelExit 230ms var(--ease-out-soft) both;
+}
+
+.chat-header-actions { position: relative; flex: 0 0 auto; }
+
+.chat-more-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 76%);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface-elevated), transparent 4%);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.chat-more-button:hover,
+.chat-header-actions.is-open .chat-more-button {
+  border-color: color-mix(in srgb, var(--primary), transparent 46%);
+  background: color-mix(in srgb, var(--primary), transparent 92%);
+  color: var(--primary);
+}
+
+.chat-more-button:active { transform: scale(0.94); }
+.chat-more-button:focus-visible { outline: 0; box-shadow: 0 0 0 4px var(--ring); }
+
+.chat-actions-menu {
+  width: max-content;
+  min-width: 210px;
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 9px);
+  right: 0;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 76%);
+  border-radius: 16px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-elevated), transparent 1%);
+  box-shadow: 0 18px 42px rgba(17, 13, 37, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  padding: 5px;
+  transform-origin: top right;
+  animation: chatActionsMenuEnter 160ms var(--ease-out-soft) both;
+}
+
+.chat-actions-menu-item {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: transparent;
+  padding: 0 10px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-align: left;
+  transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.chat-actions-menu-item:hover { background: color-mix(in srgb, var(--danger), transparent 91%); transform: translateX(2px); }
+.chat-actions-menu-item.danger { color: var(--danger); }
+.chat-actions-menu-item:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ring); }
+
+.chat-hide-dialog { animation: orbitDialogEnter 220ms var(--ease-out-soft) both; }
+.chat-hide-dialog .app-dialog-icon { background: color-mix(in srgb, var(--danger), transparent 84%); color: var(--danger); animation: orbitStepActivate 320ms var(--ease-out-soft) both; }
+.chat-hide-dialog-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+
+.chat-undo-toast {
+  position: fixed;
+  z-index: 230;
+  left: 50%;
+  bottom: 26px;
+  min-height: 54px;
+  max-width: calc(100vw - 32px);
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 72%);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--surface-elevated), transparent 1%);
+  box-shadow: 0 18px 44px rgba(13, 11, 29, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  padding: 7px 8px 7px 10px;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 800;
+  transform: translateX(-50%);
+  animation: chatUndoToastEnter 260ms var(--ease-out-soft) both;
+}
+
+.chat-undo-toast-icon { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--danger), transparent 86%); color: var(--danger); }
+.chat-undo-toast button { min-height: 38px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--primary), transparent 88%); color: var(--primary); padding: 0 12px; cursor: pointer; font: inherit; font-size: 0.8rem; font-weight: 900; transition: transform 150ms ease, background 150ms ease; }
+.chat-undo-toast button:hover { background: color-mix(in srgb, var(--primary), transparent 80%); transform: translateY(-1px); }
+.chat-undo-toast button:focus-visible { outline: 0; box-shadow: 0 0 0 4px var(--ring); }
+
 .app-dialog-backdrop {
   position: fixed;
   z-index: 200;
@@ -5598,7 +5700,7 @@ code {
 
   .chat-header {
     display: grid;
-    grid-template-columns: 42px 44px minmax(0, 1fr) 38px;
+    grid-template-columns: 42px 44px minmax(0, 1fr) 40px 40px;
     align-items: start;
     gap: 10px;
   }
@@ -5608,7 +5710,10 @@ code {
     min-width: 0;
   }
 
-  .chat-call-button { grid-column: 4; }
+  .chat-header-actions { grid-column: 4; }
+  .chat-call-button { grid-column: 5; width: 40px; min-height: 40px; padding: 0; }
+  .chat-call-button strong { display: none; }
+  .chat-undo-toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
 
   .chat-subtitle {
     display: block;
@@ -6480,6 +6585,21 @@ code {
 @keyframes orbitDialogEnter {
   from { opacity: 0; transform: translateY(8px) scale(0.99); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes chatActionsMenuEnter {
+  from { opacity: 0; transform: translateY(-5px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes chatPanelExit {
+  from { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+  to { opacity: 0; transform: translateX(18px) scale(0.985); filter: blur(2px); }
+}
+
+@keyframes chatUndoToastEnter {
+  from { opacity: 0; transform: translate(-50%, 16px) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 @keyframes orbitStepActivate {

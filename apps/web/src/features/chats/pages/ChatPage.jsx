@@ -8,7 +8,7 @@ import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { createDirectChatForUser, deleteMessage, editMessage, getChat, getMessages, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
+import { createDirectChatForUser, deleteMessage, editMessage, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
@@ -395,6 +395,9 @@ export function ChatPage() {
   const [recordingMode, setRecordingMode] = useState('voice');
   const [isRecordMenuOpen, setIsRecordMenuOpen] = useState(false);
   const [isCallUnavailableDialogOpen, setIsCallUnavailableDialogOpen] = useState(false);
+  const [isChatActionsOpen, setIsChatActionsOpen] = useState(false);
+  const [isHideChatDialogOpen, setIsHideChatDialogOpen] = useState(false);
+  const [isHidingChat, setIsHidingChat] = useState(false);
   const [profileCardAuthor, setProfileCardAuthor] = useState(null);
   const [isOpeningProfileChat, setIsOpeningProfileChat] = useState(false);
   const [profileCardError, setProfileCardError] = useState('');
@@ -795,6 +798,23 @@ export function ChatPage() {
       const message = await deleteMessage(session.accessToken, chatId, messageId);
       setMessages((current) => upsertMessageKeepingStatus(current, message));
       setChat((current) => current?.pinned_message_id === messageId ? { ...current, pinned_message_id: null, pinned_message: null } : current);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleHideChat() {
+    setError('');
+    try {
+      await hideChat(session.accessToken, chatId);
+      setIsHideChatDialogOpen(false);
+      setIsHidingChat(true);
+      window.setTimeout(() => {
+        navigate('/app', {
+          replace: true,
+          state: { hiddenChat: { id: chatId, title: chatDisplayTitle } },
+        });
+      }, 230);
     } catch (err) {
       setError(err.message);
     }
@@ -1248,7 +1268,7 @@ export function ChatPage() {
   return (
     <section className="chat-workspace">
       <ChatWorkspaceSidebar activeChatId={chatId} />
-      <section className="panel chat-panel">
+      <section className={`panel chat-panel ${isHidingChat ? 'is-hiding' : ''}`}>
       <header className="chat-header">
         <Link className="chat-back-button" to="/app" aria-label={t('messages.backToChats')} title={t('messages.backToChats')}>
           <Icon name="arrowLeft" size={19} />
@@ -1276,7 +1296,36 @@ export function ChatPage() {
             ) : null}
           </div>
         </div>
-            {!isSavedChat && !isPublicBranch ? (
+        {!isSavedChat && !isPublicBranch ? (
+          <div className={`chat-header-actions ${isChatActionsOpen ? 'is-open' : ''}`}>
+            <button
+              className="chat-more-button"
+              type="button"
+              aria-label={t('chats.chatActions')}
+              aria-expanded={isChatActionsOpen}
+              onClick={() => setIsChatActionsOpen((current) => !current)}
+            >
+              <Icon name="more" size={21} />
+            </button>
+            {isChatActionsOpen ? (
+              <div className="chat-actions-menu" role="menu" aria-label={t('chats.chatActions')}>
+                <button
+                  className="chat-actions-menu-item danger"
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsChatActionsOpen(false);
+                    setIsHideChatDialogOpen(true);
+                  }}
+                >
+                  <Icon name="trash" size={17} />
+                  <span>{t('chats.removeFromList')}</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {!isSavedChat && !isPublicBranch ? (
           <button
             className="chat-call-button"
             type="button"
@@ -1299,6 +1348,22 @@ export function ChatPage() {
               <p>{t('calls.temporarilyUnavailableText')}</p>
             </div>
             <button className="button button-primary" type="button" onClick={() => setIsCallUnavailableDialogOpen(false)}>{t('common.gotIt')}</button>
+          </section>
+        </div>
+      ) : null}
+      {isHideChatDialogOpen ? (
+        <div className="app-dialog-backdrop chat-hide-dialog-backdrop" role="presentation" onMouseDown={() => setIsHideChatDialogOpen(false)}>
+          <section className="app-dialog chat-hide-dialog" role="dialog" aria-modal="true" aria-labelledby="hide-chat-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="app-dialog-icon" aria-hidden="true"><Icon name="trash" size={23} /></div>
+            <div className="app-dialog-copy">
+              <p className="eyebrow">AraChat</p>
+              <h2 id="hide-chat-title">{t('chats.removeFromListTitle')}</h2>
+              <p>{t('chats.removeFromListText')}</p>
+            </div>
+            <div className="chat-hide-dialog-actions">
+              <button className="button button-secondary" type="button" onClick={() => setIsHideChatDialogOpen(false)}>{t('messages.cancel')}</button>
+              <button className="button button-danger" type="button" onClick={handleHideChat} disabled={isHidingChat}>{t('chats.removeFromList')}</button>
+            </div>
           </section>
         </div>
       ) : null}

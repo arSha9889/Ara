@@ -24,6 +24,7 @@ const ICON_PATHS = {
   copy: <><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
   check: <path d="m5 12 4.2 4.2L19 6.5" />,
   x: <path d="m6 6 12 12M18 6 6 18" />,
+  more: <><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" /></>,
   pencil: <><path d="m14.5 5.5 4 4M4.5 19.5l3.2-.7 10.8-10.8a2.8 2.8 0 0 0-4-4L3.7 14.8l-.7 4.7Z" /></>,
   send: <><path d="m21 3-8.3 18-2.5-7.2L3 11.3 21 3Z" /><path d="m10.2 13.8 4.1-4.1" /></>,
   sparkles: <><path d="m12 3 .8 4.2L17 8l-4.2.8L12 13l-.8-4.2L7 8l4.2-.8L12 3ZM18.5 14l.45 2.05L21 16.5l-2.05.45L18.5 19l-.45-2.05L16 16.5l2.05-.45L18.5 14ZM5.5 14l.45 2.05L8 16.5l-2.05.45L5.5 19l-.45-2.05L3 16.5l2.05-.45L5.5 14Z" /></>,

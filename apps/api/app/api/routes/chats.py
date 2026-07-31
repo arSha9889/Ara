@@ -12,7 +12,7 @@ from app.schemas.chats import ChatOut, DirectChatCreateRequest, MessageCreateReq
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
-from app.services.chat_service import create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, get_chat as get_user_chat
+from app.services.chat_service import create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, get_chat as get_user_chat, hide_chat, restore_chat
 from app.services.chat_service import delete_message as delete_chat_message
 from app.services.chat_service import edit_message as edit_chat_message
 from app.services.chat_service import list_chats as list_user_chats
@@ -120,6 +120,30 @@ async def get_chat(
         return await get_user_chat(session, current_user.id, chat_id)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.delete('/{chat_id}')
+async def hide_user_chat(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        await hide_chat(session, current_user.id, chat_id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/{chat_id}/restore')
+async def restore_user_chat(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        return await restore_chat(session, current_user.id, chat_id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get('/{chat_id}/messages')

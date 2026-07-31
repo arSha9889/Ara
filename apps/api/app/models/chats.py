@@ -33,6 +33,7 @@ class ChatParticipant(Base):
     role: Mapped[str] = mapped_column(String(32), default='member')
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_read_message_id: Mapped[UUID | None] = mapped_column(index=True)
+    hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class Message(Base):

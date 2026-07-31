@@ -35,6 +35,7 @@ async def list_chats(session: AsyncSession, user_id: UUID) -> list[ChatOut]:
         .where(
             ChatParticipant.user_id == user_id,
             ChatParticipant.role != 'pending',
+            ChatParticipant.hidden_at.is_(None),
             (Chat.type != 'branch') | Chat.is_archived.is_(False),
         )
         .order_by(Chat.updated_at.desc())
@@ -64,8 +65,9 @@ async def create_or_get_direct_chat_for_user(session: AsyncSession, user_id: UUI
         chat = await session.get(Chat, chat_id)
         if chat and chat.type == 'direct':
             participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
-            if participant and participant.role == 'pending':
+            if participant and (participant.role == 'pending' or participant.hidden_at):
                 participant.role = 'member'
+                participant.hidden_at = None
                 await session.commit()
             return await _chat_out(session, chat, user_id)
 
@@ -105,6 +107,29 @@ async def get_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> ChatO
     if not chat:
         raise AuthError('Chat not found')
     await _ensure_can_view(session, user_id, chat)
+    return await _chat_out(session, chat, user_id)
+
+
+async def hide_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> None:
+    chat = await session.get(Chat, chat_id)
+    if not chat or chat.type != 'direct':
+        raise AuthError('Only direct chats can be hidden')
+    participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
+    if not participant:
+        raise AuthError('Chat not found')
+    participant.hidden_at = datetime.now(timezone.utc)
+    await session.commit()
+
+
+async def restore_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> ChatOut:
+    chat = await session.get(Chat, chat_id)
+    if not chat or chat.type != 'direct':
+        raise AuthError('Only direct chats can be restored')
+    participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
+    if not participant:
+        raise AuthError('Chat not found')
+    participant.hidden_at = None
+    await session.commit()
     return await _chat_out(session, chat, user_id)
 
 
@@ -148,6 +173,7 @@ async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, re
     await _create_delivery_receipts(session, message)
     chat.last_message_id = message.id
     await _activate_direct_chat_participants(session, chat_id)
+    await _restore_hidden_chat_recipients(session, chat_id, user_id)
     await session.commit()
     return await _message_out(session, message, user_id)
 
@@ -364,6 +390,18 @@ async def _activate_direct_chat_participants(session: AsyncSession, chat_id: UUI
         update(ChatParticipant)
         .where(ChatParticipant.chat_id == chat_id, ChatParticipant.role == 'pending')
         .values(role='member')
+    )
+
+
+async def _restore_hidden_chat_recipients(session: AsyncSession, chat_id: UUID, sender_id: UUID) -> None:
+    await session.execute(
+        update(ChatParticipant)
+        .where(
+            ChatParticipant.chat_id == chat_id,
+            ChatParticipant.user_id != sender_id,
+            ChatParticipant.hidden_at.is_not(None),
+        )
+        .values(hidden_at=None)
     )
 
 

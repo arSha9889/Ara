@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 
 import { AppNavigationTrigger } from '../../../app/layout/AppShell.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -10,7 +10,7 @@ import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { createSavedChat, getChats } from '../api/chatApi.js';
+import { createSavedChat, getChats, restoreChat } from '../api/chatApi.js';
 
 function chatTitle(chat, t) {
   if (chat.type === 'saved') return t('chats.savedTitle');
@@ -37,6 +37,7 @@ function chatSubtitle(chat, currentUserId, t) {
 export function ChatsPage() {
   const { t } = useI18n();
   const { session } = useSession();
+  const location = useLocation();
   const navigate = useNavigate();
   const { isMenuOpen, toggleNavigation } = useOutletContext();
   const [chats, setChats] = useState([]);
@@ -52,6 +53,8 @@ export function ChatsPage() {
   const { enableNotifications, isEnabled, isSupported, permission, pushConfigured } = useNotifications();
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [notificationPromptStatus, setNotificationPromptStatus] = useState('');
+  const [undoChat, setUndoChat] = useState(null);
+  const undoTimerRef = useRef(null);
   const savedChat = chats.find((chat) => chat.type === 'saved');
   const listedChats = chats.filter((chat) => chat.type !== 'saved');
   const normalizedChatSearch = chatSearch.trim().toLowerCase();
@@ -102,6 +105,23 @@ export function ChatsPage() {
     loadChats().catch((err) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.accessToken]);
+
+  useEffect(() => {
+    const hiddenChat = location.state?.hiddenChat;
+    if (!hiddenChat) return;
+    setUndoChat(hiddenChat);
+    navigate(location.pathname, { replace: true });
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    if (!undoChat) return undefined;
+    undoTimerRef.current = window.setTimeout(() => setUndoChat(null), 6500);
+    return () => window.clearTimeout(undoTimerRef.current);
+  }, [undoChat]);
+
+  useEffect(() => () => {
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!session.accessToken) return undefined;
@@ -188,6 +208,18 @@ export function ChatsPage() {
       const chat = savedChat || await createSavedChat(session.accessToken);
       setChats((current) => [chat, ...current.filter((item) => item.id !== chat.id)]);
       navigate(`/app/chats/${chat.id}`);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleRestoreChat() {
+    if (!undoChat) return;
+    setError('');
+    try {
+      const restoredChat = await restoreChat(session.accessToken, undoChat.id);
+      setChats((current) => [restoredChat, ...current.filter((chat) => chat.id !== restoredChat.id)]);
+      setUndoChat(null);
     } catch (err) {
       setError(err.message);
     }
@@ -317,6 +349,13 @@ export function ChatsPage() {
           <p className="workspace-kicker">AraChat</p>
           <EmptyState title={t('chats.selectedEmpty')} text={t('chats.selectedEmptyText')} action={<button className="empty-state-action" type="button" onClick={() => navigate('/app/new-chat')}><Icon name="plus" size={18} />{t('chats.createChat')}</button>} />
         </div>
+        {undoChat ? (
+          <div className="chat-undo-toast" role="status">
+            <span className="chat-undo-toast-icon" aria-hidden="true"><Icon name="trash" size={17} /></span>
+            <span>{t('chats.chatRemoved')}</span>
+            <button type="button" onClick={handleRestoreChat}>{t('chats.undo')}</button>
+          </div>
+        ) : null}
     </section>
   );
 }

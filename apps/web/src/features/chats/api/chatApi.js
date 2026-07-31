@@ -50,6 +50,20 @@ export function getChat(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}`, { headers: authHeaders(accessToken) });
 }
 
+export function hideChat(accessToken, chatId) {
+  return apiRequest(`/api/chats/${chatId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function restoreChat(accessToken, chatId) {
+  return apiRequest(`/api/chats/${chatId}/restore`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function getMessages(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}/messages`, { headers: authHeaders(accessToken) });
 }
