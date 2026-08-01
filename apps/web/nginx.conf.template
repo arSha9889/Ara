@@ -14,7 +14,8 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
-  client_max_body_size 100m;
+  # Allow the API limit of a 30 MiB file plus small multipart/form-data overhead.
+  client_max_body_size 31m;
   proxy_ssl_server_name on;
 
   location /assets/ {

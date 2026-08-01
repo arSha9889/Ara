@@ -9,6 +9,11 @@ export const dictionaries = {
       notNow: 'Не сейчас',
       close: 'Закрыть',
       gotIt: 'Понятно',
+      retry: 'Повторить',
+      copied: 'Скопировано',
+    },
+    feedback: {
+      title: 'Системные сообщения',
     },
     onboarding: {
       title: 'AraChat для близкого и спокойного общения',
@@ -223,6 +228,10 @@ export const dictionaries = {
       theme: 'Тема',
       language: 'Язык',
       saved: 'Настройки сохранены',
+      savingPreference: 'Сохраняем…',
+      preferenceSaved: 'Синхронизировано',
+      preferenceFailed: 'Не удалось синхронизировать',
+      deviceRevoked: 'Устройство отключено',
       liquidGlassTitle: 'Liquid Glass доступен для вашего устройства',
       liquidGlassText: 'На iOS, iPadOS и macOS AraChat может выглядеть ближе к современному Apple-интерфейсу: стеклянные панели, мягкие блики и глубокое размытие.',
       enableLiquidGlass: 'Включить Liquid Glass',
@@ -378,6 +387,7 @@ export const dictionaries = {
       stopRecording: 'Остановить запись',
       openRecordMenu: 'Выбрать тип записи',
       recordMenu: 'Тип записи',
+      selected: 'Выбрано',
       holdToRecord: 'удерживайте для записи',
       holdToRecordHint: 'Короткое нажатие выбирает режим, удержание записывает и отправляет выбранный тип.',
       releaseToSend: 'Отпустите, чтобы отправить',
@@ -516,6 +526,11 @@ export const dictionaries = {
       notNow: 'Not now',
       close: 'Close',
       gotIt: 'Got it',
+      retry: 'Retry',
+      copied: 'Copied',
+    },
+    feedback: {
+      title: 'System messages',
     },
     onboarding: {
       title: 'AraChat for close and calm communication',
@@ -730,6 +745,10 @@ export const dictionaries = {
       theme: 'Theme',
       language: 'Language',
       saved: 'Settings saved',
+      savingPreference: 'Saving…',
+      preferenceSaved: 'Synced',
+      preferenceFailed: 'Could not sync',
+      deviceRevoked: 'Device disconnected',
       liquidGlassTitle: 'Liquid Glass is available for your device',
       liquidGlassText: 'On iOS, iPadOS, and macOS, AraChat can look closer to a modern Apple interface: glass panels, soft highlights, and deep blur.',
       enableLiquidGlass: 'Enable Liquid Glass',
@@ -885,6 +904,7 @@ export const dictionaries = {
       stopRecording: 'Stop recording',
       openRecordMenu: 'Choose recording type',
       recordMenu: 'Recording type',
+      selected: 'Selected',
       holdToRecord: 'hold to record',
       holdToRecordHint: 'Tap to choose a mode, hold to record and send the selected type.',
       releaseToSend: 'Release to send',
@@ -1564,6 +1584,7 @@ dictionaries.kk = mergeDictionary(dictionaries.kk, {
     stopVoice: 'Дауыс жазуды тоқтату',
     openRecordMenu: 'Жазу түрін таңдау',
     recordMenu: 'Жазу түрі',
+    selected: 'Таңдалды',
     holdToRecord: 'жазу үшін ұстап тұрыңыз',
     holdToRecordHint: 'Режим таңдау үшін басыңыз, таңдалған түрді жазып жіберу үшін ұстап тұрыңыз.',
     releaseToSend: 'Жіберу үшін жіберіңіз',
@@ -1652,7 +1673,7 @@ dictionaries.ky = mergeDictionary(dictionaries.ky, {
   },
   notifications: { title: 'Билдирмелер', unread: 'Жаңы: {count}', markAllRead: 'Баарын окулду кылуу', empty: 'Жаңы билдирме жок.', loading: 'Билдирмелер жүктөлүүдө…' },
   messages: {
-    photoAlt: 'Фото', voice: 'Үн', file: 'Файл', sent: 'Жөнөтүлдү', sending: 'Жөнөтүлүүдө', connecting: 'туташууда', offline: 'офлайн', typing: 'Маектеш жазып жатат...', sendingFile: 'Маектеш файл жөнөтүп жатат...', sendingVoice: 'Маектеш үн билдирүүсүн жөнөтүп жатат...', peerActive: 'Маектеш активдүү', voiceUnsupported: 'Бул браузерде үн жазуу колдоого алынбайт', voiceStartError: 'Үн жазууну баштоо мүмкүн болбоду', chatNotFound: 'Чат табылган жок', chatNotFoundText: 'Тизмеден бар жеке чатты ачыңыз же AraChat ID / username аркылуу жаңысын түзүңүз.', backToChats: 'Чаттарга кайтуу', openingTitle: 'Чат ачылууда', openingText: 'Билдирүүлөр жүктөлүп, realtime туташууда…', attachFileTitle: 'Файл тиркөө', stopVoice: 'Үн жазууну токтотуу', openRecordMenu: 'Жазуу түрүн тандоо', recordMenu: 'Жазуу түрү', holdToRecord: 'жазуу үчүн кармаңыз', holdToRecordHint: 'Режим тандоо үчүн басыңыз, тандалган түрдү жазып жөнөтүү үчүн кармаңыз.', releaseToSend: 'Жөнөтүү үчүн коё бериңиз', voiceMessage: 'Үн билдирүүсү', videoNote: 'Видео билдирүү', playVoice: 'Үн билдирүүсүн ойнотуу', pauseVoice: 'Үн билдирүүсүн токтотуп туруу', playVideoNote: 'Видео билдирүүнү ойнотуу', pauseVideoNote: 'Видео билдирүүнү токтотуп туруу', recording: 'Жазылууда', recordingVideoNote: 'Видео билдирүү жазылууда', removeAttachment: 'Тиркемени алып салуу', video: 'Видео', recordVideoNote: 'Видео билдирүү жазуу', stopVideoNote: 'Видео жазууну токтотуу', videoNoteUnsupported: 'Бул браузерде видео билдирүү жазуу колдоого алынбайт', videoNoteStartError: 'Видео жазууну баштоо мүмкүн болбоду', edit: 'Оңдоо', delete: 'Өчүрүү', pin: 'Бекитүү', unpin: 'Бекитүүдөн чыгаруу', pinned: 'Бекитилген', pinnedShort: '📌', save: 'Сактоо', cancel: 'Жокко чыгаруу', openReactions: 'Реакция тандоо', closeReactions: 'Реакцияларды жабуу', reactionPicker: 'Реакциялар', openEmojiPanel: 'Эмодзи ачуу', emojiPanel: 'Эмодзи'
+    photoAlt: 'Фото', voice: 'Үн', file: 'Файл', sent: 'Жөнөтүлдү', sending: 'Жөнөтүлүүдө', connecting: 'туташууда', offline: 'офлайн', typing: 'Маектеш жазып жатат...', sendingFile: 'Маектеш файл жөнөтүп жатат...', sendingVoice: 'Маектеш үн билдирүүсүн жөнөтүп жатат...', peerActive: 'Маектеш активдүү', voiceUnsupported: 'Бул браузерде үн жазуу колдоого алынбайт', voiceStartError: 'Үн жазууну баштоо мүмкүн болбоду', chatNotFound: 'Чат табылган жок', chatNotFoundText: 'Тизмеден бар жеке чатты ачыңыз же AraChat ID / username аркылуу жаңысын түзүңүз.', backToChats: 'Чаттарга кайтуу', openingTitle: 'Чат ачылууда', openingText: 'Билдирүүлөр жүктөлүп, realtime туташууда…', attachFileTitle: 'Файл тиркөө', stopVoice: 'Үн жазууну токтотуу', openRecordMenu: 'Жазуу түрүн тандоо', recordMenu: 'Жазуу түрү', selected: 'Тандалды', holdToRecord: 'жазуу үчүн кармаңыз', holdToRecordHint: 'Режим тандоо үчүн басыңыз, тандалган түрдү жазып жөнөтүү үчүн кармаңыз.', releaseToSend: 'Жөнөтүү үчүн коё бериңиз', voiceMessage: 'Үн билдирүүсү', videoNote: 'Видео билдирүү', playVoice: 'Үн билдирүүсүн ойнотуу', pauseVoice: 'Үн билдирүүсүн токтотуп туруу', playVideoNote: 'Видео билдирүүнү ойнотуу', pauseVideoNote: 'Видео билдирүүнү токтотуп туруу', recording: 'Жазылууда', recordingVideoNote: 'Видео билдирүү жазылууда', removeAttachment: 'Тиркемени алып салуу', video: 'Видео', recordVideoNote: 'Видео билдирүү жазуу', stopVideoNote: 'Видео жазууну токтотуу', videoNoteUnsupported: 'Бул браузерде видео билдирүү жазуу колдоого алынбайт', videoNoteStartError: 'Видео жазууну баштоо мүмкүн болбоду', edit: 'Оңдоо', delete: 'Өчүрүү', pin: 'Бекитүү', unpin: 'Бекитүүдөн чыгаруу', pinned: 'Бекитилген', pinnedShort: '📌', save: 'Сактоо', cancel: 'Жокко чыгаруу', openReactions: 'Реакция тандоо', closeReactions: 'Реакцияларды жабуу', reactionPicker: 'Реакциялар', openEmojiPanel: 'Эмодзи ачуу', emojiPanel: 'Эмодзи'
   },
   calls: {
     incoming: 'Кирүүчү аудио чалуу', controls: 'Чалууну башкаруу', mute: 'Микрофонду өчүрүү', unmute: 'Микрофонду күйгүзүү', shareScreen: 'Экранды көрсөтүү', stopScreen: 'Экран көрсөтүүнү токтотуу', stopScreenShort: 'Экранды токтотуу', hdScreen: '720p экран', remoteScreen: 'Маектештин экраны', yourScreen: 'Сиздин экраныңыз', youShareScreen: 'Сиз экран көрсөтүп жатасыз', screenReady: 'Экранды HD сапатта көрсөтсө болот', screenSharing: 'Экран көрсөтүү күйүк', mediaUnsupported: 'Бул браузер аудио чалууларды колдобойт', screenUnsupported: 'Бул браузер экран көрсөтүүнү колдобойт', startError: 'Чалууну баштоо мүмкүн болбоду', screenStartError: 'Экран көрсөтүүнү баштоо мүмкүн болбоду', connectionError: 'Чалуу туташуусунун катасы', connectionInterrupted: 'Туташуу үзүлдү, калыбына келтирүүгө аракет кылып жатабыз…', rejected: 'Маектеш чалууну кабыл алган жок', peerBusy: 'Маектеш азыр бош эмес'

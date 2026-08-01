@@ -3,9 +3,11 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { deleteAccount, logoutSession } from '../../features/auth/api/authApi.js';
 import { NotificationsMenu } from '../../features/notifications/components/NotificationsMenu.jsx';
+import { getChats } from '../../features/chats/api/chatApi.js';
 import { useI18n } from '../providers/I18nProvider.jsx';
 import { useNotifications } from '../providers/NotificationsProvider.jsx';
 import { useSession } from '../providers/SessionProvider.jsx';
+import { UserAvatar } from '../../shared/ui/Avatar.jsx';
 import { Icon } from '../../shared/ui/Icon.jsx';
 
 export function AppNavigationTrigger({ isMenuOpen, onToggle, className = '' }) {
@@ -30,6 +32,7 @@ export function AppShell() {
   const { disableNotifications } = useNotifications();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const isChatRoute = location.pathname.startsWith('/app/chats/');
   const isChatsWorkspace = location.pathname === '/app' || isChatRoute;
   const isAdministrator = session.user?.is_official === true;
@@ -41,6 +44,29 @@ export function AppShell() {
     ...(isAdministrator ? [{ to: '/admin', icon: 'shield', label: t('auth.adminEntry') }] : []),
   ];
   const mobileNavItems = navItems.filter((item) => item.to !== '/app/branches');
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function refreshUnreadChatCount() {
+      if (!session.accessToken) return;
+      try {
+        const chats = await getChats(session.accessToken);
+        if (!isCurrent) return;
+        setUnreadChatCount(chats.reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0));
+      } catch {
+        if (isCurrent) setUnreadChatCount(0);
+      }
+    }
+
+    refreshUnreadChatCount();
+    window.addEventListener('focus', refreshUnreadChatCount);
+
+    return () => {
+      isCurrent = false;
+      window.removeEventListener('focus', refreshUnreadChatCount);
+    };
+  }, [session.accessToken]);
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -113,7 +139,18 @@ export function AppShell() {
               end={item.to === '/app'}
               onClick={() => setIsMenuOpen(false)}
             >
-              <span className="mobile-bottom-nav-icon" aria-hidden="true"><Icon name={item.icon} size={21} /></span>
+              <span className="mobile-bottom-nav-icon" aria-hidden="true">
+                {item.to === '/app/profile' ? (
+                  <UserAvatar
+                    baseClass="mobile-bottom-nav-profile-avatar"
+                    profile={session.user?.profile}
+                    fallback={session.user?.profile?.display_name?.[0] || session.user?.username?.[0] || 'A'}
+                  />
+                ) : <Icon name={item.icon} size={21} />}
+                {item.to === '/app' && unreadChatCount > 0 ? (
+                  <span className="mobile-bottom-nav-badge">{unreadChatCount > 99 ? '99+' : unreadChatCount}</span>
+                ) : null}
+              </span>
               <span>{item.label}</span>
             </NavLink>
           ))}

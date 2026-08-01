@@ -18,6 +18,7 @@ import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
 import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
 import { AdminPage } from '../features/admin/pages/AdminPage.jsx';
 import { AraChatLoader } from '../shared/ui/AraChatLoader.jsx';
+import { AppFeedbackViewport } from '../shared/ui/AppFeedbackViewport.jsx';
 import { useSession } from './providers/SessionProvider.jsx';
 
 
@@ -48,35 +49,38 @@ export function App() {
     return (
       <main className="app-boot-loader-page">
         <section className="panel boot-loader-panel">
-          <AraChatLoader />
+          <AraChatLoader hero />
         </section>
       </main>
     );
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/onboarding" element={<OnboardingPage />} />
-      <Route path="/region" element={<RegionSelectionPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegistrationRoute />} />
-      <Route path="/privacy" element={<PrivacyPolicyPage />} />
-      <Route path="/terms" element={<TermsPage />} />
-      <Route element={<ProtectedRoute />}>
-        <Route path="/legal/acceptance" element={<LegalAcceptancePage />} />
-        <Route path="/admin" element={<AdminRoute />} />
-        <Route path="/app" element={<AppShell />}>
-          <Route index element={<ChatsPage />} />
-          <Route path="new-chat" element={<NewChatPage />} />
-          <Route path="branches" element={<PublicBranchesPage />} />
-          <Route path="chats/:chatId" element={<ChatRoute />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="admin" element={<Navigate to="/admin" replace />} />
+    <>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/region" element={<RegionSelectionPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegistrationRoute />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/legal/acceptance" element={<LegalAcceptancePage />} />
+          <Route path="/admin" element={<AdminRoute />} />
+          <Route path="/app" element={<AppShell />}>
+            <Route index element={<ChatsPage />} />
+            <Route path="new-chat" element={<NewChatPage />} />
+            <Route path="branches" element={<PublicBranchesPage />} />
+            <Route path="chats/:chatId" element={<ChatRoute />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="admin" element={<Navigate to="/admin" replace />} />
+          </Route>
         </Route>
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <AppFeedbackViewport />
+    </>
   );
 }

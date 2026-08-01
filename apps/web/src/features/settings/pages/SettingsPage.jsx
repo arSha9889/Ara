@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher.jsx';
 import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { useAppFeedback } from '../../../app/providers/AppFeedbackProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
@@ -18,14 +19,33 @@ function isApplePlatform() {
   return /Mac|iPhone|iPad|iPod/i.test(platform) || /iPhone|iPad|iPod|Macintosh/i.test(userAgent);
 }
 
-export function SettingsPage() {
+function AppearanceSaveStatus({ status, onRetry }) {
   const { t } = useI18n();
+  if (status.phase === 'idle') return null;
+
+  const isSaving = status.phase === 'saving';
+  const isError = status.phase === 'error';
+  return (
+    <p className={`appearance-save-status ${isSaving ? 'saving' : isError ? 'error' : 'saved'}`} role={isError ? 'alert' : 'status'} aria-live="polite">
+      <Icon name={isSaving ? 'activity' : isError ? 'x' : 'check'} size={15} />
+      <span>{isSaving ? t('settings.savingPreference') : isError ? t('settings.preferenceFailed') : t('settings.preferenceSaved')}</span>
+      {isError ? <button type="button" onClick={onRetry}>{t('common.retry')}</button> : null}
+    </p>
+  );
+}
+
+export function SettingsPage() {
+  const { language, setLanguage, t } = useI18n();
   const { session, saveSession, clearSession } = useSession();
   const { theme, setTheme } = useTheme();
+  const { notify } = useAppFeedback();
   const [devices, setDevices] = useState([]);
   const [history, setHistory] = useState([]);
-  const [status, setStatus] = useState('');
-  const [statusKind, setStatusKind] = useState('error');
+  const [appearanceStatus, setAppearanceStatus] = useState({
+    theme: { phase: 'idle' },
+    language: { phase: 'idle' },
+  });
+  const appearanceRequestRef = useRef({ theme: 0, language: 0 });
   const [showLiquidGlassPrompt, setShowLiquidGlassPrompt] = useState(false);
   const { disableNotifications, enableNotifications, isEnabled: notificationsEnabled, isSupported, permission: notificationPermission, pushConfigured } = useNotifications();
   const [activeTab, setActiveTab] = useState('appearance');
@@ -49,8 +69,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     loadSecurityData().catch((err) => {
-      setStatusKind('error');
-      setStatus(err.message);
+      notify({ kind: 'error', title: t('settings.security'), message: err.message, icon: 'shield' });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.accessToken]);
@@ -61,28 +80,46 @@ export function SettingsPage() {
   }, [theme]);
 
   async function handleRevokeDevice(deviceId) {
-    await revokeDevice(session.accessToken, deviceId);
-    await loadSecurityData();
-  }
-
-  async function saveAppearancePreference(payload) {
-    setStatus('');
     try {
-      const user = await updateMyProfile(session.accessToken, payload);
-      saveSession({ ...session, user });
-      setStatusKind('success');
-      setStatus(t('settings.saved'));
+      await revokeDevice(session.accessToken, deviceId);
+      await loadSecurityData();
+      notify({ kind: 'success', title: t('settings.deviceRevoked'), icon: 'shield' });
     } catch (err) {
-      setStatusKind('error');
-      setStatus(err.message);
+      notify({ kind: 'error', title: t('settings.security'), message: err.message, icon: 'shield' });
     }
   }
 
+  async function saveAppearancePreference(key, value, previousValue) {
+    const requestId = appearanceRequestRef.current[key] + 1;
+    appearanceRequestRef.current[key] = requestId;
+    setAppearanceStatus((current) => ({ ...current, [key]: { phase: 'saving', value, previousValue } }));
+    try {
+      const payload = key === 'theme' ? { design_theme: value } : { language: value };
+      const user = await updateMyProfile(session.accessToken, payload);
+      if (appearanceRequestRef.current[key] !== requestId) return;
+      saveSession({ ...session, user });
+      setAppearanceStatus((current) => ({ ...current, [key]: { phase: 'saved', value, previousValue } }));
+    } catch {
+      if (appearanceRequestRef.current[key] !== requestId) return;
+      if (key === 'theme') setTheme(previousValue);
+      else setLanguage(previousValue);
+      setAppearanceStatus((current) => ({ ...current, [key]: { phase: 'error', value, previousValue } }));
+    }
+  }
+
+  function retryAppearancePreference(key) {
+    const failedPreference = appearanceStatus[key];
+    if (key === 'theme') setTheme(failedPreference.value);
+    else setLanguage(failedPreference.value);
+    saveAppearancePreference(key, failedPreference.value, failedPreference.previousValue);
+  }
+
   async function enableLiquidGlass() {
+    const previousTheme = theme;
     setTheme('liquid_glass');
     localStorage.setItem('nexus_liquid_glass_prompt_dismissed', 'true');
     setShowLiquidGlassPrompt(false);
-    await saveAppearancePreference({ design_theme: 'liquid_glass' });
+    await saveAppearancePreference('theme', 'liquid_glass', previousTheme);
   }
 
   function dismissLiquidGlassPrompt() {
@@ -92,24 +129,21 @@ export function SettingsPage() {
 
   async function handleEnableNotifications() {
     if (!isSupported) {
-      setStatusKind('error');
       const result = await enableNotifications();
-      setStatus(result.status === 'ios_install_required'
+      notify({ kind: 'error', title: t('settings.notifications'), message: result.status === 'ios_install_required'
         ? t('settings.notificationsInstallRequired')
         : result.status === 'insecure_context'
           ? t('settings.notificationsHttpsRequired')
-          : t('settings.notificationsUnsupported'));
+          : t('settings.notificationsUnsupported'), icon: 'bell' });
       return;
     }
 
     const result = await enableNotifications();
     if (result.status === 'granted') {
-      setStatusKind('success');
-      setStatus(t('settings.notificationsEnabled'));
+      notify({ kind: 'success', title: t('settings.notificationsEnabled'), icon: 'bell' });
       return;
     }
-    setStatusKind('error');
-    setStatus(result.status === 'denied'
+    notify({ kind: 'error', title: t('settings.notifications'), message: result.status === 'denied'
       ? t('settings.notificationsDenied')
       : result.status === 'unconfigured'
         ? t('settings.notificationsUnavailable')
@@ -121,18 +155,20 @@ export function SettingsPage() {
               ? t('settings.notificationsInstallRequired')
               : result.status === 'insecure_context'
                 ? t('settings.notificationsHttpsRequired')
-                : t('settings.notificationsNotEnabled'));
+                : t('settings.notificationsNotEnabled'), icon: 'bell' });
   }
 
   async function handleDisableNotifications() {
-    await disableNotifications();
-    setStatusKind('success');
-    setStatus(t('settings.notificationsDisabled'));
+    try {
+      await disableNotifications();
+      notify({ kind: 'success', title: t('settings.notificationsDisabled'), icon: 'bell' });
+    } catch (err) {
+      notify({ kind: 'error', title: t('settings.notifications'), message: err.message, icon: 'bell' });
+    }
   }
 
   async function handleCreatePin(event) {
     event.preventDefault();
-    setStatus('');
     try {
       await createPin(session.accessToken, {
         current_password: pinForm.current_password,
@@ -140,16 +176,13 @@ export function SettingsPage() {
         device_id: getDeviceId(),
       });
       setPinForm({ current_password: '', pin: '' });
-      setStatusKind('success');
-      setStatus(t('settings.pinSaved'));
+      notify({ kind: 'success', title: t('settings.pinSaved'), icon: 'shield' });
     } catch (err) {
-      setStatusKind('error');
-      setStatus(err.message);
+      notify({ kind: 'error', title: t('settings.devicePinTitle'), message: err.message, icon: 'shield' });
     }
   }
 
   async function handleRemovePin() {
-    setStatus('');
     try {
       await resetPin(session.accessToken, {
         current_password: pinForm.current_password,
@@ -157,31 +190,25 @@ export function SettingsPage() {
         device_id: getDeviceId(),
       });
       setPinForm({ current_password: '', pin: '' });
-      setStatusKind('success');
-      setStatus(t('settings.pinRemoved'));
+      notify({ kind: 'success', title: t('settings.pinRemoved'), icon: 'shield' });
     } catch (err) {
-      setStatusKind('error');
-      setStatus(err.message);
+      notify({ kind: 'error', title: t('settings.devicePinTitle'), message: err.message, icon: 'shield' });
     }
   }
 
   async function handleStartPasswordChange(event) {
     event.preventDefault();
-    setStatus('');
     try {
       const confirmation = await startPasswordChange(session.accessToken, { ...passwordForm, device_id: getDeviceId() });
       setPasswordConfirmation(confirmation);
-      setStatusKind('success');
-      setStatus(t('settings.passwordConfirmationSent'));
+      notify({ kind: 'success', title: t('settings.passwordConfirmationSent'), icon: 'shield' });
     } catch (err) {
-      setStatusKind('error');
-      setStatus(err.message);
+      notify({ kind: 'error', title: t('settings.changePasswordTitle'), message: err.message, icon: 'shield' });
     }
   }
 
   async function handleConfirmPasswordChange() {
     if (!passwordConfirmation) return;
-    setStatus('');
     try {
       await confirmPasswordChange(session.accessToken, {
         password_confirmation_id: passwordConfirmation.password_confirmation_id,
@@ -189,24 +216,20 @@ export function SettingsPage() {
       });
       setPasswordForm({ current_password: '', new_password: '' });
       setPasswordConfirmation(null);
-      setStatusKind('success');
-      setStatus(t('settings.passwordChanged'));
+      notify({ kind: 'success', title: t('settings.passwordChanged'), icon: 'shield' });
     } catch (err) {
-      setStatusKind('error');
-      setStatus(err.message);
+      notify({ kind: 'error', title: t('settings.changePasswordTitle'), message: err.message, icon: 'shield' });
     }
   }
 
   async function handleDeleteAccount() {
-    setStatus('');
     if (!window.confirm(t('settings.deleteAccountConfirm'))) return;
     try {
       await disableNotifications().catch(() => undefined);
       await deleteAccount(session.accessToken);
       clearSession();
     } catch (err) {
-      setStatusKind('error');
-      setStatus(err.message);
+      notify({ kind: 'error', title: t('settings.deleteAccount'), message: err.message, icon: 'trash' });
     }
   }
 
@@ -235,7 +258,6 @@ export function SettingsPage() {
           ))}
         </nav>
         <div className="settings-content">
-          {status ? <p className={statusKind === 'success' ? 'success-text settings-status-line' : 'error-text settings-status-line'}>{status}</p> : null}
           {activeTab === 'appearance' ? (
             <section className="settings-section" role="tabpanel">
               <div className="settings-section-heading">
@@ -259,12 +281,20 @@ export function SettingsPage() {
               ) : null}
               <label className="field inline-field">
                 <span>{t('settings.theme')}</span>
-                <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference({ design_theme: designTheme })} />
+                <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference('theme', designTheme, session.user?.profile?.design_theme || 'halo')} />
               </label>
+              <AppearanceSaveStatus
+                status={appearanceStatus.theme}
+                onRetry={() => retryAppearancePreference('theme')}
+              />
               <label className="field inline-field">
                 <span>{t('settings.language')}</span>
-                <LanguageSwitcher onChange={(language) => saveAppearancePreference({ language })} />
+                <LanguageSwitcher onChange={(nextLanguage) => saveAppearancePreference('language', nextLanguage, session.user?.profile?.language || language)} />
               </label>
+              <AppearanceSaveStatus
+                status={appearanceStatus.language}
+                onRetry={() => retryAppearancePreference('language')}
+              />
             </section>
           ) : null}
           {activeTab === 'notifications' ? (

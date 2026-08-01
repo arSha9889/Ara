@@ -410,6 +410,7 @@ export function ChatPage() {
   const recordingTimerRef = useRef(null);
   const videoRecordingTimerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const recordControlRef = useRef(null);
   const recordingCancelledRef = useRef(false);
   const videoRecordingCancelledRef = useRef(false);
   const reconnectTimerRef = useRef(null);
@@ -660,6 +661,27 @@ export function ChatPage() {
     if (recordHoldTimerRef.current) window.clearTimeout(recordHoldTimerRef.current);
     if (typingStopTimerRef.current) window.clearTimeout(typingStopTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!isRecordMenuOpen) return undefined;
+
+    function closeRecordMenu(event) {
+      if (event.type === 'keydown') {
+        if (event.key === 'Escape') setIsRecordMenuOpen(false);
+        return;
+      }
+      if (!recordControlRef.current?.contains(event.target)) {
+        setIsRecordMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', closeRecordMenu);
+    document.addEventListener('keydown', closeRecordMenu);
+    return () => {
+      document.removeEventListener('pointerdown', closeRecordMenu);
+      document.removeEventListener('keydown', closeRecordMenu);
+    };
+  }, [isRecordMenuOpen]);
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -1573,7 +1595,7 @@ export function ChatPage() {
               </div>
             ) : null}
           </div>
-          <div className="record-control-wrap">
+          <div className="record-control-wrap" ref={recordControlRef}>
             <button
               className={`composer-icon-button record-button ${recordingMode === 'video_note' ? 'video-mode' : 'voice-mode'} ${isRecording || isVideoRecording ? 'is-recording' : ''}`}
               type="button"
@@ -1590,14 +1612,22 @@ export function ChatPage() {
             </button>
             {isRecordMenuOpen ? (
               <div className="record-mode-menu" role="menu" aria-label={t('messages.recordMenu')}>
-                <button className={recordingMode === 'voice' ? 'active' : ''} type="button" role="menuitem" onClick={() => chooseRecordingMode('voice')}>
-                  <Icon name="microphone" size={18} />
-                  <span>{t('messages.voiceMessage')}</span>
-                </button>
-                <button className={recordingMode === 'video_note' ? 'active' : ''} type="button" role="menuitem" onClick={() => chooseRecordingMode('video_note')}>
-                  <Icon name="video" size={18} />
-                  <span>{t('messages.videoNote')}</span>
-                </button>
+                <div className="record-mode-menu-head">
+                  <strong>{t('messages.recordMenu')}</strong>
+                  <span>{t('messages.holdToRecord')}</span>
+                </div>
+                <div className="record-mode-options">
+                  <button className={`record-mode-option voice ${recordingMode === 'voice' ? 'active' : ''}`} type="button" role="menuitemradio" aria-checked={recordingMode === 'voice'} onClick={() => chooseRecordingMode('voice')}>
+                    <span className="record-mode-option-icon" aria-hidden="true"><Icon name="microphone" size={25} strokeWidth={2} /></span>
+                    <span className="record-mode-option-label">{t('messages.voiceMessage')}</span>
+                    {recordingMode === 'voice' ? <span className="record-mode-option-check" aria-label={t('messages.selected')}><Icon name="check" size={14} strokeWidth={2.8} /></span> : null}
+                  </button>
+                  <button className={`record-mode-option video ${recordingMode === 'video_note' ? 'active' : ''}`} type="button" role="menuitemradio" aria-checked={recordingMode === 'video_note'} onClick={() => chooseRecordingMode('video_note')}>
+                    <span className="record-mode-option-icon" aria-hidden="true"><Icon name="video" size={25} strokeWidth={2} /></span>
+                    <span className="record-mode-option-label">{t('messages.videoNote')}</span>
+                    {recordingMode === 'video_note' ? <span className="record-mode-option-check" aria-label={t('messages.selected')}><Icon name="check" size={14} strokeWidth={2.8} /></span> : null}
+                  </button>
+                </div>
                 <small>{t('messages.holdToRecordHint')}</small>
               </div>
             ) : null}

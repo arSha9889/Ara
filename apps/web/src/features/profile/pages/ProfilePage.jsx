@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
+import { useAppFeedback } from '../../../app/providers/AppFeedbackProvider.jsx';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS, UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
@@ -15,6 +16,7 @@ const AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024;
 export function ProfilePage() {
   const { t } = useI18n();
   const { session, saveSession } = useSession();
+  const { notify } = useAppFeedback();
   const [user, setUser] = useState(session.user);
   const [form, setForm] = useState({ display_name: '', username: '', email: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
   const [avatarFile, setAvatarFile] = useState(null);
@@ -83,9 +85,11 @@ export function ProfilePage() {
         avatar_ref: nextUser.profile?.avatar_ref ?? current.avatar_ref,
       }));
       saveSession({ ...session, user: nextUser });
-      setStatus(t('profile.saved'));
+      setStatus('');
+      notify({ kind: 'success', title: t('profile.saved'), icon: 'check' });
     } catch (err) {
       setStatus(err.message);
+      notify({ kind: 'error', title: t('profile.title'), message: err.message, icon: 'user' });
     }
   }
 
@@ -133,8 +137,10 @@ export function ProfilePage() {
 
       setIsIdCopied(true);
       window.setTimeout(() => setIsIdCopied(false), 1800);
+      notify({ kind: 'success', title: t('common.copied'), message: 'AraChat ID', icon: 'copy' });
     } catch (err) {
       setStatus(err.message || t('profile.copyIdError'));
+      notify({ kind: 'error', title: t('profile.copyIdError'), message: err.message || '', icon: 'copy' });
     }
   }
 

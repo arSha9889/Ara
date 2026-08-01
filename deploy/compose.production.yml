@@ -52,7 +52,7 @@ services:
       NEXUS_REFRESH_TOKEN_DAYS: ${NEXUS_REFRESH_TOKEN_DAYS:-180}
       NEXUS_PIN_TRUSTED_DAYS: ${NEXUS_PIN_TRUSTED_DAYS:-365}
       NEXUS_EARLY_ACCESS_BYPASS_LIMIT: ${NEXUS_EARLY_ACCESS_BYPASS_LIMIT:-0}
-      NEXUS_UPLOAD_MAX_SIZE_BYTES: ${NEXUS_UPLOAD_MAX_SIZE_BYTES:-104857600}
+      NEXUS_UPLOAD_MAX_SIZE_BYTES: ${NEXUS_UPLOAD_MAX_SIZE_BYTES:-31457280}
       NEXUS_UPLOAD_DIR: /data/uploads
     volumes:
       - nexus_api_uploads:/data/uploads
@@ -89,6 +89,7 @@ services:
   turn:
     image: coturn/coturn:latest
     restart: unless-stopped
+    profiles: ["calls"]
     network_mode: host
     command:
       - --realm=${NEXUS_TURN_REALM:?Set NEXUS_TURN_REALM in deploy/production.env}
