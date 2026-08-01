@@ -12,43 +12,103 @@
       <stop stop-color="#FFCE3C"/>
       <stop offset="1" stop-color="#F35A36"/>
     </linearGradient>
-    <linearGradient id="paper" x1="169" y1="66" x2="216" y2="105" gradientUnits="userSpaceOnUse">
+    <linearGradient id="paper" x1="166" y1="70" x2="201" y2="94" gradientUnits="userSpaceOnUse">
       <stop stop-color="#F9FBFF"/>
       <stop offset="1" stop-color="#BFD4FF"/>
     </linearGradient>
     <style>
-      .arachat-loader-paper-plane { transform-box: fill-box; transform-origin: center; animation: paper-flight 3.2s ease-in-out infinite; }
+      .crest { transform-box: fill-box; transform-origin: 58% 88%; animation: crest-nudge 3.2s ease-in-out infinite; }
+      .head { transform-box: fill-box; transform-origin: 42% 70%; animation: head-send 3.2s ease-in-out infinite; }
+      .beak-top { transform-box: fill-box; transform-origin: 8% 60%; animation: beak-send 3.2s ease-in-out infinite; }
+      .beak-bottom { transform-box: fill-box; transform-origin: 8% 10%; animation: beak-lower-send 3.2s ease-in-out infinite; }
+      .wing-main { transform-box: fill-box; transform-origin: 62% 22%; animation: wing-send 3.2s ease-in-out infinite; }
+      .send-spark { transform-box: fill-box; transform-origin: center; animation: spark-pop 3.2s ease-in-out infinite; }
+      .flight-trail { stroke-dasharray: 44; stroke-dashoffset: 44; animation: trail-send 3.2s ease-in-out infinite; }
+      .arachat-loader-paper-plane { transform-box: fill-box; transform-origin: center; animation: paper-flight 3.2s cubic-bezier(.22,.8,.28,1) infinite; }
+      @keyframes crest-nudge {
+        0%, 16%, 100% { transform: rotate(0deg); }
+        21% { transform: rotate(-5deg); }
+        29% { transform: rotate(3deg); }
+        38% { transform: rotate(0deg); }
+      }
+      @keyframes head-send {
+        0%, 14%, 100% { transform: translate(0, 0) rotate(0deg); }
+        20% { transform: translate(2px, -1px) rotate(-3deg); }
+        29% { transform: translate(-1px, 1px) rotate(2deg); }
+        42% { transform: translate(0, 0) rotate(0deg); }
+      }
+      @keyframes beak-send {
+        0%, 14%, 100% { transform: rotate(0deg); }
+        20% { transform: rotate(-8deg); }
+        30% { transform: rotate(2deg); }
+        42% { transform: rotate(0deg); }
+      }
+      @keyframes beak-lower-send {
+        0%, 14%, 100% { transform: rotate(0deg); }
+        20% { transform: rotate(10deg); }
+        31% { transform: rotate(-2deg); }
+        42% { transform: rotate(0deg); }
+      }
+      @keyframes wing-send {
+        0%, 12%, 100% { transform: rotate(0deg) translateY(0); }
+        20% { transform: rotate(-7deg) translateY(-2px); }
+        34% { transform: rotate(5deg) translateY(2px); }
+        48% { transform: rotate(0deg) translateY(0); }
+      }
+      @keyframes spark-pop {
+        0%, 16%, 38%, 100% { opacity: 0; transform: scale(.55); }
+        21% { opacity: 1; transform: scale(1); }
+        29% { opacity: .55; transform: scale(.78); }
+      }
+      @keyframes trail-send {
+        0%, 18% { opacity: 0; stroke-dashoffset: 44; }
+        26% { opacity: .75; stroke-dashoffset: 22; }
+        54% { opacity: 0; stroke-dashoffset: 0; }
+        100% { opacity: 0; stroke-dashoffset: 0; }
+      }
       @keyframes paper-flight {
-        0%, 8% { opacity: 0; transform: translate(-7px, 6px) rotate(-4deg); }
-        16% { opacity: 1; }
-        66% { opacity: 0; transform: translate(34px, -24px) rotate(-10deg); }
-        100% { opacity: 0; transform: translate(34px, -24px) rotate(-10deg); }
+        0%, 17% { opacity: 0; transform: translate(0, 0) scale(.56) rotate(-9deg); }
+        20% { opacity: 1; transform: translate(0, 0) scale(.66) rotate(-7deg); }
+        39% { opacity: 1; transform: translate(31px, -19px) scale(.92) rotate(-13deg); }
+        62% { opacity: 0; transform: translate(78px, -49px) scale(1.08) rotate(-18deg); }
+        100% { opacity: 0; transform: translate(78px, -49px) scale(1.08) rotate(-18deg); }
       }
       @media (prefers-reduced-motion: reduce) {
-        .arachat-loader-paper-plane { animation: none; opacity: 1; }
+        .crest, .head, .beak-top, .beak-bottom, .wing-main, .send-spark, .flight-trail, .arachat-loader-paper-plane { animation: none; }
+        .flight-trail { opacity: .35; stroke-dashoffset: 0; }
+        .arachat-loader-paper-plane { opacity: 1; }
       }
     </style>
   </defs>
 
-  <path d="M60 49C47 39 43 28 45 18C56 22 65 31 69 43" stroke="#F5B731" stroke-width="9" stroke-linecap="round"/>
-  <path d="M70 44C58 28 58 16 64 8C75 15 80 27 78 41" stroke="#F04A52" stroke-width="9" stroke-linecap="round"/>
-  <path d="M81 43C77 27 82 16 91 10C98 20 98 33 91 45" stroke="#F58C35" stroke-width="9" stroke-linecap="round"/>
+  <g class="crest">
+    <path d="M60 49C47 39 43 28 45 18C56 22 65 31 69 43" stroke="#F5B731" stroke-width="9" stroke-linecap="round"/>
+    <path d="M70 44C58 28 58 16 64 8C75 15 80 27 78 41" stroke="#F04A52" stroke-width="9" stroke-linecap="round"/>
+    <path d="M81 43C77 27 82 16 91 10C98 20 98 33 91 45" stroke="#F58C35" stroke-width="9" stroke-linecap="round"/>
+  </g>
 
   <path d="M58 137C70 97 74 59 99 45C122 31 151 42 161 68C170 90 159 116 141 132C119 151 87 159 58 137Z" fill="url(#body)"/>
   <path d="M83 102C87 67 99 43 120 42C140 41 153 56 151 78C149 98 131 117 110 129L83 102Z" fill="#7735CB"/>
-  <path d="M67 148C78 115 93 85 113 76C127 69 143 79 142 98C141 120 117 149 80 166L67 148Z" fill="url(#wing)"/>
-  <path d="M76 143C88 114 104 92 119 87C125 85 130 90 126 99C118 119 98 142 76 157V143Z" fill="#B45CFF" opacity=".7"/>
-  <path d="M74 143C87 119 100 103 113 96" stroke="#D395FF" stroke-width="6" stroke-linecap="round" opacity=".6"/>
+  <g class="wing-main">
+    <path d="M67 148C78 115 93 85 113 76C127 69 143 79 142 98C141 120 117 149 80 166L67 148Z" fill="url(#wing)"/>
+    <path class="wing-highlight" d="M76 143C88 114 104 92 119 87C125 85 130 90 126 99C118 119 98 142 76 157V143Z" fill="#B45CFF" opacity=".7"/>
+    <path class="wing-highlight" d="M74 143C87 119 100 103 113 96" stroke="#D395FF" stroke-width="6" stroke-linecap="round" opacity=".6"/>
+  </g>
 
-  <ellipse cx="136" cy="62" rx="24" ry="26" fill="#F9F8FF"/>
-  <circle cx="143" cy="61" r="10" fill="#232170"/>
-  <circle cx="147" cy="57" r="3.5" fill="white"/>
-  <path d="M154 64C168 53 178 58 183 68C181 82 171 91 156 92C161 82 161 73 154 64Z" fill="url(#beak)"/>
-  <path d="M157 82C166 82 174 78 180 70C180 82 171 92 158 95" fill="#E8413F"/>
+  <g class="head">
+    <ellipse cx="136" cy="62" rx="24" ry="26" fill="#F9F8FF"/>
+    <circle cx="143" cy="61" r="10" fill="#232170"/>
+    <circle cx="147" cy="57" r="3.5" fill="white"/>
+    <path class="beak-top" d="M154 64C168 53 178 58 183 68C181 82 171 91 156 92C161 82 161 73 154 64Z" fill="url(#beak)"/>
+    <path class="beak-bottom" d="M157 82C166 82 174 78 180 70C180 82 171 92 158 95" fill="#E8413F"/>
+  </g>
+
+  <path class="flight-trail" d="M175 79C190 72 205 62 224 44" stroke="#8FB5FF" stroke-width="3" stroke-linecap="round" opacity="0"/>
+  <circle class="send-spark" cx="174" cy="78" r="4" fill="#F8D65B" opacity="0"/>
 
   <g class="arachat-loader-paper-plane">
-    <path d="M168 79L220 94L184 115L190 99L168 79Z" fill="url(#paper)" stroke="#8198DE" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M190 99L220 94L184 115L190 99Z" fill="#D6E3FF"/>
-    <path d="M190 99L168 79L184 115" stroke="#8198DE" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M170 73L203 83L179 96L184 85L170 73Z" fill="url(#paper)" stroke="#8198DE" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M184 85L203 83L179 96L184 85Z" fill="#D6E3FF"/>
+    <path d="M184 85L170 73L179 96" stroke="#8198DE" stroke-width="1.7" stroke-linejoin="round"/>
   </g>
 </svg>

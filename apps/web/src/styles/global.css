@@ -5811,17 +5811,11 @@ code {
   height: 100%;
   display: block;
   filter: drop-shadow(0 16px 18px color-mix(in srgb, var(--primary), transparent 76%));
-  animation: arachatLoaderParrotFloat 3.2s ease-in-out infinite;
 }
 .arachat-loader-copy { display: grid; gap: 4px; }
 .arachat-loader-copy strong { color: var(--text); }
 
 @keyframes arachatLoaderSpin { to { transform: rotate(360deg); } }
-
-@keyframes arachatLoaderParrotFloat {
-  0%, 100% { transform: translateY(0) rotate(-1deg); }
-  50% { transform: translateY(-5px) rotate(1deg); }
-}
 
 .app-boot-loader-page {
   min-height: 100dvh;
