@@ -11,3 +11,4 @@ argon2-cffi==25.1.0
 PyJWT==2.10.1
 pytest==9.0.2
 pywebpush==2.0.3
+boto3==1.43.62

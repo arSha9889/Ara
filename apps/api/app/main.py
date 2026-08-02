@@ -3,7 +3,6 @@ from uuid import UUID
 
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, update
 from starlette.websockets import WebSocketDisconnect
 
@@ -16,7 +15,7 @@ from app.models.users import User
 from app.db.health import check_database
 from app.services.realtime_manager import realtime_manager
 from app.services.redis_client import check_redis
-from app.services.storage_service import storage_root
+from app.services.storage_service import check_storage, storage_root
 
 
 def create_app() -> FastAPI:
@@ -29,11 +28,14 @@ def create_app() -> FastAPI:
         allow_headers=['*'],
     )
     app.include_router(api_router, prefix=settings.api_prefix)
-    app.mount(
-        settings.storage_public_url_prefix,
-        StaticFiles(directory=storage_root(), check_dir=False),
-        name='storage_uploads',
-    )
+    if settings.storage_backend == 'local':
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount(
+            settings.storage_public_url_prefix,
+            StaticFiles(directory=storage_root(), check_dir=False),
+            name='storage_uploads',
+        )
 
     @app.get('/health')
     async def health() -> dict[str, str]:
@@ -41,7 +43,7 @@ def create_app() -> FastAPI:
 
     @app.get('/health/infrastructure')
     async def infrastructure_health() -> dict[str, str]:
-        status = {'database': 'unavailable', 'redis': 'unavailable'}
+        status = {'database': 'unavailable', 'redis': 'unavailable', 'storage': 'unavailable'}
         try:
             if await check_database():
                 status['database'] = 'ok'
@@ -53,6 +55,9 @@ def create_app() -> FastAPI:
                 status['redis'] = 'ok'
         except Exception:
             status['redis'] = 'unavailable'
+
+        if await check_storage():
+            status['storage'] = 'ok'
 
         return status
 

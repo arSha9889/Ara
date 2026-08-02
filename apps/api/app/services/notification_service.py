@@ -55,6 +55,7 @@ async def save_push_subscription(
     if subscription:
         subscription.user_id = user_id
         subscription.device_id = request.device_id
+        subscription.is_active = request.enabled
         subscription.p256dh = request.keys.p256dh
         subscription.auth = request.keys.auth
         subscription.expiration_time = request.expirationTime
@@ -62,6 +63,7 @@ async def save_push_subscription(
         session.add(PushSubscription(
             user_id=user_id,
             device_id=request.device_id,
+            is_active=request.enabled,
             endpoint=request.endpoint,
             p256dh=request.keys.p256dh,
             auth=request.keys.auth,
@@ -81,7 +83,7 @@ async def remove_push_subscription(session: AsyncSession, user_id: UUID, endpoin
         select(PushSubscription).where(*conditions)
     )).scalar_one_or_none()
     if subscription:
-        await session.delete(subscription)
+        subscription.is_active = False
         await session.commit()
 
 
@@ -163,7 +165,10 @@ async def _send_push_to_user(session: AsyncSession, user_id: UUID, notification:
     if not web_push_is_configured():
         return False
     subscriptions = list((await session.execute(
-        select(PushSubscription).where(PushSubscription.user_id == user_id)
+        select(PushSubscription).where(
+            PushSubscription.user_id == user_id,
+            PushSubscription.is_active.is_(True),
+        )
     )).scalars())
     delivered = False
     for subscription in subscriptions:

@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
+import { PHONE_COUNTRIES } from '../../../shared/phone/countries.js';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
@@ -22,12 +23,6 @@ import {
 } from '../api/authApi.js';
 
 const AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024;
-const PHONE_COUNTRIES = [
-  { code: 'RU', dialCode: '+7', flag: '🇷🇺', labelKey: 'phoneCountryRussia', placeholder: '+7 999 123-45-67' },
-  { code: 'KZ', dialCode: '+7', flag: '🇰🇿', labelKey: 'phoneCountryKazakhstan', placeholder: '+7 701 123-45-67' },
-  { code: 'KG', dialCode: '+996', flag: '🇰🇬', labelKey: 'phoneCountryKyrgyzstan', placeholder: '+996 700 123 456' },
-  { code: 'UA', dialCode: '+380', flag: '🇺🇦', labelKey: 'phoneCountryUkraine', placeholder: '+380 67 123 45 67' },
-];
 
 export function RegisterPage() {
   const { t, language } = useI18n();

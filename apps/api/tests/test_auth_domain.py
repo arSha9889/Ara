@@ -6,6 +6,8 @@ import pytest
 from app.domain.registration_proof import create_registration_proof, verify_registration_proof
 from app.domain.tokens import create_access_token, decode_access_token
 from app.models.verification import PhoneVerification
+from app.schemas.auth import PhoneVerificationStartRequest, RegisterCompleteRequest
+from app.schemas.chats import DirectChatCreateRequest
 from app.services.phone_verification_service import (
     handle_telegram_bot_update,
     normalize_phone,
@@ -56,6 +58,12 @@ def test_normalize_phone() -> None:
     assert normalize_phone('+380 67 123 45 67', 'UA') == '+380671234567'
     assert normalize_phone('067 123 45 67', 'UA') == '+380671234567'
     assert normalize_phone('671234567', 'UA') == '+380671234567'
+    assert normalize_phone('+375 29 123-45-67', 'BY') == '+375291234567'
+    assert normalize_phone('029 123-45-67', 'BY') == '+375291234567'
+    assert normalize_phone('291234567', 'BY') == '+375291234567'
+    assert normalize_phone('+998 90 123-45-67', 'UZ') == '+998901234567'
+    assert normalize_phone('090 123-45-67', 'UZ') == '+998901234567'
+    assert normalize_phone('901234567', 'UZ') == '+998901234567'
     with pytest.raises(ValueError):
         normalize_phone('+1 555 123 4567', 'RU')
     with pytest.raises(ValueError):
@@ -64,6 +72,28 @@ def test_normalize_phone() -> None:
         normalize_phone('+996 312 123 456', 'KG')
     with pytest.raises(ValueError):
         normalize_phone('+380 44 123 45 67', 'UA')
+    with pytest.raises(ValueError):
+        normalize_phone('+375 17 123-45-67', 'BY')
+    with pytest.raises(ValueError):
+        normalize_phone('+998 71 123-45-67', 'UZ')
+
+
+def test_phone_country_api_contracts_include_belarus_and_uzbekistan() -> None:
+    assert PhoneVerificationStartRequest(country='BY', phone='+375291234567', device_id='device-123').country == 'BY'
+    assert PhoneVerificationStartRequest(country='UZ', phone='+998901234567', device_id='device-123').country == 'UZ'
+    assert DirectChatCreateRequest(country='BY', phone='+375291234567').country == 'BY'
+    assert DirectChatCreateRequest(country='UZ', phone='+998901234567').country == 'UZ'
+
+    registration = RegisterCompleteRequest(
+        registration_proof='proof',
+        username='belarususer',
+        password='password123',
+        device_id='device-123',
+        language='be',
+        registration_country='BY',
+    )
+    assert registration.registration_country == 'BY'
+    assert registration.language == 'be'
 
 
 @pytest.mark.anyio

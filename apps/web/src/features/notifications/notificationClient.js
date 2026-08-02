@@ -71,6 +71,17 @@ export async function getPushSubscription() {
   return registration?.pushManager.getSubscription() ?? null;
 }
 
+export async function clearDisplayedNotifications() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const registration = await navigator.serviceWorker.getRegistration('/');
+  if (!registration) return;
+
+  registration.active?.postMessage({ event: 'notifications.clear' });
+  const notifications = await registration.getNotifications({ includeTriggered: true });
+  notifications.forEach((notification) => notification.close());
+}
+
 export async function subscribeToPush(publicKey, { force = true } = {}) {
   const registration = await getServiceWorkerRegistration();
   if (!registration) throw new Error('Push notifications are not supported');

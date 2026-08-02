@@ -3,18 +3,12 @@ import { useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
+import { PHONE_COUNTRIES } from '../../../shared/phone/countries.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { searchUsers } from '../../profile/api/userApi.js';
 import { PublicProfileSheet } from '../../profile/components/PublicProfileSheet.jsx';
 import { createDirectChat, createDirectChatForUser } from '../api/chatApi.js';
-
-const PHONE_COUNTRIES = [
-  { code: 'RU', dialCode: '+7', flag: '🇷🇺' },
-  { code: 'KZ', dialCode: '+7', flag: '🇰🇿' },
-  { code: 'KG', dialCode: '+996', flag: '🇰🇬' },
-  { code: 'UA', dialCode: '+380', flag: '🇺🇦' },
-];
 
 export function NewChatPage() {
   const { t } = useI18n();
@@ -116,8 +110,8 @@ export function NewChatPage() {
           </> : <form className="new-chat-phone-form" onSubmit={findByPhone}>
             <div className="new-chat-phone-orb"><Icon name="phone" size={28} /></div>
             <div><h2>{t('chats.newChatFindByPhone')}</h2><p>{t('chats.newChatFindByPhoneText')}</p></div>
-            <label className="field"><span>{t('register.phoneCountry')}</span><select className="select" value={country} onChange={(event) => setCountry(event.target.value)}>{PHONE_COUNTRIES.map((item) => <option value={item.code} key={item.code}>{item.flag} {item.code} · {item.dialCode}</option>)}</select></label>
-            <label className="field"><span>{t('chats.phone')}</span><input className="text-input" inputMode="tel" autoFocus value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+7 999 123-45-67" /></label>
+            <label className="field"><span>{t('register.phoneCountry')}</span><select className="select" value={country} onChange={(event) => setCountry(event.target.value)}>{PHONE_COUNTRIES.map((item) => <option value={item.code} key={item.code}>{item.flag} {t(`register.${item.labelKey}`)} · {item.dialCode}</option>)}</select></label>
+            <label className="field"><span>{t('chats.phone')}</span><input className="text-input" inputMode="tel" autoFocus value={phone} onChange={(event) => setPhone(event.target.value)} placeholder={PHONE_COUNTRIES.find((item) => item.code === country)?.placeholder} /></label>
             <button className="button button-primary new-chat-phone-submit" type="submit" disabled={!phone.trim() || isOpeningChat}><Icon name="arrowRight" size={18} />{isOpeningChat ? t('chats.openingChat') : t('chats.newChatFind')}</button>
           </form>}
           {error ? <p className="error-text">{error}</p> : null}

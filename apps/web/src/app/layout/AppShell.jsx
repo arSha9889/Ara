@@ -43,7 +43,7 @@ export function AppShell() {
     { to: '/app/settings', icon: 'settings', label: t('settings.title') },
     ...(isAdministrator ? [{ to: '/admin', icon: 'shield', label: t('auth.adminEntry') }] : []),
   ];
-  const mobileNavItems = navItems.filter((item) => item.to !== '/app/branches');
+  const mobileNavItems = navItems.filter((item) => ['/app', '/app/branches', '/app/profile'].includes(item.to));
 
   useEffect(() => {
     let isCurrent = true;
@@ -131,7 +131,7 @@ export function AppShell() {
         <Outlet context={{ isMenuOpen, toggleNavigation: () => setIsMenuOpen((current) => !current) }} />
       </main>
       <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
-          {mobileNavItems.map((item) => (
+          {mobileNavItems.slice(0, 2).map((item) => (
             <NavLink
               className={({ isActive }) => `mobile-bottom-nav-item ${isActive || (item.to === '/app' && isChatRoute) ? 'active' : ''}`}
               to={item.to}
@@ -154,7 +154,28 @@ export function AppShell() {
               <span>{item.label}</span>
             </NavLink>
           ))}
-        </nav>
+          <NavLink className={({ isActive }) => `mobile-bottom-nav-create ${isActive ? 'active' : ''}`} to="/app/new-chat" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
+            <span aria-hidden="true"><Icon name="plus" size={24} strokeWidth={2.3} /></span>
+            <span>{t('chats.createChat')}</span>
+          </NavLink>
+          {mobileNavItems.slice(2).map((item) => (
+            <NavLink
+              className={({ isActive }) => `mobile-bottom-nav-item ${isActive ? 'active' : ''}`}
+              to={item.to}
+              key={item.to}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className="mobile-bottom-nav-icon" aria-hidden="true">
+                <UserAvatar
+                  baseClass="mobile-bottom-nav-profile-avatar"
+                  profile={session.user?.profile}
+                  fallback={session.user?.profile?.display_name?.[0] || session.user?.username?.[0] || 'A'}
+                />
+              </span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+      </nav>
     </div>
   );
 }

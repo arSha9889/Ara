@@ -1,4 +1,5 @@
 from io import BytesIO
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -8,6 +9,7 @@ from fastapi import UploadFile
 
 from app.core.config import settings
 from app.services.auth_service import AuthError
+from app.services import storage_service
 from app.services.storage_service import media_url_for, save_upload_file
 
 
@@ -62,3 +64,37 @@ async def test_save_upload_file_rejects_content_type_spoofing(tmp_path, monkeypa
         await save_upload_file(_upload('photo.png', 'image/png', b'MZ-not-a-real-png'), uuid4())
 
     assert not list(tmp_path.rglob('*.*'))
+
+
+@pytest.mark.anyio
+async def test_save_upload_file_uploads_validated_content_to_s3(tmp_path, monkeypatch) -> None:
+    uploaded: dict[str, object] = {}
+
+    class S3Client:
+        def upload_file(self, filename: str, bucket: str, key: str, ExtraArgs: dict) -> None:
+            uploaded.update({
+                'content': Path(filename).read_bytes(),
+                'bucket': bucket,
+                'key': key,
+                'extra_args': ExtraArgs,
+            })
+
+    monkeypatch.setattr(settings, 'storage_backend', 's3')
+    monkeypatch.setattr(settings, 's3_bucket', 'arachat-media')
+    monkeypatch.setattr(settings, 's3_prefix', 'production-media')
+    monkeypatch.setattr(settings, 's3_public_base_url', 'https://media.example.test')
+    monkeypatch.setattr(storage_service, 'get_s3_client', lambda: S3Client())
+    user_id = uuid4()
+
+    stored = await save_upload_file(_upload('avatar.png', 'image/png', PNG_BYTES), user_id)
+
+    assert uploaded['content'] == PNG_BYTES
+    assert uploaded['bucket'] == 'arachat-media'
+    assert uploaded['key'].startswith(f'production-media/{user_id}/')
+    assert uploaded['extra_args'] == {
+        'ContentType': 'image/png',
+        'ContentDisposition': 'inline',
+        'CacheControl': 'public, max-age=31536000, immutable',
+    }
+    assert stored.public_path == uploaded['key']
+    assert media_url_for(stored.public_path, 'http://api.local/') == f'https://media.example.test/{stored.public_path}'

@@ -423,7 +423,7 @@ def _validate_registration_request(request: RegisterCompleteRequest) -> None:
         raise AuthError('Пароль должен содержать только латинские буквы и цифры, от 5 до 30 символов')
     if request.pin and not is_valid_pin(request.pin):
         raise AuthError('PIN должен содержать от 4 до 8 цифр')
-    if request.language not in {'ru', 'en', 'kk', 'ky', 'uk'}:
+    if request.language not in {'ru', 'en', 'kk', 'ky', 'uk', 'be', 'uz'}:
         raise AuthError('Неподдерживаемый язык интерфейса')
     if request.design_theme not in {'halo', 'orbit', 'aurora', 'liquid_glass'}:
         raise AuthError('Неподдерживаемая тема оформления')

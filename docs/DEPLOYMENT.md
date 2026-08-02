@@ -9,12 +9,12 @@
 - `turn` — подготовленный, но пока выключенный coturn для будущих WebRTC-звонков;
 - `caddy` — внешний reverse proxy с автоматическим HTTPS от Let's Encrypt.
 
-В этом варианте фронтенд, API, WebSocket и загруженные файлы находятся на одном домене:
+В этом варианте фронтенд, API и WebSocket находятся на одном домене, а медиафайлы — в S3-совместимом object storage:
 
 - `https://<домен>/` — сайт;
 - `https://<домен>/api/...` — API;
 - `wss://<домен>/ws` — realtime WebSocket;
-- `https://<домен>/storage/uploads/...` — текущая раздача загруженных файлов.
+- `https://<media-домен>/uploads/...` — загруженные файлы из object storage.
 
 Такой same-origin деплой проще и надёжнее для MVP: браузеру не нужны отдельные публичные API-домены, CORS становится менее хрупким, а Web Push работает через HTTPS.
 
@@ -32,9 +32,9 @@
 
 Выберите Linux VPS с **Ubuntu 24.04 LTS**, выделенным публичным IPv4 и без
 ограничений на входящий UDP. Последнее понадобится для будущих WebRTC-звонков.
-Диск особенно важен: база данных и загруженные файлы сейчас хранятся на VPS.
-30 ГБ — только нижняя граница; при росте медиафайлов увеличивайте диск или
-переносите файлы в объектное хранилище. Точный лимит пользователей заранее
+Диск особенно важен для базы данных. Медиафайлы production-конфигурация хранит
+в S3-совместимом object storage, поэтому они не занимают Docker volume VPS.
+30 ГБ — нижняя граница для базы и контейнеров. Точный лимит пользователей заранее
 не обещаем: он зависит от размера вложений и реальной активности.
 
 ## 2. До запуска: обязательные условия
@@ -46,7 +46,7 @@
 - открытые входящие порты `80` и `443`;
 - Docker и Docker Compose v2;
 - характеристики VPS не ниже рекомендованного выше тарифа;
-- постоянный диск под PostgreSQL и загрузки пользователей.
+- постоянный диск под PostgreSQL.
 
 Не публикуйте PostgreSQL (`5432`), Redis (`6379`), API (`8000`) или web-контейнер (`8080`) в интернет: в production-конфигурации наружу открыты только Caddy на портах `80/443` и coturn для звонков.
 
@@ -154,7 +154,11 @@ NEXUS_PUBLIC_DOMAIN=<ваш-домен>
 NEXUS_ACME_EMAIL=<ваш-email>
 NEXUS_POSTGRES_PASSWORD=<длинный-случайный-пароль>
 NEXUS_ALLOWED_ORIGINS=["https://<ваш-домен>"]
-NEXUS_STORAGE_PUBLIC_BASE_URL=https://<ваш-домен>
+NEXUS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
+NEXUS_S3_BUCKET=<имя-bucket>
+NEXUS_S3_ACCESS_KEY_ID=<access-key-id>
+NEXUS_S3_SECRET_ACCESS_KEY=<secret-access-key>
+NEXUS_S3_PUBLIC_BASE_URL=https://<media-домен>
 NEXUS_REGISTRATION_PROOF_SECRET=<длинная-случайная-строка>
 NEXUS_ACCESS_TOKEN_SECRET=<длинная-случайная-строка>
 NEXUS_TELEGRAM_BOT_TOKEN=<токен-бота>
@@ -181,7 +185,30 @@ chmod 600 deploy/production.env
 
 Перед запуском убедитесь, что в `production.env` не осталось примерных значений `change-me`, `example.ru` или `203.0.113.10`.
 
-## 6. Первый запуск
+## 6. Object storage для production
+
+Production Compose намеренно требует S3-совместимое хранилище: API не запускается,
+если не заполнены его реквизиты. Поддерживаются Cloudflare R2, AWS S3, MinIO и
+другие провайдеры с S3 API. Для первого релиза рекомендуется Cloudflare R2.
+
+1. Создайте bucket, например `arachat-media`.
+2. Создайте отдельный API token с правом **Object Read & Write** только к этому bucket.
+3. Подключите к bucket публичный custom domain, например `media.<ваш-домен>`.
+   Альтернативно на старте допустим выданный R2.dev-домен. Не передавайте URL S3 API
+   в `NEXUS_S3_PUBLIC_BASE_URL`: это именно публичный URL для браузера.
+4. Заполните `NEXUS_S3_*` в `deploy/production.env` по примеру.
+
+Для Cloudflare R2 endpoint имеет вид
+`https://<account-id>.r2.cloudflarestorage.com`, регион — `auto`. Для AWS S3
+укажите регион bucket и его региональный endpoint. Не добавляйте ключи доступа в
+frontend, `.env` клиента или Git: они нужны только API-контейнеру.
+
+Загружаемый файл сначала проходит серверную проверку размера, MIME-типа и сигнатуры;
+после этого API отправляет объект в bucket под UUID-именем. Объекты предназначены
+для публичного чтения через media-домен. Приватные вложения с подписанными ссылками
+требуют отдельной авторизационной модели и пока не реализованы.
+
+## 7. Первый запуск
 
 Из корня проекта:
 
@@ -215,7 +242,7 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 docker compose --env-file deploy/production.env -f deploy/compose.production.yml logs -f api
 ```
 
-## 7. Telegram webhook
+## 8. Telegram webhook
 
 После запуска сайта настройте webhook Telegram-бота на production API:
 
@@ -236,7 +263,7 @@ curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
 
 В ответе `getWebhookInfo` не должно быть `last_error_message`. Токен бота и URL webhook не публикуйте в issues, чатах или коммитах.
 
-## 8. Web Push/VAPID
+## 9. Web Push/VAPID
 
 Для фоновых push-уведомлений production должен работать по HTTPS и иметь заполненные переменные:
 
@@ -255,7 +282,7 @@ pip install -r requirements.txt
 .venv/bin/python -c "import base64; from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat; from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print('NEXUS_VAPID_PRIVATE_KEY=' + base64.urlsafe_b64encode(v.private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())).rstrip(b'=').decode()); print('NEXUS_VAPID_PUBLIC_KEY=' + base64.urlsafe_b64encode(v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)).rstrip(b'=').decode())"
 ```
 
-## 9. TURN/WebRTC-звонки (задел на будущее)
+## 10. TURN/WebRTC-звонки (задел на будущее)
 
 Сейчас запускать этот раздел не нужно: серверная сигнализация звонков ещё не
 реализована. Когда она появится, откройте порты в UFW и в панели FirstVPS:
@@ -288,20 +315,20 @@ sudo ss -lunpt | grep 3478
 
 Проверить снаружи можно через WebRTC ICE checker, указав `turn:<домен>:3478?transport=udp`, username и credential из production env. Для реального smoke-check откройте direct chat у двух пользователей на разных сетях, начните звонок и включите демонстрацию экрана.
 
-## 10. Smoke-check после запуска
+## 11. Smoke-check после запуска
 
 Проверьте:
 
 1. `https://<ваш-домен>` открывается без VPN с обычного российского интернета.
 2. `https://<ваш-домен>/health` возвращает `{"status":"ok","service":"arachat-api"}`.
-3. `https://<ваш-домен>/health/infrastructure` показывает `database: ok` и `redis: ok`.
+3. `https://<ваш-домен>/health/infrastructure` показывает `database: ok`, `redis: ok` и `storage: ok`.
 4. Регистрация через Telegram-бота создаёт пользователя.
 5. Вход по AraChat ID + password работает.
 6. PIN создаётся и работает на доверенном устройстве.
 7. Direct chat создаётся по username/AraChat ID.
 8. Text/photo/video/file/voice/emoji сообщения отправляются и сохраняются.
 9. Realtime-сообщения приходят во второй вкладке без обновления страницы.
-10. Загруженные файлы открываются по URL `/storage/uploads/...`.
+10. Загруженные файлы открываются по URL `https://<media-домен>/uploads/...` и имеют корректный `Content-Type`.
 11. Push-подписка включается в профиле/настройках, если заполнены VAPID-ключи.
 12. Проверка аудиозвонков и демонстрации экрана откладывается до реализации server-side call signaling.
 
@@ -314,7 +341,7 @@ sudo ss -lntup
 
 У ответа сайта должны быть `Strict-Transport-Security`, `Content-Security-Policy` и `X-Content-Type-Options`. В `ss` не должны быть слушающими на внешнем интерфейсе порты PostgreSQL, Redis, API и Nginx.
 
-## 11. Обновление production
+## 12. Обновление production
 
 На сервере из корня проекта:
 
@@ -329,9 +356,9 @@ API-контейнер при старте применяет миграции:
 alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
 ```
 
-## 12. Резервные копии
+## 13. Резервные копии
 
-Перед реальными пользователями обязательно настройте backup PostgreSQL и uploads volume.
+Перед реальными пользователями обязательно настройте backup PostgreSQL и bucket object storage.
 
 Пример ручного дампа PostgreSQL:
 
@@ -340,9 +367,7 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
   pg_dump -U nexus nexus > nexus-$(date +%Y-%m-%d).sql
 ```
 
-Uploads лежат в Docker volume `nexus-production_nexus_api_uploads`. Их тоже нужно регулярно копировать или переносить в production object storage.
-
-Минимальный план: ежедневный зашифрованный дамп PostgreSQL и копия uploads вне VPS с проверкой восстановления не реже раза в месяц. Один дамп на том же сервере не является резервной копией.
+Настройте lifecycle/версионирование и резервное копирование bucket на стороне S3-провайдера. Минимальный план: ежедневный зашифрованный дамп PostgreSQL и репликация/backup bucket вне основного аккаунта с проверкой восстановления не реже раза в месяц. Один дамп или bucket в одном аккаунте не является полноценной резервной копией.
 
 Перед обновлениями с миграциями всегда делайте отдельный дамп:
 
@@ -354,14 +379,13 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 
 Команда использует переменные `POSTGRES_USER` и `POSTGRES_DB` внутри контейнера и не требует загрузки production-секретов в shell.
 
-## 13. Ограничения перед массовым запуском
+## 14. Ограничения перед массовым запуском
 
 - Realtime fan-out пока in-memory в одном API-процессе. Не запускайте несколько API-инстансов до внедрения Redis pub/sub fan-out.
-- Локальное файловое хранилище подходит для одного сервера, но для полноценного production лучше перейти на object storage с private ACL/signed links.
-- Загруженные файлы сейчас раздаются публичным static URL.
+- Медиафайлы хранятся в object storage, но текущая модель раздаёт их публично через media-домен. Для приватных вложений нужны защищённый endpoint и короткоживущие signed URLs.
 - Email-регистрация подтверждается через Telegram-бота: это связывает указанный email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику. Для полноценной email-verification нужно добавить SMTP/почтовый провайдер.
 - TURN сейчас использует static credentials, которые видны браузеру как часть ICE-конфигурации. Для публичного масштаба нужны временные credentials и rate limiting.
-- Нужны регулярные backup базы и uploads.
+- Нужны регулярные backup базы и bucket object storage.
 - Перед запуском необходимо самостоятельно проверить актуальность пользовательского соглашения и политики конфиденциальности, реквизитов оператора и применимых требований к персональным данным. Этот репозиторий не заменяет юридическую консультацию.
 
 ## Старый вариант: Railway/Vercel/Amvera

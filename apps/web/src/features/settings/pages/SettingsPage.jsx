@@ -9,6 +9,7 @@ import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
+import { LayoutModeSwitcher } from '../../../shared/ui/LayoutModeSwitcher.jsx';
 import { confirmPasswordChange, createPin, deleteAccount, resetPin, startPasswordChange } from '../../auth/api/authApi.js';
 import { updateMyProfile } from '../../profile/api/userApi.js';
 import { getDevices, getLoginHistory, revokeDevice } from '../api/deviceApi.js';
@@ -295,6 +296,7 @@ export function SettingsPage() {
                 status={appearanceStatus.language}
                 onRetry={() => retryAppearancePreference('language')}
               />
+              <LayoutModeSwitcher />
             </section>
           ) : null}
           {activeTab === 'notifications' ? (

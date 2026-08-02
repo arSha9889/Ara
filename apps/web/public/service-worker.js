@@ -6,6 +6,14 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(clients.claim());
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.event !== 'notifications.clear') return;
+  event.waitUntil((async () => {
+    const notifications = await self.registration.getNotifications({ includeTriggered: true });
+    notifications.forEach((notification) => notification.close());
+  })());
+});
+
 self.addEventListener('push', (event) => {
   let notification = {};
   try {

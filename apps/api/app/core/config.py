@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -35,6 +36,14 @@ class Settings(BaseSettings):
     upload_max_size_bytes: int = Field(default=30 * 1024 * 1024, ge=1)
     storage_public_url_prefix: str = '/storage/uploads'
     storage_public_base_url: str = ''
+    storage_backend: Literal['local', 's3'] = 'local'
+    s3_endpoint_url: str = ''
+    s3_region: str = 'auto'
+    s3_bucket: str = ''
+    s3_access_key_id: str = ''
+    s3_secret_access_key: str = ''
+    s3_prefix: str = 'uploads'
+    s3_public_base_url: str = ''
     vapid_private_key: str = ''
     vapid_public_key: str = ''
     vapid_claims_email: str = ''
@@ -46,6 +55,17 @@ class Settings(BaseSettings):
             self.database_url = self.database_url.replace('postgres://', 'postgresql+asyncpg://', 1)
         elif self.database_url.startswith('postgresql://'):
             self.database_url = self.database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+        if self.storage_backend == 's3':
+            required_settings = {
+                'NEXUS_S3_ENDPOINT_URL': self.s3_endpoint_url,
+                'NEXUS_S3_BUCKET': self.s3_bucket,
+                'NEXUS_S3_ACCESS_KEY_ID': self.s3_access_key_id,
+                'NEXUS_S3_SECRET_ACCESS_KEY': self.s3_secret_access_key,
+                'NEXUS_S3_PUBLIC_BASE_URL': self.s3_public_base_url,
+            }
+            missing = [name for name, value in required_settings.items() if not value.strip()]
+            if missing:
+                raise ValueError(f'S3 storage requires: {", ".join(missing)}')
 
 
 settings = Settings()

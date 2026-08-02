@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class DirectChatCreateRequest(BaseModel):
-    country: str = Field(pattern=r'^(RU|KZ|KG|UA)$')
+    country: str = Field(pattern=r'^(RU|KZ|KG|UA|BY|UZ)$')
     phone: str = Field(min_length=7, max_length=32)
 
 
@@ -134,6 +134,7 @@ class PushSubscriptionKeys(BaseModel):
 class PushSubscriptionCreateRequest(BaseModel):
     endpoint: str = Field(min_length=1, max_length=4096)
     device_id: str | None = Field(default=None, min_length=8, max_length=128)
+    enabled: bool = True
     expirationTime: datetime | None = None
     keys: PushSubscriptionKeys
 

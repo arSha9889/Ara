@@ -1,7 +1,13 @@
+import asyncio
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from uuid import UUID, uuid4
 
+import boto3
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import UploadFile
 
 from app.core.config import settings
@@ -64,6 +70,18 @@ def storage_root() -> Path:
     return path
 
 
+@lru_cache
+def get_s3_client():
+    return boto3.client(
+        's3',
+        endpoint_url=settings.s3_endpoint_url,
+        region_name=settings.s3_region,
+        aws_access_key_id=settings.s3_access_key_id,
+        aws_secret_access_key=settings.s3_secret_access_key,
+        config=Config(signature_version='s3v4', retries={'max_attempts': 3, 'mode': 'standard'}),
+    )
+
+
 async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: int | None = None) -> StoredUpload:
     mime_type = _normalize_mime_type(upload.content_type)
     if mime_type not in ALLOWED_MIME_TYPES:
@@ -71,12 +89,19 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
 
     original_name = _clean_filename(upload.filename or 'upload')
     extension = EXTENSIONS_BY_MIME_TYPE[mime_type]
-    relative_dir = Path(str(user_id))
-    target_dir = storage_root() / relative_dir
-    target_dir.mkdir(parents=True, exist_ok=True)
-
     stored_name = f'{uuid4().hex}{extension}'
-    target_path = target_dir / stored_name
+    is_s3 = settings.storage_backend == 's3'
+    object_key = _s3_object_key(user_id, stored_name) if is_s3 else ''
+    target_path: Path
+    if is_s3:
+        temporary_file = NamedTemporaryFile(prefix='nexus-upload-', delete=False)
+        target_path = Path(temporary_file.name)
+        temporary_file.close()
+    else:
+        relative_dir = Path(str(user_id))
+        target_dir = storage_root() / relative_dir
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_path = target_dir / stored_name
     size_bytes = 0
     header = b''
 
@@ -90,15 +115,23 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
                 if size_bytes > (max_size_bytes or settings.upload_max_size_bytes):
                     raise AuthError('Upload is too large')
                 output.write(chunk)
+        if is_s3:
+            await _upload_to_s3(target_path, object_key, mime_type)
     except Exception:
         target_path.unlink(missing_ok=True)
         raise
     finally:
         await upload.close()
 
-    public_prefix = settings.storage_public_url_prefix.rstrip('/')
+    if is_s3:
+        target_path.unlink(missing_ok=True)
+        public_path = object_key
+    else:
+        public_prefix = settings.storage_public_url_prefix.rstrip('/')
+        public_path = f'{public_prefix}/{user_id}/{stored_name}'
+
     return StoredUpload(
-        public_path=f'{public_prefix}/{user_id}/{stored_name}',
+        public_path=public_path,
         original_name=original_name,
         mime_type=mime_type,
         size_bytes=size_bytes,
@@ -107,8 +140,46 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
 
 
 def media_url_for(public_path: str, request_base_url: str) -> str:
+    if settings.storage_backend == 's3':
+        return f'{settings.s3_public_base_url.rstrip("/")}/{public_path.lstrip("/")}'
     base_url = settings.storage_public_base_url.strip() or request_base_url
     return f'{base_url.rstrip("/")}{public_path}'
+
+
+async def check_storage() -> bool:
+    if settings.storage_backend == 'local':
+        try:
+            storage_root().mkdir(parents=True, exist_ok=True)
+            return True
+        except OSError:
+            return False
+    try:
+        await asyncio.to_thread(get_s3_client().head_bucket, Bucket=settings.s3_bucket)
+        return True
+    except (BotoCoreError, ClientError):
+        return False
+
+
+async def _upload_to_s3(path: Path, object_key: str, mime_type: str) -> None:
+    try:
+        await asyncio.to_thread(
+            get_s3_client().upload_file,
+            str(path),
+            settings.s3_bucket,
+            object_key,
+            ExtraArgs={
+                'ContentType': mime_type,
+                'ContentDisposition': 'inline',
+                'CacheControl': 'public, max-age=31536000, immutable',
+            },
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise AuthError('File storage is temporarily unavailable') from exc
+
+
+def _s3_object_key(user_id: UUID, stored_name: str) -> str:
+    prefix = settings.s3_prefix.strip('/')
+    return '/'.join(part for part in (prefix, str(user_id), stored_name) if part)
 
 
 def _clean_filename(filename: str) -> str:

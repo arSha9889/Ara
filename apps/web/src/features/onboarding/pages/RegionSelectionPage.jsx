@@ -7,6 +7,8 @@ const REGIONS = [
   { id: 'KZ', flag: '🇰🇿', languages: ['kk', 'ru'] },
   { id: 'KG', flag: '🇰🇬', languages: ['ky', 'ru'] },
   { id: 'UA', flag: '🇺🇦', languages: ['uk', 'ru'] },
+  { id: 'BY', flag: '🇧🇾', languages: ['be', 'ru'] },
+  { id: 'UZ', flag: '🇺🇿', languages: ['uz', 'ru'] },
   { id: 'GLOBAL', flag: '🌍', language: 'en' },
 ];
 

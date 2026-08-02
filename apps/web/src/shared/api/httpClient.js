@@ -53,6 +53,7 @@ const API_ERROR_MESSAGES = {
   'Upload is too large': 'Файл слишком большой.',
   'Upload is empty': 'Файл пустой.',
   'Upload content does not match declared type': 'Содержимое файла не совпадает с его типом.',
+  'File storage is temporarily unavailable': 'Хранилище файлов временно недоступно. Попробуйте ещё раз позже.',
   'Telegram bot is not configured': 'Telegram-бот пока не настроен на сервере.',
   'Phone number has invalid format': 'Проверьте формат телефона. Например: +79991234567.',
   'Email has invalid format': 'Проверьте формат email.',

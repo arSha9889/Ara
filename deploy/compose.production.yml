@@ -37,8 +37,14 @@ services:
       NEXUS_DATABASE_URL: postgresql+asyncpg://${NEXUS_POSTGRES_USER:-nexus}:${NEXUS_POSTGRES_PASSWORD:?Set NEXUS_POSTGRES_PASSWORD in deploy/production.env}@postgres:5432/${NEXUS_POSTGRES_DB:-nexus}
       NEXUS_REDIS_URL: redis://redis:6379/0
       NEXUS_ALLOWED_ORIGINS: ${NEXUS_ALLOWED_ORIGINS:?Set NEXUS_ALLOWED_ORIGINS in deploy/production.env}
-      NEXUS_STORAGE_PUBLIC_URL_PREFIX: ${NEXUS_STORAGE_PUBLIC_URL_PREFIX:-/storage/uploads}
-      NEXUS_STORAGE_PUBLIC_BASE_URL: ${NEXUS_STORAGE_PUBLIC_BASE_URL:?Set NEXUS_STORAGE_PUBLIC_BASE_URL in deploy/production.env}
+      NEXUS_STORAGE_BACKEND: s3
+      NEXUS_S3_ENDPOINT_URL: ${NEXUS_S3_ENDPOINT_URL:?Set NEXUS_S3_ENDPOINT_URL in deploy/production.env}
+      NEXUS_S3_REGION: ${NEXUS_S3_REGION:-auto}
+      NEXUS_S3_BUCKET: ${NEXUS_S3_BUCKET:?Set NEXUS_S3_BUCKET in deploy/production.env}
+      NEXUS_S3_ACCESS_KEY_ID: ${NEXUS_S3_ACCESS_KEY_ID:?Set NEXUS_S3_ACCESS_KEY_ID in deploy/production.env}
+      NEXUS_S3_SECRET_ACCESS_KEY: ${NEXUS_S3_SECRET_ACCESS_KEY:?Set NEXUS_S3_SECRET_ACCESS_KEY in deploy/production.env}
+      NEXUS_S3_PREFIX: ${NEXUS_S3_PREFIX:-uploads}
+      NEXUS_S3_PUBLIC_BASE_URL: ${NEXUS_S3_PUBLIC_BASE_URL:?Set NEXUS_S3_PUBLIC_BASE_URL in deploy/production.env}
       NEXUS_REGISTRATION_PROOF_SECRET: ${NEXUS_REGISTRATION_PROOF_SECRET:?Set NEXUS_REGISTRATION_PROOF_SECRET in deploy/production.env}
       NEXUS_ACCESS_TOKEN_SECRET: ${NEXUS_ACCESS_TOKEN_SECRET:?Set NEXUS_ACCESS_TOKEN_SECRET in deploy/production.env}
       NEXUS_TELEGRAM_BOT_TOKEN: ${NEXUS_TELEGRAM_BOT_TOKEN:-}
@@ -53,9 +59,6 @@ services:
       NEXUS_PIN_TRUSTED_DAYS: ${NEXUS_PIN_TRUSTED_DAYS:-365}
       NEXUS_EARLY_ACCESS_BYPASS_LIMIT: ${NEXUS_EARLY_ACCESS_BYPASS_LIMIT:-0}
       NEXUS_UPLOAD_MAX_SIZE_BYTES: ${NEXUS_UPLOAD_MAX_SIZE_BYTES:-31457280}
-      NEXUS_UPLOAD_DIR: /data/uploads
-    volumes:
-      - nexus_api_uploads:/data/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -126,6 +129,5 @@ services:
 volumes:
   nexus_postgres_data:
   nexus_redis_data:
-  nexus_api_uploads:
   nexus_caddy_data:
   nexus_caddy_config:

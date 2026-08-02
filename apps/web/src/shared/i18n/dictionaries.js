@@ -235,6 +235,11 @@ export const dictionaries = {
       liquidGlassTitle: 'Liquid Glass доступен для вашего устройства',
       liquidGlassText: 'На iOS, iPadOS и macOS AraChat может выглядеть ближе к современному Apple-интерфейсу: стеклянные панели, мягкие блики и глубокое размытие.',
       enableLiquidGlass: 'Включить Liquid Glass',
+      layoutMode: 'Режим интерфейса',
+      layoutModeText: 'Выберите удобную компоновку для этого устройства. «Авто» подстраивается под экран и способ ввода.',
+      layoutModeCurrent: 'Сейчас используется:',
+      layoutModeFallback: 'Для текущего размера экрана временно используется:',
+      layoutModeOptions: { auto: 'Авто', desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' },
       notifications: 'Уведомления',
       notificationsText: 'Уведомления включаются отдельно на каждом устройстве. Если включить их здесь, новые сообщения будут приходить только в этот браузер или установленное приложение.',
       enableNotifications: 'Включить уведомления',
@@ -361,6 +366,7 @@ export const dictionaries = {
       delivered: 'Доставлено',
       sent: 'Отправлено',
       sending: 'Отправляется',
+      scrollToLatest: 'К последним сообщениям',
       online: 'онлайн',
       connecting: 'подключаемся',
       offline: 'не в сети',
@@ -752,6 +758,11 @@ export const dictionaries = {
       liquidGlassTitle: 'Liquid Glass is available for your device',
       liquidGlassText: 'On iOS, iPadOS, and macOS, AraChat can look closer to a modern Apple interface: glass panels, soft highlights, and deep blur.',
       enableLiquidGlass: 'Enable Liquid Glass',
+      layoutMode: 'Interface layout',
+      layoutModeText: 'Choose a layout that feels best on this device. Auto adapts to the screen and input method.',
+      layoutModeCurrent: 'Currently using:',
+      layoutModeFallback: 'For the current screen size, temporarily using:',
+      layoutModeOptions: { auto: 'Auto', desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' },
       notifications: 'Notifications',
       notificationsText: 'Notifications are enabled per device. If you enable them here, new messages will arrive only in this browser or installed app.',
       enableNotifications: 'Enable notifications',
@@ -878,6 +889,7 @@ export const dictionaries = {
       delivered: 'Delivered',
       sent: 'Sent',
       sending: 'Sending',
+      scrollToLatest: 'Jump to latest messages',
       online: 'online',
       connecting: 'connecting',
       offline: 'offline',
@@ -2861,3 +2873,118 @@ dictionaries.uk = mergeDictionary(dictionaries.uk, {
     previewSearch: 'Пошук', previewPersonOne: 'Аліна', previewPersonOneMessage: 'До зустрічі!', previewPersonTwo: 'Михайло', previewVoiceMessage: 'Голосове повідомлення', previewYesterday: 'Учора', previewToday: 'Сьогодні', previewComposer: 'Напишіть повідомлення...', previewSend: 'Надіслати', previewPlayVoice: 'Відтворити голосове повідомлення',
   },
 });
+
+dictionaries.be = mergeDictionary(dictionaries.ru, {
+  common: { navigation: 'Навігацыя', continue: 'Працягнуць', comingSoon: 'Будзе рэалізавана на наступным этапе', empty: 'Пакуль тут пуста', logout: 'Выйсці', notNow: 'Не цяпер', close: 'Закрыць', gotIt: 'Зразумела', retry: 'Паўтарыць', copied: 'Скапіравана' },
+  feedback: { title: 'Сістэмныя паведамленні' },
+  onboarding: {
+    title: 'AraChat для блізкіх і спакойных зносін', subtitle: 'Лёгкі вэб-месенджар з асабістымі чатамі, галасавымі паведамленнямі, файламі, апавяшчэннямі і жывымі статусамі. Зараз праект на стадыі бэта.', telegram: 'Працягнуць праз Telegram', login: 'Увайсці', openMessenger: 'Пачаць рэгістрацыю', enterMessenger: 'Адкрыць месенджар', onboardEyebrow: 'Перад рэгістрацыяй', onboardTitle: 'Рэгістрацыя ў AraChat', onboardText: 'Выбар краіны і пацвярджэнне тэлефона знаходзяцца на першым кроку рэгістрацыі.', backToLanding: 'Назад да галоўнай старонкі', languagesFeature: 'RU / EN / KK / KY / UK / BE / UZ', previewLabel: 'Папярэдні прагляд месенджара', previewSearch: 'Пошук', previewPersonOneMessage: 'Да сустрэчы!', previewVoiceMessage: 'Галасавое паведамленне', previewYesterday: 'Учора', previewToday: 'Сёння', previewComposer: 'Напішыце паведамленне...', previewSend: 'Адправіць', previewPlayVoice: 'Прайграць галасавое паведамленне', whatInside: 'Што ўнутры', featuresTitle: 'Усё важнае для першага рэлізу месенджара', directChatsTitle: 'Асабістыя чаты', directChatsText: 'Стварайце дыялогі па username або AraChat ID і размаўляйце ў рэальным часе.', voiceTitle: 'Галасавыя і файлы', voiceText: 'Адпраўляйце фота, відэа, дакументы і галасавыя паведамленні.', presenceTitle: 'Анлайн-статусы', presenceText: 'Статусы анлайн, набору тэксту і адпраўкі файлаў абнаўляюцца ў рэальным часе.', branchesTitle: 'Публічныя галіны', branchesText: 'Чытайце і падпісвайцеся на публічныя галіны.', notificationsTitle: 'Апавяшчэнні', notificationsText: 'Web Push дапамагае не прапусціць новыя паведамленні.', stageEyebrow: 'Стадыя праекта', stageTitle: 'Бэта — рабочая версія месенджара', installEyebrow: 'Усталяванне', installTitle: 'Усталюйце AraChat як праграму', installPhoneTitle: 'На тэлефон', installDesktopTitle: 'На камп’ютар', finalTitle: 'Гатовыя адкрыць AraChat?', finalText: 'Увайдзіце ў месенджар і працягвайце карыстацца прадуктам.', legalLinksLabel: 'Прававыя дакументы', privacyPolicy: 'Палітыка канфідэнцыяльнасці', terms: 'Карыстальніцкае пагадненне',
+  },
+  region: {
+    title: 'Выберыце краіну і мову', text: 'Рэгістрацыя адкрыецца на зручнай для вас мове. Мову інтэрфейсу можна змяніць пазней у наладах.', alreadyRegistered: 'Ужо ёсць акаўнт? Увайсці', RU: { title: 'Расія', text: 'Руская мова' }, KZ: { title: 'Казахстан', text: 'Выберыце рускую або казахскую мову' }, KG: { title: 'Кыргызстан', text: 'Выберыце рускую або кыргызскую мову' }, UA: { title: 'Украіна', text: 'Выберыце рускую або ўкраінскую мову' }, BY: { title: 'Беларусь', text: 'Выберыце беларускую або рускую мову' }, UZ: { title: 'Узбекістан', text: 'Выберыце ўзбекскую або рускую мову' }, GLOBAL: { title: 'Іншыя краіны', text: 'English для глабальнай рэгістрацыі' }, languages: { ru: 'Руская', en: 'English', kk: 'Қазақша', ky: 'Кыргызча', uk: 'Українська', be: 'Беларуская', uz: 'Ўзбекча' },
+  },
+  auth: { loginTitle: 'Уваход у AraChat', loginSubtitle: 'Увядзіце тэлефон, email або AraChat ID і пароль. Для хуткага ўваходу на гэтай прыладзе можна выкарыстоўваць PIN.', phone: 'Тэлефон', identifier: 'Тэлефон, email або AraChat ID', password: 'Пароль', pin: 'PIN гэтай прылады', signIn: 'Увайсці', signingIn: 'Уваходзім...', signInWithPin: 'Увайсці па PIN', createAccount: 'Зарэгістравацца', adminEntry: 'Увайсці ў панэль кіравання' },
+  register: {
+    title: 'Завяршэнне рэгістрацыі', subtitle: 'Спачатку пацвердзіце доступ праз Telegram-бота, потым наладзьце профіль і задайце пароль. AraChat ID будзе створаны аўтаматычна.', betaLimitTitle: 'Закрытая бэта: доступ абмежаваны', betaLimitText: 'Рэгістрацыя адкрыта для першых 100 актыўных акаўнтаў.', usernameAvailable: 'Username свабодны', usernameTaken: 'Username заняты', password: 'Пароль', optionalPin: 'PIN, неабавязкова', createAccount: 'Зарэгістравацца', creatingAccount: 'Ствараем...', steps: 'Крокі рэгістрацыі', accessStep: 'Доступ', profileStep: 'Профіль', passwordStep: 'Пароль', avatarTitle: 'Аватар', avatarText: 'Выберыце стандартны аватар або загрузіце свой да 50 МБ.', uploadAvatar: 'Загрузіць свой аватар', avatarImageOnly: 'Аватар мусіць быць выявай', avatarTooLarge: 'Файл аватара большы за 50 МБ', backToAccess: 'Назад да доступу', backToProfile: 'Назад да профілю', passwordTitle: 'Пароль акаўнта', passwordText: 'Задайце пароль для ўваходу. PIN можна дадаць для хуткага ўваходу толькі на гэтай прыладзе.', passwordConfirmTitle: 'Пацвердзіце пароль у Telegram', passwordConfirmText: 'Мы адправілі запыт у Telegram-бот. Націсніце «Пацвердзіць» у боце, потым вярніцеся сюды.', openTelegram: 'Адкрыць Telegram-бота', completeAfterTelegram: 'Я пацвердзіў(-ла) ў Telegram', checkingPasswordConfirmation: 'Правяраем пацвярджэнне...', accessKicker: 'Бяспечны ўваход', accessTitle: 'Пацвердзіце доступ так жа проста, як паведамленне ў чаце', accessText: 'Выберыце тэлефон або email, атрымайце 4-значны код у Telegram-боце і пацвердзіце яго тут.', accessStepPhone: 'Тэлефон', accessStepEmail: 'Email', accessStepBot: 'Бот', accessStepCode: 'Код', accessPrivacy: 'Нумар патрэбны толькі для абароны доступу і не з’явіцца ў профілі без вашага выбару.', accessMethodTitle: 'Спосаб рэгістрацыі', accessMethodPhone: 'Па тэлефоне', accessMethodEmail: 'Па email', phoneTitle: 'Пацвярджэнне праз Telegram-бота', phoneText: 'Выберыце краіну нумара, увядзіце тэлефон, адкрыйце бота і пацвердзіце нумар там. Бот адправіць 4-значны код.', phoneCountry: 'Краіна нумара', phoneCountryRussia: 'Расія', phoneCountryKazakhstan: 'Казахстан', phoneCountryKyrgyzstan: 'Кыргызстан', phoneCountryUkraine: 'Украіна', phoneCountryBelarus: 'Беларусь', phoneCountryUzbekistan: 'Узбекістан', changeCountry: 'Змяніць', phoneLabel: 'Тэлефон', phoneRequestCode: 'Запытаць код у Telegram', phoneRequesting: 'Адкрываем Telegram...', phoneOpenBot: 'Адкрыць бота яшчэ раз', phoneBotOpened: 'Telegram адкрыты. Пацвердзіце нумар у боце і атрымайце код.', phoneCodeLabel: 'Код з Telegram', phoneConfirmCode: 'Пацвердзіць код', phoneChecking: 'Правяраем код...', phoneConfirmed: 'Тэлефон пацверджаны. Можна стварыць акаўнт.', phoneRequestRequired: 'Спачатку запытайце код у Telegram.', accessRequestRequired: 'Спачатку пацвердзіце тэлефон або email праз Telegram.', emailTitle: 'Пацвярджэнне email праз Telegram-бота', emailText: 'Увядзіце email, адкрыйце бота і пацвердзіце адрас там.', emailLabel: 'Email', emailRequestCode: 'Запытаць код у Telegram', emailRequesting: 'Адкрываем Telegram...', emailOpenBot: 'Адкрыць бота яшчэ раз', emailBotOpened: 'Telegram адкрыты. Пацвердзіце email у боце і атрымайце код.', emailCodeLabel: 'Код з Telegram', emailConfirmCode: 'Пацвердзіць код', emailChecking: 'Правяраем код...', emailConfirmed: 'Email пацверджаны. Можна стварыць акаўнт.', emailRequestRequired: 'Спачатку запытайце код для email у Telegram.', legalTitle: 'Юрыдычныя згоды', legalText: 'Перад стварэннем акаўнта пацвердзіце, што азнаёміліся з дакументамі AraChat.', acceptPrivacy: 'Я згодны(-ая) з Палітыкай канфідэнцыяльнасці і апрацоўкай персанальных даных.', acceptTerms: 'Я прымаю Карыстальніцкае пагадненне AraChat.', legalRequired: 'Для рэгістрацыі трэба прыняць Палітыку канфідэнцыяльнасці і Карыстальніцкае пагадненне.',
+  },
+  profile: { title: 'Профіль', loadingTitle: 'Загружаем профіль', loadingText: 'Атрымліваем імя, username і налады...', saving: 'Захоўваем...', saved: 'Профіль захаваны', name: 'Імя', email: 'Электронная пошта', optionalPhone: 'Пацверджаны тэлефон', phonePublic: 'Паказваць тэлефон публічна', save: 'Захаваць профіль', avatarTitle: 'Аватар', copyId: 'Скапіяваць AraChat ID', copyIdError: 'Не ўдалося скапіяваць AraChat ID', notificationsTitle: 'Апавяшчэнні' },
+  settings: { title: 'Налады', appearance: 'Выгляд', security: 'Бяспека', theme: 'Тэма', language: 'Мова', saved: 'Налады захаваны', savingPreference: 'Захоўваем...', preferenceSaved: 'Сінхранізавана', preferenceFailed: 'Не ўдалося сінхранізаваць', notifications: 'Апавяшчэнні', enableNotifications: 'Уключыць апавяшчэнні', disableNotifications: 'Выключыць апавяшчэнні', activeDevices: 'Актыўныя прылады', loginHistory: 'Гісторыя ўваходаў', currentPassword: 'Бягучы пароль', changePasswordTitle: 'Змяніць пароль', newPassword: 'Новы пароль', savePin: 'Захаваць PIN', removePin: 'Адключыць PIN', deleteAccount: 'Выдаліць акаўнт', dangerZone: 'Небяспечная зона' },
+  chats: { title: 'Чаты', publicBranches: 'Публічныя галіны', publicBranchesText: 'Чытайце навіны і падпісвайцеся на цікавыя галіны.', subscribe: 'Падпісацца', openBranch: 'Адкрыць', search: 'Тэлефон', searchChats: 'Пошук чатаў', clearSearch: 'Ачысціць пошук', searchEmptyTitle: 'Нічога не знойдзена', emptyTitle: 'Чатаў пакуль няма', emptyText: 'Знайдзіце карыстальніка па username, AraChat ID або нумары тэлефона, каб пачаць асабісты чат.', selectedEmpty: 'Выберыце чат', directChat: 'Асабісты чат', savedTitle: 'Захаванае', noMessages: 'Паведамленняў пакуль няма', youPrefix: 'Вы: ', createChat: 'Стварыць чат', newChatTitle: 'Новы чат', newChatText: 'Знайдзіце карыстальніка ў AraChat і пачніце асабістую размову.', newChatSearchLabel: 'Username або AraChat ID', newChatSearchPlaceholder: '@username або AraChat ID', newChatSearching: 'Шукаем карыстальнікаў...', newChatSearchEmpty: 'Карыстальнік не знойдзены. Праверце username або AraChat ID.', newChatWrite: 'Напісаць', newChatFindByPhone: 'Знайсці па нумары тэлефона', newChatFindByPhoneText: 'Выберыце краіну і ўвядзіце нумар карыстальніка.', newChatFind: 'Знайсці і адкрыць чат', searchByAccount: 'Па username або ID', phone: 'Тэлефон', openingChat: 'Адкрываем чат...' },
+  notifications: { title: 'Апавяшчэнні', unread: 'Новых: {count}', markAllRead: 'Прачытать усе', empty: 'Новых апавяшчэнняў няма.', loading: 'Загружаем апавяшчэнні...' },
+  messages: { placeholder: 'Напішыце паведамленне', send: 'Адправіць', photoAlt: 'Фота', voice: 'Галасавое', file: 'Файл', read: 'Прачытана', delivered: 'Дастаўлена', sent: 'Адпраўлена', sending: 'Адпраўляецца', online: 'анлайн', connecting: 'падключаемся', offline: 'не ў сетцы', lastSeenJustNow: 'быў(-ла) ў сетцы толькі што', lastSeenMinutes: 'быў(-ла) ў сетцы {count} хв. таму', lastSeenToday: 'быў(-ла) ў сетцы сёння ў {time}', lastSeenYesterday: 'быў(-ла) ў сетцы ўчора ў {time}', lastSeenDate: 'быў(-ла) ў сетцы {date}', typing: 'Суразмоўца набірае паведамленне...', attachFile: 'Прымацаваць фота, відэа або файл', recordVoice: 'Запісаць галасавое паведамленне', edit: 'Змяніць', delete: 'Выдаліць', save: 'Захаваць', cancel: 'Адмена', reply: 'Адказаць', pin: 'Замацаваць', unpin: 'Адмацаваць', pinned: 'Замацавана', deleted: 'Паведамленне выдалена' },
+  calls: { title: 'Аўдыязванок', call: 'Званок', start: 'Пачаць аўдыязванок', incoming: 'Уваходны аўдыязванок', calling: 'Звонім...', connected: 'Злучэнне актыўнае', accept: 'Адказаць', reject: 'Адхіліць', hangUp: 'Завяршыць', mute: 'Выключыць мікрафон', unmute: 'Уключыць мікрафон', shareScreen: 'Паказаць экран', stopScreen: 'Спыніць дэманстрацыю экрана', temporarilyUnavailable: 'Званкі часова недаступныя' },
+  loading: { bootTitle: 'Загрузка AraChat', bootText: 'Ствараем бяспечную прастору для зносін...' },
+  welcome: { subtitle: 'Сардэчна запрашаем у AraChat', official: 'афіцыйны чат', message1: 'Вітаем у AraChat — месенджары для асабістых, спакойных і бяспечных зносін.', start: 'Пачаць зносіны', openSettings: 'Адкрыць налады' },
+});
+
+dictionaries.uz = mergeDictionary(dictionaries.ru, {
+  common: { navigation: 'Navigatsiya', continue: 'Davom etish', comingSoon: 'Keyingi bosqichda amalga oshiriladi', empty: 'Hozircha bu yer bo‘sh', logout: 'Chiqish', notNow: 'Hozir emas', close: 'Yopish', gotIt: 'Tushunarli', retry: 'Qayta urinish', copied: 'Nusxalandi' },
+  feedback: { title: 'Tizim xabarlari' },
+  onboarding: { title: 'AraChat yaqin va xotirjam muloqot uchun', subtitle: 'Shaxsiy chatlar, ovozli xabarlar, fayllar, bildirishnomalar va jonli holatlarga ega yengil veb-messenjer. Loyiha hozir beta bosqichida.', telegram: 'Telegram orqali davom etish', login: 'Kirish', openMessenger: 'Ro‘yxatdan o‘tishni boshlash', enterMessenger: 'Messenjerni ochish', onboardEyebrow: 'Ro‘yxatdan o‘tishdan oldin', onboardTitle: 'AraChat ro‘yxatdan o‘tishi', onboardText: 'Mamlakat tanlash va telefonni tasdiqlash ro‘yxatdan o‘tishning birinchi bosqichida.', backToLanding: 'Bosh sahifaga qaytish', languagesFeature: 'RU / EN / KK / KY / UK / BE / UZ', previewLabel: 'Messenjer ko‘rinishi', previewSearch: 'Qidirish', previewPersonOneMessage: 'Ko‘rishguncha!', previewVoiceMessage: 'Ovozli xabar', previewYesterday: 'Kecha', previewToday: 'Bugun', previewComposer: 'Xabar yozing...', previewSend: 'Yuborish', previewPlayVoice: 'Ovozli xabarni tinglash', whatInside: 'Ichida nimalar bor', featuresTitle: 'Messenjerning birinchi relizi uchun kerakli hamma narsa', directChatsTitle: 'Shaxsiy chatlar', directChatsText: 'Username yoki AraChat ID orqali suhbat yarating va real vaqtda yozishing.', voiceTitle: 'Ovozli xabarlar va fayllar', voiceText: 'Foto, video, hujjatlar va ovozli xabarlarni yuboring.', presenceTitle: 'Onlayn holatlar', presenceText: 'Onlayn, yozish va fayl yuborish holatlari jonli yangilanadi.', branchesTitle: 'Ommaviy kanallar', branchesText: 'Ommaviy kanallarni o‘qing va ularga obuna bo‘ling.', notificationsTitle: 'Bildirishnomalar', notificationsText: 'Web Push yangi xabarlarni o‘tkazib yubormaslikka yordam beradi.', stageEyebrow: 'Loyiha bosqichi', stageTitle: 'Beta — messenjerning ishlaydigan versiyasi', installEyebrow: 'O‘rnatish', installTitle: 'AraChat-ni ilova sifatida o‘rnating', installPhoneTitle: 'Telefonga', installDesktopTitle: 'Kompyuterga', finalTitle: 'AraChat-ni ochishga tayyormisiz?', finalText: 'Messenjerga kiring va mahsulotdan foydalanishda davom eting.', legalLinksLabel: 'Huquqiy hujjatlar', privacyPolicy: 'Maxfiylik siyosati', terms: 'Foydalanish shartlari' },
+  region: { title: 'Mamlakat va tilni tanlang', text: 'Ro‘yxatdan o‘tish sizga qulay tilda ochiladi. Interfeys tilini keyin sozlamalarda o‘zgartirish mumkin.', alreadyRegistered: 'Akkauntingiz bormi? Kirish', RU: { title: 'Rossiya', text: 'Rus tili' }, KZ: { title: 'Qozog‘iston', text: 'Rus yoki qozoq tilini tanlang' }, KG: { title: 'Qirg‘iziston', text: 'Rus yoki qirg‘iz tilini tanlang' }, UA: { title: 'Ukraina', text: 'Rus yoki ukrain tilini tanlang' }, BY: { title: 'Belarus', text: 'Belarus yoki rus tilini tanlang' }, UZ: { title: 'O‘zbekiston', text: 'O‘zbek yoki rus tilini tanlang' }, GLOBAL: { title: 'Boshqa mamlakatlar', text: 'Global ro‘yxatdan o‘tish uchun English' }, languages: { ru: 'Ruscha', en: 'English', kk: 'Қазақша', ky: 'Кыргызча', uk: 'Українська', be: 'Беларуская', uz: 'Ўзбекча' } },
+  auth: { loginTitle: 'AraChat-ga kirish', loginSubtitle: 'Telefon, email yoki AraChat ID va parolni kiriting. Bu qurilmada tez kirish uchun PIN ishlatishingiz mumkin.', phone: 'Telefon', identifier: 'Telefon, email yoki AraChat ID', password: 'Parol', pin: 'Bu qurilmaning PIN-kodi', signIn: 'Kirish', signingIn: 'Kirilmoqda...', signInWithPin: 'PIN orqali kirish', createAccount: 'Ro‘yxatdan o‘tish', adminEntry: 'Boshqaruv paneliga kirish' },
+  register: { title: 'Ro‘yxatdan o‘tishni yakunlash', subtitle: 'Avval Telegram-bot orqali kirishni tasdiqlang, keyin profilingiz va parolingizni sozlang. AraChat ID avtomatik yaratiladi.', betaLimitTitle: 'Yopiq beta: kirish cheklangan', betaLimitText: 'Ro‘yxatdan o‘tish dastlabki 100 ta faol akkaunt uchun ochiq.', usernameAvailable: 'Username bo‘sh', usernameTaken: 'Username band', password: 'Parol', optionalPin: 'PIN, ixtiyoriy', createAccount: 'Ro‘yxatdan o‘tish', creatingAccount: 'Yaratilmoqda...', steps: 'Ro‘yxatdan o‘tish bosqichlari', accessStep: 'Kirish', profileStep: 'Profil', passwordStep: 'Parol', avatarTitle: 'Avatar', avatarText: 'Standart avatarni tanlang yoki o‘zingiznikini 50 MB gacha yuklang.', uploadAvatar: 'Avatar yuklash', avatarImageOnly: 'Avatar rasm bo‘lishi kerak', avatarTooLarge: 'Avatar fayli 50 MB dan katta', backToAccess: 'Kirishga qaytish', backToProfile: 'Profilga qaytish', passwordTitle: 'Akkaunt paroli', passwordText: 'Kirish uchun parol o‘rnating. Tez kirish uchun faqat bu qurilmaga PIN qo‘shishingiz mumkin.', passwordConfirmTitle: 'Parolni Telegram-da tasdiqlang', passwordConfirmText: 'Telegram-botga so‘rov yubordik. Botda «Tasdiqlash»ni bosing, so‘ng bu yerga qayting.', openTelegram: 'Telegram-botni ochish', completeAfterTelegram: 'Telegram-da tasdiqladim', checkingPasswordConfirmation: 'Tasdiq tekshirilmoqda...', accessKicker: 'Xavfsiz kirish', accessTitle: 'Chatdagi xabar kabi oson kirishni tasdiqlang', accessText: 'Telefon yoki emailni tanlang, Telegram-botdan 4 xonali kodni oling va uni bu yerda tasdiqlang.', accessStepPhone: 'Telefon', accessStepEmail: 'Email', accessStepBot: 'Bot', accessStepCode: 'Kod', accessPrivacy: 'Raqam faqat kirishni himoyalash uchun ishlatiladi va siz tanlamasangiz profilingizda ko‘rinmaydi.', accessMethodTitle: 'Ro‘yxatdan o‘tish usuli', accessMethodPhone: 'Telefon orqali', accessMethodEmail: 'Email orqali', phoneTitle: 'Telegram-bot orqali tasdiqlash', phoneText: 'Raqam mamlakatini tanlang, telefonni kiriting, botni oching va raqamni u yerda tasdiqlang. Bot 4 xonali kod yuboradi.', phoneCountry: 'Raqam mamlakati', phoneCountryRussia: 'Rossiya', phoneCountryKazakhstan: 'Qozog‘iston', phoneCountryKyrgyzstan: 'Qirg‘iziston', phoneCountryUkraine: 'Ukraina', phoneCountryBelarus: 'Belarus', phoneCountryUzbekistan: 'O‘zbekiston', changeCountry: 'O‘zgartirish', phoneLabel: 'Telefon', phoneRequestCode: 'Telegram-da kod so‘rash', phoneRequesting: 'Telegram ochilmoqda...', phoneOpenBot: 'Botni yana ochish', phoneBotOpened: 'Telegram ochildi. Botda telefonni tasdiqlang va kodni oling.', phoneCodeLabel: 'Telegram kodi', phoneConfirmCode: 'Kodni tasdiqlash', phoneChecking: 'Kod tekshirilmoqda...', phoneConfirmed: 'Telefon tasdiqlandi. Akkaunt yaratishingiz mumkin.', phoneRequestRequired: 'Avval Telegram-da kod so‘rang.', accessRequestRequired: 'Avval Telegram orqali telefon yoki emailni tasdiqlang.', emailTitle: 'Telegram-bot orqali emailni tasdiqlash', emailText: 'Emailni kiriting, botni oching va manzilni u yerda tasdiqlang.', emailLabel: 'Email', emailRequestCode: 'Telegram-da kod so‘rash', emailRequesting: 'Telegram ochilmoqda...', emailOpenBot: 'Botni yana ochish', emailBotOpened: 'Telegram ochildi. Botda emailni tasdiqlang va kodni oling.', emailCodeLabel: 'Telegram kodi', emailConfirmCode: 'Kodni tasdiqlash', emailChecking: 'Kod tekshirilmoqda...', emailConfirmed: 'Email tasdiqlandi. Akkaunt yaratishingiz mumkin.', emailRequestRequired: 'Avval Telegram-da email kodini so‘rang.', legalTitle: 'Huquqiy roziliklar', legalText: 'Akkaunt yaratishdan oldin AraChat hujjatlari bilan tanishganingizni tasdiqlang.', acceptPrivacy: 'Maxfiylik siyosati va shaxsiy ma’lumotlarni qayta ishlashga roziman.', acceptTerms: 'AraChat foydalanish shartlarini qabul qilaman.', legalRequired: 'Ro‘yxatdan o‘tish uchun Maxfiylik siyosati va Foydalanish shartlarini qabul qilish kerak.' },
+  profile: { title: 'Profil', loadingTitle: 'Profil yuklanmoqda', loadingText: 'Ism, username va sozlamalar olinmoqda...', saving: 'Saqlanmoqda...', saved: 'Profil saqlandi', name: 'Ism', email: 'Elektron pochta', optionalPhone: 'Tasdiqlangan telefon', phonePublic: 'Telefonni hammaga ko‘rsatish', save: 'Profilni saqlash', avatarTitle: 'Avatar', copyId: 'AraChat ID-ni nusxalash', copyIdError: 'AraChat ID-ni nusxalab bo‘lmadi', notificationsTitle: 'Bildirishnomalar' },
+  settings: { title: 'Sozlamalar', appearance: 'Ko‘rinish', security: 'Xavfsizlik', theme: 'Mavzu', language: 'Til', saved: 'Sozlamalar saqlandi', savingPreference: 'Saqlanmoqda...', preferenceSaved: 'Sinxronlashtirildi', preferenceFailed: 'Sinxronlashtirib bo‘lmadi', notifications: 'Bildirishnomalar', enableNotifications: 'Bildirishnomalarni yoqish', disableNotifications: 'Bildirishnomalarni o‘chirish', activeDevices: 'Faol qurilmalar', loginHistory: 'Kirishlar tarixi', currentPassword: 'Joriy parol', changePasswordTitle: 'Parolni o‘zgartirish', newPassword: 'Yangi parol', savePin: 'PIN-ni saqlash', removePin: 'PIN-ni o‘chirish', deleteAccount: 'Akkauntni o‘chirish', dangerZone: 'Xavfli hudud' },
+  chats: { title: 'Chatlar', publicBranches: 'Ommaviy kanallar', publicBranchesText: 'Yangiliklarni o‘qing va qiziqarli kanallarga obuna bo‘ling.', subscribe: 'Obuna bo‘lish', openBranch: 'Ochish', search: 'Telefon', searchChats: 'Chatlarni qidirish', clearSearch: 'Qidiruvni tozalash', searchEmptyTitle: 'Hech narsa topilmadi', emptyTitle: 'Hozircha chatlar yo‘q', emptyText: 'Shaxsiy chatni boshlash uchun username, AraChat ID yoki telefon raqami bo‘yicha foydalanuvchini toping.', selectedEmpty: 'Chatni tanlang', directChat: 'Shaxsiy chat', savedTitle: 'Saqlanganlar', noMessages: 'Hozircha xabarlar yo‘q', youPrefix: 'Siz: ', createChat: 'Chat yaratish', newChatTitle: 'Yangi chat', newChatText: 'AraChat-da foydalanuvchini toping va shaxsiy suhbatni boshlang.', newChatSearchLabel: 'Username yoki AraChat ID', newChatSearchPlaceholder: '@username yoki AraChat ID', newChatSearching: 'Foydalanuvchilar qidirilmoqda...', newChatSearchEmpty: 'Foydalanuvchi topilmadi. Username yoki AraChat ID-ni tekshiring.', newChatWrite: 'Yozish', newChatFindByPhone: 'Telefon raqami bo‘yicha topish', newChatFindByPhoneText: 'Mamlakatni tanlang va foydalanuvchi raqamini kiriting.', newChatFind: 'Topish va chatni ochish', searchByAccount: 'Username yoki ID bo‘yicha', phone: 'Telefon', openingChat: 'Chat ochilmoqda...' },
+  notifications: { title: 'Bildirishnomalar', unread: 'Yangilari: {count}', markAllRead: 'Hammasini o‘qilgan deb belgilash', empty: 'Yangi bildirishnomalar yo‘q.', loading: 'Bildirishnomalar yuklanmoqda...' },
+  messages: { placeholder: 'Xabar yozing', send: 'Yuborish', photoAlt: 'Foto', voice: 'Ovozli xabar', file: 'Fayl', read: 'O‘qildi', delivered: 'Yetkazildi', sent: 'Yuborildi', sending: 'Yuborilmoqda', online: 'onlayn', connecting: 'ulanmoqda', offline: 'tarmoqda emas', lastSeenJustNow: 'hozirgina onlayn edi', lastSeenMinutes: '{count} daqiqa oldin onlayn edi', lastSeenToday: 'bugun {time} da onlayn edi', lastSeenYesterday: 'kecha {time} da onlayn edi', lastSeenDate: '{date} da onlayn edi', typing: 'Suhbatdosh yozmoqda...', attachFile: 'Foto, video yoki fayl biriktirish', recordVoice: 'Ovozli xabar yozish', edit: 'Tahrirlash', delete: 'O‘chirish', save: 'Saqlash', cancel: 'Bekor qilish', reply: 'Javob berish', pin: 'Mahkamlash', unpin: 'Mahkamlashni olib tashlash', pinned: 'Mahkamlandi', deleted: 'Xabar o‘chirildi' },
+  calls: { title: 'Audioqo‘ng‘iroq', call: 'Qo‘ng‘iroq', start: 'Audioqo‘ng‘iroqni boshlash', incoming: 'Kiruvchi audioqo‘ng‘iroq', calling: 'Qo‘ng‘iroq qilinmoqda...', connected: 'Ulanish faol', accept: 'Javob berish', reject: 'Rad etish', hangUp: 'Yakunlash', mute: 'Mikrofonni o‘chirish', unmute: 'Mikrofonni yoqish', shareScreen: 'Ekranni ko‘rsatish', stopScreen: 'Ekran namoyishini to‘xtatish', temporarilyUnavailable: 'Qo‘ng‘iroqlar vaqtincha mavjud emas' },
+  loading: { bootTitle: 'AraChat yuklanmoqda', bootText: 'Muloqot uchun xavfsiz makon tayyorlanmoqda...' },
+  welcome: { subtitle: 'AraChat-ga xush kelibsiz', official: 'rasmiy chat', message1: 'AraChat-ga xush kelibsiz — shaxsiy, xotirjam va xavfsiz muloqot uchun messenjer.', start: 'Muloqotni boshlash', openSettings: 'Sozlamalarni ochish' },
+});
+
+Object.assign(dictionaries.ru.region, {
+  BY: { title: 'Беларусь', text: 'Выберите белорусский или русский язык' },
+  UZ: { title: 'Узбекистан', text: 'Выберите узбекский или русский язык' },
+});
+Object.assign(dictionaries.en.region, {
+  BY: { title: 'Belarus', text: 'Choose Belarusian or Russian' },
+  UZ: { title: 'Uzbekistan', text: 'Choose Uzbek or Russian' },
+});
+Object.assign(dictionaries.kk.region, {
+  BY: { title: 'Беларусь', text: 'Беларусь немесе орыс тілін таңдаңыз' },
+  UZ: { title: 'Өзбекстан', text: 'Өзбек немесе орыс тілін таңдаңыз' },
+  languages: { ...dictionaries.kk.region.languages, be: 'Беларуская', uz: 'Ўзбекча' },
+});
+Object.assign(dictionaries.ky.region, {
+  BY: { title: 'Беларусь', text: 'Беларусь же орус тилин тандаңыз' },
+  UZ: { title: 'Өзбекстан', text: 'Өзбек же орус тилин тандаңыз' },
+  languages: { ...dictionaries.ky.region.languages, be: 'Беларуская', uz: 'Ўзбекча' },
+});
+Object.assign(dictionaries.uk.region, {
+  BY: { title: 'Білорусь', text: 'Оберіть білоруську або російську мову' },
+  UZ: { title: 'Узбекистан', text: 'Оберіть узбецьку або російську мову' },
+  languages: { ...dictionaries.uk.region.languages, be: 'Беларуская', uz: 'Ўзбекча' },
+});
+
+const phoneCountryLabels = {
+  ru: ['Беларусь', 'Узбекистан'],
+  en: ['Belarus', 'Uzbekistan'],
+  kk: ['Беларусь', 'Өзбекстан'],
+  ky: ['Беларусь', 'Өзбекстан'],
+  uk: ['Білорусь', 'Узбекистан'],
+  be: ['Беларусь', 'Узбекістан'],
+  uz: ['Беларусь', 'Ўзбекистон'],
+};
+
+for (const [language, dictionary] of Object.entries(dictionaries)) {
+  const [belarus, uzbekistan] = phoneCountryLabels[language];
+  Object.assign(dictionary.register, {
+    phoneCountryBelarus: belarus,
+    phoneCountryUzbekistan: uzbekistan,
+  });
+}
+
+function transliterateUzbekToCyrillic(value) {
+  if (typeof value !== 'string') return value;
+
+  const protectedTerms = [];
+  const protectedValue = value.replace(/AraChat/g, (term) => {
+    protectedTerms.push(term);
+    return `\uE000${protectedTerms.length - 1}\uE001`;
+  });
+  const digraphs = [
+    [/O[‘'ʻ]/g, 'Ў'], [/o[‘'ʻ]/g, 'ў'], [/G[‘'ʻ]/g, 'Ғ'], [/g[‘'ʻ]/g, 'ғ'],
+    [/SH/g, 'Ш'], [/Sh/g, 'Ш'], [/sh/g, 'ш'], [/CH/g, 'Ч'], [/Ch/g, 'Ч'], [/ch/g, 'ч'],
+    [/NG/g, 'НГ'], [/Ng/g, 'Нг'], [/ng/g, 'нг'], [/YO/g, 'Ё'], [/Yo/g, 'Ё'], [/yo/g, 'ё'],
+    [/YU/g, 'Ю'], [/Yu/g, 'Ю'], [/yu/g, 'ю'], [/YA/g, 'Я'], [/Ya/g, 'Я'], [/ya/g, 'я'],
+  ];
+  const alphabet = {
+    A: 'А', B: 'Б', D: 'Д', E: 'Е', F: 'Ф', G: 'Г', H: 'Ҳ', I: 'И', J: 'Ж', K: 'К', L: 'Л', M: 'М', N: 'Н', O: 'О', P: 'П', Q: 'Қ', R: 'Р', S: 'С', T: 'Т', U: 'У', V: 'В', X: 'Х', Y: 'Й', Z: 'З',
+    a: 'а', b: 'б', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'ҳ', i: 'и', j: 'ж', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'қ', r: 'р', s: 'с', t: 'т', u: 'у', v: 'в', x: 'х', y: 'й', z: 'з',
+  };
+  const transliterated = digraphs.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), protectedValue)
+    .replace(/[A-Za-z]/g, (letter) => alphabet[letter]);
+  return transliterated.replace(/\uE000(\d+)\uE001/g, (_, index) => protectedTerms[Number(index)]);
+}
+
+function localizeUzbekDictionary(value) {
+  if (Array.isArray(value)) return value.map(localizeUzbekDictionary);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, localizeUzbekDictionary(item)]));
+  }
+  return transliterateUzbekToCyrillic(value);
+}
+
+dictionaries.uz = localizeUzbekDictionary(dictionaries.uz);

@@ -34,6 +34,13 @@ function chatSubtitle(chat, currentUserId, t) {
   return `${prefix}${chat.last_message.media_name || chat.last_message.type}`;
 }
 
+function activityLabel(activityType, t) {
+  if (activityType === 'typing') return t('messages.typing');
+  if (activityType === 'file') return t('messages.sendingFile');
+  if (activityType === 'voice') return t('messages.sendingVoice');
+  return t('messages.peerActive');
+}
+
 export function ChatsPage() {
   const { t } = useI18n();
   const { session } = useSession();
@@ -42,9 +49,12 @@ export function ChatsPage() {
   const { isMenuOpen, toggleNavigation } = useOutletContext();
   const [chats, setChats] = useState([]);
   const [chatSearch, setChatSearch] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [activityByChatId, setActivityByChatId] = useState({});
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const reconnectTimerRef = useRef(null);
+  const activityTimersRef = useRef(new Map());
   const socketRef = useRef(null);
   const chatsRef = useRef([]);
   const loadChatsRef = useRef(null);
@@ -55,6 +65,7 @@ export function ChatsPage() {
   const [notificationPromptStatus, setNotificationPromptStatus] = useState('');
   const [undoChat, setUndoChat] = useState(null);
   const undoTimerRef = useRef(null);
+  const searchInputRef = useRef(null);
   const savedChat = chats.find((chat) => chat.type === 'saved');
   const listedChats = chats.filter((chat) => chat.type !== 'saved');
   const normalizedChatSearch = chatSearch.trim().toLowerCase();
@@ -74,6 +85,25 @@ export function ChatsPage() {
     t('chats.savedBadge'),
   ].join(' ').toLowerCase().includes(normalizedChatSearch);
   const hasVisibleChats = isSavedChatVisible || visibleChats.length > 0;
+
+  function clearChatActivity(chatId, expectedType = null) {
+    const activityTimer = activityTimersRef.current.get(chatId);
+    if (expectedType && activityTimer?.type !== expectedType) return;
+    if (activityTimer) window.clearTimeout(activityTimer.timer);
+    activityTimersRef.current.delete(chatId);
+    setActivityByChatId((current) => {
+      if (!current[chatId]) return current;
+      const { [chatId]: _, ...remaining } = current;
+      return remaining;
+    });
+  }
+
+  function setChatActivity(chatId, activityType) {
+    clearChatActivity(chatId);
+    setActivityByChatId((current) => ({ ...current, [chatId]: activityType }));
+    const timer = window.setTimeout(() => clearChatActivity(chatId, activityType), activityType === 'active' ? 2400 : 5000);
+    activityTimersRef.current.set(chatId, { type: activityType, timer });
+  }
 
   useEffect(() => {
     chatsRef.current = chats;
@@ -119,8 +149,14 @@ export function ChatsPage() {
     return () => window.clearTimeout(undoTimerRef.current);
   }, [undoChat]);
 
+  useEffect(() => {
+    if (isSearchOpen) searchInputRef.current?.focus();
+  }, [isSearchOpen]);
+
   useEffect(() => () => {
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    activityTimersRef.current.forEach(({ timer }) => window.clearTimeout(timer));
+    activityTimersRef.current.clear();
   }, []);
 
   useEffect(() => {
@@ -161,7 +197,15 @@ export function ChatsPage() {
             loadChatsRef.current?.({ showLoading: false }).catch((err) => setError(err.message));
           }
           if (payload.event === 'message.created') {
+            clearChatActivity(payload.chat_id);
             loadChats({ showLoading: false }).catch((err) => setError(err.message));
+          }
+          if (payload.user_id !== session.user?.id && payload.chat_id) {
+            if (payload.event === 'typing.started') setChatActivity(payload.chat_id, 'typing');
+            if (payload.event === 'file.uploading') setChatActivity(payload.chat_id, 'file');
+            if (payload.event === 'voice.uploading') setChatActivity(payload.chat_id, 'voice');
+            if (payload.event === 'presence.active') setChatActivity(payload.chat_id, 'active');
+            if (payload.event === 'typing.stopped') clearChatActivity(payload.chat_id, 'typing');
           }
           if (payload.event === 'presence.status') {
             setChats((current) => current.map((chat) => chat.peer?.id === payload.user_id
@@ -260,6 +304,15 @@ export function ChatsPage() {
         <header className="section-header">
           <div className="chat-list-heading">
             <h1>{t('chats.title')}</h1>
+            <button
+              className="mobile-chat-search-trigger"
+              type="button"
+              onClick={() => setIsSearchOpen((current) => !current)}
+              aria-label={t('chats.searchChats')}
+              aria-expanded={isSearchOpen}
+            >
+              <Icon name={isSearchOpen ? 'x' : 'search'} size={20} />
+            </button>
             <AppNavigationTrigger className="chat-list-navigation-trigger" isMenuOpen={isMenuOpen} onToggle={toggleNavigation} />
           </div>
         </header>
@@ -277,10 +330,11 @@ export function ChatsPage() {
             {notificationPromptStatus ? <p className="error-text">{notificationPromptStatus}</p> : null}
           </div>
         ) : null}
-        <div className="chat-list-tools">
+        <div className={`chat-list-tools ${isSearchOpen ? 'is-search-open' : ''}`}>
           <label className="chat-search-field">
             <span className="chat-search-icon" aria-hidden="true"><Icon name="search" size={16} /></span>
             <input
+              ref={searchInputRef}
               type="search"
               value={chatSearch}
               onChange={(event) => setChatSearch(event.target.value)}
@@ -315,7 +369,9 @@ export function ChatsPage() {
               <span className="chat-list-badge">{t('chats.savedBadge')}</span>
             </button>
           ) : null}
-          {visibleChats.map((chat) => (
+          {visibleChats.map((chat) => {
+            const activityType = activityByChatId[chat.id];
+            return (
             <Link className="info-card chat-thread-card" key={chat.id} to={`/app/chats/${chat.id}`}>
               <span className="chat-list-avatar-wrap">
                 {chat.type === 'branch'
@@ -325,7 +381,7 @@ export function ChatsPage() {
               </span>
               <div className="chat-thread-copy">
                 <strong>{chatTitle(chat, t)} {(chat.type === 'branch' && chat.is_official) || chat.peer?.is_official ? <span className="official-badge" title="Официальный аккаунт">✓</span> : null}</strong>
-                <span className="muted">{chatSubtitle(chat, session.user?.id, t)}</span>
+                <span className={activityType ? `chat-thread-activity ${activityType}` : 'muted'}>{activityType ? activityLabel(activityType, t) : chatSubtitle(chat, session.user?.id, t)}</span>
               </div>
               {chat.unread_count ? (
                 <span className="chat-unread-badge" aria-label={`${chat.unread_count} unread`}>
@@ -333,7 +389,8 @@ export function ChatsPage() {
                 </span>
               ) : null}
             </Link>
-          ))}
+            );
+          })}
         </div>
         {!isLoading && !normalizedChatSearch && listedChats.length === 0 ? (
           <EmptyState

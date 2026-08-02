@@ -222,6 +222,8 @@ const DATE_LOCALES = {
   kk: 'kk-KZ',
   ky: 'ky-KG',
   uk: 'uk-UA',
+  be: 'be-BY',
+  uz: 'uz-UZ',
 };
 
 function interpolate(template, values) {
@@ -393,7 +395,7 @@ export function ChatPage() {
   const [reactionEffects, setReactionEffects] = useState({});
   const [isComposerEmojiPickerOpen, setIsComposerEmojiPickerOpen] = useState(false);
   const [recordingMode, setRecordingMode] = useState('voice');
-  const [isRecordMenuOpen, setIsRecordMenuOpen] = useState(false);
+  const [selectedVideoPreviewUrl, setSelectedVideoPreviewUrl] = useState('');
   const [isCallUnavailableDialogOpen, setIsCallUnavailableDialogOpen] = useState(false);
   const [isChatActionsOpen, setIsChatActionsOpen] = useState(false);
   const [isHideChatDialogOpen, setIsHideChatDialogOpen] = useState(false);
@@ -401,6 +403,7 @@ export function ChatPage() {
   const [profileCardAuthor, setProfileCardAuthor] = useState(null);
   const [isOpeningProfileChat, setIsOpeningProfileChat] = useState(false);
   const [profileCardError, setProfileCardError] = useState('');
+  const [showScrollToLatest, setShowScrollToLatest] = useState(false);
   const mediaRecorderRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -410,7 +413,7 @@ export function ChatPage() {
   const recordingTimerRef = useRef(null);
   const videoRecordingTimerRef = useRef(null);
   const fileInputRef = useRef(null);
-  const recordControlRef = useRef(null);
+  const videoRecordingPreviewRef = useRef(null);
   const recordingCancelledRef = useRef(false);
   const videoRecordingCancelledRef = useRef(false);
   const reconnectTimerRef = useRef(null);
@@ -484,6 +487,7 @@ export function ChatPage() {
     function syncChatViewportHeight() {
       const height = Math.round(viewport?.height ?? window.innerHeight);
       document.documentElement.style.setProperty('--chat-viewport-height', `${height}px`);
+      document.documentElement.dataset.chatKeyboardOpen = String(window.innerHeight - height > 150);
     }
 
     syncChatViewportHeight();
@@ -496,6 +500,7 @@ export function ChatPage() {
       viewport?.removeEventListener('scroll', syncChatViewportHeight);
       window.removeEventListener('resize', syncChatViewportHeight);
       document.documentElement.style.removeProperty('--chat-viewport-height');
+      delete document.documentElement.dataset.chatKeyboardOpen;
     };
   }, []);
 
@@ -663,25 +668,28 @@ export function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (!isRecordMenuOpen) return undefined;
+    const video = videoRecordingPreviewRef.current;
+    const stream = videoRecorderRef.current?.stream;
+    if (!isVideoRecording || !video || !stream) return undefined;
 
-    function closeRecordMenu(event) {
-      if (event.type === 'keydown') {
-        if (event.key === 'Escape') setIsRecordMenuOpen(false);
-        return;
-      }
-      if (!recordControlRef.current?.contains(event.target)) {
-        setIsRecordMenuOpen(false);
-      }
+    video.srcObject = stream;
+    video.play().catch(() => undefined);
+    return () => {
+      video.pause();
+      if (video.srcObject === stream) video.srcObject = null;
+    };
+  }, [isVideoRecording]);
+
+  useEffect(() => {
+    if (messageType !== 'video_note' || !selectedFile) {
+      setSelectedVideoPreviewUrl('');
+      return undefined;
     }
 
-    document.addEventListener('pointerdown', closeRecordMenu);
-    document.addEventListener('keydown', closeRecordMenu);
-    return () => {
-      document.removeEventListener('pointerdown', closeRecordMenu);
-      document.removeEventListener('keydown', closeRecordMenu);
-    };
-  }, [isRecordMenuOpen]);
+    const previewUrl = URL.createObjectURL(selectedFile);
+    setSelectedVideoPreviewUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [messageType, selectedFile]);
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -720,6 +728,23 @@ export function ChatPage() {
     list.scrollTo({ top: list.scrollHeight, behavior: isInitialMessageLoadRef.current ? 'auto' : 'smooth' });
     isInitialMessageLoadRef.current = false;
   }, [messages.length, isLoadingMessages]);
+
+  useEffect(() => {
+    const list = messageListRef.current;
+    if (!list) return undefined;
+
+    function syncScrollToLatestVisibility() {
+      setShowScrollToLatest(list.scrollHeight - list.scrollTop - list.clientHeight > 180);
+    }
+
+    syncScrollToLatestVisibility();
+    list.addEventListener('scroll', syncScrollToLatestVisibility, { passive: true });
+    return () => list.removeEventListener('scroll', syncScrollToLatestVisibility);
+  }, [messages.length, isLoadingMessages]);
+
+  function scrollToLatestMessage() {
+    messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: 'smooth' });
+  }
 
   async function sendMediaMessage(file, type, mediaDurationSeconds = null, { clearComposer = true, messageText = '' } = {}) {
     setError('');
@@ -1003,16 +1028,7 @@ export function ChatPage() {
     setVideoRecordingSeconds(0);
   }
 
-  function selectedRecordingLabel() {
-    return recordingMode === 'video_note' ? t('messages.videoNote') : t('messages.voiceMessage');
-  }
-
-  function selectedRecordingIcon() {
-    return recordingMode === 'video_note' ? '◉' : '🎙';
-  }
-
   function startSelectedRecording() {
-    setIsRecordMenuOpen(false);
     if (recordingMode === 'video_note') {
       startVideoRecording();
       return;
@@ -1098,12 +1114,7 @@ export function ChatPage() {
       stopActiveRecording();
       return;
     }
-    setIsRecordMenuOpen((current) => !current);
-  }
-
-  function chooseRecordingMode(nextMode) {
-    setRecordingMode(nextMode);
-    setIsRecordMenuOpen(false);
+    setRecordingMode((current) => (current === 'voice' ? 'video_note' : 'voice'));
   }
 
   async function startVoiceRecording() {
@@ -1137,7 +1148,9 @@ export function ChatPage() {
         const file = new File([blob], `voice-${Date.now()}.${extension}`, { type: mimeType });
         setRecordingSeconds(recordedSeconds);
         stopRecordingTracks();
-        void sendMediaMessage(file, 'voice', recordedSeconds);
+        setSelectedFile(file);
+        setMessageType('voice');
+        setDurationSeconds(String(recordedSeconds));
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
@@ -1223,7 +1236,9 @@ export function ChatPage() {
         const file = new File([blob], `video-note-${Date.now()}.${extension}`, { type: mimeType });
         setVideoRecordingSeconds(recordedSeconds);
         stopVideoRecordingTracks();
-        void sendMediaMessage(file, 'video_note', recordedSeconds);
+        setSelectedFile(file);
+        setMessageType('video_note');
+        setDurationSeconds(String(recordedSeconds));
       };
       videoRecorderRef.current = recorder;
       recorder.start();
@@ -1330,20 +1345,23 @@ export function ChatPage() {
               <Icon name="more" size={21} />
             </button>
             {isChatActionsOpen ? (
-              <div className="chat-actions-menu" role="menu" aria-label={t('chats.chatActions')}>
-                <button
-                  className="chat-actions-menu-item danger"
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsChatActionsOpen(false);
-                    setIsHideChatDialogOpen(true);
-                  }}
-                >
-                  <Icon name="trash" size={17} />
-                  <span>{t('chats.removeFromList')}</span>
-                </button>
-              </div>
+              <>
+                <button className="chat-actions-backdrop" type="button" aria-label={t('common.close')} onClick={() => setIsChatActionsOpen(false)} />
+                <div className="chat-actions-menu" role="menu" aria-label={t('chats.chatActions')}>
+                  <button
+                    className="chat-actions-menu-item danger"
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsChatActionsOpen(false);
+                      setIsHideChatDialogOpen(true);
+                    }}
+                  >
+                    <Icon name="trash" size={17} />
+                    <span>{t('chats.removeFromList')}</span>
+                  </button>
+                </div>
+              </>
             ) : null}
           </div>
         ) : null}
@@ -1541,6 +1559,11 @@ export function ChatPage() {
         ) : null}
         {error ? <p className="error-text">{error}</p> : null}
       </div>
+      {showScrollToLatest ? (
+        <button className="scroll-to-latest-button" type="button" onClick={scrollToLatestMessage} aria-label={t('messages.scrollToLatest')} title={t('messages.scrollToLatest')}>
+          <span aria-hidden="true">↓</span>
+        </button>
+      ) : null}
       {canPost ? <form className="composer" onSubmit={handleSend}>
         {replyingTo ? (
           <div className="composer-reply-preview">
@@ -1595,7 +1618,7 @@ export function ChatPage() {
               </div>
             ) : null}
           </div>
-          <div className="record-control-wrap" ref={recordControlRef}>
+          <div className="record-control-wrap">
             <button
               className={`composer-icon-button record-button ${recordingMode === 'video_note' ? 'video-mode' : 'voice-mode'} ${isRecording || isVideoRecording ? 'is-recording' : ''}`}
               type="button"
@@ -1604,33 +1627,12 @@ export function ChatPage() {
               onPointerUp={handleRecordPointerUp}
               onPointerCancel={handleRecordPointerCancel}
               disabled={isUploading}
-              aria-expanded={isRecordMenuOpen}
-              aria-label={isRecording || isVideoRecording ? t('messages.stopRecording') : t('messages.openRecordMenu')}
-              title={isRecording || isVideoRecording ? t('messages.releaseToSend') : `${selectedRecordingLabel()} · ${t('messages.holdToRecord')}`}
+              aria-pressed={recordingMode === 'video_note'}
+              aria-label={isRecording || isVideoRecording ? t('messages.stopRecording') : recordingMode === 'video_note' ? t('messages.recordVideoNote') : t('messages.recordVoice')}
+              title={isRecording || isVideoRecording ? t('messages.stopRecording') : `${recordingMode === 'video_note' ? t('messages.recordVideoNote') : t('messages.recordVoice')} · ${t('messages.holdToRecord')}`}
             >
               <span aria-hidden="true">{isRecording || isVideoRecording ? '■' : recordingMode === 'video_note' ? <Icon name="video" size={19} /> : <Icon name="microphone" size={19} />}</span>
             </button>
-            {isRecordMenuOpen ? (
-              <div className="record-mode-menu" role="menu" aria-label={t('messages.recordMenu')}>
-                <div className="record-mode-menu-head">
-                  <strong>{t('messages.recordMenu')}</strong>
-                  <span>{t('messages.holdToRecord')}</span>
-                </div>
-                <div className="record-mode-options">
-                  <button className={`record-mode-option voice ${recordingMode === 'voice' ? 'active' : ''}`} type="button" role="menuitemradio" aria-checked={recordingMode === 'voice'} onClick={() => chooseRecordingMode('voice')}>
-                    <span className="record-mode-option-icon" aria-hidden="true"><Icon name="microphone" size={25} strokeWidth={2} /></span>
-                    <span className="record-mode-option-label">{t('messages.voiceMessage')}</span>
-                    {recordingMode === 'voice' ? <span className="record-mode-option-check" aria-label={t('messages.selected')}><Icon name="check" size={14} strokeWidth={2.8} /></span> : null}
-                  </button>
-                  <button className={`record-mode-option video ${recordingMode === 'video_note' ? 'active' : ''}`} type="button" role="menuitemradio" aria-checked={recordingMode === 'video_note'} onClick={() => chooseRecordingMode('video_note')}>
-                    <span className="record-mode-option-icon" aria-hidden="true"><Icon name="video" size={25} strokeWidth={2} /></span>
-                    <span className="record-mode-option-label">{t('messages.videoNote')}</span>
-                    {recordingMode === 'video_note' ? <span className="record-mode-option-check" aria-label={t('messages.selected')}><Icon name="check" size={14} strokeWidth={2.8} /></span> : null}
-                  </button>
-                </div>
-                <small>{t('messages.holdToRecordHint')}</small>
-              </div>
-            ) : null}
           </div>
           <button
             className="send-fab"
@@ -1642,11 +1644,47 @@ export function ChatPage() {
             <span aria-hidden="true">{isUploading ? '…' : <Icon name="send" size={19} />}</span>
           </button>
         </div>
-        {(selectedFile || isRecording || isVideoRecording) ? (
+        {isVideoRecording ? (
+          <section className="video-note-recorder" aria-live="polite">
+            <div className="video-note-recorder-preview">
+              <video ref={videoRecordingPreviewRef} autoPlay muted playsInline />
+              <span className="video-note-recorder-shade" aria-hidden="true" />
+              <span className="video-note-recorder-status"><i aria-hidden="true" />{t('messages.recordingVideoNote')}</span>
+              <time>{formatVoiceTime(videoRecordingSeconds)}</time>
+            </div>
+            <div className="video-note-recorder-copy">
+              <strong>{t('messages.videoNote')}</strong>
+              <span>{t('messages.stopVideoNote')}</span>
+            </div>
+            <div className="video-note-recorder-actions">
+              <button type="button" onClick={cancelVideoRecording} aria-label={t('messages.removeAttachment')} title={t('messages.removeAttachment')}>
+                <Icon name="x" size={18} strokeWidth={2.2} />
+              </button>
+              <button className="video-note-recorder-stop" type="button" onClick={stopVideoRecording} aria-label={t('messages.stopVideoNote')} title={t('messages.stopVideoNote')}>
+                <span aria-hidden="true" />
+              </button>
+            </div>
+          </section>
+        ) : messageType === 'video_note' && selectedFile && selectedVideoPreviewUrl ? (
+          <section className="video-note-ready" aria-label={t('messages.videoNote')}>
+            <div className="video-note-ready-preview">
+              <video src={selectedVideoPreviewUrl} autoPlay loop muted playsInline preload="metadata" />
+              <span className="video-note-ready-icon" aria-hidden="true"><Icon name="video" size={18} strokeWidth={2.2} /></span>
+              <time>{formatVoiceTime(durationSeconds)}</time>
+            </div>
+            <div className="video-note-ready-copy">
+              <strong>{t('messages.videoNote')}</strong>
+              <span>{formatVoiceTime(durationSeconds)}</span>
+            </div>
+            <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')} title={t('messages.removeAttachment')}>
+              <Icon name="x" size={18} strokeWidth={2.2} />
+            </button>
+          </section>
+        ) : (selectedFile || isRecording) ? (
           <div className="composer-preview">
-            <span className="composer-preview-icon" aria-hidden="true">{messageType === 'video_note' || isVideoRecording ? '🎥' : messageType === 'voice' || isRecording ? '🎙' : '📎'}</span>
-            <span>{isVideoRecording ? `${t('messages.recordingVideoNote')} · ${videoRecordingSeconds}s` : isRecording ? `${t('messages.recording')} · ${recordingSeconds}s` : selectedFile.name}</span>
-            {!isRecording && !isVideoRecording ? <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')}>×</button> : null}
+            <span className="composer-preview-icon" aria-hidden="true">{messageType === 'voice' || isRecording ? '🎙' : '📎'}</span>
+            <span>{isRecording ? `${t('messages.recording')} · ${recordingSeconds}s` : selectedFile.name}</span>
+            {!isRecording ? <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')}>×</button> : null}
           </div>
         ) : null}
       </form> : <div className="branch-read-only-note">Публичная ветвь доступна для чтения. Публикации делает только владелец или администратор.</div>}

@@ -8,6 +8,8 @@ const LANGUAGE_OPTIONS = [
   { id: 'kk', label: 'Қазақша', icon: '🇰🇿', code: 'KK' },
   { id: 'ky', label: 'Кыргызча', icon: '🇰🇬', code: 'KY' },
   { id: 'uk', label: 'Українська', icon: '🇺🇦', code: 'UK' },
+  { id: 'be', label: 'Беларуская', icon: '🇧🇾', code: 'BE' },
+  { id: 'uz', label: 'Ўзбекча', icon: '🇺🇿', code: 'UZ' },
 ].filter((item) => SUPPORTED_LANGUAGES.includes(item.id));
 
 export function LanguageSwitcher({ onChange }) {

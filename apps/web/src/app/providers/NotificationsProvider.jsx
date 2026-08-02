@@ -9,7 +9,7 @@ import {
   savePushSubscription,
   sendTestPushNotification,
 } from '../../features/notifications/api/notificationApi.js';
-import { ensurePushSubscription, getPushSupportState, getPushSubscription, isPushSupported, subscribeToPush } from '../../features/notifications/notificationClient.js';
+import { clearDisplayedNotifications, ensurePushSubscription, getPushSupportState, getPushSubscription, isPushSupported, subscribeToPush } from '../../features/notifications/notificationClient.js';
 import { playNotificationSound, primeNotificationSound } from '../../features/notifications/notificationSound.js';
 import { useSession } from './SessionProvider.jsx';
 
@@ -52,6 +52,23 @@ export function NotificationsProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    function clearNotificationsWhenAppIsVisible() {
+      if (document.visibilityState === 'hidden') return;
+      clearDisplayedNotifications().catch(() => undefined);
+    }
+
+    clearNotificationsWhenAppIsVisible();
+    document.addEventListener('visibilitychange', clearNotificationsWhenAppIsVisible);
+    window.addEventListener('focus', clearNotificationsWhenAppIsVisible);
+    window.addEventListener('pageshow', clearNotificationsWhenAppIsVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', clearNotificationsWhenAppIsVisible);
+      window.removeEventListener('focus', clearNotificationsWhenAppIsVisible);
+      window.removeEventListener('pageshow', clearNotificationsWhenAppIsVisible);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!session.accessToken) {
       setNotifications([]);
       knownNotificationIdsRef.current = new Set();
@@ -74,17 +91,25 @@ export function NotificationsProvider({ children }) {
         setPushConfig(config);
         knownNotificationIdsRef.current = new Set(items.map((item) => item.id));
         setNotifications(sortNotifications(items));
-        setPermission('Notification' in window ? Notification.permission : 'unsupported');
+        const currentPermission = 'Notification' in window ? Notification.permission : 'unsupported';
+        setPermission(currentPermission);
         const existingSubscription = await getPushSubscription();
-        const devicePushEnabled = localStorage.getItem(DEVICE_PUSH_ENABLED_KEY) === 'true' || Boolean(existingSubscription);
-        if (config.enabled && config.public_key && Notification.permission === 'granted' && devicePushEnabled) {
+        const devicePushEnabled = localStorage.getItem(DEVICE_PUSH_ENABLED_KEY) === 'true';
+        if (config.enabled && config.public_key && currentPermission === 'granted' && devicePushEnabled) {
           const subscription = await ensurePushSubscription(config.public_key);
           await savePushSubscription(session.accessToken, subscription.toJSON());
           localStorage.setItem(DEVICE_PUSH_ENABLED_KEY, 'true');
           setHasSubscription(true);
           return;
         }
-        setHasSubscription(Boolean(existingSubscription));
+        if (existingSubscription && (!devicePushEnabled || currentPermission !== 'granted')) {
+          localStorage.setItem(DEVICE_PUSH_ENABLED_KEY, 'false');
+          await deletePushSubscription(session.accessToken, existingSubscription.endpoint);
+          await existingSubscription.unsubscribe();
+          setHasSubscription(false);
+          return;
+        }
+        setHasSubscription(Boolean(existingSubscription) && devicePushEnabled && currentPermission === 'granted');
       } finally {
         if (active) setIsLoading(false);
       }
@@ -160,12 +185,15 @@ export function NotificationsProvider({ children }) {
 
   async function disableNotifications() {
     const subscription = await getPushSubscription();
-    if (subscription) {
-      await deletePushSubscription(session.accessToken, subscription.endpoint);
-      await subscription.unsubscribe();
-    }
     localStorage.setItem(DEVICE_PUSH_ENABLED_KEY, 'false');
     setHasSubscription(false);
+    if (subscription) {
+      try {
+        await deletePushSubscription(session.accessToken, subscription.endpoint);
+      } finally {
+        await subscription.unsubscribe();
+      }
+    }
   }
 
   async function markAllRead() {

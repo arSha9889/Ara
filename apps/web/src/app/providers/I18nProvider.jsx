@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import { dictionaries } from '../../shared/i18n/dictionaries.js';
 
 const I18nContext = createContext(null);
-export const SUPPORTED_LANGUAGES = ['ru', 'en', 'kk', 'ky', 'uk'];
+export const SUPPORTED_LANGUAGES = ['ru', 'en', 'kk', 'ky', 'uk', 'be', 'uz'];
 
 function getDictionaryValue(dictionary, key) {
   return key.split('.').reduce((current, part) => current?.[part], dictionary);
