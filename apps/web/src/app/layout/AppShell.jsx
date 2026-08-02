@@ -133,7 +133,7 @@ export function AppShell() {
       <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
           {mobileNavItems.slice(0, 2).map((item) => (
             <NavLink
-              className={({ isActive }) => `mobile-bottom-nav-item ${isActive || (item.to === '/app' && isChatRoute) ? 'active' : ''}`}
+              className={({ isActive }) => `mobile-bottom-nav-item ${item.to === '/app/branches' ? 'mobile-bottom-nav-branches' : ''} ${isActive || (item.to === '/app' && isChatRoute) ? 'active' : ''}`}
               to={item.to}
               key={item.to}
               end={item.to === '/app'}
@@ -154,13 +154,13 @@ export function AppShell() {
               <span>{item.label}</span>
             </NavLink>
           ))}
+          <NavLink className={({ isActive }) => `mobile-bottom-nav-item mobile-bottom-nav-settings ${isActive ? 'active' : ''}`} to="/app/settings" aria-label={t('settings.title')} title={t('settings.title')}>
+            <span className="mobile-bottom-nav-icon" aria-hidden="true"><Icon name="settings" size={24} /></span>
+            <span>{t('settings.title')}</span>
+          </NavLink>
           <NavLink className={({ isActive }) => `mobile-bottom-nav-create ${isActive ? 'active' : ''}`} to="/app/new-chat" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
             <span aria-hidden="true"><Icon name="plus" size={24} strokeWidth={2.3} /></span>
             <span>{t('chats.createChat')}</span>
-          </NavLink>
-          <NavLink className={({ isActive }) => `mobile-bottom-nav-settings ${isActive ? 'active' : ''}`} to="/app/settings" aria-label={t('settings.title')} title={t('settings.title')}>
-            <span className="mobile-bottom-nav-icon" aria-hidden="true"><Icon name="settings" size={24} /></span>
-            <span>{t('settings.title')}</span>
           </NavLink>
           {mobileNavItems.slice(2).map((item) => (
             <NavLink

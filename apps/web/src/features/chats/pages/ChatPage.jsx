@@ -2,13 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { useLayoutMode } from '../../../app/providers/LayoutModeProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { createDirectChatForUser, deleteMessage, editMessage, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage } from '../api/chatApi.js';
+import { createDirectChatForUser, deleteMessage, editMessage, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
@@ -368,6 +369,7 @@ export function ChatPage() {
   const { chatId } = useParams();
   const { markMessageNotificationsRead } = useNotifications();
   const { session } = useSession();
+  const { effectiveMode } = useLayoutMode();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [chat, setChat] = useState(null);
@@ -404,6 +406,7 @@ export function ChatPage() {
   const [isOpeningProfileChat, setIsOpeningProfileChat] = useState(false);
   const [profileCardError, setProfileCardError] = useState('');
   const [showScrollToLatest, setShowScrollToLatest] = useState(false);
+  const [isSubscribingToBranch, setIsSubscribingToBranch] = useState(false);
   const mediaRecorderRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -466,6 +469,19 @@ export function ChatPage() {
       setMessages(items);
     } finally {
       setIsLoadingMessages(false);
+    }
+  }
+
+  async function handleSubscribeToBranch() {
+    if (!chat || isSubscribingToBranch) return;
+    setError('');
+    setIsSubscribingToBranch(true);
+    try {
+      setChat(await subscribeToBranch(session.accessToken, chat.id));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubscribingToBranch(false);
     }
   }
 
@@ -1687,7 +1703,14 @@ export function ChatPage() {
             {!isRecording ? <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')}>×</button> : null}
           </div>
         ) : null}
-      </form> : <div className="branch-read-only-note">Публичная ветвь доступна для чтения. Публикации делает только владелец или администратор.</div>}
+      </form> : <div className="branch-read-only-note">
+        <span>Публичная ветвь доступна для чтения. Публикации делает только владелец или администратор.</span>
+        {effectiveMode === 'mobile' && !chat?.is_subscribed ? (
+          <button className="button button-secondary" type="button" onClick={handleSubscribeToBranch} disabled={isSubscribingToBranch}>
+            {isSubscribingToBranch ? '…' : t('chats.subscribe')}
+          </button>
+        ) : null}
+      </div>}
       {mediaViewerMessage ? (
         <div className="media-viewer-backdrop" role="presentation" onMouseDown={() => setMediaViewerMessage(null)}>
           <section className="media-viewer" role="dialog" aria-modal="true" aria-label={t('messages.mediaViewer')} onMouseDown={(event) => event.stopPropagation()}>

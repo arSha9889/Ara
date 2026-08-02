@@ -4952,6 +4952,8 @@ button.info-card {
   padding: 12px 14px;
 }
 
+.branch-read-only-note .button { margin-top: 10px; }
+
 .admin-panel { min-height: 100%; }
 
 .admin-stats-grid {
@@ -7561,7 +7563,8 @@ code {
     text-decoration: none;
   }
 
-  .mobile-bottom-nav-settings { display: none; }
+  .mobile-bottom-nav-branches { display: none; }
+  .mobile-bottom-nav-settings { display: grid; }
 
   .mobile-bottom-nav-create > span:first-child {
     width: 32px;
@@ -7844,6 +7847,7 @@ code {
 
   .mobile-bottom-nav-create { display: none; }
   .mobile-bottom-nav-settings { display: grid; }
+  .mobile-bottom-nav-branches { display: grid; }
 
   .mobile-bottom-nav-create > span:first-child {
     width: 36px;
@@ -8107,6 +8111,7 @@ code {
 }
 :root[data-layout-mode='tablet'] .mobile-bottom-nav-create { display: none; }
 :root[data-layout-mode='tablet'] .mobile-bottom-nav-settings { display: grid; }
+:root[data-layout-mode='tablet'] .mobile-bottom-nav-branches { display: grid; }
 :root[data-layout-mode='tablet'] .mobile-bottom-nav-settings.active {
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--primary), transparent 80%), color-mix(in srgb, var(--secondary), transparent 86%)),
@@ -8266,6 +8271,8 @@ code {
 }
 :root[data-layout-mode='mobile'] .mobile-bottom-nav-icon { width: 32px; height: 32px; }
 :root[data-layout-mode='mobile'] .mobile-bottom-nav-profile-avatar { width: 29px; height: 29px; }
+:root[data-layout-mode='mobile'] .mobile-bottom-nav-branches { display: none; }
+:root[data-layout-mode='mobile'] .mobile-bottom-nav-settings { display: grid; }
 :root[data-layout-mode='mobile'] .app-shell.is-chat-route .mobile-bottom-nav { display: grid; }
 :root[data-layout-mode='mobile'] .chat-workspace {
   height: calc(var(--chat-viewport-height) - 24px);

@@ -5,12 +5,13 @@ import { AppNavigationTrigger } from '../../../app/layout/AppShell.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
+import { useLayoutMode } from '../../../app/providers/LayoutModeProvider.jsx';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { createSavedChat, getChats, restoreChat } from '../api/chatApi.js';
+import { createSavedChat, getChats, getPublicBranches, restoreChat } from '../api/chatApi.js';
 
 function chatTitle(chat, t) {
   if (chat.type === 'saved') return t('chats.savedTitle');
@@ -41,9 +42,17 @@ function activityLabel(activityType, t) {
   return t('messages.peerActive');
 }
 
+function mergeChatsAndPublicBranches(chats, publicBranches) {
+  const publicBranchIds = new Set(publicBranches.map((branch) => branch.id));
+
+  return [...chats.filter((chat) => !publicBranchIds.has(chat.id)), ...publicBranches]
+    .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime());
+}
+
 export function ChatsPage() {
   const { t } = useI18n();
   const { session } = useSession();
+  const { effectiveMode } = useLayoutMode();
   const location = useLocation();
   const navigate = useNavigate();
   const { isMenuOpen, toggleNavigation } = useOutletContext();
@@ -122,8 +131,15 @@ export function ChatsPage() {
     chatsRequestIdRef.current = requestId;
     try {
       if (showLoading) setIsLoading(true);
-      const nextChats = await getChats(session.accessToken);
-      if (chatsRequestIdRef.current === requestId) setChats(nextChats);
+      const [nextChats, nextPublicBranches] = await Promise.all([
+        getChats(session.accessToken),
+        effectiveMode === 'mobile' ? getPublicBranches(session.accessToken) : Promise.resolve([]),
+      ]);
+      if (chatsRequestIdRef.current === requestId) {
+        setChats(effectiveMode === 'mobile'
+          ? mergeChatsAndPublicBranches(nextChats, nextPublicBranches)
+          : nextChats);
+      }
     } finally {
       if (showLoading && chatsRequestIdRef.current === requestId) setIsLoading(false);
     }
@@ -134,7 +150,7 @@ export function ChatsPage() {
   useEffect(() => {
     loadChats().catch((err) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.accessToken]);
+  }, [effectiveMode, session.accessToken]);
 
   useEffect(() => {
     const hiddenChat = location.state?.hiddenChat;
