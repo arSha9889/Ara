@@ -4772,6 +4772,42 @@ p { margin-bottom: 14px; }
 
 .language-switcher .select-switcher-button { min-width: 142px; }
 
+.language-dialog-layer { position: fixed; z-index: 220; inset: 0; display: grid; place-items: center; overflow-y: auto; background: rgba(10, 13, 31, 0.54); padding: 24px; animation: languageDialogOverlayEnter 180ms ease both; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+.language-dialog { width: min(100%, 500px); max-height: min(690px, calc(100dvh - 48px)); border: 1px solid color-mix(in srgb, var(--primary), transparent 68%); border-radius: 28px; position: relative; display: grid; gap: 20px; overflow: hidden; background: radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--secondary), transparent 70%), transparent 13rem), radial-gradient(circle at 5% 100%, color-mix(in srgb, var(--primary), transparent 87%), transparent 14rem), var(--surface-elevated); box-shadow: 0 30px 90px rgba(10, 8, 26, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.56); padding: 26px; animation: languageDialogEnter 240ms var(--ease-out-soft) both; }
+.language-dialog-handle { display: none; }
+.language-dialog-heading { min-width: 0; display: flex; align-items: flex-start; gap: 13px; padding-right: 42px; }
+.language-dialog-heading .eyebrow, .language-dialog-heading h2, .language-dialog-heading p { margin: 0; }
+.language-dialog-heading .eyebrow { margin-bottom: 3px; }
+.language-dialog-heading h2 { font-size: 1.35rem; }
+.language-dialog-heading p:not(.eyebrow) { margin-top: 4px; color: var(--muted); font-size: 0.87rem; font-weight: 650; line-height: 1.45; }
+.language-dialog-icon { width: 44px; height: 44px; border-radius: 15px; display: grid; place-items: center; flex: 0 0 auto; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; box-shadow: 0 12px 26px color-mix(in srgb, var(--primary), transparent 68%); }
+.language-dialog-close { width: 40px; height: 40px; border: 1px solid color-mix(in srgb, var(--primary), transparent 84%); border-radius: 14px; position: absolute; top: 20px; right: 20px; display: grid; place-items: center; background: color-mix(in srgb, var(--surface), transparent 8%); color: var(--muted); cursor: pointer; transition: transform 160ms ease, color 160ms ease, background 160ms ease; }
+.language-dialog-close:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--primary), transparent 90%); color: var(--text); }
+.language-dialog-close:focus-visible { outline: 0; box-shadow: 0 0 0 4px var(--ring); }
+
+.language-picker { min-height: 0; display: grid; gap: 12px; }
+.language-picker-search { min-height: 50px; border: 1px solid color-mix(in srgb, var(--primary), transparent 80%); border-radius: 17px; display: flex; align-items: center; gap: 10px; background: color-mix(in srgb, var(--surface), transparent 3%); color: var(--muted); padding: 0 14px; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
+.language-picker-search:focus-within { border-color: color-mix(in srgb, var(--primary), transparent 42%); background: color-mix(in srgb, var(--surface-elevated), transparent 2%); box-shadow: 0 0 0 4px var(--ring); color: var(--primary); }
+.language-picker-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 0.9rem; font-weight: 750; }
+.language-picker-search input::placeholder { color: var(--muted); opacity: 0.78; }
+.language-picker-options { max-height: 380px; display: grid; gap: 5px; overflow-y: auto; overscroll-behavior: contain; padding: 2px 3px 2px 0; scrollbar-color: color-mix(in srgb, var(--primary), transparent 60%) transparent; scrollbar-width: thin; }
+.language-picker-option { width: 100%; min-height: 60px; border: 1px solid transparent; border-radius: 18px; display: flex; align-items: center; gap: 12px; background: transparent; color: var(--text); cursor: pointer; font: inherit; padding: 8px 10px; text-align: left; transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease; }
+.language-picker-option:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--primary), transparent 84%); background: color-mix(in srgb, var(--primary), transparent 93%); }
+.language-picker-option:focus-visible { outline: 0; border-color: color-mix(in srgb, var(--primary), transparent 48%); box-shadow: 0 0 0 4px var(--ring); }
+.language-picker-option.active { border-color: color-mix(in srgb, var(--primary), transparent 62%); background: linear-gradient(135deg, color-mix(in srgb, var(--primary), transparent 85%), color-mix(in srgb, var(--secondary), transparent 88%)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary), transparent 86%); }
+.language-picker-flag { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; flex: 0 0 auto; background: color-mix(in srgb, var(--surface-elevated), transparent 2%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary), transparent 87%), 0 5px 12px rgba(20, 20, 43, 0.06); font-size: 1.25rem; }
+.language-picker-copy { min-width: 0; display: grid; gap: 3px; }
+.language-picker-copy strong { font-size: 0.92rem; font-weight: 900; }
+.language-picker-copy small { color: var(--muted); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.1em; line-height: 1; }
+.language-picker-check { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; flex: 0 0 auto; margin-left: auto; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; box-shadow: 0 7px 16px color-mix(in srgb, var(--primary), transparent 66%); }
+.language-picker-empty { min-height: 180px; border: 1px dashed color-mix(in srgb, var(--primary), transparent 76%); border-radius: 20px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--muted); text-align: center; padding: 22px; }
+.language-picker-empty > span { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: color-mix(in srgb, var(--primary), transparent 89%); color: var(--primary); }
+.language-picker-empty p { margin: 0; font-size: 0.88rem; font-weight: 800; }
+.language-settings-section .language-picker-options { max-height: min(480px, calc(100dvh - 330px)); }
+
+@keyframes languageDialogOverlayEnter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes languageDialogEnter { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
 .theme-swatch {
   width: 26px;
   height: 26px;
@@ -6551,6 +6587,18 @@ code {
   .public-profile-avatar-wrap .avatar { width: 70px; height: 70px; border-radius: 23px; font-size: 1.7rem; }
   .public-profile-write { min-height: 50px; margin-top: 6px; }
 
+  .language-dialog-layer { align-items: end; padding: 0; }
+  .language-dialog { width: 100%; max-height: min(84dvh, 720px); border-bottom: 0; border-radius: 28px 28px 0 0; padding: 32px 18px max(22px, env(safe-area-inset-bottom)); animation: languageSheetEnter 280ms var(--ease-out-soft) both; }
+  .language-dialog-handle { position: absolute; top: 9px; left: 50%; width: 42px; height: 4px; border-radius: 999px; display: block; background: color-mix(in srgb, var(--muted), transparent 58%); transform: translateX(-50%); }
+  .language-dialog-close { top: 15px; right: 16px; }
+  .language-dialog-heading { gap: 11px; }
+  .language-dialog-heading h2 { font-size: 1.2rem; }
+  .language-dialog-heading p:not(.eyebrow) { max-width: 310px; font-size: 0.8rem; }
+  .language-dialog-icon { width: 40px; height: 40px; border-radius: 14px; }
+  .language-picker-options { max-height: min(48dvh, 390px); }
+  .language-picker-option { min-height: 56px; border-radius: 16px; }
+  .language-picker-flag { width: 38px; height: 38px; border-radius: 13px; }
+
   .chat-workspace,
   .chat-panel {
     height: calc(100dvh - 16px);
@@ -7858,6 +7906,9 @@ code {
     padding: 30px;
   }
   .public-profile-sheet-handle { display: none; }
+  .language-dialog-layer { align-items: center; padding: var(--tablet-content-padding); }
+  .language-dialog { width: min(540px, 100%); max-height: min(720px, calc(100dvh - 2 * var(--tablet-content-padding))); border: 1px solid color-mix(in srgb, var(--primary), transparent 68%); border-radius: 28px; padding: 26px; }
+  .language-dialog-handle { display: none; }
 }
 
 /* Portrait tablets preserve a focused master/detail flow. The chat remains a
@@ -8242,4 +8293,5 @@ code {
 @media (max-width: 640px) {
   .layout-mode-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .layout-mode-option { min-height: 76px; }
+  @keyframes languageSheetEnter { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
 }

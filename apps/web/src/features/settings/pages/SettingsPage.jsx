@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher.jsx';
+import { LanguagePickerList } from '../../../shared/ui/LanguagePicker.jsx';
 import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useAppFeedback } from '../../../app/providers/AppFeedbackProvider.jsx';
@@ -55,6 +55,7 @@ export function SettingsPage() {
   const [passwordConfirmation, setPasswordConfirmation] = useState(null);
   const settingsTabs = [
     { id: 'appearance', icon: 'palette', label: t('settings.appearance') },
+    { id: 'language', icon: 'globe', label: t('settings.language') },
     { id: 'notifications', icon: 'bell', label: t('settings.notifications') },
     { id: 'security', icon: 'shield', label: t('settings.security') },
   ];
@@ -113,6 +114,13 @@ export function SettingsPage() {
     if (key === 'theme') setTheme(failedPreference.value);
     else setLanguage(failedPreference.value);
     saveAppearancePreference(key, failedPreference.value, failedPreference.previousValue);
+  }
+
+  function handleLanguageChange(nextLanguage) {
+    if (nextLanguage === language) return;
+    const previousLanguage = language;
+    setLanguage(nextLanguage);
+    saveAppearancePreference('language', nextLanguage, previousLanguage);
   }
 
   async function enableLiquidGlass() {
@@ -265,7 +273,7 @@ export function SettingsPage() {
                 <span className="settings-heading-icon"><Icon name="palette" size={20} /></span>
                 <div>
                   <h2>{t('settings.appearance')}</h2>
-                  <p className="muted">{t('settings.theme')} · {t('settings.language')}</p>
+                  <p className="muted">{t('settings.theme')}</p>
                 </div>
               </div>
               {showLiquidGlassPrompt ? (
@@ -288,15 +296,23 @@ export function SettingsPage() {
                 status={appearanceStatus.theme}
                 onRetry={() => retryAppearancePreference('theme')}
               />
-              <label className="field inline-field">
-                <span>{t('settings.language')}</span>
-                <LanguageSwitcher onChange={(nextLanguage) => saveAppearancePreference('language', nextLanguage, session.user?.profile?.language || language)} />
-              </label>
+              <LayoutModeSwitcher />
+            </section>
+          ) : null}
+          {activeTab === 'language' ? (
+            <section className="settings-section language-settings-section" role="tabpanel">
+              <div className="settings-section-heading">
+                <span className="settings-heading-icon"><Icon name="globe" size={20} /></span>
+                <div>
+                  <h2>{t('settings.languagePickerTitle')}</h2>
+                  <p className="muted">{t('settings.languagePickerText')}</p>
+                </div>
+              </div>
+              <LanguagePickerList selectedLanguage={language} onSelect={handleLanguageChange} />
               <AppearanceSaveStatus
                 status={appearanceStatus.language}
                 onRetry={() => retryAppearancePreference('language')}
               />
-              <LayoutModeSwitcher />
             </section>
           ) : null}
           {activeTab === 'notifications' ? (
