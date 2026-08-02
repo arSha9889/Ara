@@ -2943,13 +2943,15 @@ const phoneCountryLabels = {
   en: ['Belarus', 'Uzbekistan'],
   kk: ['Беларусь', 'Өзбекстан'],
   ky: ['Беларусь', 'Өзбекстан'],
+  es: ['Bielorrusia', 'Uzbekistán'],
+  fr: ['Biélorussie', 'Ouzbékistan'],
   uk: ['Білорусь', 'Узбекистан'],
   be: ['Беларусь', 'Узбекістан'],
   uz: ['Беларусь', 'Ўзбекистон'],
 };
 
 for (const [language, dictionary] of Object.entries(dictionaries)) {
-  const [belarus, uzbekistan] = phoneCountryLabels[language];
+  const [belarus, uzbekistan] = phoneCountryLabels[language] ?? phoneCountryLabels.ru;
   Object.assign(dictionary.register, {
     phoneCountryBelarus: belarus,
     phoneCountryUzbekistan: uzbekistan,
