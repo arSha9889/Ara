@@ -1,6 +1,6 @@
 """track enabled push subscriptions
 
-Revision ID: 0016_push_subscription_activation
+Revision ID: 0016_push_sub_active
 Revises: 0015_hide_chats_per_user
 Create Date: 2026-08-02
 """
@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = '0016_push_subscription_activation'
+revision = '0016_push_sub_active'
 down_revision = '0015_hide_chats_per_user'
 branch_labels = None
 depends_on = None
