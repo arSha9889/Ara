@@ -158,6 +158,10 @@ export function AppShell() {
             <span aria-hidden="true"><Icon name="plus" size={24} strokeWidth={2.3} /></span>
             <span>{t('chats.createChat')}</span>
           </NavLink>
+          <NavLink className={({ isActive }) => `mobile-bottom-nav-settings ${isActive ? 'active' : ''}`} to="/app/settings" aria-label={t('settings.title')} title={t('settings.title')}>
+            <span className="mobile-bottom-nav-icon" aria-hidden="true"><Icon name="settings" size={24} /></span>
+            <span>{t('settings.title')}</span>
+          </NavLink>
           {mobileNavItems.slice(2).map((item) => (
             <NavLink
               className={({ isActive }) => `mobile-bottom-nav-item ${isActive ? 'active' : ''}`}
