@@ -46,7 +46,7 @@ export function PublicBranchesPage() {
   }
 
   return (
-    <section className="content-grid branches-page">
+    <section className={`content-grid branches-page ${isOnboarding ? 'is-onboarding' : ''}`}>
       <div className="panel chat-list-panel">
         <header className="section-header">
           <div>
@@ -77,7 +77,11 @@ export function PublicBranchesPage() {
             </article>
           ))}
         </div>
-        {isOnboarding && !isLoading ? <button className="button button-primary branches-continue-button" type="button" onClick={() => navigate('/app', { replace: true })}>{t('chats.branchOnboardingContinue')}</button> : null}
+        {isOnboarding && !isLoading ? (
+          <div className="branches-onboarding-actions">
+            <button className="button button-primary branches-continue-button" type="button" onClick={() => navigate('/app', { replace: true })}>{t('chats.branchOnboardingContinue')}</button>
+          </div>
+        ) : null}
       </div>
       <div className="panel desktop-only">
         <EmptyState title={t('chats.publicBranches')} text={t('chats.publicBranchesText')} />

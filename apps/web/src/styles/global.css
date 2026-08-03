@@ -7406,6 +7406,12 @@ code {
 .branches-skip-button { flex: 0 0 auto; }
 .branches-continue-button { width: 100%; margin-top: 18px; }
 
+/* Branch selection is also the final registration step. It gets a focused
+   compact layout without changing the regular public-branches catalogue. */
+.branches-page.is-onboarding .section-header > div { min-width: 0; }
+.branches-page.is-onboarding .branches-onboarding-actions { margin-top: 18px; }
+.branches-page.is-onboarding .branches-continue-button { margin-top: 0; }
+
 @media (max-width: 860px) {
   html:has(.app-shell.is-chat-route),
   body:has(.app-shell.is-chat-route) {
@@ -7443,6 +7449,125 @@ code {
   .branches-page .section-header { gap: 12px; }
   .branches-page .section-header h1 { font-size: clamp(1.55rem, 8vw, 2rem); }
   .branches-skip-button { min-height: 40px; padding: 8px 12px; font-size: 0.8rem; }
+
+  .app-shell.is-branches-onboarding .mobile-bottom-nav { display: none; }
+  .app-shell.is-branches-onboarding .app-main { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+
+  .branches-page.is-onboarding .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .branches-page.is-onboarding .branches-skip-button {
+    order: -1;
+    align-self: flex-end;
+    min-height: 36px;
+    border-color: transparent;
+    background: transparent;
+    padding: 6px 4px;
+    color: var(--muted);
+    font-size: 0.86rem;
+  }
+
+  .branches-page.is-onboarding .section-header h1 {
+    max-width: 18ch;
+    font-size: clamp(1.8rem, 9vw, 2.35rem);
+    line-height: 1.08;
+  }
+
+  .branches-page.is-onboarding .section-header .muted {
+    max-width: 34rem;
+    line-height: 1.5;
+  }
+
+  .branches-page.is-onboarding .list-stack { gap: 10px; }
+
+  .branches-page.is-onboarding .chat-list-panel .branch-card {
+    min-height: 0;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 10px;
+    border-color: color-mix(in srgb, var(--primary), transparent 84%);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--surface-elevated), transparent 3%);
+    box-shadow: var(--shadow-card);
+    padding: 14px;
+  }
+
+  .branches-page.is-onboarding .chat-list-panel .branch-card .chat-list-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .branches-page.is-onboarding .branch-card .chat-thread-copy > span {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .branches-page.is-onboarding .branch-card .button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 2px;
+  }
+
+  .branches-page.is-onboarding .branches-onboarding-actions {
+    position: sticky;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 2;
+    margin: 14px -4px -4px;
+    padding: 12px 4px 4px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--bg), transparent 100%), var(--bg) 34%);
+  }
+
+  .branches-page.is-onboarding .branches-continue-button { min-height: 52px; }
+}
+
+@media (min-width: 700px) and (max-width: 1199px) and (min-height: 700px) and (any-pointer: coarse) {
+  .branches-page.is-onboarding {
+    grid-template-columns: minmax(0, 720px);
+    justify-content: center;
+  }
+
+  .branches-page.is-onboarding .desktop-only { display: none; }
+  .branches-page.is-onboarding .chat-list-panel { padding: clamp(22px, 3vw, 30px); }
+  .branches-page.is-onboarding .section-header { gap: 24px; }
+  .branches-page.is-onboarding .section-header > div { max-width: 560px; }
+  .branches-page.is-onboarding .branch-card { padding: 16px; }
+  .branches-page.is-onboarding .branch-card .button { min-height: var(--tablet-touch-target); }
+
+  .branches-page.is-onboarding .branches-onboarding-actions {
+    position: sticky;
+    bottom: calc(var(--tablet-dock-height) + 24px + env(safe-area-inset-bottom));
+    z-index: 2;
+    margin-top: 20px;
+    padding-top: 14px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--surface), transparent 100%), var(--surface) 38%);
+  }
+}
+
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding {
+  grid-template-columns: minmax(0, 720px);
+  justify-content: center;
+}
+
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding .desktop-only { display: none; }
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding .chat-list-panel { padding: clamp(22px, 3vw, 30px); }
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding .section-header { gap: 24px; }
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding .section-header > div { max-width: 560px; }
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding .branch-card { padding: 16px; }
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding .branch-card .button { min-height: var(--tablet-touch-target); }
+:root[data-layout-mode='tablet'] .branches-page.is-onboarding .branches-onboarding-actions {
+  position: sticky;
+  bottom: calc(var(--tablet-dock-height) + 24px + env(safe-area-inset-bottom));
+  z-index: 2;
+  margin-top: 20px;
+  padding-top: 14px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--surface), transparent 100%), var(--surface) 38%);
 }
 
 /* Tablet workspace: familiar two-pane messaging with a persistent, thumb-friendly dock.
@@ -7851,7 +7976,7 @@ code {
   }
 
   .app-main {
-    padding: var(--tablet-content-padding) var(--tablet-content-padding) calc(var(--tablet-dock-height) + 34px + env(safe-area-inset-bottom));
+    padding: var(--tablet-content-padding) var(--tablet-content-padding) calc(var(--tablet-dock-height) + 34px + var(--platform-dock-gap) + env(safe-area-inset-bottom));
     padding-left: var(--tablet-content-padding);
   }
 
@@ -7867,7 +7992,7 @@ code {
     min-height: var(--tablet-dock-height);
     position: fixed;
     left: 50%;
-    bottom: max(16px, env(safe-area-inset-bottom));
+    bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--platform-dock-gap));
     z-index: 100;
     border: 1px solid color-mix(in srgb, var(--primary), transparent 76%);
     border-radius: 28px;
@@ -8112,7 +8237,7 @@ code {
 :root[data-layout-mode='tablet'] .app-navigation-drawer,
 :root[data-layout-mode='tablet'] .app-navigation-backdrop { display: none; }
 :root[data-layout-mode='tablet'] .app-main {
-  padding: var(--tablet-content-padding) var(--tablet-content-padding) calc(var(--tablet-dock-height) + 34px + env(safe-area-inset-bottom));
+  padding: var(--tablet-content-padding) var(--tablet-content-padding) calc(var(--tablet-dock-height) + 34px + var(--platform-dock-gap) + env(safe-area-inset-bottom));
 }
 :root[data-layout-mode='tablet'] .app-feedback-viewport {
   right: max(var(--tablet-content-padding), env(safe-area-inset-right));
@@ -8126,7 +8251,7 @@ code {
   position: fixed;
   left: 50%;
   right: auto;
-  bottom: max(16px, env(safe-area-inset-bottom));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--platform-dock-gap));
   z-index: 100;
   border: 1px solid color-mix(in srgb, var(--primary), transparent 76%);
   border-radius: 28px;
@@ -8296,7 +8421,7 @@ code {
 :root[data-layout-mode='mobile'] .app-main {
   width: min(100%, 640px);
   margin: 0 auto;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(96px + var(--platform-dock-gap) + env(safe-area-inset-bottom));
 }
 :root[data-layout-mode='mobile'] .app-shell.is-chat-route .app-main { padding: 8px; }
 :root[data-layout-mode='mobile'] .mobile-bottom-nav {
@@ -8305,7 +8430,7 @@ code {
   position: fixed;
   right: auto;
   left: 50%;
-  bottom: max(10px, env(safe-area-inset-bottom));
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--platform-dock-gap));
   z-index: 100;
   border: 1px solid color-mix(in srgb, var(--primary), transparent 78%);
   border-radius: 26px;
@@ -8379,14 +8504,9 @@ code {
 :root[data-layout-mode='mobile'] .chat-subtitle > span:first-child { display: none; }
 :root[data-layout-mode='mobile'] .presence-status { width: fit-content; max-width: 100%; display: inline-flex; margin-top: 2px; }
 
-/* A direct conversation owns the entire compact workspace: global navigation
-   must not cover the composer in either mobile or tablet layout. */
-:root[data-direct-chat='true'] .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
-:root[data-layout-mode='tablet'][data-direct-chat='true'] .app-shell.is-chat-route .app-main { padding-bottom: var(--tablet-content-padding); }
-:root[data-layout-mode='tablet'][data-direct-chat='true'] .chat-workspace {
-  height: calc(var(--chat-viewport-height) - 2 * var(--tablet-content-padding));
-  min-height: calc(var(--chat-viewport-height) - 2 * var(--tablet-content-padding));
-}
+/* A direct conversation owns the mobile workspace: global navigation must not
+   cover the composer. Tablet navigation remains available. */
+:root[data-layout-mode='mobile'][data-direct-chat='true'] .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
 
 @media (max-width: 640px) {
   .layout-mode-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }

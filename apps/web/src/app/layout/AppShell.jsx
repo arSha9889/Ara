@@ -35,6 +35,7 @@ export function AppShell() {
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const isChatRoute = location.pathname.startsWith('/app/chats/');
   const isChatsWorkspace = location.pathname === '/app' || isChatRoute;
+  const isBranchesOnboarding = location.pathname === '/app/branches' && new URLSearchParams(location.search).get('onboarding') === '1';
   const isAdministrator = session.user?.is_official === true;
   const navItems = [
     { to: '/app', icon: 'chat', label: t('chats.title') },
@@ -95,7 +96,7 @@ export function AppShell() {
   }
 
   return (
-    <div className={`app-shell ${isMenuOpen ? 'is-navigation-open' : ''} ${isChatRoute ? 'is-chat-route' : ''}`}>
+    <div className={`app-shell ${isMenuOpen ? 'is-navigation-open' : ''} ${isChatRoute ? 'is-chat-route' : ''} ${isBranchesOnboarding ? 'is-branches-onboarding' : ''}`}>
       {!isChatsWorkspace ? <AppNavigationTrigger isMenuOpen={isMenuOpen} onToggle={() => setIsMenuOpen((current) => !current)} /> : null}
       {isMenuOpen ? <button className="app-navigation-backdrop" type="button" aria-label={t('common.close')} onClick={() => setIsMenuOpen(false)} /> : null}
       <aside className="app-navigation-drawer" aria-label={t('common.navigation')} aria-hidden={!isMenuOpen} inert={!isMenuOpen ? '' : undefined}>
