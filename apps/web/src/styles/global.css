@@ -8504,9 +8504,9 @@ code {
 :root[data-layout-mode='mobile'] .chat-subtitle > span:first-child { display: none; }
 :root[data-layout-mode='mobile'] .presence-status { width: fit-content; max-width: 100%; display: inline-flex; margin-top: 2px; }
 
-/* A direct conversation owns the mobile workspace: global navigation must not
-   cover the composer. Tablet navigation remains available. */
-:root[data-layout-mode='mobile'][data-direct-chat='true'] .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
+/* A writable chat owns the mobile workspace: global navigation must not cover
+   its composer. Tablet navigation remains available. */
+:root[data-effective-layout-mode='mobile'][data-composer-chat='true'] .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
 
 @media (max-width: 640px) {
   .layout-mode-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
