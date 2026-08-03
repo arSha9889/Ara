@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import get_current_user
 from app.db.session import get_db_session
 from app.models.chats import ChatParticipant
-from app.schemas.chats import ChatOut, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
+from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, ChatOut, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
@@ -18,9 +19,10 @@ from app.services.chat_service import edit_message as edit_chat_message
 from app.services.chat_service import list_chats as list_user_chats
 from app.services.chat_service import list_messages as list_chat_messages
 from app.services.chat_service import mark_messages_read, toggle_pin_message, toggle_reaction
-from app.services.branch_service import create_public_branch, list_public_branches, subscribe_to_branch
+from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, get_branch_post_author_id, list_branch_comments, update_branch_comment
+from app.services.branch_service import create_public_branch, list_public_branches, subscribe_to_branch, unsubscribe_from_branch
 from app.services.realtime_manager import realtime_manager
-from app.services.notification_service import create_message_notifications
+from app.services.notification_service import create_branch_comment_notification, create_message_notifications
 
 router = APIRouter()
 
@@ -110,6 +112,19 @@ async def subscribe_branch(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
+@router.delete('/branches/{chat_id}/subscribe')
+async def unsubscribe_branch(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        branch = await unsubscribe_from_branch(session, current_user.id, chat_id)
+        return await get_user_chat(session, current_user.id, branch.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
 @router.get('/{chat_id}')
 async def get_chat(
     chat_id: UUID,
@@ -151,12 +166,97 @@ async def list_messages(
     chat_id: UUID,
     current_user: Annotated[UserOut, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    cursor: str | None = None,
+    cursor: datetime | None = None,
 ) -> list[MessageOut]:
     try:
         return await list_chat_messages(session, current_user.id, chat_id)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get('/{branch_id}/messages/{post_id}/comments', response_model=list[BranchCommentOut])
+async def list_branch_comments_route(
+    branch_id: UUID,
+    post_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    cursor: datetime | None = None,
+    limit: int = 50,
+) -> list[BranchCommentOut]:
+    try:
+        return await list_branch_comments(session, current_user.id, branch_id, post_id, cursor, min(max(limit, 1), 100))
+    except (AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post('/{branch_id}/messages/{post_id}/comments', response_model=BranchCommentOut)
+async def create_branch_comment_route(
+    branch_id: UUID,
+    post_id: UUID,
+    request: BranchCommentCreateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BranchCommentOut:
+    try:
+        comment, comment_count = await create_branch_comment(session, current_user.id, branch_id, post_id, request.text)
+        post_author_id = await get_branch_post_author_id(session, branch_id, post_id)
+        await create_branch_comment_notification(session, post_author_id, current_user.id, branch_id, post_id, comment.text)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await realtime_manager.broadcast_to_chat(
+        branch_id,
+        {
+            'event': 'branch_comment.created',
+            'chat_id': str(branch_id),
+            'post_id': str(post_id),
+            'comment': comment.model_dump(mode='json'),
+            'comment_count': comment_count,
+        },
+    )
+    return comment
+
+
+@router.patch('/{branch_id}/comments/{comment_id}', response_model=BranchCommentOut)
+async def update_branch_comment_route(
+    branch_id: UUID,
+    comment_id: UUID,
+    request: BranchCommentUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BranchCommentOut:
+    try:
+        comment = await update_branch_comment(session, current_user.id, branch_id, comment_id, request.text)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await realtime_manager.broadcast_to_chat(
+        branch_id,
+        {'event': 'branch_comment.updated', 'chat_id': str(branch_id), 'post_id': str(comment.post_id), 'comment': comment.model_dump(mode='json')},
+    )
+    return comment
+
+
+@router.delete('/{branch_id}/comments/{comment_id}', response_model=BranchCommentOut)
+async def delete_branch_comment_route(
+    branch_id: UUID,
+    comment_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BranchCommentOut:
+    try:
+        comment, comment_count = await delete_branch_comment(session, current_user.id, branch_id, comment_id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await realtime_manager.broadcast_to_chat(
+        branch_id,
+        {
+            'event': 'branch_comment.deleted',
+            'chat_id': str(branch_id),
+            'post_id': str(comment.post_id),
+            'comment': comment.model_dump(mode='json'),
+            'comment_count': comment_count,
+        },
+    )
+    return comment
 
 
 @router.post('/{chat_id}/messages')

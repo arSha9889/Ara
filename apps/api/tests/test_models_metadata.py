@@ -14,6 +14,7 @@ def test_web_core_tables_are_registered() -> None:
         'trusted_device_pins',
         'sessions',
         'login_history',
+        'branch_comments',
         'chats',
         'chat_participants',
         'messages',

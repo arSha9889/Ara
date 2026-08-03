@@ -38,6 +38,13 @@ export function subscribeToBranch(accessToken, chatId) {
   });
 }
 
+export function unsubscribeFromBranch(accessToken, chatId) {
+  return apiRequest(`/api/chats/branches/${chatId}/subscribe`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function createPublicBranch(accessToken, payload) {
   return apiRequest('/api/chats/branches', {
     method: 'POST',
@@ -66,6 +73,33 @@ export function restoreChat(accessToken, chatId) {
 
 export function getMessages(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}/messages`, { headers: authHeaders(accessToken) });
+}
+
+export function getBranchComments(accessToken, branchId, postId) {
+  return apiRequest(`/api/chats/${branchId}/messages/${postId}/comments`, { headers: authHeaders(accessToken) });
+}
+
+export function createBranchComment(accessToken, branchId, postId, text) {
+  return apiRequest(`/api/chats/${branchId}/messages/${postId}/comments`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: { text },
+  });
+}
+
+export function updateBranchComment(accessToken, branchId, commentId, text) {
+  return apiRequest(`/api/chats/${branchId}/comments/${commentId}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: { text },
+  });
+}
+
+export function deleteBranchComment(accessToken, branchId, commentId) {
+  return apiRequest(`/api/chats/${branchId}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
 }
 
 export function sendMessage(accessToken, chatId, payload) {

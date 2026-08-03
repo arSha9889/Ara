@@ -4921,6 +4921,21 @@ button.info-card {
   align-items: center;
 }
 
+.branch-card-actions { display: grid; gap: 6px; justify-items: end; }
+.branch-unsubscribe-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+  padding: 2px 6px;
+}
+.branch-unsubscribe-button:hover { color: var(--danger); }
+.branch-subscriber-count { color: var(--muted); font-size: 0.78rem; font-weight: 750; }
+.branch-header-subscribe { margin-left: auto; }
+
 .branch-avatar {
   background: linear-gradient(135deg, #6f53ff, #20c6d7);
   font-size: 1.15rem;
@@ -4953,6 +4968,67 @@ button.info-card {
 }
 
 .branch-read-only-note .button { margin-top: 10px; }
+
+.branch-comments-trigger {
+  margin-top: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary), transparent 91%);
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  padding: 6px 9px;
+}
+.branch-comments-trigger:hover { background: color-mix(in srgb, var(--primary), transparent 84%); }
+.branch-comments-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(16, 17, 34, 0.36);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.branch-comments-panel {
+  width: min(470px, 100%);
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  gap: 12px;
+  background: var(--surface);
+  box-shadow: -18px 0 48px rgba(20, 20, 43, 0.22);
+  padding: 20px;
+}
+.branch-comments-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.branch-comments-header p, .branch-comments-header h2 { margin: 0; }
+.branch-comments-header h2 { font-size: 1.3rem; }
+.branch-comments-header > button { width: 34px; height: 34px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--primary), transparent 90%); color: var(--text); cursor: pointer; font-size: 1.35rem; }
+.branch-comments-post { max-height: 170px; overflow: auto; border-left: 3px solid var(--secondary); border-radius: 10px; background: color-mix(in srgb, var(--primary), transparent 93%); padding: 10px 12px; }
+.branch-comments-list { min-height: 0; display: grid; align-content: start; gap: 9px; overflow-y: auto; padding-right: 3px; }
+.branch-comments-empty, .branch-comment-subscribe-note { margin: 0; color: var(--muted); line-height: 1.45; }
+.branch-comment { border: 1px solid color-mix(in srgb, var(--primary), transparent 84%); border-radius: 14px; background: var(--surface-elevated); padding: 10px 12px; }
+.branch-comment.deleted { color: var(--muted); font-style: italic; }
+.branch-comment-head { display: flex; justify-content: space-between; gap: 10px; color: var(--primary); font-size: 0.78rem; }
+.branch-comment-head time { color: var(--muted); white-space: nowrap; }
+.branch-comment > p { margin: 7px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.branch-comment-actions { display: flex; gap: 10px; margin-top: 8px; }
+.branch-comment-actions button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 0.76rem; font-weight: 800; padding: 0; }
+.branch-comment-actions button:last-child:hover { color: var(--danger); }
+.branch-comment-edit, .branch-comment-composer { display: grid; gap: 8px; }
+.branch-comment-edit { margin-top: 8px; grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; }
+.branch-comment-edit textarea, .branch-comment-composer textarea { width: 100%; min-height: 62px; resize: vertical; border: 1px solid color-mix(in srgb, var(--primary), transparent 74%); border-radius: 12px; background: var(--surface-elevated); color: var(--text); font: inherit; padding: 9px 10px; }
+.branch-comment-edit button { border: 0; background: transparent; color: var(--primary); cursor: pointer; font: inherit; font-size: 0.78rem; font-weight: 850; padding: 6px; }
+.branch-comment-composer { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.branch-comment-composer textarea { min-height: 44px; }
+
+@media (max-width: 640px) {
+  .branch-comments-panel { width: 100%; padding: 16px; }
+  .branch-card { grid-template-columns: auto minmax(0, 1fr); }
+  .branch-card-actions, .branch-card > .button { grid-column: 2; justify-self: start; }
+}
 
 .admin-panel { min-height: 100%; }
 

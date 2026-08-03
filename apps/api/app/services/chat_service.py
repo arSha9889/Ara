@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.chats import Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification
+from app.models.chats import BranchComment, Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification
 from app.models.users import User, UserProfile
 from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageAuthorOut, MessageCreateRequest, MessageOut, MessageReactionOut, MessageReplyOut
 from app.services.branch_service import can_post_to_branch, ensure_official_branch
@@ -444,7 +444,7 @@ async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | N
         updated_at=chat.updated_at,
         last_message_id=chat.last_message_id,
         pinned_message_id=chat.pinned_message_id,
-        participant_ids=participant_ids,
+        participant_ids=[] if chat.type == 'branch' else participant_ids,
         peer=await _chat_peer_out(session, participant_ids, current_user_id),
         last_message=await _chat_preview_message_out(session, chat.last_message_id),
         pinned_message=await _chat_preview_message_out(session, chat.pinned_message_id),
@@ -455,6 +455,7 @@ async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | N
         avatar_ref=chat.avatar_ref,
         is_official=chat.is_official,
         is_subscribed=bool(current_user_id and await session.get(ChatParticipant, {'chat_id': chat.id, 'user_id': current_user_id})),
+        subscriber_count=await _subscriber_count(session, chat.id) if chat.type == 'branch' else 0,
         can_post=bool(current_user_id and await can_post_to_branch(session, current_user_id, chat.id)) if chat.type == 'branch' else True,
     )
 
@@ -512,6 +513,7 @@ async def _chat_preview_message_out(session: AsyncSession, message_id: UUID | No
 
 
 async def _message_out(session: AsyncSession, message: Message, current_user_id: UUID) -> MessageOut:
+    chat = await session.get(Chat, message.chat_id)
     return MessageOut(
         id=message.id,
         chat_id=message.chat_id,
@@ -528,6 +530,7 @@ async def _message_out(session: AsyncSession, message: Message, current_user_id:
         delivery_status=await _delivery_status(session, message, current_user_id),
         reply_to=await _message_reply_out(session, message.reply_to_message_id),
         reactions=await _reaction_summary(session, message.id, current_user_id),
+        comment_count=await _comment_count(session, message.id) if chat and chat.type == 'branch' else 0,
         created_at=message.created_at,
         edited_at=message.edited_at,
         deleted_at=message.deleted_at,
@@ -599,6 +602,26 @@ async def _reaction_summary(session: AsyncSession, message_id: UUID, current_use
         MessageReactionOut(emoji=emoji, count=int(item['count']), reacted_by_me=bool(item['reacted_by_me']))
         for emoji, item in summary.items()
     ]
+
+
+async def _subscriber_count(session: AsyncSession, chat_id: UUID) -> int:
+    result = await session.execute(
+        select(func.count()).select_from(ChatParticipant).where(
+            ChatParticipant.chat_id == chat_id,
+            ChatParticipant.role == 'member',
+        )
+    )
+    return int(result.scalar_one())
+
+
+async def _comment_count(session: AsyncSession, post_id: UUID) -> int:
+    result = await session.execute(
+        select(func.count()).select_from(BranchComment).where(
+            BranchComment.post_id == post_id,
+            BranchComment.deleted_at.is_(None),
+        )
+    )
+    return int(result.scalar_one())
 
 
 def _is_official_profile(profile: UserProfile) -> bool:

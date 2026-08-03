@@ -8,12 +8,15 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app import models  # noqa: F401
 from app.db.base import Base
 from app.domain.registration_proof import create_registration_proof
+from app.models.chats import Chat, ChatParticipant
 from app.models.users import UserProfile
 from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.chats import MessageCreateRequest, MessageOut
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
-from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction
+from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, list_branch_comments, update_branch_comment
+from app.services.branch_service import subscribe_to_branch, unsubscribe_from_branch
+from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
 
@@ -200,5 +203,67 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             messages_with_deleted_reply_source = await list_messages(session, second_user.id, chat.id)
             assert messages_with_deleted_reply_source[1].reply_to
             assert messages_with_deleted_reply_source[1].reply_to.deleted_at
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_public_branch_subscriptions_and_comments() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        owner, _, _ = await _create_user(session_factory, 'branchowner', '201')
+        subscriber, _, _ = await _create_user(session_factory, 'branchreader', '202')
+        outsider, _, _ = await _create_user(session_factory, 'branchoutsider', '203')
+
+        async with session_factory() as session:
+            branch = Chat(type='branch', title='Новости', slug='news-branch', description='Новости продукта')
+            session.add(branch)
+            await session.flush()
+            session.add(ChatParticipant(chat_id=branch.id, user_id=owner.id, role='owner'))
+            await session.commit()
+
+            branch_for_owner = await get_chat(session, owner.id, branch.id)
+            assert branch_for_owner.subscriber_count == 0
+            assert branch_for_owner.participant_ids == []
+
+            await subscribe_to_branch(session, subscriber.id, branch.id)
+            await subscribe_to_branch(session, subscriber.id, branch.id)
+            branch_for_subscriber = await get_chat(session, subscriber.id, branch.id)
+            assert branch_for_subscriber.is_subscribed
+            assert branch_for_subscriber.subscriber_count == 1
+
+            post = await create_message(session, owner.id, branch.id, MessageCreateRequest(text='Первая публикация'))
+            with pytest.raises(AuthError, match='Subscribe to this branch'):
+                await create_branch_comment(session, outsider.id, branch.id, post.id, 'Хочу ответить')
+
+            session.add(ChatParticipant(chat_id=branch.id, user_id=outsider.id, role='admin'))
+            await session.commit()
+            assert (await get_chat(session, subscriber.id, branch.id)).subscriber_count == 1
+
+            comment, count = await create_branch_comment(session, subscriber.id, branch.id, post.id, 'Отличные новости')
+            assert count == 1
+            assert comment.author_id == subscriber.id
+            assert (await list_messages(session, subscriber.id, branch.id))[0].comment_count == 1
+
+            updated = await update_branch_comment(session, subscriber.id, branch.id, comment.id, 'Очень отличные новости')
+            assert updated.text == 'Очень отличные новости'
+            comments = await list_branch_comments(session, subscriber.id, branch.id, post.id)
+            assert [item.id for item in comments] == [comment.id]
+
+            deleted, count = await delete_branch_comment(session, owner.id, branch.id, comment.id)
+            assert deleted.deleted_at is not None
+            assert count == 0
+            assert (await list_messages(session, subscriber.id, branch.id))[0].comment_count == 0
+
+            await unsubscribe_from_branch(session, subscriber.id, branch.id)
+            unsubscribed_branch = await get_chat(session, subscriber.id, branch.id)
+            assert not unsubscribed_branch.is_subscribed
+            assert unsubscribed_branch.subscriber_count == 0
     finally:
         await engine.dispose()

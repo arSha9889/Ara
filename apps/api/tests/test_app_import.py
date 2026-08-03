@@ -11,3 +11,4 @@ def test_app_imports_with_auth_routes() -> None:
     assert '/api/admin/security/metrics' in paths
     assert '/api/admin/audit-logs' in paths
     assert '/api/admin/branches' in paths
+    assert '/api/chats/{branch_id}/messages/{post_id}/comments' in paths

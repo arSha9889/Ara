@@ -51,6 +51,17 @@ async def subscribe_to_branch(session: AsyncSession, user_id: UUID, chat_id: UUI
     return chat
 
 
+async def unsubscribe_from_branch(session: AsyncSession, user_id: UUID, chat_id: UUID) -> Chat:
+    chat = await session.get(Chat, chat_id)
+    if not chat or chat.type != 'branch' or chat.is_archived:
+        raise AuthError('Public branch not found')
+    participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
+    if participant and participant.role == 'member':
+        await session.delete(participant)
+        await session.commit()
+    return chat
+
+
 async def create_public_branch(session: AsyncSession, user_id: UUID, title: str, slug: str, description: str, avatar_ref: str | None) -> Chat:
     await require_admin(session, user_id)
     if await session.scalar(select(Chat.id).where(Chat.slug == slug)):
@@ -78,7 +89,10 @@ async def list_admin_branches(session: AsyncSession, user_id: UUID) -> list[dict
     items = []
     for branch in branches.scalars():
         subscriber_count = int((await session.execute(
-            select(func.count()).select_from(ChatParticipant).where(ChatParticipant.chat_id == branch.id)
+            select(func.count()).select_from(ChatParticipant).where(
+                ChatParticipant.chat_id == branch.id,
+                ChatParticipant.role == 'member',
+            )
         )).scalar_one())
         owner = await session.execute(
             select(User, UserProfile)

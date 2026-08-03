@@ -147,6 +147,35 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
         await _send_push_to_user(session, notification.recipient_user_id, payload)
 
 
+async def create_branch_comment_notification(
+    session: AsyncSession,
+    recipient_user_id: UUID,
+    sender_user_id: UUID,
+    branch_id: UUID,
+    post_id: UUID,
+    comment_text: str,
+) -> None:
+    if recipient_user_id == sender_user_id:
+        return
+    sender = await session.get(UserProfile, sender_user_id)
+    notification = Notification(
+        recipient_user_id=recipient_user_id,
+        chat_id=branch_id,
+        message_id=post_id,
+        title=sender.display_name if sender else 'AraChat',
+        body=f'Комментарий: {comment_text[:226]}',
+        url=f'/app/chats/{branch_id}',
+    )
+    session.add(notification)
+    await session.commit()
+    payload = _notification_out(notification)
+    await realtime_manager.broadcast_to_user(
+        recipient_user_id,
+        {'event': 'notification.created', 'notification': payload.model_dump(mode='json')},
+    )
+    await _send_push_to_user(session, recipient_user_id, payload)
+
+
 async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> bool:
     notification = NotificationOut(
         id=uuid4(),

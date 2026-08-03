@@ -5,7 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
-import { getPublicBranches, subscribeToBranch } from '../api/chatApi.js';
+import { getPublicBranches, subscribeToBranch, unsubscribeFromBranch } from '../api/chatApi.js';
 
 export function PublicBranchesPage() {
   const { t } = useI18n();
@@ -45,6 +45,19 @@ export function PublicBranchesPage() {
     }
   }
 
+  async function handleUnsubscribe(chatId) {
+    setError('');
+    setSubscribingId(chatId);
+    try {
+      const branch = await unsubscribeFromBranch(session.accessToken, chatId);
+      setBranches((current) => current.map((item) => item.id === chatId ? branch : item));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubscribingId(null);
+    }
+  }
+
   return (
     <section className={`content-grid branches-page ${isOnboarding ? 'is-onboarding' : ''}`}>
       <div className="panel chat-list-panel">
@@ -66,9 +79,13 @@ export function PublicBranchesPage() {
               <div className="chat-thread-copy">
                 <strong>{branch.title} {branch.is_official ? <span className="official-badge" title="Официальная ветвь">✓</span> : null}</strong>
                 <span className="muted">{branch.description}</span>
+                <span className="branch-subscriber-count">{t('chats.subscribers').replace('{count}', Number(branch.subscriber_count || 0).toLocaleString())}</span>
               </div>
               {branch.is_subscribed ? (
-                <Link className="button button-secondary" to={`/app/chats/${branch.id}`}>{t('chats.openBranch')}</Link>
+                <div className="branch-card-actions">
+                  <Link className="button button-secondary" to={`/app/chats/${branch.id}`}>{t('chats.openBranch')}</Link>
+                  {!branch.can_post ? <button className="branch-unsubscribe-button" type="button" disabled={subscribingId === branch.id} onClick={() => handleUnsubscribe(branch.id)}>{t('chats.unsubscribe')}</button> : null}
+                </div>
               ) : (
                 <button className="button button-secondary" type="button" disabled={subscribingId === branch.id} onClick={() => handleSubscribe(branch.id)}>
                   {subscribingId === branch.id ? '…' : t('chats.subscribe')}

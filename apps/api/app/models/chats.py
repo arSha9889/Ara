@@ -79,6 +79,19 @@ class MessageReceipt(Base):
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class BranchComment(Base):
+    __tablename__ = 'branch_comments'
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    branch_id: Mapped[UUID] = mapped_column(ForeignKey('chats.id', ondelete='CASCADE'), index=True)
+    post_id: Mapped[UUID] = mapped_column(ForeignKey('messages.id', ondelete='CASCADE'), index=True)
+    author_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class PushSubscription(Base):
     __tablename__ = 'push_subscriptions'
 

@@ -94,6 +94,7 @@ class ChatOut(BaseModel):
     avatar_ref: str | None = None
     is_official: bool = False
     is_subscribed: bool = True
+    subscriber_count: int = 0
     can_post: bool = False
 
 
@@ -120,10 +121,32 @@ class MessageOut(BaseModel):
     delivery_status: str
     reply_to: MessageReplyOut | None = None
     reactions: list[MessageReactionOut]
+    comment_count: int = 0
     created_at: datetime
     edited_at: datetime | None
     deleted_at: datetime | None
     is_pinned: bool = False
+
+
+class BranchCommentCreateRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class BranchCommentUpdateRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class BranchCommentOut(BaseModel):
+    id: UUID
+    branch_id: UUID
+    post_id: UUID
+    author_id: UUID
+    author: MessageAuthorOut | None = None
+    text: str
+    created_at: datetime
+    edited_at: datetime | None
+    deleted_at: datetime | None
+    can_moderate: bool = False
 
 
 class PushSubscriptionKeys(BaseModel):

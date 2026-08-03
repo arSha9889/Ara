@@ -9,7 +9,7 @@ import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { createDirectChatForUser, deleteMessage, editMessage, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch } from '../api/chatApi.js';
+import { createBranchComment, createDirectChatForUser, deleteBranchComment, deleteMessage, editMessage, getBranchComments, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch, unsubscribeFromBranch, updateBranchComment } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
@@ -364,6 +364,135 @@ function isInteractiveMessageTarget(target) {
   return Boolean(target.closest('button, a, input, label, form, video, audio, .message-actions, .reaction-row'));
 }
 
+function upsertComment(comments, nextComment) {
+  const existingIndex = comments.findIndex((comment) => comment.id === nextComment.id);
+  if (existingIndex === -1) return [...comments, nextComment];
+  return comments.map((comment) => comment.id === nextComment.id ? nextComment : comment);
+}
+
+function formatCommentTime(value, language) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.ru, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
+function BranchCommentsPanel({ branch, post, session, language, t, event, onClose, onCountChange }) {
+  const [comments, setComments] = useState([]);
+  const [text, setText] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let isActive = true;
+    setComments([]);
+    setText('');
+    setEditingCommentId(null);
+    setError('');
+    setIsLoading(true);
+    getBranchComments(session.accessToken, branch.id, post.id)
+      .then((items) => {
+        if (isActive) setComments(items);
+      })
+      .catch((err) => {
+        if (isActive) setError(err.message);
+      })
+      .finally(() => {
+        if (isActive) setIsLoading(false);
+      });
+    return () => { isActive = false; };
+  }, [branch.id, post.id, session.accessToken]);
+
+  useEffect(() => {
+    if (!event || event.post_id !== post.id) return;
+    if (event.event === 'branch_comment.created' || event.event === 'branch_comment.updated' || event.event === 'branch_comment.deleted') {
+      setComments((current) => upsertComment(current, event.comment));
+    }
+    if (typeof event.comment_count === 'number') onCountChange(post.id, event.comment_count);
+  }, [event, onCountChange, post.id]);
+
+  async function submitComment(event) {
+    event.preventDefault();
+    if (!text.trim() || isSaving) return;
+    try {
+      setIsSaving(true);
+      setError('');
+      const comment = await createBranchComment(session.accessToken, branch.id, post.id, text.trim());
+      setComments((current) => upsertComment(current, comment));
+      setText('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function submitEdit(event) {
+    event.preventDefault();
+    if (!editingCommentId || !editingText.trim() || isSaving) return;
+    try {
+      setIsSaving(true);
+      setError('');
+      const comment = await updateBranchComment(session.accessToken, branch.id, editingCommentId, editingText.trim());
+      setComments((current) => upsertComment(current, comment));
+      setEditingCommentId(null);
+      setEditingText('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function removeComment(commentId) {
+    if (isSaving) return;
+    try {
+      setIsSaving(true);
+      setError('');
+      const comment = await deleteBranchComment(session.accessToken, branch.id, commentId);
+      setComments((current) => upsertComment(current, comment));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="branch-comments-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="branch-comments-panel" role="dialog" aria-modal="true" aria-labelledby="branch-comments-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="branch-comments-header">
+          <div><p className="eyebrow">{branch.title}</p><h2 id="branch-comments-title">{t('chats.comments')}</h2></div>
+          <button type="button" onClick={onClose} aria-label={t('common.close')}>×</button>
+        </header>
+        <div className="branch-comments-post">{renderMessageContent(post, t, () => undefined)}</div>
+        <div className="branch-comments-list">
+          {isLoading ? <AraChatLoader compact title={t('chats.comments')} text={t('chats.loadingComments')} /> : null}
+          {!isLoading && !comments.length ? <p className="branch-comments-empty">{t('chats.commentsEmpty')}</p> : null}
+          {comments.map((comment) => (
+            <article className={`branch-comment ${comment.deleted_at ? 'deleted' : ''}`} key={comment.id}>
+              <div className="branch-comment-head"><strong>{comment.author?.display_name || comment.author?.username || 'AraChat'}</strong><time>{formatCommentTime(comment.created_at, language)}</time></div>
+              {editingCommentId === comment.id ? (
+                <form className="branch-comment-edit" onSubmit={submitEdit}><textarea value={editingText} onChange={(event) => setEditingText(event.target.value)} maxLength="2000" autoFocus /><button type="submit" disabled={isSaving}>{t('messages.save')}</button><button type="button" onClick={() => setEditingCommentId(null)}>{t('messages.cancel')}</button></form>
+              ) : <p>{comment.deleted_at ? t('chats.commentDeleted') : comment.text}</p>}
+              {!comment.deleted_at && (comment.author_id === session.user?.id || branch.can_post) ? <div className="branch-comment-actions">
+                {comment.author_id === session.user?.id ? <button type="button" onClick={() => { setEditingCommentId(comment.id); setEditingText(comment.text); }}>{t('messages.edit')}</button> : null}
+                <button type="button" onClick={() => removeComment(comment.id)} disabled={isSaving}>{t('messages.delete')}</button>
+              </div> : null}
+            </article>
+          ))}
+        </div>
+        {branch.is_subscribed || branch.can_post ? (
+          <form className="branch-comment-composer" onSubmit={submitComment}><textarea value={text} onChange={(event) => setText(event.target.value)} maxLength="2000" placeholder={t('chats.commentPlaceholder')} /><button className="button button-primary" type="submit" disabled={!text.trim() || isSaving}>{t('chats.commentSend')}</button></form>
+        ) : <p className="branch-comment-subscribe-note">{t('chats.commentSubscribe')}</p>}
+        {error ? <p className="error-text">{error}</p> : null}
+      </section>
+    </div>
+  );
+}
+
 export function ChatPage() {
   const { language, t } = useI18n();
   const { chatId } = useParams();
@@ -407,6 +536,8 @@ export function ChatPage() {
   const [profileCardError, setProfileCardError] = useState('');
   const [showScrollToLatest, setShowScrollToLatest] = useState(false);
   const [isSubscribingToBranch, setIsSubscribingToBranch] = useState(false);
+  const [commentPost, setCommentPost] = useState(null);
+  const [branchCommentEvent, setBranchCommentEvent] = useState(null);
   const mediaRecorderRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -485,6 +616,23 @@ export function ChatPage() {
     } finally {
       setIsSubscribingToBranch(false);
     }
+  }
+
+  async function handleUnsubscribeFromBranch() {
+    if (!chat || isSubscribingToBranch) return;
+    setError('');
+    setIsSubscribingToBranch(true);
+    try {
+      setChat(await unsubscribeFromBranch(session.accessToken, chat.id));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubscribingToBranch(false);
+    }
+  }
+
+  function updatePostCommentCount(postId, commentCount) {
+    setMessages((current) => current.map((message) => message.id === postId ? { ...message, comment_count: commentCount } : message));
   }
 
   useEffect(() => {
@@ -613,6 +761,10 @@ export function ChatPage() {
             }
             return payload.message;
           }));
+        }
+        if (payload.event?.startsWith('branch_comment.') && payload.chat_id === chatId) {
+          setBranchCommentEvent(payload);
+          if (typeof payload.comment_count === 'number') updatePostCommentCount(payload.post_id, payload.comment_count);
         }
         if (payload.event === 'typing.started' && payload.chat_id === chatId && payload.user_id !== session.user?.id) {
           setActivityText(t('messages.typing'));
@@ -1349,7 +1501,7 @@ export function ChatPage() {
         <div>
           {!isSavedChat && !isPublicBranch ? <button className="chat-profile-title" type="button" onClick={openPeerProfile}><h1>{chatDisplayTitle}</h1></button> : <h1>{chatDisplayTitle}</h1>}
           <div className="chat-subtitle">
-            <span>{chatDisplaySubtitle}</span>
+            <span>{isPublicBranch ? t('chats.subscribers').replace('{count}', Number(chat?.subscriber_count || 0).toLocaleString()) : chatDisplaySubtitle}</span>
           {!isSavedChat && !isPublicBranch ? (
               <PresenceStatus
                 status={isSavedChat ? false : chat?.peer?.is_online ?? 'connecting'}
@@ -1370,6 +1522,11 @@ export function ChatPage() {
           >
             <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
             <strong>{t('calls.call')}</strong>
+          </button>
+        ) : null}
+        {isPublicBranch && !chat?.can_post ? (
+          <button className="button button-secondary branch-header-subscribe" type="button" onClick={chat?.is_subscribed ? handleUnsubscribeFromBranch : handleSubscribeToBranch} disabled={isSubscribingToBranch}>
+            {isSubscribingToBranch ? '…' : chat?.is_subscribed ? t('chats.unsubscribe') : t('chats.subscribe')}
           </button>
         ) : null}
         {!isSavedChat && !isPublicBranch ? (
@@ -1520,6 +1677,11 @@ export function ChatPage() {
                   </button>
                 ) : null}
                 <div>{renderMessageContent(message, t, openMediaViewer)}</div>
+                {isPublicBranch && !message.deleted_at ? (
+                  <button className="branch-comments-trigger" type="button" onClick={() => setCommentPost(message)}>
+                    {t('chats.comments')} · {message.comment_count || 0}
+                  </button>
+                ) : null}
               </>
             )}
             <div className="message-meta">
@@ -1746,6 +1908,7 @@ export function ChatPage() {
         isWriting={isOpeningProfileChat}
         presence={!isPublicBranch ? peerStatus : null}
       />
+      {commentPost && chat ? <BranchCommentsPanel branch={chat} post={commentPost} session={session} language={language} t={t} event={branchCommentEvent} onClose={() => setCommentPost(null)} onCountChange={updatePostCommentCount} /> : null}
       {profileCardError ? <p className="error-text">{profileCardError}</p> : null}
       </section>
     </section>
