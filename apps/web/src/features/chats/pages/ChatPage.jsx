@@ -438,7 +438,6 @@ export function ChatPage() {
   const isSavedChat = chat?.type === 'saved';
   const isPublicBranch = chat?.type === 'branch';
   const isDirectChat = chat?.type === 'direct';
-  const isAndroid = navigator.userAgentData?.platform === 'Android' || /Android/i.test(navigator.userAgent);
   const canPost = !isPublicBranch || chat?.can_post;
   const currentDraftStorageKey = draftStorageKey(session.user?.id, chatId);
   const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(message.type) && message.media_url);
@@ -500,13 +499,13 @@ export function ChatPage() {
   }, [chatId, isChatIdValid, session.accessToken]);
 
   useLayoutEffect(() => {
-    if (!isAndroid || !isDirectChat) return undefined;
+    if (!isDirectChat) return undefined;
 
-    document.documentElement.dataset.androidDirectChat = 'true';
+    document.documentElement.dataset.directChat = 'true';
     return () => {
-      delete document.documentElement.dataset.androidDirectChat;
+      delete document.documentElement.dataset.directChat;
     };
-  }, [isAndroid, isDirectChat]);
+  }, [isDirectChat]);
 
   useLayoutEffect(() => {
     const viewport = window.visualViewport;

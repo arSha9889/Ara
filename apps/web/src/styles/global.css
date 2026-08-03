@@ -8356,7 +8356,6 @@ code {
 :root[data-layout-mode='mobile'] .mobile-bottom-nav-branches { display: none; }
 :root[data-layout-mode='mobile'] .mobile-bottom-nav-settings { display: grid; }
 :root[data-layout-mode='mobile'] .app-shell.is-chat-route .mobile-bottom-nav { display: grid; }
-:root[data-android-direct-chat='true'] .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
 :root[data-layout-mode='mobile'] .chat-workspace {
   height: calc(var(--chat-viewport-height) - 24px);
   min-height: calc(var(--chat-viewport-height) - 24px);
@@ -8380,13 +8379,11 @@ code {
 :root[data-layout-mode='mobile'] .chat-subtitle > span:first-child { display: none; }
 :root[data-layout-mode='mobile'] .presence-status { width: fit-content; max-width: 100%; display: inline-flex; margin-top: 2px; }
 
-/* Android browsers can classify wide phones as tablets. A global dock then
-   overlays the message composer, so conversations always keep that space free. */
-.app-shell.is-android-chat-route .mobile-bottom-nav { display: none; }
-:root[data-layout-mode='mobile'] .app-shell.is-android-chat-route .mobile-bottom-nav,
-:root[data-layout-mode='tablet'] .app-shell.is-android-chat-route .mobile-bottom-nav { display: none; }
-:root[data-layout-mode='tablet'] .app-shell.is-android-chat-route .app-main { padding-bottom: var(--tablet-content-padding); }
-:root[data-layout-mode='tablet'] .app-shell.is-android-chat-route .chat-workspace {
+/* A direct conversation owns the entire compact workspace: global navigation
+   must not cover the composer in either mobile or tablet layout. */
+:root[data-direct-chat='true'] .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
+:root[data-layout-mode='tablet'][data-direct-chat='true'] .app-shell.is-chat-route .app-main { padding-bottom: var(--tablet-content-padding); }
+:root[data-layout-mode='tablet'][data-direct-chat='true'] .chat-workspace {
   height: calc(var(--chat-viewport-height) - 2 * var(--tablet-content-padding));
   min-height: calc(var(--chat-viewport-height) - 2 * var(--tablet-content-padding));
 }
