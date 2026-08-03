@@ -8380,6 +8380,17 @@ code {
 :root[data-layout-mode='mobile'] .chat-subtitle > span:first-child { display: none; }
 :root[data-layout-mode='mobile'] .presence-status { width: fit-content; max-width: 100%; display: inline-flex; margin-top: 2px; }
 
+/* Android browsers can classify wide phones as tablets. A global dock then
+   overlays the message composer, so conversations always keep that space free. */
+.app-shell.is-android-chat-route .mobile-bottom-nav { display: none; }
+:root[data-layout-mode='mobile'] .app-shell.is-android-chat-route .mobile-bottom-nav,
+:root[data-layout-mode='tablet'] .app-shell.is-android-chat-route .mobile-bottom-nav { display: none; }
+:root[data-layout-mode='tablet'] .app-shell.is-android-chat-route .app-main { padding-bottom: var(--tablet-content-padding); }
+:root[data-layout-mode='tablet'] .app-shell.is-android-chat-route .chat-workspace {
+  height: calc(var(--chat-viewport-height) - 2 * var(--tablet-content-padding));
+  min-height: calc(var(--chat-viewport-height) - 2 * var(--tablet-content-padding));
+}
+
 @media (max-width: 640px) {
   .layout-mode-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .layout-mode-option { min-height: 76px; }
