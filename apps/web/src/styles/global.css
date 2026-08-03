@@ -5973,25 +5973,104 @@ button.info-card {
 .switch-row input[type='checkbox']:checked::after,
 .inline-field input[type='checkbox']:checked::after { transform: translateX(20px); }
 
-.notification-settings-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.notification-settings-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
   align-items: center;
-  justify-content: space-between;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 82%);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--secondary), transparent 84%), transparent 13rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-elevated), transparent 3%), color-mix(in srgb, var(--surface), transparent 8%));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46), 0 12px 28px color-mix(in srgb, var(--primary), transparent 92%);
+  padding: 18px;
 }
 
-.settings-status-pill {
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--muted), transparent 86%);
-  color: var(--muted);
-  padding: 7px 10px;
-  font-size: 0.78rem;
+.notification-settings-card.granted {
+  border-color: color-mix(in srgb, var(--success), transparent 68%);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--success), transparent 80%), transparent 13rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--success), transparent 94%), color-mix(in srgb, var(--surface-elevated), transparent 2%));
+}
+
+.notification-settings-card.denied,
+.notification-settings-card.unsupported {
+  border-color: color-mix(in srgb, var(--danger), transparent 76%);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--danger), transparent 86%), transparent 13rem),
+    color-mix(in srgb, var(--surface-elevated), transparent 3%);
+}
+
+.notification-settings-glow {
+  position: absolute;
+  z-index: -1;
+  top: -92px;
+  right: -68px;
+  width: 208px;
+  height: 208px;
+  border: 30px solid color-mix(in srgb, var(--primary), transparent 90%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.notification-settings-card.granted .notification-settings-glow { border-color: color-mix(in srgb, var(--success), transparent 88%); }
+.notification-settings-card.denied .notification-settings-glow,
+.notification-settings-card.unsupported .notification-settings-glow { border-color: color-mix(in srgb, var(--danger), transparent 91%); }
+
+.notification-settings-content { min-width: 0; display: flex; align-items: flex-start; gap: 13px; }
+
+.notification-settings-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary), transparent 68%);
+}
+
+.notification-settings-card.granted .notification-settings-icon {
+  background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success), var(--secondary) 34%));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--success), transparent 70%);
+}
+
+.notification-settings-card.denied .notification-settings-icon,
+.notification-settings-card.unsupported .notification-settings-icon {
+  background: color-mix(in srgb, var(--danger), var(--surface) 12%);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--danger), transparent 78%);
+}
+
+.notification-settings-copy { min-width: 0; }
+.notification-settings-copy h3,
+.notification-settings-copy p { margin: 0; }
+.notification-settings-copy h3 { margin-top: 5px; font-size: 1rem; line-height: 1.34; }
+.notification-settings-copy p { max-width: 540px; margin-top: 5px; color: var(--muted); font-size: 0.83rem; font-weight: 650; line-height: 1.45; }
+
+.notification-settings-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-size: 0.72rem;
   font-weight: 900;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
-.settings-status-pill.granted { background: color-mix(in srgb, var(--success), transparent 84%); color: var(--success); }
-.settings-status-pill.denied { background: color-mix(in srgb, var(--danger), transparent 86%); color: var(--danger); }
+.notification-settings-status-dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor, transparent 88%); }
+.notification-settings-card.granted .notification-settings-status { color: var(--success); }
+.notification-settings-card.denied .notification-settings-status,
+.notification-settings-card.unsupported .notification-settings-status { color: var(--danger); }
+
+.notification-settings-action { position: relative; z-index: 1; flex: 0 0 auto; }
+.notification-settings-action .button { white-space: nowrap; }
 
 .halo-outline { box-shadow: 0 0 0 8px var(--ring); }
 
@@ -6142,8 +6221,8 @@ code {
     min-width: 0;
   }
 
-  .chat-header-actions { grid-column: 4; }
-  .chat-call-button { grid-column: 5; width: 40px; min-height: 40px; padding: 0; }
+  .chat-call-button { grid-column: 4; width: 40px; min-height: 40px; padding: 0; }
+  .chat-header-actions { grid-column: 5; }
   .chat-call-button strong { display: none; }
   .chat-undo-toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
 
@@ -6451,6 +6530,9 @@ code {
   .settings-page-header { margin-bottom: 14px; }
   .settings-section-heading { margin-bottom: 14px; }
   .settings-subsection { margin-top: 16px; padding-top: 16px; }
+  .notification-settings-card { grid-template-columns: 1fr; gap: 14px; padding: 16px; }
+  .notification-settings-action { width: 100%; }
+  .notification-settings-action .button { width: 100%; }
 
   .profile-hero { grid-template-columns: 1fr; gap: 14px; padding: 16px; }
   .profile-id-card { width: 100%; min-width: 0; }
@@ -8274,6 +8356,7 @@ code {
 :root[data-layout-mode='mobile'] .mobile-bottom-nav-branches { display: none; }
 :root[data-layout-mode='mobile'] .mobile-bottom-nav-settings { display: grid; }
 :root[data-layout-mode='mobile'] .app-shell.is-chat-route .mobile-bottom-nav { display: grid; }
+:root[data-android-direct-chat='true'] .app-shell.is-chat-route .mobile-bottom-nav { display: none; }
 :root[data-layout-mode='mobile'] .chat-workspace {
   height: calc(var(--chat-viewport-height) - 24px);
   min-height: calc(var(--chat-viewport-height) - 24px);
@@ -8291,8 +8374,8 @@ code {
   gap: 10px;
 }
 :root[data-layout-mode='mobile'] .chat-header > div:not(.chat-avatar-wrap) { grid-column: 3; min-width: 0; }
-:root[data-layout-mode='mobile'] .chat-header-actions { grid-column: 4; }
-:root[data-layout-mode='mobile'] .chat-call-button { grid-column: 5; width: 40px; min-height: 40px; padding: 0; }
+:root[data-layout-mode='mobile'] .chat-call-button { grid-column: 4; width: 40px; min-height: 40px; padding: 0; }
+:root[data-layout-mode='mobile'] .chat-header-actions { grid-column: 5; }
 :root[data-layout-mode='mobile'] .chat-call-button strong { display: none; }
 :root[data-layout-mode='mobile'] .chat-subtitle > span:first-child { display: none; }
 :root[data-layout-mode='mobile'] .presence-status { width: fit-content; max-width: 100%; display: inline-flex; margin-top: 2px; }

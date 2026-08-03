@@ -35,6 +35,61 @@ function AppearanceSaveStatus({ status, onRetry }) {
   );
 }
 
+function NotificationSettingsCard({ enabled, isSupported, permission, onEnable, onDisable }) {
+  const { t } = useI18n();
+  const isActive = enabled && permission === 'granted';
+  const status = isActive
+    ? 'granted'
+    : permission === 'denied' || permission === 'unsupported' || !isSupported
+      ? permission === 'denied' ? 'denied' : 'unsupported'
+      : 'default';
+  const title = isActive
+    ? t('settings.notificationsEnabled')
+    : status === 'denied'
+      ? t('settings.notificationsDenied')
+      : status === 'unsupported'
+        ? t('settings.notificationsUnsupported')
+        : t('settings.notificationsNotEnabled');
+  const description = isActive
+    ? t('settings.notificationsText')
+    : status === 'denied'
+      ? t('settings.notificationsDenied')
+      : status === 'unsupported'
+        ? t('settings.notificationsUnsupported')
+        : t('settings.notificationsText');
+
+  return (
+    <article className={`notification-settings-card ${status}`} aria-live="polite">
+      <div className="notification-settings-glow" aria-hidden="true" />
+      <div className="notification-settings-content">
+        <span className="notification-settings-icon" aria-hidden="true">
+          <Icon name={isActive ? 'check' : status === 'denied' || status === 'unsupported' ? 'x' : 'bell'} size={22} strokeWidth={2.2} />
+        </span>
+        <div className="notification-settings-copy">
+          <span className="notification-settings-status">
+            <span className="notification-settings-status-dot" aria-hidden="true" />
+            {t(`settings.notificationStatus.${status}`)}
+          </span>
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+      </div>
+      <div className="notification-settings-action">
+        {isActive ? (
+          <button className="button button-secondary" type="button" onClick={onDisable}>
+            {t('settings.disableNotifications')}
+          </button>
+        ) : status === 'default' ? (
+          <button className="button button-primary" type="button" onClick={onEnable}>
+            <Icon name="bell" size={17} />
+            {t('settings.enableNotifications')}
+          </button>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 export function SettingsPage() {
   const { language, setLanguage, t } = useI18n();
   const { session, saveSession, clearSession } = useSession();
@@ -324,20 +379,13 @@ export function SettingsPage() {
                   <p className="muted">{t('settings.notificationsText')}</p>
                 </div>
               </div>
-              <div className="notification-settings-row">
-                <span className={`settings-status-pill ${notificationsEnabled && notificationPermission === 'granted' ? 'granted' : notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`}>
-                  {notificationsEnabled && notificationPermission === 'granted'
-                    ? t('settings.notificationStatus.granted')
-                    : t(`settings.notificationStatus.${notificationPermission === 'denied' || notificationPermission === 'unsupported' ? notificationPermission : 'default'}`)}
-                </span>
-                {notificationsEnabled ? (
-                  <button className="button button-secondary" type="button" onClick={handleDisableNotifications}>{t('settings.disableNotifications')}</button>
-                ) : (
-                  <button className="button button-primary" type="button" onClick={handleEnableNotifications} disabled={notificationPermission === 'denied'}>
-                    {t('settings.enableNotifications')}
-                  </button>
-                )}
-              </div>
+              <NotificationSettingsCard
+                enabled={notificationsEnabled}
+                isSupported={isSupported}
+                permission={notificationPermission}
+                onEnable={handleEnableNotifications}
+                onDisable={handleDisableNotifications}
+              />
             </section>
           ) : null}
           {activeTab === 'security' ? (

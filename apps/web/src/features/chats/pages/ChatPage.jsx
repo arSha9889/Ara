@@ -437,6 +437,8 @@ export function ChatPage() {
   const isChatIdValid = isValidChatId(chatId);
   const isSavedChat = chat?.type === 'saved';
   const isPublicBranch = chat?.type === 'branch';
+  const isDirectChat = chat?.type === 'direct';
+  const isAndroid = navigator.userAgentData?.platform === 'Android' || /Android/i.test(navigator.userAgent);
   const canPost = !isPublicBranch || chat?.can_post;
   const currentDraftStorageKey = draftStorageKey(session.user?.id, chatId);
   const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(message.type) && message.media_url);
@@ -496,6 +498,15 @@ export function ChatPage() {
     loadMessages().catch((err) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isChatIdValid, session.accessToken]);
+
+  useLayoutEffect(() => {
+    if (!isAndroid || !isDirectChat) return undefined;
+
+    document.documentElement.dataset.androidDirectChat = 'true';
+    return () => {
+      delete document.documentElement.dataset.androidDirectChat;
+    };
+  }, [isAndroid, isDirectChat]);
 
   useLayoutEffect(() => {
     const viewport = window.visualViewport;
@@ -1350,6 +1361,18 @@ export function ChatPage() {
           </div>
         </div>
         {!isSavedChat && !isPublicBranch ? (
+          <button
+            className="chat-call-button"
+            type="button"
+            onClick={() => setIsCallUnavailableDialogOpen(true)}
+            aria-label={t('calls.start')}
+            title={t('calls.temporarilyUnavailable')}
+          >
+            <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
+            <strong>{t('calls.call')}</strong>
+          </button>
+        ) : null}
+        {!isSavedChat && !isPublicBranch ? (
           <div className={`chat-header-actions ${isChatActionsOpen ? 'is-open' : ''}`}>
             <button
               className="chat-more-button"
@@ -1380,18 +1403,6 @@ export function ChatPage() {
               </>
             ) : null}
           </div>
-        ) : null}
-        {!isSavedChat && !isPublicBranch ? (
-          <button
-            className="chat-call-button"
-            type="button"
-            onClick={() => setIsCallUnavailableDialogOpen(true)}
-            aria-label={t('calls.start')}
-            title={t('calls.temporarilyUnavailable')}
-          >
-            <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
-            <strong>{t('calls.call')}</strong>
-          </button>
         ) : null}
       </header>
       {isCallUnavailableDialogOpen ? (
