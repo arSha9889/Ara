@@ -31,17 +31,21 @@ def test_access_token_roundtrip() -> None:
 def test_legal_documents_current_only_for_the_latest_accepted_versions() -> None:
     from app.core.legal import PRIVACY_POLICY_VERSION, TERMS_VERSION
     from app.models.users import User
-    from app.services.auth_service import legal_documents_are_current
+    from app.services.auth_service import legal_documents_are_current, to_user_out
 
     user = User(
+        id=uuid4(),
         nexus_id='1234567890123456',
         telegram_id='legal-user',
+        status='active',
+        vpn_enabled=True,
         terms_version=TERMS_VERSION,
         privacy_policy_version=PRIVACY_POLICY_VERSION,
         terms_accepted_at=datetime.now(timezone.utc),
         privacy_policy_accepted_at=datetime.now(timezone.utc),
     )
     assert legal_documents_are_current(user)
+    assert to_user_out(user).vpn_enabled is True
 
     user.terms_version = '2026-07-21'
     assert not legal_documents_are_current(user)

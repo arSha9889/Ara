@@ -19,6 +19,7 @@ from app.schemas.admin import (
     AdminUserListOut,
     AdminUserOut,
     AdminUserStatusRequest,
+    AdminUserVpnUpdateRequest,
 )
 from app.schemas.chats import MessageCreateRequest, MessageOut, MessageUpdateRequest
 from app.schemas.users import UserOut
@@ -31,6 +32,7 @@ from app.services.admin_service import (
     list_admin_audit_logs,
     list_admin_users,
     require_admin,
+    set_user_vpn_enabled,
 )
 from app.services.auth_service import AuthError
 from app.services.branch_service import list_admin_branches, set_admin_branch_archived, set_admin_branch_member, update_admin_branch
@@ -193,6 +195,24 @@ async def archive_branch(
     except AdminError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return {'status': 'ok'}
+
+
+@router.patch('/users/{user_id}/vpn')
+async def update_user_vpn_status(
+    user_id: UUID,
+    request: AdminUserVpnUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, bool]:
+    try:
+        await require_admin(session, current_user.id)
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    try:
+        vpn_enabled = await set_user_vpn_enabled(session, current_user.id, user_id, request.vpn_enabled)
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {'vpn_enabled': vpn_enabled}
 
 
 @router.post('/branches/{chat_id}/restore')

@@ -11,7 +11,7 @@ from app.models.chats import PushSubscription
 from app.models.security import TrustedDevicePin
 from app.models.sessions import Session
 from app.models.users import User, UserProfile
-from app.services.admin_service import change_user_status, get_admin_user, list_admin_users
+from app.services.admin_service import change_user_status, get_admin_user, list_admin_users, set_user_vpn_enabled
 
 
 @pytest.mark.anyio
@@ -74,6 +74,11 @@ async def test_list_admin_users_searches_filters_and_includes_deleted(anyio_back
 
             details = await get_admin_user(session, admin.id, found_by_email['users'][0]['id'])
             assert details['email'] == 'alice@example.com'
+            assert details['vpn_enabled'] is False
+
+            vpn_enabled = await set_user_vpn_enabled(session, admin.id, found_by_email['users'][0]['id'], True)
+            assert vpn_enabled is True
+            assert (await get_admin_user(session, admin.id, found_by_email['users'][0]['id']))['vpn_enabled'] is True
 
             deleted = await list_admin_users(session, admin.id, user_status='deleted')
             assert deleted['total'] == 1

@@ -483,6 +483,7 @@ def to_user_out(user: User) -> UserOut:
         status=user.status,
         is_official=_is_configured_admin(profile),
         legal_documents_current=legal_documents_are_current(user),
+        vpn_enabled=bool(user.vpn_enabled),
         profile=UserProfileOut(
             display_name=profile.display_name,
             username=profile.username,

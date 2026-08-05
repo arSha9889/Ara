@@ -6,7 +6,6 @@ import { LoginPage } from '../features/auth/pages/LoginPage.jsx';
 import { RegisterPage } from '../features/auth/pages/RegisterPage.jsx';
 import { LandingPage } from '../features/onboarding/pages/LandingPage.jsx';
 import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx';
-import { RegionSelectionPage } from '../features/onboarding/pages/RegionSelectionPage.jsx';
 import { ChatPage } from '../features/chats/pages/ChatPage.jsx';
 import { ChatsPage } from '../features/chats/pages/ChatsPage.jsx';
 import { NewChatPage } from '../features/chats/pages/NewChatPage.jsx';
@@ -21,12 +20,6 @@ import { AraChatLoader } from '../shared/ui/AraChatLoader.jsx';
 import { AppFeedbackViewport } from '../shared/ui/AppFeedbackViewport.jsx';
 import { useSession } from './providers/SessionProvider.jsx';
 
-
-function RegistrationRoute() {
-  return localStorage.getItem('nexus_registration_country')
-    ? <RegisterPage />
-    : <Navigate to="/region" replace />;
-}
 
 function AdminRoute() {
   const { session } = useSession();
@@ -60,9 +53,9 @@ export function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/region" element={<RegionSelectionPage />} />
+        <Route path="/region" element={<Navigate to="/register" replace />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegistrationRoute />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route element={<ProtectedRoute />}>

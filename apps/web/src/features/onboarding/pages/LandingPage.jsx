@@ -10,7 +10,7 @@ export function LandingPage() {
   const { t } = useI18n();
   const { session } = useSession();
   const isAuthenticated = Boolean(session?.accessToken);
-  const ctaPath = isAuthenticated ? '/app' : '/region';
+  const ctaPath = isAuthenticated ? '/app' : '/register';
   const ctaLabel = isAuthenticated ? t('onboarding.enterMessenger') : t('onboarding.openMessenger');
   const featureCards = [
     { icon: 'chat', title: t('onboarding.directChatsTitle'), text: t('onboarding.directChatsText') },

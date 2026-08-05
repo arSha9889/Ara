@@ -25,6 +25,7 @@ class AdminUserListItemOut(BaseModel):
 class AdminUserOut(AdminUserListItemOut):
     phone: str | None
     email: str | None
+    vpn_enabled: bool
 
 
 class AdminOverviewOut(BaseModel):
@@ -40,6 +41,10 @@ class AdminUserListOut(BaseModel):
 
 class AdminUserStatusRequest(BaseModel):
     status: str = Field(pattern=r'^(active|blocked|deleted)$')
+
+
+class AdminUserVpnUpdateRequest(BaseModel):
+    vpn_enabled: bool
 
 
 class AdminSecurityMetricsOut(BaseModel):

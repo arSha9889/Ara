@@ -22,6 +22,7 @@ class User(Base):
     terms_version: Mapped[str | None] = mapped_column(String(32))
     privacy_policy_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     privacy_policy_version: Mapped[str | None] = mapped_column(String(32))
+    vpn_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
     profile: Mapped['UserProfile'] = relationship(back_populates='user', cascade='all, delete-orphan')
 

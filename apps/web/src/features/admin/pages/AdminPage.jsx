@@ -23,6 +23,7 @@ import {
   toggleAdminSystemBotMessagePin,
   updateAdminBranch,
   updateAdminUserStatus,
+  updateAdminUserVpnStatus,
 } from '../api/adminApi.js';
 
 const TABS = ['overview', 'systemBot', 'users', 'branches', 'audit'];
@@ -237,6 +238,19 @@ export function AdminPage() {
       closeUserDetails();
       setPendingAction(null);
       await Promise.all([loadUsers(), loadOverview()]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  }
+
+  async function toggleUserVpnStatus() {
+    if (!selectedUser) return;
+    setIsUpdatingUser(true);
+    try {
+      const result = await updateAdminUserVpnStatus(session.accessToken, selectedUser.id, !selectedUser.vpn_enabled);
+      setSelectedUser((current) => (current ? { ...current, vpn_enabled: result.vpn_enabled } : current));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -510,7 +524,7 @@ export function AdminPage() {
         </div>
       </section>
 
-      {selectedUser ? <div className="admin-drawer-layer" role="presentation" onMouseDown={closeUserDetails}><aside className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-user-title" onMouseDown={(event) => event.stopPropagation()}><header><button className="admin-drawer-close" type="button" onClick={closeUserDetails} aria-label={t('common.close')}><AdminIcon name="close" /></button><p className="eyebrow">{t('admin.userDetails')}</p>{isLoadingUserDetails ? <AraChatLoader compact title={t('admin.userDetails')} text={t('admin.loadingUserDetails')} /> : <><div className="admin-drawer-person"><span>{selectedUser.display_name?.[0] || selectedUser.username?.[0] || 'A'}</span><div><h2 id="admin-user-title">{selectedUser.display_name}</h2><p>@{selectedUser.username}</p></div></div><p className="admin-drawer-id">{selectedUser.nexus_id}</p><dl className="admin-drawer-data"><div><dt>{t('admin.status')}</dt><dd><b className={`admin-status ${selectedUser.status}`}>{statusLabel(selectedUser.status, t)}</b></dd></div><div><dt>{t('admin.country')}</dt><dd>{countryLabel(selectedUser.country)}</dd></div><div><dt>{t('admin.registeredAt')}</dt><dd>{formatDate(selectedUser.created_at)}</dd></div><div><dt>{t('admin.contactDetails')}</dt><dd>{selectedUser.phone || selectedUser.email || '—'}</dd></div></dl>{!selectedUser.is_official && selectedUser.status !== 'deleted' ? <div className="admin-drawer-actions"><Button variant="secondary" type="button" onClick={() => openUserAction(selectedUser, selectedUser.status === 'blocked' ? 'active' : 'blocked')}>{selectedUser.status === 'blocked' ? t('admin.unblock') : t('admin.block')}</Button><Button variant="danger" type="button" onClick={() => openUserAction(selectedUser, 'deleted')}>{t('admin.delete')}</Button></div> : null}</>}</header></aside></div> : null}
+      {selectedUser ? <div className="admin-drawer-layer" role="presentation" onMouseDown={closeUserDetails}><aside className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-user-title" onMouseDown={(event) => event.stopPropagation()}><header><button className="admin-drawer-close" type="button" onClick={closeUserDetails} aria-label={t('common.close')}><AdminIcon name="close" /></button><p className="eyebrow">{t('admin.userDetails')}</p>{isLoadingUserDetails ? <AraChatLoader compact title={t('admin.userDetails')} text={t('admin.loadingUserDetails')} /> : <><div className="admin-drawer-person"><span>{selectedUser.display_name?.[0] || selectedUser.username?.[0] || 'A'}</span><div><h2 id="admin-user-title">{selectedUser.display_name}</h2><p>@{selectedUser.username}</p></div></div><p className="admin-drawer-id">{selectedUser.nexus_id}</p><dl className="admin-drawer-data"><div><dt>{t('admin.status')}</dt><dd><b className={`admin-status ${selectedUser.status}`}>{statusLabel(selectedUser.status, t)}</b></dd></div><div><dt>{t('admin.country')}</dt><dd>{countryLabel(selectedUser.country)}</dd></div><div><dt>{t('admin.registeredAt')}</dt><dd>{formatDate(selectedUser.created_at)}</dd></div><div><dt>{t('admin.contactDetails')}</dt><dd>{selectedUser.phone || selectedUser.email || '—'}</dd></div><div><dt>{t('admin.vpnStatus')}</dt><dd>{selectedUser.vpn_enabled ? t('admin.vpnEnabled') : t('admin.vpnDisabled')}</dd></div></dl>{selectedUser.status !== 'deleted' ? <div className="admin-drawer-actions"><Button variant="secondary" type="button" disabled={isUpdatingUser} onClick={() => void toggleUserVpnStatus()}>{selectedUser.vpn_enabled ? t('admin.clearVpnWarning') : t('admin.enableVpnWarning')}</Button>{!selectedUser.is_official ? <><Button variant="secondary" type="button" onClick={() => openUserAction(selectedUser, selectedUser.status === 'blocked' ? 'active' : 'blocked')}>{selectedUser.status === 'blocked' ? t('admin.unblock') : t('admin.block')}</Button><Button variant="danger" type="button" onClick={() => openUserAction(selectedUser, 'deleted')}>{t('admin.delete')}</Button></> : null}</div> : null}</>}</header></aside></div> : null}
 
       {pendingAction ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setPendingAction(null)}><section className="app-dialog admin-confirm-dialog" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}><p className="eyebrow">{pendingAction.status === 'deleted' ? t('admin.irreversibleAction') : t('admin.confirmAction')}</p><h2>{pendingAction.status === 'deleted' ? t('admin.deleteUserTitle') : pendingAction.status === 'blocked' ? t('admin.blockUserTitle') : t('admin.unblockUserTitle')}</h2><p>{t('admin.actionTarget').replace('{name}', pendingAction.user.display_name)}</p>{pendingAction.status === 'deleted' ? <label className="field"><span>{t('admin.deleteConfirmation').replace('{word}', t('admin.deleteConfirmWord'))}</span><input className="text-input" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoFocus /></label> : null}<div className="admin-dialog-actions"><Button variant="secondary" type="button" onClick={() => setPendingAction(null)}>{t('messages.cancel')}</Button><Button variant={pendingAction.status === 'deleted' ? 'danger' : 'primary'} type="button" disabled={isUpdatingUser || (pendingAction.status === 'deleted' && deleteConfirmation !== t('admin.deleteConfirmWord'))} onClick={confirmUserAction}>{isUpdatingUser ? '…' : pendingAction.status === 'deleted' ? t('admin.delete') : pendingAction.status === 'blocked' ? t('admin.block') : t('admin.unblock')}</Button></div></section></div> : null}
 

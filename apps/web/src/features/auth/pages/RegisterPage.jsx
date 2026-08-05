@@ -9,6 +9,7 @@ import { PHONE_COUNTRIES } from '../../../shared/phone/countries.js';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
+import { RegionSelector } from '../../../shared/ui/RegionSelector.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { uploadAvatar } from '../../chats/api/uploadApi.js';
 import { checkUsername, updateMyProfile } from '../../profile/api/userApi.js';
@@ -25,12 +26,13 @@ import {
 const AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024;
 
 export function RegisterPage() {
-  const { t, language } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
   const { saveSession } = useSession();
   const isDevMode = import.meta.env.DEV;
-  const selectedCountry = location.state?.country ?? localStorage.getItem('nexus_registration_country') ?? 'RU';
+  const initialCountry = location.state?.country ?? localStorage.getItem('nexus_registration_country') ?? 'RU';
+  const [selectedCountry, setSelectedCountry] = useState(initialCountry);
   const [form, setForm] = useState({
     registration_proof: '',
     access_method: selectedCountry === 'GLOBAL' ? 'email' : 'phone',
@@ -152,6 +154,37 @@ export function RegisterPage() {
     setIsCountryPickerOpen(false);
     if (country.code === form.country) return;
     resetPhoneVerification({ country: country.code, phone: '' });
+  }
+
+  function handleRegionChange({ country, language: nextLanguage }) {
+    const hasRegionChanged = country !== selectedCountry;
+    setSelectedCountry(country);
+    localStorage.setItem('nexus_registration_country', country);
+    setLanguage(nextLanguage);
+    if (!hasRegionChanged) {
+      updateField('language', nextLanguage);
+      return;
+    }
+    setError('');
+    setPhoneVerification(null);
+    setEmailVerification(null);
+    setPhoneStatus('');
+    setEmailStatus('');
+    setIsPhoneVerified(false);
+    setIsEmailVerified(false);
+    setForm((current) => ({
+      ...current,
+      registration_proof: '',
+      phone_verification_id: null,
+      email_verification_id: null,
+      phone_code: '',
+      email_code: '',
+      phone: '',
+      country: country === 'GLOBAL' ? 'RU' : country,
+      access_method: country === 'GLOBAL' ? 'email' : 'phone',
+      language: nextLanguage,
+    }));
+    setStep('access');
   }
 
   async function handleUsernameBlur() {
@@ -424,32 +457,41 @@ export function RegisterPage() {
     : step === 'profile'
       ? handleProfileStep
       : handleSubmit;
+  const registrationSteps = [
+    { id: 'access', label: t('register.accessStep'), description: t('register.subtitle') },
+    { id: 'profile', label: t('register.profileStep'), description: t('register.avatarText') },
+    { id: 'password', label: t('register.passwordStep'), description: t('register.passwordText') },
+  ];
+  const currentStepIndex = registrationSteps.findIndex((item) => item.id === step);
+  const currentStep = registrationSteps[currentStepIndex];
 
   return (
     <main className="auth-page">
-      <form className="panel registration-wizard" onSubmit={submitHandler}>
-        <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
-        <header className="registration-wizard-header">
-          <p className="eyebrow">AraChat</p>
+      <form className="panel auth-card registration-wizard" onSubmit={submitHandler}>
+        <header className="auth-card-head registration-card-head">
+          <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
           <h1>{t('register.title')}</h1>
-          <p className="muted">{t('register.subtitle')}</p>
+          <p className="muted">{currentStep.description}</p>
+          <RegionSelector
+            country={selectedCountry}
+            onChange={handleRegionChange}
+            resetsVerification={Boolean(form.registration_proof || form.phone_verification_id || form.email_verification_id)}
+          />
+          <div className="registration-progress" aria-label={t('register.steps')}>
+            <span className="registration-progress-count">{currentStepIndex + 1}</span>
+            <strong>{currentStep.label}</strong>
+            <span className="registration-progress-total">/ {registrationSteps.length}</span>
+            <span className="registration-progress-track" aria-hidden="true">
+              {registrationSteps.map((item, index) => <i className={index <= currentStepIndex ? 'complete' : ''} key={item.id} />)}
+            </span>
+          </div>
         </header>
-        <div className="registration-steps" aria-label={t('register.steps')}>
-          {[
-            { id: 'access', label: t('register.accessStep') },
-            { id: 'profile', label: t('register.profileStep') },
-            { id: 'password', label: t('register.passwordStep') },
-          ].map((item, index) => (
-            <div className={`registration-step ${step === item.id ? 'active' : ''}`} key={item.id} aria-current={step === item.id ? 'step' : undefined}>
-              <span>{index + 1}</span>
-              <strong>{item.label}</strong>
-            </div>
-          ))}
-        </div>
-        <div className="info-card beta-limit-card">
-          <strong>{t('register.betaLimitTitle')}</strong>
-          <p className="muted">{t('register.betaLimitText')}</p>
-        </div>
+        {step === 'access' ? (
+          <div className="info-card beta-limit-card">
+            <strong>{t('register.betaLimitTitle')}</strong>
+            <p className="muted">{t('register.betaLimitText')}</p>
+          </div>
+        ) : null}
         {step === 'access' ? (
           <section className="access-step-shell registration-step-content" aria-label={t('register.accessStep')}>
             {isDevMode ? (
@@ -673,6 +715,7 @@ export function RegisterPage() {
             </Button>
           </section>
         ) : null}
+        <Link to="/login" className="auth-switch-link">{t('region.alreadyRegistered')}</Link>
       </form>
     </main>
   );

@@ -217,6 +217,7 @@ async def get_admin_user(session: AsyncSession, admin_user_id: UUID, target_user
         'username': profile.username,
         'phone': profile.optional_phone,
         'email': profile.email,
+        'vpn_enabled': user.vpn_enabled,
         'country': profile.registration_country or 'GLOBAL',
         'status': user.status,
         'created_at': user.created_at,
@@ -252,3 +253,27 @@ async def change_user_status(session: AsyncSession, admin_user_id: UUID, target_
         metadata={'previous_status': previous_status},
     )
     await session.commit()
+
+
+async def set_user_vpn_enabled(
+    session: AsyncSession,
+    admin_user_id: UUID,
+    target_user_id: UUID,
+    vpn_enabled: bool,
+) -> bool:
+    await require_admin(session, admin_user_id)
+    user = await session.get(User, target_user_id)
+    if not user or user.deleted_at:
+        raise AdminError('User not found')
+
+    if user.vpn_enabled != vpn_enabled:
+        user.vpn_enabled = vpn_enabled
+        record_admin_audit(
+            session,
+            admin_user_id,
+            f"user.vpn_{'enabled' if vpn_enabled else 'disabled'}",
+            target_type='user',
+            target_id=str(user.id),
+        )
+        await session.commit()
+    return user.vpn_enabled

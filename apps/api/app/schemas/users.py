@@ -24,6 +24,7 @@ class UserOut(BaseModel):
     status: str
     is_official: bool = False
     legal_documents_current: bool = False
+    vpn_enabled: bool = False
     profile: UserProfileOut | None
 
 

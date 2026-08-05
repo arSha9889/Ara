@@ -15,6 +15,9 @@ export const dictionaries = {
     feedback: {
       title: 'Системные сообщения',
     },
+    vpn: {
+      warning: 'Возможно, у вас включён VPN. Отключите его для быстрой и корректной работы сервиса.',
+    },
     onboarding: {
       title: 'AraChat для близкого и спокойного общения',
       subtitle: 'Лёгкий web-мессенджер с личными чатами, голосовыми, файлами, уведомлениями и живыми статусами. Сейчас проект находится на стадии Бета.',
@@ -508,7 +511,7 @@ export const dictionaries = {
       blockedUsers: 'Заблокированные', blockedUsersText: 'Проверьте аккаунты с ограниченным доступом.', usersTitle: 'Пользователи', usersFound: 'Найдено: {count}', loadingUsers: 'Загружаем пользователей…', loadingUserDetails: 'Запрашиваем данные пользователя…', noUsers: 'По этим условиям пользователи не найдены.',
       search: 'Поиск', searchPlaceholder: 'Имя, username, AraChat ID, телефон или email', status: 'Статус', country: 'Страна', sort: 'Сортировка', allStatuses: 'Все статусы', allCountries: 'Все страны',
       statuses: { active: 'Активен', blocked: 'Заблокирован', deleted: 'Удалён' }, sortOptions: { newest: 'Сначала новые', oldest: 'Сначала старые', name: 'По имени' },
-      contactsHidden: 'Контакты скрыты в списке', details: 'Подробнее', userDetails: 'Данные пользователя', registeredAt: 'Дата регистрации', contactDetails: 'Контакты',
+      contactsHidden: 'Контакты скрыты в списке', details: 'Подробнее', userDetails: 'Данные пользователя', registeredAt: 'Дата регистрации', contactDetails: 'Контакты', vpnStatus: 'Статус VPN', vpnEnabled: 'Предупреждение включено', vpnDisabled: 'Предупреждение выключено', enableVpnWarning: 'Включить предупреждение VPN', clearVpnWarning: 'Выключить предупреждение VPN',
       block: 'Заблокировать', unblock: 'Разблокировать', delete: 'Удалить', confirmAction: 'Подтвердите действие', irreversibleAction: 'Необратимое действие',
       blockUserTitle: 'Заблокировать пользователя?', unblockUserTitle: 'Разблокировать пользователя?', deleteUserTitle: 'Удалить пользователя?', actionTarget: 'Действие будет применено к пользователю {name}.',
       deleteConfirmWord: 'УДАЛИТЬ', deleteConfirmation: 'Введите «{word}», чтобы подтвердить удаление.',
@@ -518,7 +521,7 @@ export const dictionaries = {
       assignMember: 'Назначить роль', assignMemberText: 'Укажите точный username или AraChat ID активного пользователя.', userSearch: 'Пользователь', userSearchPlaceholder: '@username или AraChat ID', memberRole: 'Роль', branchAdmin: 'Администратор ветви', branchOwner: 'Владелец ветви', assign: 'Назначить', memberSearchExact: 'Найдите ровно одного активного пользователя по точному username или AraChat ID.', memberAssigned: 'Роль для пользователя назначена.',
       securityTitle: 'Безопасность и доступ', securityText: 'Сводка по активным сессиям и временным ограничениям.', activeSessions: 'Активные сессии', lockedPasswords: 'Заблокированные пароли', lockedPins: 'Заблокированные PIN', archivedBranches: 'Ветви в архиве',
       auditTitle: 'Журнал действий', auditText: 'Последние административные изменения.', auditEmpty: 'Административных действий пока нет.',
-      auditActions: { 'user.active': 'Пользователь разблокирован', 'user.blocked': 'Пользователь заблокирован', 'user.deleted': 'Пользователь удалён', 'branch.created': 'Ветвь создана', 'branch.updated': 'Ветвь изменена', 'branch.archived': 'Ветвь архивирована', 'branch.restored': 'Ветвь восстановлена', 'branch.member_admin': 'Назначен администратор ветви', 'branch.member_owner': 'Назначен владелец ветви', 'system_bot.message_published': 'Опубликовано обновление Ara Updates', 'system_bot.message_edited': 'Обновление Ara Updates изменено', 'system_bot.message_deleted': 'Обновление Ara Updates удалено', 'system_bot.message_pinned': 'Обновление Ara Updates закреплено', 'system_bot.message_unpinned': 'Обновление Ara Updates откреплено' },
+      auditActions: { 'user.active': 'Пользователь разблокирован', 'user.blocked': 'Пользователь заблокирован', 'user.deleted': 'Пользователь удалён', 'user.vpn_enabled': 'Включено предупреждение VPN', 'user.vpn_disabled': 'Выключено предупреждение VPN', 'branch.created': 'Ветвь создана', 'branch.updated': 'Ветвь изменена', 'branch.archived': 'Ветвь архивирована', 'branch.restored': 'Ветвь восстановлена', 'branch.member_admin': 'Назначен администратор ветви', 'branch.member_owner': 'Назначен владелец ветви', 'system_bot.message_published': 'Опубликовано обновление Ara Updates', 'system_bot.message_edited': 'Обновление Ara Updates изменено', 'system_bot.message_deleted': 'Обновление Ara Updates удалено', 'system_bot.message_pinned': 'Обновление Ara Updates закреплено', 'system_bot.message_unpinned': 'Обновление Ara Updates откреплено' },
       overviewTitle: 'Состояние платформы', overviewText: 'Ключевые показатели, безопасность и последние действия команды.', refresh: 'Обновить данные', viewAll: 'Открыть журнал', recentActivity: 'Последние действия', quickActions: 'Быстрые действия', filters: 'Фильтры', userColumn: 'Пользователь', idColumn: 'AraChat ID', countryDistribution: 'Распределение активных регистраций.', systemEvent: 'Системное событие', controlFooter: 'Защищённая зона управления', dangerZone: 'Опасная зона', archiveBranchText: 'Архивная ветвь станет недоступна в каталоге и личных списках.', restoreBranchText: 'Ветвь снова станет доступна пользователям.',
       systemBotTitle: 'Ara Updates', systemBotText: 'Публикуйте официальные новости продукта и управляйте ими в системном канале.', systemBotSettings: 'Настроить канал', loadingSystemBot: 'Загружаем Ara Updates…', systemBotNewPost: 'Новое обновление', systemBotPostPlaceholder: 'Расскажите пользователям о новой возможности, исправлении или важном объявлении…', systemBotPublish: 'Опубликовать', systemBotPublishing: 'Публикуем…', systemBotPosts: 'Опубликованные обновления', systemBotPostsText: 'Посты сразу появляются у подписчиков канала.', systemBotNoPosts: 'Здесь пока нет опубликованных обновлений.', systemBotEdited: 'изменено', systemBotPin: 'Закрепить публикацию', systemBotUnpin: 'Открепить публикацию', systemBotSavePost: 'Сохранить публикацию', systemBotPostPublished: 'Обновление опубликовано.', systemBotPostUpdated: 'Публикация обновлена.', systemBotPostPinned: 'Публикация закреплена.', systemBotPostUnpinned: 'Публикация откреплена.', systemBotPostDeleted: 'Публикация удалена.',
     },
@@ -551,6 +554,9 @@ export const dictionaries = {
     },
     feedback: {
       title: 'System messages',
+    },
+    vpn: {
+      warning: 'You may have a VPN enabled. Turn it off for fast and reliable service.',
     },
     onboarding: {
       title: 'AraChat for close and calm communication',
@@ -1045,7 +1051,7 @@ export const dictionaries = {
       blockedUsers: 'Blocked users', blockedUsersText: 'Review accounts with restricted access.', usersTitle: 'Users', usersFound: 'Found: {count}', loadingUsers: 'Loading users…', loadingUserDetails: 'Loading user details…', noUsers: 'No users match these filters.',
       search: 'Search', searchPlaceholder: 'Name, username, AraChat ID, phone, or email', status: 'Status', country: 'Country', sort: 'Sort', allStatuses: 'All statuses', allCountries: 'All countries',
       statuses: { active: 'Active', blocked: 'Blocked', deleted: 'Deleted' }, sortOptions: { newest: 'Newest first', oldest: 'Oldest first', name: 'By name' },
-      contactsHidden: 'Contacts are hidden in the list', details: 'Details', userDetails: 'User details', registeredAt: 'Registration date', contactDetails: 'Contacts',
+      contactsHidden: 'Contacts are hidden in the list', details: 'Details', userDetails: 'User details', registeredAt: 'Registration date', contactDetails: 'Contacts', vpnStatus: 'VPN status', vpnEnabled: 'Warning enabled', vpnDisabled: 'Warning disabled', enableVpnWarning: 'Enable VPN warning', clearVpnWarning: 'Clear VPN warning',
       block: 'Block', unblock: 'Unblock', delete: 'Delete', confirmAction: 'Confirm action', irreversibleAction: 'Irreversible action',
       blockUserTitle: 'Block this user?', unblockUserTitle: 'Unblock this user?', deleteUserTitle: 'Delete this user?', actionTarget: 'The action will be applied to {name}.',
       deleteConfirmWord: 'DELETE', deleteConfirmation: 'Type “{word}” to confirm deletion.',
@@ -1055,7 +1061,7 @@ export const dictionaries = {
       assignMember: 'Assign a role', assignMemberText: 'Enter the exact username or AraChat ID of an active user.', userSearch: 'User', userSearchPlaceholder: '@username or AraChat ID', memberRole: 'Role', branchAdmin: 'Branch administrator', branchOwner: 'Branch owner', assign: 'Assign', memberSearchExact: 'Find exactly one active user by an exact username or AraChat ID.', memberAssigned: 'User role assigned.',
       securityTitle: 'Security and access', securityText: 'Summary of active sessions and temporary restrictions.', activeSessions: 'Active sessions', lockedPasswords: 'Locked passwords', lockedPins: 'Locked PINs', archivedBranches: 'Archived branches',
       auditTitle: 'Action log', auditText: 'Most recent administrative changes.', auditEmpty: 'There are no administrative actions yet.',
-      auditActions: { 'user.active': 'User unblocked', 'user.blocked': 'User blocked', 'user.deleted': 'User deleted', 'branch.created': 'Branch created', 'branch.updated': 'Branch updated', 'branch.archived': 'Branch archived', 'branch.restored': 'Branch restored', 'branch.member_admin': 'Branch administrator assigned', 'branch.member_owner': 'Branch owner assigned', 'system_bot.message_published': 'Ara Updates post published', 'system_bot.message_edited': 'Ara Updates post updated', 'system_bot.message_deleted': 'Ara Updates post deleted', 'system_bot.message_pinned': 'Ara Updates post pinned', 'system_bot.message_unpinned': 'Ara Updates post unpinned' },
+      auditActions: { 'user.active': 'User unblocked', 'user.blocked': 'User blocked', 'user.deleted': 'User deleted', 'user.vpn_enabled': 'VPN warning enabled', 'user.vpn_disabled': 'VPN warning cleared', 'branch.created': 'Branch created', 'branch.updated': 'Branch updated', 'branch.archived': 'Branch archived', 'branch.restored': 'Branch restored', 'branch.member_admin': 'Branch administrator assigned', 'branch.member_owner': 'Branch owner assigned', 'system_bot.message_published': 'Ara Updates post published', 'system_bot.message_edited': 'Ara Updates post updated', 'system_bot.message_deleted': 'Ara Updates post deleted', 'system_bot.message_pinned': 'Ara Updates post pinned', 'system_bot.message_unpinned': 'Ara Updates post unpinned' },
       overviewTitle: 'Platform status', overviewText: 'Key metrics, security, and the team’s latest actions.', refresh: 'Refresh data', viewAll: 'Open activity log', recentActivity: 'Recent activity', quickActions: 'Quick actions', filters: 'Filters', userColumn: 'User', idColumn: 'AraChat ID', countryDistribution: 'Distribution of active registrations.', systemEvent: 'System event', controlFooter: 'Secure control area', dangerZone: 'Danger zone', archiveBranchText: 'An archived branch is hidden from the catalog and personal lists.', restoreBranchText: 'The branch will become available to users again.',
       systemBotTitle: 'Ara Updates', systemBotText: 'Publish and manage official product news in the system channel.', systemBotSettings: 'Channel settings', loadingSystemBot: 'Loading Ara Updates…', systemBotNewPost: 'New update', systemBotPostPlaceholder: 'Tell users about a new feature, a fix, or an important announcement…', systemBotPublish: 'Publish', systemBotPublishing: 'Publishing…', systemBotPosts: 'Published updates', systemBotPostsText: 'Posts appear immediately for channel subscribers.', systemBotNoPosts: 'There are no published updates yet.', systemBotEdited: 'edited', systemBotPin: 'Pin post', systemBotUnpin: 'Unpin post', systemBotSavePost: 'Save post', systemBotPostPublished: 'Update published.', systemBotPostUpdated: 'Post updated.', systemBotPostPinned: 'Post pinned.', systemBotPostUnpinned: 'Post unpinned.', systemBotPostDeleted: 'Post deleted.',
     },
@@ -2945,25 +2951,78 @@ dictionaries.uz = mergeDictionary(dictionaries.ru, {
 Object.assign(dictionaries.ru.region, {
   BY: { title: 'Беларусь', text: 'Выберите белорусский или русский язык' },
   UZ: { title: 'Узбекистан', text: 'Выберите узбекский или русский язык' },
+  selectorLabel: 'Страна и язык',
+  pickerTitle: 'Выберите страну и язык',
+  pickerText: 'Выберите страну и язык интерфейса для этого устройства.',
+  languagesLabel: 'Язык интерфейса',
+  selected: 'Выбрано',
+  apply: 'Применить',
+  verificationChangeWarning: 'Смена страны сбросит незавершённое подтверждение в Telegram.',
 });
 Object.assign(dictionaries.en.region, {
   BY: { title: 'Belarus', text: 'Choose Belarusian or Russian' },
   UZ: { title: 'Uzbekistan', text: 'Choose Uzbek or Russian' },
+  selectorLabel: 'Country and language',
+  pickerTitle: 'Choose country and language',
+  pickerText: 'Choose the country and interface language for this device.',
+  languagesLabel: 'Interface language',
+  selected: 'Selected',
+  apply: 'Apply',
+  verificationChangeWarning: 'Changing the country will reset the unfinished Telegram verification.',
 });
 Object.assign(dictionaries.kk.region, {
   BY: { title: 'Беларусь', text: 'Беларусь немесе орыс тілін таңдаңыз' },
   UZ: { title: 'Өзбекстан', text: 'Өзбек немесе орыс тілін таңдаңыз' },
   languages: { ...dictionaries.kk.region.languages, be: 'Беларуская', uz: 'Ўзбекча' },
+  selectorLabel: 'Ел мен тіл',
+  pickerTitle: 'Ел мен тілді таңдаңыз',
+  pickerText: 'Осы құрылғы үшін елді және интерфейс тілін таңдаңыз.',
+  languagesLabel: 'Интерфейс тілі',
+  selected: 'Таңдалды',
+  apply: 'Қолдану',
+  verificationChangeWarning: 'Елді өзгерту Telegram-дегі аяқталмаған растауды өшіреді.',
 });
 Object.assign(dictionaries.ky.region, {
   BY: { title: 'Беларусь', text: 'Беларусь же орус тилин тандаңыз' },
   UZ: { title: 'Өзбекстан', text: 'Өзбек же орус тилин тандаңыз' },
   languages: { ...dictionaries.ky.region.languages, be: 'Беларуская', uz: 'Ўзбекча' },
+  selectorLabel: 'Өлкө жана тил',
+  pickerTitle: 'Өлкө менен тилди тандаңыз',
+  pickerText: 'Бул түзмөк үчүн өлкөнү жана интерфейс тилин тандаңыз.',
+  languagesLabel: 'Интерфейс тили',
+  selected: 'Тандалды',
+  apply: 'Колдонуу',
+  verificationChangeWarning: "Өлкөнү өзгөртүү Telegram'деги бүтпөгөн ырастоону тазалайт.",
 });
 Object.assign(dictionaries.uk.region, {
   BY: { title: 'Білорусь', text: 'Оберіть білоруську або російську мову' },
   UZ: { title: 'Узбекистан', text: 'Оберіть узбецьку або російську мову' },
   languages: { ...dictionaries.uk.region.languages, be: 'Беларуская', uz: 'Ўзбекча' },
+  selectorLabel: 'Країна й мова',
+  pickerTitle: 'Виберіть країну та мову',
+  pickerText: 'Виберіть країну та мову інтерфейсу для цього пристрою.',
+  languagesLabel: 'Мова інтерфейсу',
+  selected: 'Вибрано',
+  apply: 'Застосувати',
+  verificationChangeWarning: 'Зміна країни скине незавершене підтвердження в Telegram.',
+});
+Object.assign(dictionaries.be.region, {
+  selectorLabel: 'Краіна і мова',
+  pickerTitle: 'Выберыце краіну і мову',
+  pickerText: 'Выберыце краіну і мову інтэрфейсу для гэтай прылады.',
+  languagesLabel: 'Мова інтэрфейсу',
+  selected: 'Выбрана',
+  apply: 'Ужыць',
+  verificationChangeWarning: 'Змена краіны скіне незавершанае пацвярджэнне ў Telegram.',
+});
+Object.assign(dictionaries.uz.region, {
+  selectorLabel: 'Mamlakat va til',
+  pickerTitle: 'Mamlakat va tilni tanlang',
+  pickerText: 'Bu qurilma uchun mamlakat va interfeys tilini tanlang.',
+  languagesLabel: 'Interfeys tili',
+  selected: 'Tanlangan',
+  apply: 'Qo‘llash',
+  verificationChangeWarning: 'Mamlakatni o‘zgartirish Telegram-dagi tugallanmagan tasdiqni bekor qiladi.',
 });
 
 const phoneCountryLabels = {

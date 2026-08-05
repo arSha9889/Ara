@@ -9,6 +9,7 @@ import { useNotifications } from '../providers/NotificationsProvider.jsx';
 import { useSession } from '../providers/SessionProvider.jsx';
 import { UserAvatar } from '../../shared/ui/Avatar.jsx';
 import { Icon } from '../../shared/ui/Icon.jsx';
+import { VpnWarningBanner } from '../../shared/ui/VpnWarningBanner.jsx';
 
 export function AppNavigationTrigger({ isMenuOpen, onToggle, className = '' }) {
   const { t } = useI18n();
@@ -131,6 +132,7 @@ export function AppShell() {
       <main className="app-main">
         <Outlet context={{ isMenuOpen, toggleNavigation: () => setIsMenuOpen((current) => !current) }} />
       </main>
+      {session.user?.vpn_enabled ? <VpnWarningBanner /> : null}
       <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
           {mobileNavItems.slice(0, 2).map((item) => (
             <NavLink

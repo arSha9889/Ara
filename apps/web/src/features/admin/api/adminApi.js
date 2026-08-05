@@ -94,3 +94,11 @@ export function updateAdminUserStatus(accessToken, userId, status) {
     body: { status },
   });
 }
+
+export function updateAdminUserVpnStatus(accessToken, userId, vpnEnabled) {
+  return apiRequest(`/api/admin/users/${userId}/vpn`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: { vpn_enabled: vpnEnabled },
+  });
+}

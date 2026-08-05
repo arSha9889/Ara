@@ -4,16 +4,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
+import { RegionSelector } from '../../../shared/ui/RegionSelector.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { loginWithPassword, loginWithPin } from '../api/authApi.js';
 
 export function LoginPage() {
-  const { t } = useI18n();
+  const { setLanguage, t } = useI18n();
   const { saveSession } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ identifier: '', password: '', pin: '', device_id: getDeviceId() });
+  const [selectedCountry, setSelectedCountry] = useState(() => localStorage.getItem('nexus_registration_country') ?? 'RU');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,6 +25,12 @@ export function LoginPage() {
 
   function navigateAfterLogin() {
     navigate(location.state?.from?.pathname || '/app', { replace: true });
+  }
+
+  function handleRegionChange({ country, language }) {
+    setSelectedCountry(country);
+    localStorage.setItem('nexus_registration_country', country);
+    setLanguage(language);
   }
 
   async function handleSubmit(event) {
@@ -66,6 +74,7 @@ export function LoginPage() {
             <h1>{t('auth.loginTitle')}</h1>
             <p className="muted">{t('auth.loginSubtitle')}</p>
           </div>
+          <RegionSelector country={selectedCountry} onChange={handleRegionChange} />
         </div>
         <div className="auth-fields">
           <TextInput label={t('auth.identifier')} inputMode="text" autoComplete="username" value={form.identifier} onChange={(event) => updateField('identifier', event.target.value)} required />
@@ -77,7 +86,7 @@ export function LoginPage() {
           <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
           <Button type="button" variant="secondary" disabled={isLoading || !form.identifier || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
         </div>
-        <Link to="/region" className="auth-switch-link">{t('auth.createAccount')}</Link>
+        <Link to="/register" className="auth-switch-link">{t('auth.createAccount')}</Link>
       </form>
     </main>
   );
