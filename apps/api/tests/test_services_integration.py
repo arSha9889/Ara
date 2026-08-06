@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -7,8 +8,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import models  # noqa: F401
 from app.db.base import Base
-from app.domain.registration_proof import create_registration_proof
 from app.models.chats import Chat, ChatParticipant
+from app.models.verification import EmailVerification
 from app.models.users import UserProfile
 from app.schemas.auth import RegisterCompleteRequest
 from app.schemas.chats import MessageCreateRequest, MessageOut
@@ -38,17 +39,28 @@ async def _prepare_database(engine) -> None:
         await connection.run_sync(Base.metadata.create_all)
 
 
-async def _create_user(session_factory, username: str, telegram_id: str):
+async def _create_user(session_factory, username: str, user_marker: str):
     async with session_factory() as session:
-        proof_identity = telegram_id if telegram_id.startswith('dev-') else f'dev-{telegram_id}'
+        device_id = f'device-{uuid4()}'
+        verification = EmailVerification(
+            public_token=f'email-{uuid4()}',
+            email=f'{username}-{user_marker}@example.test',
+            device_id=device_id,
+            purpose='registration',
+            status='verified',
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+            verified_at=datetime.now(timezone.utc),
+        )
+        session.add(verification)
+        await session.commit()
         completion = await complete_registration(
             session,
             RegisterCompleteRequest(
-                registration_proof=create_registration_proof(proof_identity),
+                email_verification_id=verification.id,
                 username=username,
                 password='password123',
                 pin='1234',
-                device_id=f'device-{uuid4()}',
+                device_id=device_id,
                 language='ru',
                 design_theme='halo',
                 accepted_terms=True,

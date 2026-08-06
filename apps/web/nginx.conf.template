@@ -4,8 +4,9 @@ map $http_upgrade $connection_upgrade {
 }
 
 # The Caddy container is the only public entrypoint and supplies X-Real-IP.
-# This limit protects registration and sign-in flows from simple online guessing.
-limit_req_zone $http_x_real_ip zone=auth_requests:10m rate=5r/m;
+# These limits protect SMTP delivery and authentication from simple online abuse.
+limit_req_zone $http_x_real_ip zone=auth_delivery:10m rate=3r/m;
+limit_req_zone $http_x_real_ip zone=auth_requests:10m rate=10r/m;
 
 server {
   listen ${PORT};
@@ -33,7 +34,19 @@ server {
     proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
   }
 
-  location ~ ^/api/auth/(?:login|refresh|phone-verification/(?:start|confirm)|email-verification/(?:start|confirm)|register/complete)$ {
+  location ~ ^/api/auth/(?:email-verification/start|phone-verification/start|password/(?:change/start|reset/start)|email/change/start|oauth/(?:vk|yandex)/(?:start|link/start))$ {
+    limit_req zone=auth_delivery burst=3 nodelay;
+    limit_req_status 429;
+    proxy_pass ${NEXUS_API_UPSTREAM};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $http_x_real_ip;
+    proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+  }
+
+  location ~ ^/api/auth/(?:login|refresh|phone-verification/confirm|email-verification/confirm|register/complete|password/(?:change/confirm|reset/confirm)|email/change/confirm|oauth/(?:vk|yandex)/callback|oauth/(?:login|link)/complete)$ {
     limit_req zone=auth_requests burst=10 nodelay;
     limit_req_status 429;
     proxy_pass ${NEXUS_API_UPSTREAM};

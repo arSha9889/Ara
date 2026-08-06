@@ -18,7 +18,7 @@ export function ProfilePage() {
   const { session, saveSession } = useSession();
   const { notify } = useAppFeedback();
   const [user, setUser] = useState(session.user);
-  const [form, setForm] = useState({ display_name: '', username: '', email: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
+  const [form, setForm] = useState({ display_name: '', username: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
@@ -35,7 +35,6 @@ export function ProfilePage() {
         setForm({
           display_name: result.profile?.display_name ?? '',
           username: result.profile?.username ?? '',
-          email: result.profile?.email ?? '',
           phone_public: Boolean(result.profile?.phone_public),
           avatar_type: result.profile?.avatar_type ?? 'built_in',
           avatar_ref: result.profile?.avatar_ref ?? 'animal-01',
@@ -69,7 +68,6 @@ export function ProfilePage() {
       }
         let nextUser = await updateMyProfile(session.accessToken, {
           display_name: form.display_name,
-          email: form.email,
           phone_public: form.phone_public,
         ...avatarPayload,
       });
@@ -205,7 +203,7 @@ export function ProfilePage() {
         <div className="profile-fields-grid">
           <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
           <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} />
-          <TextInput label={t('profile.email')} type="email" inputMode="email" autoComplete="email" placeholder={t('profile.emailPlaceholder')} value={form.email} onChange={(event) => updateField('email', event.target.value)} />
+          <div className="field"><span>{t('profile.email')}</span><strong>{user?.profile?.email || '—'}</strong><small className="muted">{t('profile.emailManagedInSecurity')}</small></div>
         </div>
         {user?.profile?.optional_phone ? <div className="profile-phone-card"><span>{t('profile.optionalPhone')}</span><strong>{user.profile.optional_phone}</strong></div> : null}
         <label className="field inline-field profile-visibility-row">

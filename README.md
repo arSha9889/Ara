@@ -51,12 +51,11 @@
 
 Входит:
 
-- регистрация через подтверждение телефона или email в Telegram-боте;
-- registration proof после подтверждения 4-значного кода из бота;
+- регистрация через одноразовый шестизначный код, доставленный на e-mail по SMTP;
 - завершение регистрации с username, password, optional PIN, language и theme;
 - выдача уникального AraChat ID;
 - создание password credential, trusted PIN device и session;
-- login по телефону, email или AraChat ID + password;
+- login по e-mail или AraChat ID + password;
 - JWT access token;
 - refresh token с серверным Argon2-хешем и отдельным lookup hash;
 - logout по refresh token;
@@ -65,13 +64,16 @@
 - frontend session state с восстановлением через refresh token;
 - protected routes для `/app`;
 - logout из app shell;
-- экран завершения регистрации под proof от Telegram-бота;
+- экран регистрации с подтверждением e-mail;
 - проверка username на экране регистрации;
 - подключённый login form;
-- быстрый вход по PIN на доверенном устройстве по телефону, email или AraChat ID;
+- быстрый вход по PIN на доверенном устройстве по e-mail или AraChat ID;
 - создание, замена и отключение PIN для текущего устройства.
+- восстановление пароля по подтверждённому e-mail;
+- смена e-mail и пароля после проверки текущего пароля и SMTP-кода;
+- необязательные Яндекс ID и VK ID как заранее привязанные запасные способы входа без передачи OAuth-токенов в браузер.
 
-Ограничение этапа: для реальной регистрации нужен настроенный Telegram-бот (`NEXUS_TELEGRAM_BOT_TOKEN`, `NEXUS_TELEGRAM_BOT_NAME`) и webhook `/api/auth/telegram/webhook`. Email-регистрация сейчас подтверждает связь указанного email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику; для строгой проверки потребуется SMTP/почтовая отправка. Временный endpoint `POST /api/auth/dev/registration-proof` доступен только при `NEXUS_ENVIRONMENT=dev`, скрыт из OpenAPI и dev-кнопка не попадает в production build.
+Для реальной регистрации требуется SMTP (`NEXUS_SMTP_HOST`, `NEXUS_SMTP_FROM_EMAIL`) и настроенные SPF, DKIM и DMARC для домена отправителя. Для Яндекс ID/VK ID укажите `NEXUS_PUBLIC_BASE_URL`, client ID/secret и зарегистрируйте точные callback URL. Эти провайдеры не создают и не объединяют аккаунты автоматически: сначала пользователь входит в AraChat по e-mail и вручную привязывает внешний способ.
 
 ### Этап 4 — profile/settings/devices
 

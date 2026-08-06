@@ -3,6 +3,8 @@ export const dictionaries = {
     common: {
       navigation: 'Навигация',
       continue: 'Продолжить',
+      back: 'Назад',
+      loading: 'Загрузка…',
       comingSoon: 'Будет реализовано на следующем этапе',
       empty: 'Пока здесь пусто',
       logout: 'Выйти',
@@ -94,10 +96,10 @@ export const dictionaries = {
     },
     auth: {
       loginTitle: 'Вход в AraChat',
-      loginSubtitle: 'Введите телефон, email или AraChat ID и пароль. PIN можно использовать для быстрого входа на этом устройстве.',
+      loginSubtitle: 'Введите e-mail, AraChat ID или сохранённый телефон и пароль. PIN работает только на доверенном устройстве.',
       nexusId: 'AraChat ID',
       phone: 'Телефон',
-      identifier: 'Телефон, email или AraChat ID',
+      identifier: 'E-mail, AraChat ID или телефон',
       password: 'Пароль',
       pin: 'PIN этого устройства',
       signIn: 'Войти',
@@ -105,10 +107,15 @@ export const dictionaries = {
       signInWithPin: 'Войти по PIN',
       createAccount: 'Зарегистрироваться',
       adminEntry: 'Войти в админ-панель',
+      forgotPassword: 'Не помню пароль',
+      oauthLabel: 'Или войдите через привязанный аккаунт',
+      signInWithYandex: 'Войти через Яндекс ID',
+      signInWithVk: 'Войти через VK ID',
     },
     register: {
       title: 'Завершение регистрации',
-      subtitle: 'Сначала подтвердите доступ через Telegram-бота, затем настройте профиль и задайте пароль. AraChat ID создастся автоматически внутри аккаунта.',
+      subtitle: 'Подтвердите свой e-mail, настройте профиль и задайте пароль. AraChat ID создастся автоматически.',
+      smtpSubtitle: 'Код будет отправлен на ваш e-mail через защищённую SMTP-доставку.',
       betaLimitTitle: 'Закрытая бета: доступ ограничен',
       betaLimitText: 'Регистрация открыта только для первых 100 активных аккаунтов из семьи, друзей и приглашённых пользователей.',
       devTitle: 'Dev-only временно',
@@ -3043,6 +3050,74 @@ for (const [language, dictionary] of Object.entries(dictionaries)) {
     phoneCountryBelarus: belarus,
     phoneCountryUzbekistan: uzbekistan,
   });
+}
+
+Object.assign(dictionaries.ru.register, {
+  smtpSubtitle: 'Код будет отправлен на ваш e-mail через защищённую SMTP-доставку.',
+  emailRequestCode: 'Отправить код на e-mail',
+  emailRequesting: 'Отправляем код…',
+  emailCodeLabel: 'Код из e-mail',
+  emailConfirmCode: 'Подтвердить e-mail',
+  emailChecking: 'Проверяем код…',
+  emailConfirmed: 'E-mail подтверждён. Можно продолжить регистрацию.',
+  emailCodeSent: 'Код отправлен на e-mail.',
+  emailRequestRequired: 'Сначала запросите код на e-mail.',
+});
+Object.assign(dictionaries.en.register, {
+  smtpSubtitle: 'A verification code will be sent to your e-mail through secure SMTP delivery.',
+  emailRequestCode: 'Send code by e-mail',
+  emailRequesting: 'Sending code…',
+  emailCodeLabel: 'E-mail code',
+  emailConfirmCode: 'Verify e-mail',
+  emailChecking: 'Checking code…',
+  emailConfirmed: 'E-mail is verified. You can continue registration.',
+  emailCodeSent: 'The code was sent by e-mail.',
+  emailRequestRequired: 'Request an e-mail code first.',
+});
+for (const language of ['kk', 'ky', 'uk', 'be', 'uz']) {
+  Object.assign(dictionaries[language].register, dictionaries.ru.register);
+}
+Object.assign(dictionaries.ru.profile, { emailManagedInSecurity: 'Для смены адреса откройте раздел «Безопасность».' });
+Object.assign(dictionaries.en.profile, { emailManagedInSecurity: 'Change this address in Security settings.' });
+for (const language of ['kk', 'ky', 'uk', 'be', 'uz']) {
+  Object.assign(dictionaries[language].profile, dictionaries.ru.profile);
+}
+Object.assign(dictionaries.ru.settings, {
+  changePasswordText: 'Введите текущий пароль, затем подтвердите смену шестизначным кодом из e-mail.',
+  requestPasswordConfirmation: 'Отправить код на e-mail',
+  passwordConfirmationSent: 'Код отправлен на подтверждённый e-mail.',
+  emailCode: 'Шестизначный код из e-mail',
+  completeWithEmailCode: 'Подтвердить смену пароля',
+  emailChangeTitle: 'Сменить e-mail',
+  emailChangeText: 'Введите текущий пароль и новый адрес. Код подтверждения будет отправлен на новый адрес.',
+  sendEmailCode: 'Отправить код на новый e-mail',
+  emailCodeSent: 'Код отправлен на новый e-mail.',
+  confirmEmailChange: 'Подтвердить новый e-mail',
+  emailChanged: 'E-mail изменён и подтверждён.',
+  linkedAccountsTitle: 'Запасные способы входа',
+  linkedAccountsText: 'Привяжите Яндекс ID или VK ID. Они не создают новый аккаунт и не заменяют ваш подтверждённый e-mail.',
+  linkYandex: 'Привязать Яндекс ID',
+  linkVk: 'Привязать VK ID',
+});
+Object.assign(dictionaries.en.settings, {
+  changePasswordText: 'Enter your current password, then verify the change with a six-digit e-mail code.',
+  requestPasswordConfirmation: 'Send e-mail code',
+  passwordConfirmationSent: 'The code was sent to your verified e-mail.',
+  emailCode: 'Six-digit e-mail code',
+  completeWithEmailCode: 'Confirm password change',
+  emailChangeTitle: 'Change e-mail',
+  emailChangeText: 'Enter your current password and a new address. A verification code will be sent to the new address.',
+  sendEmailCode: 'Send code to new e-mail',
+  emailCodeSent: 'The code was sent to the new e-mail.',
+  confirmEmailChange: 'Confirm new e-mail',
+  emailChanged: 'E-mail changed and verified.',
+  linkedAccountsTitle: 'Backup sign-in methods',
+  linkedAccountsText: 'Link Yandex ID or VK ID. They do not create another account or replace your verified e-mail.',
+  linkYandex: 'Link Yandex ID',
+  linkVk: 'Link VK ID',
+});
+for (const language of ['kk', 'ky', 'uk', 'be', 'uz']) {
+  Object.assign(dictionaries[language].settings, dictionaries.ru.settings);
 }
 
 function transliterateUzbekToCyrillic(value) {

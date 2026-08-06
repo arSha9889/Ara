@@ -5,7 +5,7 @@ import pytest
 
 from app.domain.registration_proof import create_registration_proof, verify_registration_proof
 from app.domain.tokens import create_access_token, decode_access_token
-from app.models.verification import PhoneVerification
+from app.models.verification import EmailVerification, PhoneVerification
 from app.schemas.auth import PhoneVerificationStartRequest, RegisterCompleteRequest
 from app.schemas.chats import DirectChatCreateRequest
 from app.services.phone_verification_service import (
@@ -89,7 +89,7 @@ def test_phone_country_api_contracts_include_belarus_and_uzbekistan() -> None:
     assert DirectChatCreateRequest(country='UZ', phone='+998901234567').country == 'UZ'
 
     registration = RegisterCompleteRequest(
-        registration_proof='proof',
+        email_verification_id=uuid4(),
         username='belarususer',
         password='password123',
         device_id='device-123',
@@ -150,7 +150,6 @@ async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.db.base import Base
-    from app.domain.registration_proof import create_registration_proof
     from app.models.users import User
     from app.schemas.auth import RegisterCompleteRequest
     from app.services.auth_service import AuthError, complete_registration
@@ -174,7 +173,7 @@ async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
                 await complete_registration(
                     session,
                     RegisterCompleteRequest(
-                        registration_proof=create_registration_proof('dev-over-limit'),
+                        email_verification_id=uuid4(),
                         username='overlimit',
                         password='password123',
                         device_id='device-over-limit',
@@ -187,17 +186,17 @@ async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
 
 
 @pytest.mark.anyio
-async def test_dev_registration_bypasses_telegram_password_confirmation(anyio_backend, monkeypatch) -> None:
+async def test_smtp_verified_registration_creates_active_email_account(anyio_backend) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.db.base import Base
+    from app.models.users import UserProfile
     from app.schemas.auth import RegisterCompleteRequest
     from app.services.auth_service import complete_registration
 
     if anyio_backend != 'asyncio':
         pytest.skip('asyncio only')
     pytest.importorskip('aiosqlite')
-    monkeypatch.setattr('app.services.auth_service.settings.environment', 'dev')
 
     engine = create_async_engine('sqlite+aiosqlite:///:memory:')
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -206,10 +205,21 @@ async def test_dev_registration_bypasses_telegram_password_confirmation(anyio_ba
 
     try:
         async with session_factory() as session:
+            verification = EmailVerification(
+                public_token='registration-email-token',
+                email='new-user@example.test',
+                device_id='device-dev-confirmation',
+                purpose='registration',
+                status='verified',
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                verified_at=datetime.now(timezone.utc),
+            )
+            session.add(verification)
+            await session.commit()
             completion = await complete_registration(
                 session,
                 RegisterCompleteRequest(
-                    registration_proof=create_registration_proof('dev-password-confirmation'),
+                    email_verification_id=verification.id,
                     username='devconfirm',
                     password='password123',
                     device_id='device-dev-confirmation',
@@ -218,11 +228,226 @@ async def test_dev_registration_bypasses_telegram_password_confirmation(anyio_ba
                 ),
             )
 
-            assert completion.confirmation is None
-            assert completion.user and completion.user.status == 'active'
+            profile = await session.get(UserProfile, completion.user.id)
+            await session.refresh(verification)
+
+            assert completion.user.status == 'active'
             assert completion.access_token and completion.refresh_token
+            assert completion.user.profile.email == 'new-user@example.test'
+            assert completion.user.profile.email_verified is True
+            assert profile and profile.email_verified_at == verification.verified_at
+            assert verification.status == 'consumed'
     finally:
         await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_smtp_code_is_hashed_bound_to_device_and_single_use(anyio_backend, monkeypatch) -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app import models  # noqa: F401
+    from app.db.base import Base
+    from app.services.email_verification_service import (
+        EmailVerificationError,
+        consume_verified_email,
+        create_email_verification,
+        verify_email_code,
+    )
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+
+    delivered_codes = []
+
+    async def capture_email_code(email, code, purpose, expires_in_minutes):
+        delivered_codes.append((email, code, purpose, expires_in_minutes))
+
+    monkeypatch.setattr('app.services.email_verification_service.send_verification_code', capture_email_code)
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            started = await create_email_verification(
+                session,
+                ' New.User@Example.test ',
+                'email-device-123',
+                purpose='registration',
+            )
+            verification = started.verification
+            code = delivered_codes[0][1]
+            wrong_code = '000000' if code != '000000' else '000001'
+
+            assert delivered_codes == [('new.user@example.test', code, 'registration', 10)]
+            assert verification.code_hash and code not in verification.code_hash
+
+            with pytest.raises(EmailVerificationError, match='Invalid e-mail confirmation code'):
+                await verify_email_code(session, verification.id, wrong_code, purpose='registration')
+
+            await verify_email_code(session, verification.id, code, purpose='registration')
+            with pytest.raises(EmailVerificationError, match='not available on this device'):
+                await consume_verified_email(
+                    session,
+                    verification.id,
+                    'registration',
+                    device_id='other-device-123',
+                )
+
+            consumed = await consume_verified_email(
+                session,
+                verification.id,
+                'registration',
+                device_id='email-device-123',
+            )
+            await session.commit()
+
+            assert consumed.status == 'consumed'
+            with pytest.raises(EmailVerificationError, match='already used'):
+                await consume_verified_email(
+                    session,
+                    verification.id,
+                    'registration',
+                    device_id='email-device-123',
+                )
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_oauth_requires_existing_manual_link_and_binds_result_to_device(anyio_backend, monkeypatch) -> None:
+    from sqlalchemy import func, select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app import models  # noqa: F401
+    from app.db.base import Base
+    from app.models.oauth import OAuthAttempt, OAuthIdentity
+    from app.models.users import User
+    from app.services import oauth_service
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+
+    async def fake_exchange(provider, code, state, verifier, provider_device_id):
+        assert provider == 'yandex'
+        assert code == 'provider-code'
+        return 'yandex-subject-42' if state == 'link-state' else 'unlinked-yandex-subject'
+
+    monkeypatch.setattr(oauth_service, '_exchange_code_and_get_subject', fake_exchange)
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            user = User(nexus_id='1234567890123456', status='active')
+            session.add(user)
+            await session.flush()
+            link_attempt = OAuthAttempt(
+                provider='yandex',
+                state_hash=oauth_service._hash('link-state'),
+                code_verifier='server-only-verifier',
+                flow='link',
+                user_id=user.id,
+                device_id='oauth-device-123',
+                status='pending',
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+            )
+            unlinked_login_attempt = OAuthAttempt(
+                provider='yandex',
+                state_hash=oauth_service._hash('login-state'),
+                code_verifier='another-server-only-verifier',
+                flow='login',
+                device_id='oauth-device-456',
+                status='pending',
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+            )
+            session.add_all([link_attempt, unlinked_login_attempt])
+            await session.commit()
+
+            result_token = await oauth_service.finish_oauth_callback(
+                session,
+                'yandex',
+                'provider-code',
+                'link-state',
+            )
+            identity = await session.scalar(select(OAuthIdentity))
+
+            assert identity and identity.user_id == user.id
+            assert identity.provider_subject == 'yandex-subject-42'
+            assert oauth_service.callback_redirect_url(result_token=result_token).endswith(f'#result={result_token}')
+
+            with pytest.raises(oauth_service.OAuthError, match='expired or is invalid'):
+                await oauth_service.oauth_link_result(session, result_token, user.id, 'other-device-123')
+
+            completion = await oauth_service.oauth_link_result(session, result_token, user.id, 'oauth-device-123')
+            assert completion.status == 'linked'
+            with pytest.raises(oauth_service.OAuthError, match='expired or is invalid'):
+                await oauth_service.oauth_link_result(session, result_token, user.id, 'oauth-device-123')
+
+            with pytest.raises(oauth_service.OAuthError, match='not linked'):
+                await oauth_service.finish_oauth_callback(
+                    session,
+                    'yandex',
+                    'provider-code',
+                    'login-state',
+                )
+            await session.refresh(unlinked_login_attempt)
+
+            assert unlinked_login_attempt.status == 'unlinked'
+            assert await session.scalar(select(func.count()).select_from(User)) == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_production_auth_rate_limit_hashes_ip_and_fails_open_for_redis_errors(anyio_backend, monkeypatch) -> None:
+    from fastapi import HTTPException
+    from redis.exceptions import RedisError
+    from starlette.requests import Request
+
+    from app.services import auth_rate_limit
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+
+    class RateLimitRedis:
+        def __init__(self, count):
+            self.count = count
+            self.keys = []
+
+        async def incr(self, key):
+            self.keys.append(key)
+            return self.count
+
+        async def expire(self, key, seconds):
+            return True
+
+    request = Request({
+        'type': 'http',
+        'method': 'POST',
+        'path': '/api/auth/email-verification/start',
+        'headers': [(b'x-real-ip', b'203.0.113.10')],
+        'client': ('127.0.0.1', 1234),
+    })
+    redis = RateLimitRedis(auth_rate_limit.DELIVERY_REQUEST_LIMIT + 1)
+    monkeypatch.setattr(auth_rate_limit.settings, 'environment', 'production')
+    monkeypatch.setattr(auth_rate_limit, 'redis_client', redis)
+
+    with pytest.raises(HTTPException, match='Too many authentication requests'):
+        await auth_rate_limit.enforce_sensitive_auth_rate_limit(request)
+    assert '203.0.113.10' not in redis.keys[0]
+
+    class UnavailableRedis:
+        async def incr(self, key):
+            raise RedisError('redis is restarting')
+
+    monkeypatch.setattr(auth_rate_limit, 'redis_client', UnavailableRedis())
+    await auth_rate_limit.enforce_sensitive_auth_rate_limit(request)
 
 
 @pytest.mark.anyio

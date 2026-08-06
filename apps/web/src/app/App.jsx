@@ -3,6 +3,8 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AppShell } from './layout/AppShell.jsx';
 import { ProtectedRoute } from './routes/ProtectedRoute.jsx';
 import { LoginPage } from '../features/auth/pages/LoginPage.jsx';
+import { OAuthCallbackPage } from '../features/auth/pages/OAuthCallbackPage.jsx';
+import { PasswordRecoveryPage } from '../features/auth/pages/PasswordRecoveryPage.jsx';
 import { RegisterPage } from '../features/auth/pages/RegisterPage.jsx';
 import { LandingPage } from '../features/onboarding/pages/LandingPage.jsx';
 import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx';
@@ -55,6 +57,8 @@ export function App() {
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/region" element={<Navigate to="/register" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/login/oauth/callback" element={<OAuthCallbackPage />} />
+        <Route path="/password-recovery" element={<PasswordRecoveryPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />

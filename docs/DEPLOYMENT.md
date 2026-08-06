@@ -242,26 +242,22 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 docker compose --env-file deploy/production.env -f deploy/compose.production.yml logs -f api
 ```
 
-## 8. Telegram webhook
+## 8. SMTP и OAuth-провайдеры
 
-После запуска сайта настройте webhook Telegram-бота на production API:
+До первого запуска заполните в `deploy/production.env` SMTP-параметры из `deploy/production.env.example`: `NEXUS_SMTP_HOST`, `NEXUS_SMTP_PORT`, `NEXUS_SMTP_FROM_EMAIL` и, при необходимости, учётные данные, TLS/SSL и таймаут. Без корректного SMTP регистрация, смена e-mail и восстановление пароля будут недоступны.
 
-```bash
-curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://<ваш-домен>/api/auth/telegram/webhook",
-    "secret_token": "<NEXUS_TELEGRAM_WEBHOOK_SECRET>"
-  }'
-```
+Проверьте доставку на контролируемый ящик: зарегистрируйте тестового пользователя, запросите смену e-mail и восстановление пароля. Не используйте production-пароль для этой проверки.
 
-Проверить текущий webhook:
+Yandex ID и VK ID необязательны. Если они нужны, для каждого провайдера:
 
-```bash
-curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
-```
+1. Создайте OAuth-приложение в кабинете провайдера.
+2. Зарегистрируйте точный callback URL: `https://<ваш-домен>/api/auth/oauth/yandex/callback` либо `https://<ваш-домен>/api/auth/oauth/vk/callback`.
+3. Укажите соответствующие `NEXUS_YANDEX_CLIENT_ID`/`NEXUS_YANDEX_CLIENT_SECRET` либо `NEXUS_VK_CLIENT_ID`/`NEXUS_VK_CLIENT_SECRET`.
+4. Выполните тест: войдите обычным способом, привяжите provider identity в настройках, затем выйдите и войдите через этого провайдера.
 
-В ответе `getWebhookInfo` не должно быть `last_error_message`. Токен бота и URL webhook не публикуйте в issues, чатах или коммитах.
+OAuth-клиентские секреты и SMTP-пароль не публикуйте в репозитории, issues, чатах или логах. Внешние identity не создают аккаунты автоматически: они работают только после ручной привязки из авторизованного AraChat-аккаунта.
+
+Telegram webhook может быть настроен только для необязательных устаревших функций. Он не требуется для регистрации, смены и восстановления пароля.
 
 ## 9. Web Push/VAPID
 
@@ -322,15 +318,18 @@ sudo ss -lunpt | grep 3478
 1. `https://<ваш-домен>` открывается без VPN с обычного российского интернета.
 2. `https://<ваш-домен>/health` возвращает `{"status":"ok","service":"arachat-api"}`.
 3. `https://<ваш-домен>/health/infrastructure` показывает `database: ok`, `redis: ok` и `storage: ok`.
-4. Регистрация через Telegram-бота создаёт пользователя.
-5. Вход по AraChat ID + password работает.
-6. PIN создаётся и работает на доверенном устройстве.
-7. Direct chat создаётся по username/AraChat ID.
-8. Text/photo/video/file/voice/emoji сообщения отправляются и сохраняются.
-9. Realtime-сообщения приходят во второй вкладке без обновления страницы.
-10. Загруженные файлы открываются по URL `https://<media-домен>/uploads/...` и имеют корректный `Content-Type`.
-11. Push-подписка включается в профиле/настройках, если заполнены VAPID-ключи.
-12. Проверка аудиозвонков и демонстрации экрана откладывается до реализации server-side call signaling.
+4. SMTP-код приходит на тестовый e-mail, а регистрация с подтверждённым кодом создаёт пользователя.
+5. Вход по AraChat ID/e-mail + password работает.
+6. Смена пароля требует текущий пароль и SMTP-код; восстановление пароля нейтрально отвечает для неизвестного e-mail и отзывает сессии после успешного сброса.
+7. Смена e-mail требует текущий пароль и код, отправленный на новый адрес.
+8. PIN создаётся и работает на доверенном устройстве.
+9. Если настроены Yandex ID/VK ID, identity можно привязать только из авторизованного аккаунта, а вход через непривязанную identity отклоняется.
+10. Direct chat создаётся по username/AraChat ID.
+11. Text/photo/video/file/voice/emoji сообщения отправляются и сохраняются.
+12. Realtime-сообщения приходят во второй вкладке без обновления страницы.
+13. Загруженные файлы открываются по URL `https://<media-домен>/uploads/...` и имеют корректный `Content-Type`.
+14. Push-подписка включается в профиле/настройках, если заполнены VAPID-ключи.
+15. Проверка аудиозвонков и демонстрации экрана откладывается до реализации server-side call signaling.
 
 Дополнительно проверьте HTTP-заголовки и отсутствие открытых служебных портов:
 
@@ -383,7 +382,8 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 
 - Realtime fan-out пока in-memory в одном API-процессе. Не запускайте несколько API-инстансов до внедрения Redis pub/sub fan-out.
 - Медиафайлы хранятся в object storage, но текущая модель раздаёт их публично через media-домен. Для приватных вложений нужны защищённый endpoint и короткоживущие signed URLs.
-- Email-регистрация подтверждается через Telegram-бота: это связывает указанный email с Telegram-аккаунтом, но не доказывает доступ к почтовому ящику. Для полноценной email-verification нужно добавить SMTP/почтовый провайдер.
+- SMTP и OAuth-провайдеры необходимо проверить с реальными production-настройками: корректность callback URL, тип и разрешения VK-приложения, а также доставку почты зависят от выбранных поставщиков.
+- У исторических аккаунтов e-mail не считается подтверждённым автоматически. Пользователь, который забыл пароль до повторного подтверждения почты, нуждается в отдельном безопасном процессе поддержки.
 - TURN сейчас использует static credentials, которые видны браузеру как часть ICE-конфигурации. Для публичного масштаба нужны временные credentials и rate limiting.
 - Нужны регулярные backup базы и bucket object storage.
 - Перед запуском необходимо самостоятельно проверить актуальность пользовательского соглашения и политики конфиденциальности, реквизитов оператора и применимых требований к персональным данным. Этот репозиторий не заменяет юридическую консультацию.

@@ -10,7 +10,16 @@ import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { LayoutModeSwitcher } from '../../../shared/ui/LayoutModeSwitcher.jsx';
-import { confirmPasswordChange, createPin, deleteAccount, resetPin, startPasswordChange } from '../../auth/api/authApi.js';
+import {
+  confirmEmailChange,
+  confirmPasswordChange,
+  createPin,
+  deleteAccount,
+  resetPin,
+  startEmailChange,
+  startOAuth,
+  startPasswordChange,
+} from '../../auth/api/authApi.js';
 import { updateMyProfile } from '../../profile/api/userApi.js';
 import { getDevices, getLoginHistory, revokeDevice } from '../api/deviceApi.js';
 
@@ -108,6 +117,10 @@ export function SettingsPage() {
   const [pinForm, setPinForm] = useState({ current_password: '', pin: '' });
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '' });
   const [passwordConfirmation, setPasswordConfirmation] = useState(null);
+  const [passwordCode, setPasswordCode] = useState('');
+  const [emailForm, setEmailForm] = useState({ current_password: '', email: '' });
+  const [emailVerification, setEmailVerification] = useState(null);
+  const [emailCode, setEmailCode] = useState('');
   const settingsTabs = [
     { id: 'appearance', icon: 'palette', label: t('settings.appearance') },
     { id: 'language', icon: 'globe', label: t('settings.language') },
@@ -272,17 +285,59 @@ export function SettingsPage() {
   }
 
   async function handleConfirmPasswordChange() {
-    if (!passwordConfirmation) return;
+    if (!passwordConfirmation || passwordCode.length !== 6) return;
     try {
       await confirmPasswordChange(session.accessToken, {
-        password_confirmation_id: passwordConfirmation.password_confirmation_id,
-        password_confirmation_token: passwordConfirmation.password_confirmation_token,
+        verification_id: passwordConfirmation.verification_id,
+        code: passwordCode,
+        device_id: getDeviceId(),
       });
       setPasswordForm({ current_password: '', new_password: '' });
       setPasswordConfirmation(null);
+      setPasswordCode('');
       notify({ kind: 'success', title: t('settings.passwordChanged'), icon: 'shield' });
     } catch (err) {
       notify({ kind: 'error', title: t('settings.changePasswordTitle'), message: err.message, icon: 'shield' });
+    }
+  }
+
+  async function handleStartEmailChange(event) {
+    event.preventDefault();
+    try {
+      const started = await startEmailChange(session.accessToken, { ...emailForm, device_id: getDeviceId() });
+      setEmailVerification(started);
+      notify({ kind: 'success', title: t('settings.emailCodeSent'), icon: 'shield' });
+    } catch (err) {
+      notify({ kind: 'error', title: t('settings.emailChangeTitle'), message: err.message, icon: 'shield' });
+    }
+  }
+
+  async function handleConfirmEmailChange() {
+    if (!emailVerification || emailCode.length !== 6) return;
+    try {
+      const user = await confirmEmailChange(session.accessToken, {
+        verification_id: emailVerification.verification_id,
+        code: emailCode,
+        device_id: getDeviceId(),
+      });
+      saveSession({ ...session, user });
+      setEmailForm({ current_password: '', email: '' });
+      setEmailVerification(null);
+      setEmailCode('');
+      notify({ kind: 'success', title: t('settings.emailChanged'), icon: 'shield' });
+    } catch (err) {
+      notify({ kind: 'error', title: t('settings.emailChangeTitle'), message: err.message, icon: 'shield' });
+    }
+  }
+
+  async function handleOAuthLink(provider) {
+    try {
+      sessionStorage.setItem('arachat_oauth_flow', 'link');
+      const started = await startOAuth(provider, { device_id: getDeviceId() }, session.accessToken);
+      window.location.assign(started.authorization_url);
+    } catch (err) {
+      sessionStorage.removeItem('arachat_oauth_flow');
+      notify({ kind: 'error', title: t('settings.security'), message: err.message, icon: 'shield' });
     }
   }
 
@@ -428,11 +483,24 @@ export function SettingsPage() {
                 <button className="button button-secondary" type="submit">{t('settings.requestPasswordConfirmation')}</button>
                 {passwordConfirmation ? (
                   <div className="password-confirmation-actions">
-                    {passwordConfirmation.bot_url ? <a className="button button-secondary" href={passwordConfirmation.bot_url} target="_blank" rel="noreferrer">{t('settings.openTelegram')}</a> : null}
-                    <button className="button button-primary" type="button" onClick={handleConfirmPasswordChange}>{t('settings.completeAfterTelegram')}</button>
+                    <input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={passwordCode} onChange={(event) => setPasswordCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
+                    <button className="button button-primary" type="button" onClick={handleConfirmPasswordChange} disabled={passwordCode.length !== 6}>{t('settings.completeWithEmailCode')}</button>
                   </div>
                 ) : null}
               </form>
+              <form className="info-card" onSubmit={handleStartEmailChange}>
+                <h3>{t('settings.emailChangeTitle')}</h3>
+                <p className="muted">{t('settings.emailChangeText')}</p>
+                <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={emailForm.current_password} onChange={(event) => setEmailForm((current) => ({ ...current, current_password: event.target.value }))} required />
+                <input className="text-input" type="email" placeholder="name@example.com" value={emailForm.email} onChange={(event) => setEmailForm((current) => ({ ...current, email: event.target.value }))} required />
+                <button className="button button-secondary" type="submit">{t('settings.sendEmailCode')}</button>
+                {emailVerification ? <div className="password-confirmation-actions"><input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /><button className="button button-primary" type="button" onClick={handleConfirmEmailChange} disabled={emailCode.length !== 6}>{t('settings.confirmEmailChange')}</button></div> : null}
+              </form>
+              <section className="info-card">
+                <h3>{t('settings.linkedAccountsTitle')}</h3>
+                <p className="muted">{t('settings.linkedAccountsText')}</p>
+                <div className="toolbar"><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('yandex')}>{t('settings.linkYandex')}</button><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('vk')}>{t('settings.linkVk')}</button></div>
+              </section>
               <form className="info-card" onSubmit={handleCreatePin}>
                 <h3>{t('settings.devicePinTitle')}</h3>
                 <p className="muted">{t('settings.devicePinText')}</p>

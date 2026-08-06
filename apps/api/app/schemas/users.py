@@ -10,6 +10,7 @@ class UserProfileOut(BaseModel):
     avatar_ref: str
     optional_phone: str | None
     email: str | None
+    email_verified: bool = False
     registration_country: str | None
     phone_public: bool
     language: str

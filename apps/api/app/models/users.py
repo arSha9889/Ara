@@ -37,6 +37,7 @@ class UserProfile(Base):
     avatar_ref: Mapped[str] = mapped_column(String(255), default='animal-01')
     optional_phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     registration_country: Mapped[str | None] = mapped_column(String(8), index=True)
     phone_public: Mapped[bool] = mapped_column(Boolean, default=False)
     language: Mapped[str] = mapped_column(String(8), default='ru')

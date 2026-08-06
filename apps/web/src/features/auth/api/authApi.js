@@ -7,34 +7,6 @@ export function completeRegistration(payload) {
   });
 }
 
-export function confirmRegistrationPassword(payload) {
-  return apiRequest('/api/auth/register/confirm', {
-    method: 'POST',
-    body: payload,
-  });
-}
-
-export function createDevRegistrationProof(telegramId) {
-  return apiRequest('/api/auth/dev/registration-proof', {
-    method: 'POST',
-    body: { telegram_id: telegramId },
-  });
-}
-
-export function startPhoneVerification(payload) {
-  return apiRequest('/api/auth/phone-verification/start', {
-    method: 'POST',
-    body: payload,
-  });
-}
-
-export function confirmPhoneVerification(payload) {
-  return apiRequest('/api/auth/phone-verification/confirm', {
-    method: 'POST',
-    body: payload,
-  });
-}
-
 export function startEmailVerification(payload) {
   return apiRequest('/api/auth/email-verification/start', {
     method: 'POST',
@@ -69,6 +41,59 @@ export function confirmPasswordChange(accessToken, payload) {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
     body: payload,
+  });
+}
+
+export function startPasswordReset(payload) {
+  return apiRequest('/api/auth/password/reset/start', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function confirmPasswordReset(payload) {
+  return apiRequest('/api/auth/password/reset/confirm', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function startEmailChange(accessToken, payload) {
+  return apiRequest('/api/auth/email/change/start', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: payload,
+  });
+}
+
+export function confirmEmailChange(accessToken, payload) {
+  return apiRequest('/api/auth/email/change/confirm', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: payload,
+  });
+}
+
+export function startOAuth(provider, payload, accessToken = null) {
+  return apiRequest(`/api/auth/oauth/${provider}${accessToken ? '/link' : ''}/start`, {
+    method: 'POST',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    body: payload,
+  });
+}
+
+export function completeOAuthLogin(resultToken, deviceId) {
+  return apiRequest('/api/auth/oauth/login/complete', {
+    method: 'POST',
+    body: { result_token: resultToken, device_id: deviceId },
+  });
+}
+
+export function completeOAuthLink(accessToken, resultToken, deviceId) {
+  return apiRequest('/api/auth/oauth/link/complete', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: { result_token: resultToken, device_id: deviceId },
   });
 }
 

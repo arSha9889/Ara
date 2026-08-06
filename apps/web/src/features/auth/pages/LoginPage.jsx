@@ -7,7 +7,7 @@ import { Button } from '../../../shared/ui/Button.jsx';
 import { RegionSelector } from '../../../shared/ui/RegionSelector.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
-import { loginWithPassword, loginWithPin } from '../api/authApi.js';
+import { loginWithPassword, loginWithPin, startOAuth } from '../api/authApi.js';
 
 export function LoginPage() {
   const { setLanguage, t } = useI18n();
@@ -62,6 +62,20 @@ export function LoginPage() {
     }
   }
 
+  async function handleOAuth(provider) {
+    setError('');
+    setIsLoading(true);
+    try {
+      sessionStorage.setItem('arachat_oauth_flow', 'login');
+      const result = await startOAuth(provider, { device_id: form.device_id });
+      window.location.assign(result.authorization_url);
+    } catch (err) {
+      sessionStorage.removeItem('arachat_oauth_flow');
+      setError(err.message);
+      setIsLoading(false);
+    }
+  }
+
   return (
     <main className="auth-page">
       <form className="panel auth-card" onSubmit={handleSubmit}>
@@ -86,6 +100,12 @@ export function LoginPage() {
           <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
           <Button type="button" variant="secondary" disabled={isLoading || !form.identifier || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>
         </div>
+        <div className="oauth-actions" aria-label={t('auth.oauthLabel')}>
+          <span className="muted">{t('auth.oauthLabel')}</span>
+          <Button type="button" variant="secondary" disabled={isLoading} onClick={() => handleOAuth('yandex')}>{t('auth.signInWithYandex')}</Button>
+          <Button type="button" variant="secondary" disabled={isLoading} onClick={() => handleOAuth('vk')}>{t('auth.signInWithVk')}</Button>
+        </div>
+        <Link to="/password-recovery" className="auth-switch-link">{t('auth.forgotPassword')}</Link>
         <Link to="/register" className="auth-switch-link">{t('auth.createAccount')}</Link>
       </form>
     </main>

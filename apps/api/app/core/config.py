@@ -19,6 +19,21 @@ class Settings(BaseSettings):
     telegram_bot_name: str = ''
     telegram_webhook_secret: str = ''
     admin_phone: str = ''
+    admin_email: str = ''
+    smtp_host: str = ''
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str = ''
+    smtp_password: str = ''
+    smtp_from_email: str = ''
+    smtp_from_name: str = 'AraChat'
+    smtp_use_starttls: bool = True
+    smtp_use_ssl: bool = False
+    smtp_timeout_seconds: int = Field(default=15, ge=1, le=120)
+    public_base_url: str = ''
+    yandex_oauth_client_id: str = ''
+    yandex_oauth_client_secret: str = ''
+    vk_oauth_client_id: str = ''
+    vk_oauth_client_secret: str = ''
     registration_proof_secret: str = 'dev-registration-proof-secret-change-me'
     access_token_secret: str = 'dev-access-token-secret-change-me'
     access_token_algorithm: str = 'HS256'
@@ -66,6 +81,10 @@ class Settings(BaseSettings):
             missing = [name for name, value in required_settings.items() if not value.strip()]
             if missing:
                 raise ValueError(f'S3 storage requires: {", ".join(missing)}')
+
+    @property
+    def smtp_is_configured(self) -> bool:
+        return bool(self.smtp_host.strip() and self.smtp_from_email.strip())
 
 
 settings = Settings()

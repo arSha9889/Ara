@@ -22,6 +22,9 @@ def test_web_core_tables_are_registered() -> None:
         'message_receipts',
         'telegram_recovery_requests',
         'phone_verifications',
+        'email_verifications',
+        'oauth_identities',
+        'oauth_attempts',
         'audit_logs',
     }
 

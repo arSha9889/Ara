@@ -11,11 +11,6 @@ from app.core.config import settings
 from app.domain.registration_proof import create_registration_proof
 from app.domain.security_hashing import hash_secret, verify_secret
 from app.models.verification import PhoneVerification
-from app.services.email_verification_service import (
-    START_PAYLOAD_PREFIX as EMAIL_START_PAYLOAD_PREFIX,
-    handle_email_callback_query,
-    handle_email_start_command,
-)
 from app.services.password_confirmation_service import handle_password_confirmation_callback
 from app.services.telegram_bot_client import answer_telegram_callback, send_telegram_message
 
@@ -154,16 +149,6 @@ async def _handle_start_command(
 ) -> None:
     parts = text.split(maxsplit=1)
     payload = parts[1] if len(parts) > 1 else ''
-    if payload.startswith(EMAIL_START_PAYLOAD_PREFIX):
-        handled = await handle_email_start_command(
-            session,
-            payload.removeprefix(EMAIL_START_PAYLOAD_PREFIX),
-            chat_id,
-            telegram_user_id,
-            telegram_username,
-        )
-        if handled:
-            return
     if not payload.startswith(START_PAYLOAD_PREFIX):
         await send_telegram_message(
             chat_id,
@@ -229,8 +214,6 @@ async def _handle_phone_text(session: AsyncSession, text: str, chat_id: str) -> 
 
 async def _handle_callback_query(session: AsyncSession, callback_query: dict) -> None:
     if await handle_password_confirmation_callback(session, callback_query):
-        return
-    if await handle_email_callback_query(session, callback_query):
         return
 
     data = callback_query.get('data') or ''

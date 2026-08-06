@@ -42,24 +42,20 @@ class EmailVerificationStartRequest(BaseModel):
 
 class EmailVerificationStartResponse(BaseModel):
     verification_id: UUID
-    bot_url: str
     expires_in_seconds: int
 
 
 class EmailVerificationConfirmRequest(BaseModel):
     verification_id: UUID
-    code: str = Field(pattern=r'^\d{4}$')
+    code: str = Field(pattern=r'^\d{6}$')
 
 
 class EmailVerificationConfirmResponse(BaseModel):
-    registration_proof: str
     email: str
 
 
 class RegisterCompleteRequest(BaseModel):
-    registration_proof: str
-    phone_verification_id: UUID | None = None
-    email_verification_id: UUID | None = None
+    email_verification_id: UUID
     username: str = Field(min_length=3, max_length=32)
     password: str = Field(min_length=5, max_length=30)
     pin: str | None = Field(default=None, min_length=4, max_length=8)
@@ -75,12 +71,9 @@ class RegisterCompleteRequest(BaseModel):
 
 
 class RegisterCompleteResponse(BaseModel):
-    password_confirmation_id: UUID | None = None
-    password_confirmation_token: str | None = None
-    bot_url: str = ''
-    access_token: str | None = None
-    refresh_token: str | None = None
-    user: UserOut | None = None
+    access_token: str
+    refresh_token: str
+    user: UserOut
 
 
 class RegisterConfirmRequest(BaseModel):
@@ -129,11 +122,64 @@ class PasswordChangeStartRequest(BaseModel):
 
 
 class PasswordChangeStartResponse(BaseModel):
-    password_confirmation_id: UUID
-    password_confirmation_token: str
-    bot_url: str
+    verification_id: UUID
+    expires_in_seconds: int
 
 
 class PasswordChangeConfirmRequest(BaseModel):
-    password_confirmation_id: UUID
-    password_confirmation_token: str = Field(min_length=1, max_length=64)
+    verification_id: UUID
+    code: str = Field(pattern=r'^\d{6}$')
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class PasswordResetStartRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class PasswordResetStartResponse(BaseModel):
+    status: str = 'ok'
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    code: str = Field(pattern=r'^\d{6}$')
+    new_password: str = Field(min_length=5, max_length=30)
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class EmailChangeStartRequest(BaseModel):
+    current_password: str = Field(min_length=5, max_length=30)
+    email: str = Field(min_length=5, max_length=255)
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class EmailChangeStartResponse(BaseModel):
+    verification_id: UUID
+    expires_in_seconds: int
+
+
+class EmailChangeConfirmRequest(BaseModel):
+    verification_id: UUID
+    code: str = Field(pattern=r'^\d{6}$')
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class OAuthStartRequest(BaseModel):
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class OAuthStartResponse(BaseModel):
+    authorization_url: str
+
+
+class OAuthCompleteRequest(BaseModel):
+    result_token: str = Field(min_length=16, max_length=255)
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+class OAuthCompleteResponse(BaseModel):
+    status: str
+    access_token: str | None = None
+    refresh_token: str | None = None
+    user: UserOut | None = None

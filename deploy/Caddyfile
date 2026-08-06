@@ -2,6 +2,10 @@
   email {$NEXUS_ACME_EMAIL}
 }
 
+www.{$NEXUS_PUBLIC_DOMAIN} {
+  redir https://{$NEXUS_PUBLIC_DOMAIN}{uri} permanent
+}
+
 {$NEXUS_PUBLIC_DOMAIN} {
   encode zstd gzip
 

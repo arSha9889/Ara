@@ -10,6 +10,7 @@ from app.models.chats import Chat, PushSubscription
 from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import Session
 from app.models.users import User, UserProfile
+from app.services.email_verification_service import EmailVerificationError, normalize_email
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
 
@@ -27,7 +28,14 @@ def configured_admin_phone() -> str | None:
 
 
 def is_configured_admin_profile(profile: UserProfile | None) -> bool:
-    return bool(profile and configured_admin_phone() and profile.optional_phone == configured_admin_phone())
+    if not profile:
+        return False
+    if settings.admin_email.strip():
+        try:
+            return profile.email_verified_at is not None and profile.email == normalize_email(settings.admin_email)
+        except EmailVerificationError:
+            return False
+    return bool(configured_admin_phone() and profile.optional_phone == configured_admin_phone())
 
 
 async def require_admin(session: AsyncSession, user_id: UUID) -> User:
@@ -39,6 +47,23 @@ async def require_admin(session: AsyncSession, user_id: UUID) -> User:
 
 
 async def find_configured_admin(session: AsyncSession) -> User | None:
+    if settings.admin_email.strip():
+        try:
+            email = normalize_email(settings.admin_email)
+        except EmailVerificationError:
+            return None
+        result = await session.execute(
+            select(User)
+            .join(UserProfile, UserProfile.user_id == User.id)
+            .where(
+                UserProfile.email == email,
+                UserProfile.email_verified_at.is_not(None),
+                User.deleted_at.is_(None),
+                User.status == 'active',
+            )
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
     phone = configured_admin_phone()
     if not phone:
         return None
