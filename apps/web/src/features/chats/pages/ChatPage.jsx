@@ -496,7 +496,7 @@ function BranchCommentsPanel({ branch, post, session, language, t, event, onClos
 export function ChatPage() {
   const { language, t } = useI18n();
   const { chatId } = useParams();
-  const { markMessageNotificationsRead } = useNotifications();
+  const { lastNotification, markMessageNotificationsRead } = useNotifications();
   const { session } = useSession();
   const { effectiveMode } = useLayoutMode();
   const navigate = useNavigate();
@@ -586,22 +586,28 @@ export function ChatPage() {
     onError: setError,
   });
 
-  async function loadMessages() {
+  async function loadMessages({ preserveMessages = false } = {}) {
     if (!isChatIdValid) return;
     try {
-      isInitialMessageLoadRef.current = true;
-      setIsLoadingMessages(true);
-      setChat(null);
-      setMessages([]);
-      setError('');
+      if (!preserveMessages) {
+        isInitialMessageLoadRef.current = true;
+        setIsLoadingMessages(true);
+        setChat(null);
+        setMessages([]);
+        setError('');
+      }
       const [chatDetails, items] = await Promise.all([
         getChat(session.accessToken, chatId),
         getMessages(session.accessToken, chatId),
       ]);
       setChat(chatDetails);
-      setMessages(items);
+      setMessages((current) => {
+        const messagesById = new Map(current.map((message) => [message.id, message]));
+        items.forEach((message) => messagesById.set(message.id, message));
+        return [...messagesById.values()].sort((left, right) => new Date(left.created_at) - new Date(right.created_at));
+      });
     } finally {
-      setIsLoadingMessages(false);
+      if (!preserveMessages) setIsLoadingMessages(false);
     }
   }
 
@@ -646,6 +652,14 @@ export function ChatPage() {
     loadMessages().catch((err) => setError(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isChatIdValid, session.accessToken]);
+
+  useEffect(() => {
+    if (!lastNotification?.message_id || lastNotification.chat_id !== chatId || !isChatIdValid) return;
+    loadMessages({ preserveMessages: true }).catch((err) => setError(err.message));
+    // A notification is an independent delivery channel from the chat WebSocket.
+    // Resyncing here recovers a message if that socket missed an event while reconnecting.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, isChatIdValid, lastNotification?.id, session.accessToken]);
 
   useLayoutEffect(() => {
     if (!usesFocusedMobileWorkspace) return undefined;
@@ -720,8 +734,6 @@ export function ChatPage() {
 
       socket.addEventListener('open', () => {
         reconnectAttempts = 0;
-        safeSocketSend(socket, { event: 'chat.subscribe', chat_id: chatId });
-        safeSocketSend(socket, { event: 'presence.active', chat_id: chatId });
       });
       socket.addEventListener('message', (event) => {
         const payload = JSON.parse(event.data);
@@ -730,9 +742,12 @@ export function ChatPage() {
         }
         if (payload.event === 'connection.authenticated') {
           setRealtimeStatus('connected');
+          safeSocketSend(socket, { event: 'chat.subscribe', chat_id: chatId });
+          safeSocketSend(socket, { event: 'presence.active', chat_id: chatId });
         }
         if (payload.event === 'chat.subscribed') {
           setRealtimeStatus('subscribed');
+          loadMessages({ preserveMessages: true }).catch((err) => setError(err.message));
         }
         if (payload.event === 'message.created' && payload.chat_id === chatId) {
           setMessages((current) => appendUniqueMessage(current, payload.message));

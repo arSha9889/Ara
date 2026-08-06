@@ -23,6 +23,7 @@ function sortNotifications(items) {
 export function NotificationsProvider({ children }) {
   const { session } = useSession();
   const [notifications, setNotifications] = useState([]);
+  const [lastNotification, setLastNotification] = useState(null);
   const [pushConfig, setPushConfig] = useState({ enabled: false, public_key: null });
   const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
   const [hasSubscription, setHasSubscription] = useState(false);
@@ -71,6 +72,7 @@ export function NotificationsProvider({ children }) {
   useEffect(() => {
     if (!session.accessToken) {
       setNotifications([]);
+      setLastNotification(null);
       knownNotificationIdsRef.current = new Set();
       setPushConfig({ enabled: false, public_key: null });
       setHasSubscription(false);
@@ -127,6 +129,7 @@ export function NotificationsProvider({ children }) {
         if (payload.event === 'notification.created' && payload.notification) {
           const isNewNotification = !knownNotificationIdsRef.current.has(payload.notification.id);
           knownNotificationIdsRef.current.add(payload.notification.id);
+          setLastNotification(payload.notification);
           setNotifications((current) => sortNotifications([
             payload.notification,
             ...current.filter((item) => item.id !== payload.notification.id),
@@ -226,6 +229,7 @@ export function NotificationsProvider({ children }) {
 
   const value = useMemo(() => ({
     notifications,
+    lastNotification,
     unreadCount,
     isLoading,
     isSupported,
@@ -237,7 +241,7 @@ export function NotificationsProvider({ children }) {
     markAllRead,
     markNotificationRead,
     markMessageNotificationsRead,
-  }), [notifications, unreadCount, isLoading, isSupported, isEnabled, permission, pushConfig.enabled]);
+  }), [notifications, lastNotification, unreadCount, isLoading, isSupported, isEnabled, permission, pushConfig.enabled]);
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }
