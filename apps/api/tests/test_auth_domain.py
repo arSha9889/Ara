@@ -461,6 +461,7 @@ async def test_profile_update_cannot_claim_configured_administrator_phone(anyio_
     if anyio_backend != 'asyncio':
         pytest.skip('asyncio only')
     monkeypatch.setattr('app.services.admin_service.settings.admin_phone', '+79990000001')
+    monkeypatch.setattr('app.services.admin_service.settings.admin_email', '')
 
     user = User(id=uuid4(), nexus_id='1234567890123456', telegram_id='non-admin', status='active')
     profile = UserProfile(
@@ -491,7 +492,7 @@ async def test_profile_update_cannot_claim_configured_administrator_phone(anyio_
             return None
 
     session = ProfileSession()
-    with pytest.raises(AuthError, match='Phone number can only be changed through Telegram verification'):
+    with pytest.raises(AuthError, match='Phone number is reserved for administrator access'):
         await update_profile(
             session,
             user.id,
@@ -503,6 +504,74 @@ async def test_profile_update_cannot_claim_configured_administrator_phone(anyio_
     assert current_user.is_official is False
     with pytest.raises(AdminError, match='Administrator access is required'):
         await require_admin(session, user.id)
+
+
+@pytest.mark.anyio
+async def test_profile_contact_phone_can_be_saved_and_cleared(anyio_backend, monkeypatch) -> None:
+    from app.models.users import User, UserProfile
+    from app.schemas.users import ProfileUpdateRequest
+    from app.services import user_service
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    monkeypatch.setattr('app.services.user_service.settings.admin_phone', '')
+    monkeypatch.setattr('app.services.user_service.settings.admin_email', '')
+
+    user = User(id=uuid4(), nexus_id='1234567890123456', status='active')
+    profile = UserProfile(user_id=user.id, display_name='Contact User', username='contactuser')
+
+    class ProfileSession:
+        async def get(self, model, _user_id):
+            return profile if model is UserProfile else None
+
+        async def scalar(self, _statement):
+            return None
+
+        async def commit(self):
+            return None
+
+        async def rollback(self):
+            return None
+
+    async def fake_get_current_user_out(_session, _user_id):
+        return type('UserOut', (), {'profile': profile})()
+
+    monkeypatch.setattr(user_service, 'get_current_user_out', fake_get_current_user_out)
+    session = ProfileSession()
+
+    added_user = await user_service.update_profile(
+        session,
+        user.id,
+        ProfileUpdateRequest(optional_phone='+7 (999) 000-00-02'),
+    )
+    assert added_user.profile.optional_phone == '+79990000002'
+    assert added_user.profile.phone_public is False
+
+    updated_user = await user_service.update_profile(
+        session,
+        user.id,
+        ProfileUpdateRequest(phone_public=True),
+    )
+    assert updated_user.profile.phone_public is True
+
+    cleared_user = await user_service.update_profile(
+        session,
+        user.id,
+        ProfileUpdateRequest(optional_phone=''),
+    )
+    assert cleared_user.profile.optional_phone is None
+    assert cleared_user.profile.phone_public is False
+
+
+@pytest.mark.anyio
+async def test_contact_phone_cannot_be_used_to_log_in(anyio_backend) -> None:
+    from app.services import auth_service, security_service
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+
+    assert await auth_service._find_user_by_login_identifier(None, '+7 (999) 000-00-02') is None
+    assert await security_service._find_user_by_login_identifier(None, '+7 (999) 000-00-02') is None
 
 
 @pytest.mark.anyio

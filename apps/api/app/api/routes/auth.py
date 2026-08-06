@@ -425,7 +425,7 @@ async def login(
     request: LoginRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TokenPairResponse:
-    identifier = request.identifier or request.email or request.phone or request.nexus_id
+    identifier = request.identifier or request.email or request.nexus_id
     if not identifier:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Login identifier is required')
     try:

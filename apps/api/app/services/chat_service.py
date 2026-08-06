@@ -351,7 +351,11 @@ async def _find_user_by_phone(session: AsyncSession, country: str, phone: str) -
     statement = (
         select(User)
         .join(UserProfile, UserProfile.user_id == User.id)
-        .where(UserProfile.optional_phone == normalized_phone, User.deleted_at.is_(None))
+        .where(
+            UserProfile.optional_phone == normalized_phone,
+            UserProfile.phone_public.is_(True),
+            User.deleted_at.is_(None),
+        )
     )
     result = await session.execute(statement)
     user = result.scalar_one_or_none()

@@ -18,7 +18,7 @@ export function ProfilePage() {
   const { session, saveSession } = useSession();
   const { notify } = useAppFeedback();
   const [user, setUser] = useState(session.user);
-  const [form, setForm] = useState({ display_name: '', username: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
+  const [form, setForm] = useState({ display_name: '', username: '', optional_phone: '', phone_public: false, avatar_type: 'built_in', avatar_ref: 'animal-01' });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
@@ -35,6 +35,7 @@ export function ProfilePage() {
         setForm({
           display_name: result.profile?.display_name ?? '',
           username: result.profile?.username ?? '',
+          optional_phone: result.profile?.optional_phone ?? '',
           phone_public: Boolean(result.profile?.phone_public),
           avatar_type: result.profile?.avatar_type ?? 'built_in',
           avatar_ref: result.profile?.avatar_ref ?? 'animal-01',
@@ -68,6 +69,7 @@ export function ProfilePage() {
       }
         let nextUser = await updateMyProfile(session.accessToken, {
           display_name: form.display_name,
+          optional_phone: form.optional_phone,
           phone_public: form.phone_public,
         ...avatarPayload,
       });
@@ -79,6 +81,8 @@ export function ProfilePage() {
       setAvatarPreview('');
       setForm((current) => ({
         ...current,
+        optional_phone: nextUser.profile?.optional_phone ?? '',
+        phone_public: Boolean(nextUser.profile?.phone_public),
         avatar_type: nextUser.profile?.avatar_type ?? current.avatar_type,
         avatar_ref: nextUser.profile?.avatar_ref ?? current.avatar_ref,
       }));
@@ -203,9 +207,10 @@ export function ProfilePage() {
         <div className="profile-fields-grid">
           <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
           <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} />
+          <TextInput label={t('profile.optionalPhone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+79991234567" value={form.optional_phone} onChange={(event) => updateField('optional_phone', event.target.value)} />
           <div className="field"><span>{t('profile.email')}</span><strong>{user?.profile?.email || '—'}</strong><small className="muted">{t('profile.emailManagedInSecurity')}</small></div>
         </div>
-        {user?.profile?.optional_phone ? <div className="profile-phone-card"><span>{t('profile.optionalPhone')}</span><strong>{user.profile.optional_phone}</strong></div> : null}
+        <p className="muted">{t('profile.phoneContactHint')}</p>
         <label className="field inline-field profile-visibility-row">
           <span>{t('profile.phonePublic')}</span>
           <input type="checkbox" checked={form.phone_public} onChange={(event) => updateField('phone_public', event.target.checked)} />

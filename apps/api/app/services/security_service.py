@@ -14,7 +14,6 @@ from app.models.users import User, UserProfile
 from app.schemas.users import UserOut
 from app.services.auth_service import issue_session_for_user
 from app.services.email_verification_service import EmailVerificationError, normalize_email
-from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
 
 class SecurityError(ValueError):
@@ -177,17 +176,7 @@ async def _find_user_by_login_identifier(session: AsyncSession, identifier: str)
         )
         return result.scalar_one_or_none()
 
-    try:
-        phone = normalize_phone(value)
-    except PhoneVerificationError:
-        return None
-
-    result = await session.execute(
-        select(User)
-        .join(UserProfile, UserProfile.user_id == User.id)
-        .where(UserProfile.optional_phone == phone)
-    )
-    return result.scalar_one_or_none()
+    return None
 
 
 def _audit(user_id: UUID, action: str, device_id: str) -> AuditLog:

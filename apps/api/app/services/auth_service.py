@@ -456,11 +456,6 @@ async def _is_registration_limit_reached(session: AsyncSession) -> bool:
     return result.scalar_one() >= settings.early_access_bypass_limit
 
 
-async def _phone_exists(session: AsyncSession, phone: str) -> bool:
-    result = await session.execute(select(UserProfile.user_id).where(UserProfile.optional_phone == phone))
-    return result.scalar_one_or_none() is not None
-
-
 async def _email_exists(session: AsyncSession, email: str) -> bool:
     result = await session.execute(select(UserProfile.user_id).where(UserProfile.email == email))
     return result.scalar_one_or_none() is not None
@@ -484,17 +479,7 @@ async def _find_user_by_login_identifier(session: AsyncSession, identifier: str)
         )
         return result.scalar_one_or_none()
 
-    try:
-        phone = normalize_phone(value)
-    except PhoneVerificationError:
-        return None
-
-    result = await session.execute(
-        select(User)
-        .join(UserProfile, UserProfile.user_id == User.id)
-        .where(UserProfile.optional_phone == phone)
-    )
-    return result.scalar_one_or_none()
+    return None
 
 
 async def _generate_unique_nexus_id(session: AsyncSession) -> str:

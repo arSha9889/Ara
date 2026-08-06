@@ -1,7 +1,9 @@
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
 
+from app.core.config import settings
 from app.domain.nexus_id import is_valid_nexus_id
 from app.domain.validators import is_valid_username
 from app.models.users import User, UserProfile
@@ -25,15 +27,37 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
         profile.display_name = request.display_name
     if request.email is not None:
         raise AuthError('E-mail can only be changed through e-mail verification')
-    if request.optional_phone is not None:
+    if 'optional_phone' in request.model_fields_set:
         try:
             requested_phone = normalize_phone(request.optional_phone) if request.optional_phone else None
         except PhoneVerificationError as exc:
             raise AuthError(str(exc)) from exc
-        if requested_phone != profile.optional_phone:
-            raise AuthError('Phone number can only be changed through Telegram verification')
+
+        configured_admin_phone = _configured_admin_phone()
+        if (
+            requested_phone
+            and requested_phone != profile.optional_phone
+            and configured_admin_phone
+            and requested_phone == configured_admin_phone
+        ):
+            raise AuthError('Phone number is reserved for administrator access')
+
+        if requested_phone and requested_phone != profile.optional_phone:
+            existing_user_id = await session.scalar(
+                select(UserProfile.user_id).where(
+                    UserProfile.optional_phone == requested_phone,
+                    UserProfile.user_id != user_id,
+                )
+            )
+            if existing_user_id:
+                raise AuthError('Phone number is already in use')
+
+        had_phone = profile.optional_phone is not None
+        profile.optional_phone = requested_phone
+        if not requested_phone or not had_phone:
+            profile.phone_public = False
     if request.phone_public is not None:
-        profile.phone_public = request.phone_public
+        profile.phone_public = request.phone_public if profile.optional_phone else False
     if request.avatar_type is not None or request.avatar_ref is not None:
         avatar_type = request.avatar_type or profile.avatar_type
         avatar_ref = request.avatar_ref or profile.avatar_ref
@@ -51,7 +75,11 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
         if request.design_theme not in {'halo', 'orbit', 'aurora', 'liquid_glass'}:
             raise AuthError('Unsupported design theme')
         profile.design_theme = request.design_theme
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise AuthError('Phone number is already in use') from exc
     return await get_current_user_out(session, user_id)
 
 
@@ -116,3 +144,12 @@ def to_public_user_out(user: User) -> PublicUserOut:
             optional_phone=profile.optional_phone if profile.phone_public else None,
         ) if profile else None,
     )
+
+
+def _configured_admin_phone() -> str | None:
+    if settings.admin_email.strip() or not settings.admin_phone.strip():
+        return None
+    try:
+        return normalize_phone(settings.admin_phone)
+    except PhoneVerificationError:
+        return None

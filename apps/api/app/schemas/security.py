@@ -17,7 +17,6 @@ class PinResetRequest(BaseModel):
 
 class PinLoginRequest(BaseModel):
     identifier: str | None = Field(default=None, min_length=5, max_length=255)
-    phone: str | None = Field(default=None, min_length=7, max_length=32)
     email: str | None = Field(default=None, min_length=5, max_length=255)
     nexus_id: str | None = Field(default=None, min_length=16, max_length=16)
     pin: str = Field(min_length=4, max_length=8)

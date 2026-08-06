@@ -112,34 +112,39 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             updated_user = await update_profile(
                 session,
                 first_user.id,
-                ProfileUpdateRequest(language='en', design_theme='aurora', phone_public=True),
+                ProfileUpdateRequest(
+                    language='en',
+                    design_theme='aurora',
+                    optional_phone='+7 (999) 000-00-01',
+                    phone_public=True,
+                ),
             )
             assert updated_user.profile.language == 'en'
             assert updated_user.profile.design_theme == 'aurora'
-            assert updated_user.profile.optional_phone is None
+            assert updated_user.profile.optional_phone == '+79990000001'
             assert updated_user.profile.phone_public is True
 
         async with session_factory() as session:
             first_profile = await session.get(UserProfile, first_user.id)
-            first_profile.optional_phone = '+79990000001'
+            assert first_profile.optional_phone == '+79990000001'
             second_profile = await session.get(UserProfile, second_user.id)
             second_profile.optional_phone = '+79990000002'
             await session.commit()
 
         async with session_factory() as session:
-            private_profile = await find_public_user(session, 'bobnexus')
-            assert private_profile.profile and private_profile.profile.optional_phone is None
-            assert 'nexus_id' not in private_profile.model_dump()
-            assert 'telegram_id' not in private_profile.model_dump()
+            with pytest.raises(AuthError, match='User not found'):
+                await create_or_get_direct_chat(session, first_user.id, 'RU', '+7 999 000-00-02')
 
             second_profile = await session.get(UserProfile, second_user.id)
             second_profile.phone_public = True
             await session.commit()
 
         async with session_factory() as session:
-            public_profile = await find_public_user(session, 'bobnexus')
-            assert public_profile.profile and public_profile.profile.optional_phone == '+79990000002'
-            assert 'email' not in public_profile.profile.model_dump()
+            private_profile = await find_public_user(session, 'bobnexus')
+            assert private_profile.profile and private_profile.profile.optional_phone == '+79990000002'
+            assert 'nexus_id' not in private_profile.model_dump()
+            assert 'telegram_id' not in private_profile.model_dump()
+            assert 'email' not in private_profile.profile.model_dump()
 
         async with session_factory() as session:
             chat = await create_or_get_direct_chat(session, first_user.id, 'RU', '+7 999 000-00-02')
