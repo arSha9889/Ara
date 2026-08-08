@@ -116,7 +116,7 @@ async def phone_verification_start(
     if not settings.telegram_bot_name or not settings.telegram_bot_token:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Telegram bot is not configured')
     try:
-        started = await create_phone_verification(session, request.country, request.phone, request.device_id)
+        started = await create_phone_verification(session, request.country, request.phone, request.device_id, request.language)
     except PhoneVerificationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return PhoneVerificationStartResponse(
@@ -155,7 +155,7 @@ async def email_verification_start(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> EmailVerificationStartResponse:
     try:
-        started = await create_email_verification(session, request.email, request.device_id)
+        started = await create_email_verification(session, request.email, request.device_id, language=request.language)
     except EmailVerificationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except SmtpDeliveryError as exc:
@@ -268,7 +268,7 @@ async def password_reset_start(
     request: PasswordResetStartRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PasswordResetStartResponse:
-    await start_password_reset(session, request.email, request.device_id)
+    await start_password_reset(session, request.email, request.device_id, request.language)
     return PasswordResetStartResponse()
 
 

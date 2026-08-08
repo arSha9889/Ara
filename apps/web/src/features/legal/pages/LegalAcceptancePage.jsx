@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { acceptCurrentLegalDocuments } from '../../auth/api/authApi.js';
 
 export function LegalAcceptancePage() {
+  const { t } = useI18n();
   const { session, saveSession, clearSession } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
@@ -18,7 +20,7 @@ export function LegalAcceptancePage() {
     event.preventDefault();
     setError('');
     if (!acceptedPrivacy || !acceptedTerms) {
-      setError('Для продолжения подтвердите принятие обоих документов.');
+      setError(t('legal.acceptBoth'));
       return;
     }
 
@@ -38,29 +40,29 @@ export function LegalAcceptancePage() {
     <main className="auth-page legal-page">
       <form className="panel readable legal-acceptance" onSubmit={handleSubmit}>
         <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
-        <p className="eyebrow">Обновление документов</p>
-        <h1>Подтвердите новую редакцию документов</h1>
-        <p className="muted">Мы обновили Политику конфиденциальности и Пользовательское соглашение. Чтобы продолжить пользоваться AraChat, ознакомьтесь с ними и подтвердите принятие редакции от 30 июля 2026 года.</p>
+        <p className="eyebrow">{t('legal.updatedDocuments')}</p>
+        <h1>{t('legal.acceptanceTitle')}</h1>
+        <p className="muted">{t('legal.acceptanceText')}</p>
 
         <div className="legal-acceptance-notice">
-          <strong>Важно:</strong> сообщения в текущей версии AraChat не защищены сквозным шифрованием, а вложения временно доступны по публичным ссылкам. Не отправляйте через сервис чувствительные сведения.
+          <strong>{t('legal.important')}</strong> {t('legal.securityNotice')}
         </div>
 
         <div className="legal-consent-card">
           <label className="legal-consent-row">
             <input type="checkbox" checked={acceptedPrivacy} onChange={(event) => setAcceptedPrivacy(event.target.checked)} />
-            <span>Я принимаю <Link to="/privacy" target="_blank" rel="noreferrer">Политику конфиденциальности и обработки персональных данных</Link>.</span>
+            <span>{t('legal.acceptPrivacyPrefix')}<Link to="/privacy" target="_blank" rel="noreferrer">{t('legal.privacyTitle')}</Link>{t('legal.consentSuffix')}</span>
           </label>
           <label className="legal-consent-row">
             <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} />
-            <span>Я принимаю <Link to="/terms" target="_blank" rel="noreferrer">Пользовательское соглашение AraChat</Link>.</span>
+            <span>{t('legal.acceptTermsPrefix')}<Link to="/terms" target="_blank" rel="noreferrer">{t('legal.termsTitle')}</Link>{t('legal.consentSuffix')}</span>
           </label>
         </div>
 
         {error ? <p className="error-text">{error}</p> : null}
         <div className="legal-actions">
-          <Button type="submit" disabled={isSubmitting || !acceptedPrivacy || !acceptedTerms}>{isSubmitting ? 'Сохраняем...' : 'Принять и продолжить'}</Button>
-          <Button type="button" variant="secondary" disabled={isSubmitting} onClick={clearSession}>Выйти из аккаунта</Button>
+          <Button type="submit" disabled={isSubmitting || !acceptedPrivacy || !acceptedTerms}>{isSubmitting ? t('legal.saving') : t('legal.acceptAndContinue')}</Button>
+          <Button type="button" variant="secondary" disabled={isSubmitting} onClick={clearSession}>{t('legal.logout')}</Button>
         </div>
       </form>
     </main>

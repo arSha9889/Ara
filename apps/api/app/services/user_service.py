@@ -10,6 +10,7 @@ from app.models.users import User, UserProfile
 from app.schemas.users import ProfileUpdateRequest, PublicUserOut, PublicUserProfileOut
 from app.services.auth_service import AuthError, get_user_with_profile, to_user_out
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
+from app.services.stored_object_service import replace_uploaded_avatar, retire_uploaded_avatars
 
 
 async def get_current_user_out(session: AsyncSession, user_id):
@@ -60,11 +61,20 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
         profile.phone_public = request.phone_public if profile.optional_phone else False
     if request.avatar_type is not None or request.avatar_ref is not None:
         avatar_type = request.avatar_type or profile.avatar_type
-        avatar_ref = request.avatar_ref or profile.avatar_ref
+        avatar_ref = request.avatar_ref if request.avatar_ref is not None else profile.avatar_ref
         if avatar_type not in {'built_in', 'uploaded'}:
             raise AuthError('Unsupported avatar type')
         if avatar_type == 'built_in' and avatar_ref not in {f'animal-{index:02d}' for index in range(1, 21)}:
             raise AuthError('Unsupported built-in avatar')
+        if avatar_type == 'uploaded' and not avatar_ref.startswith(('http://', 'https://', '/storage/')):
+            raise AuthError('Unsupported uploaded avatar')
+        try:
+            if avatar_type == 'uploaded':
+                await replace_uploaded_avatar(session, user_id, avatar_ref)
+            elif profile.avatar_type == 'uploaded':
+                await retire_uploaded_avatars(session, user_id)
+        except ValueError as exc:
+            raise AuthError(str(exc)) from exc
         profile.avatar_type = avatar_type
         profile.avatar_ref = avatar_ref
     if request.language is not None:

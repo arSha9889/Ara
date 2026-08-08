@@ -9,6 +9,17 @@ export function getAdminSecurityMetrics(accessToken) {
   return apiRequest('/api/admin/security/metrics', { headers: authHeaders(accessToken) });
 }
 
+export function getAdminMaintenance(accessToken) {
+  return apiRequest('/api/admin/maintenance', { headers: authHeaders(accessToken) });
+}
+
+export function runAdminRetention(accessToken) {
+  return apiRequest('/api/admin/maintenance/retention', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function getAdminAuditLogs(accessToken) {
   return apiRequest('/api/admin/audit-logs', { headers: authHeaders(accessToken) });
 }

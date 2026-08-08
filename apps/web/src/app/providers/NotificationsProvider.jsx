@@ -70,7 +70,7 @@ export function NotificationsProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!session.accessToken) {
+    if (!session.accessToken || !session.user) {
       setNotifications([]);
       setLastNotification(null);
       knownNotificationIdsRef.current = new Set();

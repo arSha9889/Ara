@@ -100,6 +100,18 @@ def test_phone_country_api_contracts_include_belarus_and_uzbekistan() -> None:
     assert registration.language == 'be'
 
 
+def test_registration_empty_pin_is_treated_as_absent() -> None:
+    registration = RegisterCompleteRequest(
+        email_verification_id=uuid4(),
+        username='withoutpin',
+        password='password123',
+        pin='',
+        device_id='device-123',
+    )
+
+    assert registration.pin is None
+
+
 @pytest.mark.anyio
 async def test_deleted_account_cannot_log_in_again(anyio_backend) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -507,15 +519,15 @@ async def test_profile_update_cannot_claim_configured_administrator_phone(anyio_
 
 
 @pytest.mark.anyio
-async def test_profile_contact_phone_can_be_saved_and_cleared(anyio_backend, monkeypatch) -> None:
+async def test_profile_contact_phone_can_be_saved_when_admin_uses_email(anyio_backend, monkeypatch) -> None:
     from app.models.users import User, UserProfile
     from app.schemas.users import ProfileUpdateRequest
     from app.services import user_service
 
     if anyio_backend != 'asyncio':
         pytest.skip('asyncio only')
-    monkeypatch.setattr('app.services.user_service.settings.admin_phone', '')
-    monkeypatch.setattr('app.services.user_service.settings.admin_email', '')
+    monkeypatch.setattr('app.services.user_service.settings.admin_phone', '+79990000001')
+    monkeypatch.setattr('app.services.user_service.settings.admin_email', 'owner@example.test')
 
     user = User(id=uuid4(), nexus_id='1234567890123456', status='active')
     profile = UserProfile(user_id=user.id, display_name='Contact User', username='contactuser')
@@ -542,9 +554,9 @@ async def test_profile_contact_phone_can_be_saved_and_cleared(anyio_backend, mon
     added_user = await user_service.update_profile(
         session,
         user.id,
-        ProfileUpdateRequest(optional_phone='+7 (999) 000-00-02'),
+        ProfileUpdateRequest(optional_phone='+7 (999) 000-00-01'),
     )
-    assert added_user.profile.optional_phone == '+79990000002'
+    assert added_user.profile.optional_phone == '+79990000001'
     assert added_user.profile.phone_public is False
 
     updated_user = await user_service.update_profile(

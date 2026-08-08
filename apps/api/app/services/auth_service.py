@@ -152,6 +152,7 @@ async def start_password_change(
             purpose='password_change',
             user_id=user_id,
             pending_password_hash=hash_secret(new_password),
+            language=profile.language,
         )
     except EmailVerificationError as exc:
         raise AuthError(str(exc)) from exc
@@ -184,7 +185,7 @@ async def confirm_password_change(
     await session.commit()
 
 
-async def start_password_reset(session: AsyncSession, email: str, device_id: str) -> None:
+async def start_password_reset(session: AsyncSession, email: str, device_id: str, language: str = 'ru') -> None:
     try:
         normalized_email = normalize_email(email)
     except EmailVerificationError:
@@ -207,6 +208,7 @@ async def start_password_reset(session: AsyncSession, email: str, device_id: str
             device_id,
             purpose='password_reset',
             user_id=user.id,
+            language=language,
         )
     except (EmailVerificationError, SmtpDeliveryError):
         return
@@ -281,6 +283,7 @@ async def start_email_change(
         raise AuthError(str(exc)) from exc
     if await _email_exists(session, normalized_email):
         raise AuthError('Email is already registered')
+    profile = await session.get(UserProfile, user_id)
     try:
         return await create_email_verification(
             session,
@@ -288,6 +291,7 @@ async def start_email_change(
             device_id,
             purpose='email_change',
             user_id=user_id,
+            language=profile.language if profile else 'ru',
         )
     except EmailVerificationError as exc:
         raise AuthError(str(exc)) from exc

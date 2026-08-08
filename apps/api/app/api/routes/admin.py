@@ -13,7 +13,9 @@ from app.schemas.admin import (
     AdminBranchMemberRequest,
     AdminBranchOut,
     AdminBranchUpdateRequest,
+    AdminMaintenanceOut,
     AdminOverviewOut,
+    AdminRetentionRunOut,
     AdminSecurityMetricsOut,
     AdminSystemBotOut,
     AdminUserListOut,
@@ -39,6 +41,7 @@ from app.services.branch_service import list_admin_branches, set_admin_branch_ar
 from app.models.chats import ChatParticipant
 from app.services.notification_service import create_message_notifications
 from app.services.realtime_manager import realtime_manager
+from app.services.retention_service import RetentionError, preview_retention, read_host_storage_status, run_retention
 from app.services.system_bot_service import delete_system_bot_message, edit_system_bot_message, get_system_bot, publish_system_bot_message, toggle_system_bot_message_pin
 
 
@@ -146,6 +149,35 @@ async def get_security_metrics(
         return AdminSecurityMetricsOut.model_validate(await admin_security_metrics(session, current_user.id))
     except AdminError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.get('/maintenance', response_model=AdminMaintenanceOut)
+async def get_maintenance(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminMaintenanceOut:
+    try:
+        await require_admin(session, current_user.id)
+        return AdminMaintenanceOut.model_validate({
+            'host': read_host_storage_status(),
+            'retention': await preview_retention(session),
+        })
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.post('/maintenance/retention', response_model=AdminRetentionRunOut)
+async def run_maintenance_retention(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminRetentionRunOut:
+    try:
+        await require_admin(session, current_user.id)
+        return AdminRetentionRunOut.model_validate(await run_retention(session, current_user.id))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except RetentionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
 @router.get('/audit-logs', response_model=AdminAuditLogListOut)

@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up AraChat PostgreSQL to the external restic repository
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/arachat/maintenance.env
+ExecStart=/usr/local/lib/arachat/backup-postgres.sh

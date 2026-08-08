@@ -136,8 +136,10 @@ sudo ufw status verbose
 Затем получите код проекта через Git:
 
 ```bash
-git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> arachat
-cd arachat
+sudo mkdir -p /opt
+sudo git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> /opt/arachat
+sudo chown -R "$USER":"$USER" /opt/arachat
+cd /opt/arachat
 ```
 
 Создайте production env:
@@ -170,6 +172,22 @@ NEXUS_EARLY_ACCESS_BYPASS_LIMIT=0
 Для публичного релиза укажите `NEXUS_EARLY_ACCESS_BYPASS_LIMIT=0`. Положительное значение включает ограничение на число активных аккаунтов и подходит только для закрытой беты.
 Параметры `NEXUS_TURN_*` и `VITE_RTC_ICE_SERVERS` пока можно оставить
 примерными: профиль `calls` по умолчанию выключен.
+
+### Администратор и контактный номер
+
+Права администратора должны быть привязаны к уже подтверждённому e-mail владельца
+аккаунта, а не к номеру телефона. В `deploy/production.env` укажите этот e-mail и
+очистите устаревший резервный номер:
+
+```dotenv
+NEXUS_ADMIN_EMAIL=owner@example.com
+NEXUS_ADMIN_PHONE=
+```
+
+Перезапустите API после изменения конфигурации. После этого номер можно сохранить в
+профиле как контактный. Не снимайте ограничение через код, пока задан только
+`NEXUS_ADMIN_PHONE`: иначе любой пользователь, указавший этот номер, получит доступ
+к админ-панели.
 
 Секреты можно сгенерировать так:
 
@@ -355,30 +373,140 @@ API-контейнер при старте применяет миграции:
 alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
 ```
 
-## 13. Резервные копии
+При этом обновлении Compose пересоздаст контейнеры, чтобы применить лимиты
+Docker-логов: не более 10 МБ × 3 сжатых файла на контейнер. Старые образы и
+build cache не удаляются этой командой — за них отвечает безопасный systemd
+таймер ниже.
+
+## 13. Хранение, безопасная очистка и контроль места
+
+В production уже включены следующие предохранители:
+
+- логи всех контейнеров Docker используют драйвер `local`, ограниченный 10 МБ × 3;
+- Redis ограничен `NEXUS_REDIS_MAXMEMORY` (по умолчанию 256 МБ) и может вытеснять
+  только TTL-ключи rate limit по LRU; он не содержит сессии, чаты или сообщения;
+- медиафайлы production находятся в S3, а не в Docker volume VPS;
+- прикладной retention удаляет лишь устаревшие служебные записи и объекты,
+  зарегистрированные новым реестром хранилища. Активные сообщения, используемые
+  вложения и исторические S3-объекты без записи в реестре не удаляются автоматически.
+
+Установите host-side задачи. Они выполняются только systemd от root, не получают
+параметров из HTTP и не дают панели администратора доступа к Docker socket или
+томам:
+
+```bash
+sudo install -d -m 0750 /etc/arachat /var/lib/arachat/maintenance
+sudo install -d -m 0755 /usr/local/lib/arachat
+sudo install -m 0755 deploy/maintenance/*.sh /usr/local/lib/arachat/
+sudo install -m 0644 deploy/maintenance/*.service deploy/maintenance/*.timer /etc/systemd/system/
+sudo tee /etc/arachat/maintenance.env > /dev/null <<'EOF'
+ARACHAT_PROJECT_DIR=/opt/arachat
+ARACHAT_DOCKER_RETENTION_HOURS=336
+ARACHAT_BACKUP_DIR=/var/lib/arachat/backups
+ARACHAT_POSTGRES_VOLUME=nexus-production_nexus_postgres_data
+ARACHAT_REDIS_VOLUME=nexus-production_nexus_redis_data
+EOF
+sudo chmod 600 /etc/arachat/maintenance.env
+sudo systemctl daemon-reload
+sudo systemctl enable --now arachat-storage-status.timer arachat-host-cleanup.timer arachat-app-retention.timer
+sudo systemctl start arachat-storage-status.service
+```
+
+`arachat-host-cleanup` ежедневно удаляет **только** неиспользуемые Docker images
+и build cache старше 14 дней. Он намеренно не запускает `docker volume prune`,
+`docker system prune --volumes`, очистку контейнеров или Redis `FLUSHALL`.
+`arachat-app-retention` запускает фиксированную команду внутри API-контейнера;
+ручной запуск из вкладки «Хранение» использует тот же прикладной механизм и
+защищён от параллельного запуска PostgreSQL advisory lock.
+
+Периоды прикладного retention по умолчанию:
+
+| Данные | Срок до очистки |
+| --- | --- |
+| Подтверждения e-mail/телефона и подтверждения пароля | 30 дней после истечения |
+| OAuth-попытки | 7 дней после истечения |
+| Истёкшие или отозванные сессии и PIN | 30 дней |
+| История входов | 180 дней |
+| Прочитанные/непрочитанные уведомления | 30 / 90 дней |
+| Audit log | 365 дней |
+| Загруженный, но не прикреплённый файл | 1 день |
+| Вложение удалённого сообщения | 30 дней после удаления сообщения |
+| Заменённый загруженный аватар | 1 день после замены |
+
+Вкладка **Панель управления → Хранение** показывает read-only JSON-снимок
+хоста и предварительный объём прикладной очистки. Отсутствие снимка означает,
+что systemd collector не установлен или не запускался; это не причина выполнять
+опасные команды из панели.
+
+Контролируйте таймеры и последние результаты:
+
+```bash
+sudo systemctl list-timers 'arachat-*'
+sudo systemctl status arachat-storage-status.service arachat-host-cleanup.service arachat-app-retention.service
+sudo journalctl -u arachat-host-cleanup.service -u arachat-app-retention.service --since '24 hours ago'
+cat /var/lib/arachat/maintenance/storage-status.json
+docker system df
+df -h /
+```
+
+Пороги реакции: до 70% диска — нормальный режим; 70–85% — проверьте разбивку в
+панели и `docker system df`; 85–92% — срочно проверьте успешность backup и
+host-cleanup, а также размер PostgreSQL; выше 92% — остановите необязательные
+обновления/загрузки, освободите место вручную после диагностики и не удаляйте
+volumes либо данные пользователей «на глаз».
+
+После каждого обновления, если менялись файлы `deploy/maintenance/`, повторите
+команды `install` для скриптов/unit-файлов и `sudo systemctl daemon-reload`.
+
+## 14. Резервные копии
 
 Перед реальными пользователями обязательно настройте backup PostgreSQL и bucket object storage.
 
-Пример ручного дампа PostgreSQL:
+Используйте `restic` и репозиторий вне VPS/основного аккаунта. Скрипт
+`backup-postgres.sh` формирует сжатый dump во временной директории, отправляет
+его в удалённый `restic` repository и удаляет локальный файл при любом исходе.
+Не сохраняйте ежедневные dumps в `backups/` на VPS: это снова создаст
+неконтролируемый рост диска.
 
 ```bash
-docker compose --env-file deploy/production.env -f deploy/compose.production.yml exec postgres \
-  pg_dump -U nexus nexus > nexus-$(date +%Y-%m-%d).sql
+sudo apt install -y restic
+sudo install -m 600 /dev/null /etc/arachat/restic-password
+sudo nano /etc/arachat/restic-password
+sudo nano /etc/arachat/maintenance.env
 ```
 
-Настройте lifecycle/версионирование и резервное копирование bucket на стороне S3-провайдера. Минимальный план: ежедневный зашифрованный дамп PostgreSQL и репликация/backup bucket вне основного аккаунта с проверкой восстановления не реже раза в месяц. Один дамп или bucket в одном аккаунте не является полноценной резервной копией.
+Добавьте в `/etc/arachat/maintenance.env` параметры настоящего внешнего
+repository. Тип и учётные данные зависят от выбранного провайдера; они должны
+быть отдельны от VPS и production media bucket:
 
-Перед обновлениями с миграциями всегда делайте отдельный дамп:
+```dotenv
+RESTIC_REPOSITORY=<удалённый-restic-repository>
+RESTIC_PASSWORD_FILE=/etc/arachat/restic-password
+# Например, для S3-compatible repository также потребуются AWS_ACCESS_KEY_ID,
+# AWS_SECRET_ACCESS_KEY и при необходимости RESTIC_REPOSITORY_OPTIONS.
+ARACHAT_RESTIC_KEEP_DAILY=7
+ARACHAT_RESTIC_KEEP_WEEKLY=4
+ARACHAT_RESTIC_KEEP_MONTHLY=12
+```
+
+Инициализируйте пустой repository один раз и включите таймер:
 
 ```bash
-mkdir -p backups
-docker compose --env-file deploy/production.env -f deploy/compose.production.yml exec -T postgres \
-  sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "backups/arachat-$(date +%F-%H%M).sql.gz"
+sudo systemctl start arachat-restic-init.service
+sudo systemctl enable --now arachat-postgres-backup.timer
+sudo systemctl start arachat-postgres-backup.service
+sudo journalctl -u arachat-postgres-backup.service -n 100 --no-pager
 ```
 
-Команда использует переменные `POSTGRES_USER` и `POSTGRES_DB` внутри контейнера и не требует загрузки production-секретов в shell.
+Перед обновлением с миграциями запустите тот же backup unit вручную и убедитесь,
+что он завершился успешно: `sudo systemctl start arachat-postgres-backup.service`.
 
-## 14. Ограничения перед массовым запуском
+Проверьте восстановление в изолированную тестовую PostgreSQL базу не реже раза
+в месяц. Для object storage включите lifecycle/версионирование и репликацию или
+backup bucket в отдельном аккаунте. Один VPS, один bucket или один repository
+не является полноценной резервной копией.
+
+## 15. Ограничения перед массовым запуском
 
 - Realtime fan-out пока in-memory в одном API-процессе. Не запускайте несколько API-инстансов до внедрения Redis pub/sub fan-out.
 - Медиафайлы хранятся в object storage, но текущая модель раздаёт их публично через media-домен. Для приватных вложений нужны защищённый endpoint и короткоживущие signed URLs.

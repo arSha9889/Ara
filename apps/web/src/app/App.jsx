@@ -18,9 +18,7 @@ import { LegalAcceptancePage } from '../features/legal/pages/LegalAcceptancePage
 import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
 import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
 import { AdminPage } from '../features/admin/pages/AdminPage.jsx';
-import { AraChatLoader } from '../shared/ui/AraChatLoader.jsx';
 import { AppFeedbackViewport } from '../shared/ui/AppFeedbackViewport.jsx';
-import { useSession } from './providers/SessionProvider.jsx';
 
 
 function AdminRoute() {
@@ -38,18 +36,6 @@ function ChatRoute() {
 
 
 export function App() {
-  const { isSessionLoading } = useSession();
-
-  if (isSessionLoading) {
-    return (
-      <main className="app-boot-loader-page">
-        <section className="panel boot-loader-panel">
-          <AraChatLoader hero />
-        </section>
-      </main>
-    );
-  }
-
   return (
     <>
       <Routes>

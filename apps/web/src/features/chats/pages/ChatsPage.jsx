@@ -15,12 +15,12 @@ import { createSavedChat, getChats, getPublicBranches, restoreChat } from '../ap
 
 function chatTitle(chat, t) {
   if (chat.type === 'saved') return t('chats.savedTitle');
-  if (chat.type === 'branch') return chat.title || 'Ветвь';
+  if (chat.type === 'branch') return chat.title || t('chats.branchTitle');
   return chat.peer?.display_name || chat.peer?.username || t('chats.directChat');
 }
 
 function chatSubtitle(chat, currentUserId, t) {
-  if (chat.type === 'branch' && !chat.last_message) return chat.description || 'Публичная ветвь';
+  if (chat.type === 'branch' && !chat.last_message) return chat.description || t('chats.publicBranchSubtitle');
   if (!chat.last_message) {
     if (chat.type === 'saved') return t('chats.savedSubtitle');
     return chat.peer?.username ? `@${chat.peer.username}` : t('chats.noMessages');
@@ -396,11 +396,11 @@ export function ChatsPage() {
                 {chat.peer?.is_online ? <span className="presence-dot online" aria-hidden="true" /> : null}
               </span>
               <div className="chat-thread-copy">
-                <strong>{chatTitle(chat, t)} {(chat.type === 'branch' && chat.is_official) || chat.peer?.is_official ? <span className="official-badge" title="Официальный аккаунт">✓</span> : null}</strong>
+                <strong>{chatTitle(chat, t)} {(chat.type === 'branch' && chat.is_official) || chat.peer?.is_official ? <span className="official-badge" title={t('common.official')}>✓</span> : null}</strong>
                 <span className={activityType ? `chat-thread-activity ${activityType}` : 'muted'}>{activityType ? activityLabel(activityType, t) : chatSubtitle(chat, session.user?.id, t)}</span>
               </div>
               {chat.unread_count ? (
-                <span className="chat-unread-badge" aria-label={`${chat.unread_count} unread`}>
+                <span className="chat-unread-badge" aria-label={t('common.unread').replace('{count}', chat.unread_count)}>
                   {chat.unread_count > 99 ? '99+' : chat.unread_count}
                 </span>
               ) : null}

@@ -15,6 +15,7 @@ class PhoneVerification(Base):
     phone_country: Mapped[str] = mapped_column(String(2))
     phone: Mapped[str] = mapped_column(String(32))
     device_id: Mapped[str] = mapped_column(String(128), index=True)
+    language: Mapped[str] = mapped_column(String(8), default='ru')
     telegram_user_id: Mapped[str | None] = mapped_column(String(64), index=True)
     telegram_chat_id: Mapped[str | None] = mapped_column(String(64), index=True)
     telegram_username: Mapped[str | None] = mapped_column(String(64))

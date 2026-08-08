@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { completeOAuthLink, completeOAuthLogin } from '../api/authApi.js';
@@ -8,8 +9,9 @@ import { completeOAuthLink, completeOAuthLogin } from '../api/authApi.js';
 
 export function OAuthCallbackPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { session, saveSession } = useSession();
-  const [message, setMessage] = useState('Завершаем вход…');
+  const [message, setMessage] = useState(() => t('auth.oauthCompleting'));
 
   useEffect(() => {
     async function complete() {
@@ -18,12 +20,12 @@ export function OAuthCallbackPage() {
       const flow = sessionStorage.getItem('arachat_oauth_flow');
       sessionStorage.removeItem('arachat_oauth_flow');
       if (!resultToken) {
-        setMessage('Не удалось завершить вход через внешний аккаунт. Попробуйте ещё раз.');
+        setMessage(t('auth.oauthFailed'));
         return;
       }
       try {
         if (flow === 'link') {
-          if (!session.accessToken) throw new Error('Войдите в AraChat, чтобы завершить привязку аккаунта.');
+          if (!session.accessToken) throw new Error(t('auth.oauthLinkRequiresLogin'));
           await completeOAuthLink(session.accessToken, resultToken, getDeviceId());
           navigate('/app/settings', { replace: true, state: { oauthLinked: true } });
           return;
@@ -36,7 +38,7 @@ export function OAuthCallbackPage() {
       }
     }
     complete();
-  }, [navigate, saveSession, session.accessToken]);
+  }, [navigate, saveSession, session.accessToken, t]);
 
-  return <main className="auth-page"><section className="panel auth-card"><h1>AraChat</h1><p className="muted">{message}</p><Link className="auth-switch-link" to="/login">Вернуться ко входу</Link></section></main>;
+  return <main className="auth-page"><section className="panel auth-card"><h1>AraChat</h1><p className="muted">{message}</p><Link className="auth-switch-link" to="/login">{t('common.backToLogin')}</Link></section></main>;
 }

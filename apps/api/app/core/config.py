@@ -62,6 +62,17 @@ class Settings(BaseSettings):
     vapid_private_key: str = ''
     vapid_public_key: str = ''
     vapid_claims_email: str = ''
+    maintenance_status_file: str = '/var/lib/arachat/maintenance/storage-status.json'
+    verification_retention_days: int = Field(default=30, ge=1)
+    oauth_attempt_retention_days: int = Field(default=7, ge=1)
+    session_retention_days: int = Field(default=30, ge=1)
+    login_history_retention_days: int = Field(default=180, ge=1)
+    read_notification_retention_days: int = Field(default=30, ge=1)
+    unread_notification_retention_days: int = Field(default=90, ge=1)
+    audit_log_retention_days: int = Field(default=365, ge=30)
+    upload_orphan_retention_days: int = Field(default=1, ge=1)
+    deleted_message_retention_days: int = Field(default=30, ge=1)
+    retention_batch_size: int = Field(default=100, ge=1, le=1000)
 
     model_config = SettingsConfigDict(env_prefix='NEXUS_', env_file=API_DIR / '.env', extra='ignore')
 

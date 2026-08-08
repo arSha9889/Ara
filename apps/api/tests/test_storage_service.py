@@ -10,7 +10,7 @@ from fastapi import UploadFile
 from app.core.config import settings
 from app.services.auth_service import AuthError
 from app.services import storage_service
-from app.services.storage_service import media_url_for, save_upload_file
+from app.services.storage_service import avatar_url_for, delete_storage_object, media_url_for, save_upload_file
 
 
 WEBM_BYTES = b'\x1a\x45\xdf\xa3webm-data'
@@ -42,6 +42,7 @@ async def test_save_upload_file_stores_audio_with_normalized_mime_type(tmp_path,
     assert stored.public_path.startswith(f'/storage/uploads/{user_id}/')
     assert (tmp_path / str(user_id) / stored.public_path.rsplit('/', 1)[-1]).exists()
     assert media_url_for(stored.public_path, 'http://api.local/') == f'http://api.local{stored.public_path}'
+    assert avatar_url_for(stored.public_path, 'http://api.local/') == stored.public_path
 
 
 @pytest.mark.anyio
@@ -98,3 +99,24 @@ async def test_save_upload_file_uploads_validated_content_to_s3(tmp_path, monkey
     }
     assert stored.public_path == uploaded['key']
     assert media_url_for(stored.public_path, 'http://api.local/') == f'https://media.example.test/{stored.public_path}'
+    assert avatar_url_for(stored.public_path, 'http://api.local/') == f'https://media.example.test/{stored.public_path}'
+
+
+@pytest.mark.anyio
+async def test_delete_storage_object_removes_only_a_registered_local_key(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(settings, 'storage_backend', 'local')
+    monkeypatch.setattr(settings, 'upload_dir', str(tmp_path))
+    monkeypatch.setattr(settings, 'storage_public_url_prefix', '/storage/uploads')
+    user_id = uuid4()
+    stored = await save_upload_file(_upload('photo.png', 'image/png', PNG_BYTES), user_id)
+    stored_file = tmp_path / str(user_id) / stored.public_path.rsplit('/', 1)[-1]
+    protected_file = tmp_path / 'protected.txt'
+    protected_file.write_text('keep')
+
+    await delete_storage_object(stored.public_path)
+
+    assert not stored_file.exists()
+    assert protected_file.read_text() == 'keep'
+    with pytest.raises(AuthError, match='Unsupported storage object'):
+        await delete_storage_object('/storage/uploads/../../protected.txt')
+    assert protected_file.read_text() == 'keep'

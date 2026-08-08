@@ -1,0 +1,7 @@
+[Unit]
+Description=Initialize the external AraChat restic repository once
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/arachat/maintenance.env
+ExecStart=/usr/bin/restic init

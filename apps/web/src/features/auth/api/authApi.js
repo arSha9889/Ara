@@ -133,8 +133,10 @@ export function revokePinDevice(accessToken, deviceId) {
   });
 }
 
-export function getCurrentUser(accessToken) {
+export function getCurrentUser(accessToken, options = {}) {
   return apiRequest('/api/auth/me', {
+    ...options,
+    skipAuthRefresh: true,
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -154,8 +156,9 @@ export function acceptCurrentLegalDocuments(accessToken) {
   });
 }
 
-export function refreshSession(refreshToken) {
+export function refreshSession(refreshToken, options = {}) {
   return apiRequest('/api/auth/refresh', {
+    ...options,
     method: 'POST',
     body: { refresh_token: refreshToken },
   });

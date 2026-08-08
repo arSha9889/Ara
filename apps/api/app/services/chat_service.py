@@ -11,6 +11,7 @@ from app.services.branch_service import can_post_to_branch, ensure_official_bran
 from app.services.auth_service import AuthError
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
+from app.services.stored_object_service import attach_upload_to_message, schedule_message_upload_deletion
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'file'}
 REACTION_EMOJIS = {
@@ -170,6 +171,7 @@ async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, re
     )
     session.add(message)
     await session.flush()
+    await attach_upload_to_message(session, user_id, message.id, request.media_url)
     await _create_delivery_receipts(session, message)
     chat.last_message_id = message.id
     await _activate_direct_chat_participants(session, chat_id)
@@ -215,6 +217,7 @@ async def delete_message(session: AsyncSession, user_id: UUID, chat_id: UUID, me
         raise AuthError('Only the sender can delete this message')
     message.deleted_at = datetime.now(timezone.utc)
     message.payload = ''
+    await schedule_message_upload_deletion(session, message.id)
     chat = await session.get(Chat, chat_id)
     if chat and chat.pinned_message_id == message_id:
         chat.pinned_message_id = None

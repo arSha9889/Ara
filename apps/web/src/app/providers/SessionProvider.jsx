@@ -7,6 +7,7 @@ import { useTheme } from './ThemeProvider.jsx';
 
 const SessionContext = createContext(null);
 const ACCESS_REFRESH_SKEW_MS = 60 * 1000;
+const SESSION_RESTORE_TIMEOUT_MS = 12 * 1000;
 
 function accessTokenExpiresAt(accessToken) {
   if (!accessToken) return null;
@@ -77,39 +78,50 @@ export function SessionProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), SESSION_RESTORE_TIMEOUT_MS);
+
     async function restoreSession() {
       if (!session.accessToken && !session.refreshToken) {
-        setIsSessionLoading(false);
         return;
       }
       try {
         if (session.accessToken) {
           try {
-            const user = await getCurrentUser(session.accessToken);
+            const user = await getCurrentUser(session.accessToken, { signal: controller.signal });
+            if (!active) return;
             syncPreferences(user);
             setSession((current) => ({ ...current, user }));
             return;
           } catch (err) {
-            if (!session.refreshToken) {
+            if (!session.refreshToken || controller.signal.aborted) {
               throw err;
             }
           }
         }
-        const refreshed = await refreshSession(session.refreshToken);
+        const refreshed = await refreshSession(session.refreshToken, { signal: controller.signal });
+        if (!active) return;
         saveSession({ accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token, user: refreshed.user });
       } catch {
-        clearSession();
+        if (active) clearSession();
       } finally {
-        setIsSessionLoading(false);
+        window.clearTimeout(timeoutId);
+        if (active) setIsSessionLoading(false);
       }
     }
 
     restoreSession();
     // restore once on app boot only
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, []);
 
   useEffect(() => {
-    if (!session.refreshToken) return undefined;
+    if (isSessionLoading || !session.refreshToken) return undefined;
 
     async function refreshNow() {
       try {
@@ -139,7 +151,7 @@ export function SessionProvider({ children }) {
       document.removeEventListener('visibilitychange', refreshWhenVisible);
       window.removeEventListener('focus', refreshWhenVisible);
     };
-  }, [session.accessToken, session.refreshToken]);
+  }, [isSessionLoading, session.accessToken, session.refreshToken]);
 
   const value = useMemo(() => ({ session, saveSession, clearSession, isSessionLoading }), [session, isSessionLoading]);
 

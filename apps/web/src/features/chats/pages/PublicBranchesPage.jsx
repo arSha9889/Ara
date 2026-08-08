@@ -8,7 +8,7 @@ import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
 import { getPublicBranches, subscribeToBranch, unsubscribeFromBranch } from '../api/chatApi.js';
 
 export function PublicBranchesPage() {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const { session } = useSession();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -77,9 +77,9 @@ export function PublicBranchesPage() {
             <article className="info-card branch-card" key={branch.id}>
               <div className="chat-list-avatar branch-avatar" aria-hidden="true">{branch.avatar_ref || '◎'}</div>
               <div className="chat-thread-copy">
-                <strong>{branch.title} {branch.is_official ? <span className="official-badge" title="Официальная ветвь">✓</span> : null}</strong>
+                <strong>{branch.title} {branch.is_official ? <span className="official-badge" title={t('chats.officialTitle')}>✓</span> : null}</strong>
                 <span className="muted">{branch.description}</span>
-                <span className="branch-subscriber-count">{t('chats.subscribers').replace('{count}', Number(branch.subscriber_count || 0).toLocaleString())}</span>
+                <span className="branch-subscriber-count">{t('chats.subscribers').replace('{count}', Number(branch.subscriber_count || 0).toLocaleString(language))}</span>
               </div>
               {branch.is_subscribed ? (
                 <div className="branch-card-actions">

@@ -139,7 +139,7 @@ export function ProfilePage() {
 
       setIsIdCopied(true);
       window.setTimeout(() => setIsIdCopied(false), 1800);
-      notify({ kind: 'success', title: t('common.copied'), message: 'AraChat ID', icon: 'copy' });
+      notify({ kind: 'success', title: t('common.copied'), message: t('profile.idLabel'), icon: 'copy' });
     } catch (err) {
       setStatus(err.message || t('profile.copyIdError'));
       notify({ kind: 'error', title: t('profile.copyIdError'), message: err.message || '', icon: 'copy' });
@@ -154,12 +154,12 @@ export function ProfilePage() {
           <UserAvatar profile={{ ...user?.profile, avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} previewUrl={avatarPreview} size="large" />
           <div>
             <p className="eyebrow">AraChat</p>
-            <h1>{user?.profile?.display_name ?? 'AraChat User'}</h1>
+            <h1>{user?.profile?.display_name ?? t('profile.defaultName')}</h1>
             <p className="muted">@{user?.profile?.username ?? 'arachat'}</p>
           </div>
         </div>
         <div className="profile-id-card">
-          <span>AraChat ID</span>
+          <span>{t('profile.idLabel')}</span>
           <strong>{user?.nexus_id ?? '0000000000000000'}</strong>
           <button className={`profile-id-copy ${isIdCopied ? 'copied' : ''}`} type="button" onClick={handleCopyId} aria-label={t('profile.copyId')} title={t('profile.copyId')}>
             <Icon name={isIdCopied ? 'check' : 'copy'} size={18} />
@@ -183,7 +183,7 @@ export function ProfilePage() {
               <span className="avatar-upload-icon" aria-hidden="true"><Icon name="plus" size={20} /></span>
               <span className="avatar-upload-copy">
                 <strong>{avatarFile ? avatarFile.name : t('profile.uploadAvatar')}</strong>
-                <small>PNG, JPG, GIF, WebP</small>
+                <small>{t('profile.avatarFormats')}</small>
               </span>
               <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
             </label>
@@ -206,7 +206,7 @@ export function ProfilePage() {
         </div>
         <div className="profile-fields-grid">
           <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
-          <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} />
+          <TextInput label={t('profile.username')} value={form.username} onChange={(event) => updateField('username', event.target.value)} />
           <TextInput label={t('profile.optionalPhone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+79991234567" value={form.optional_phone} onChange={(event) => updateField('optional_phone', event.target.value)} />
           <div className="field"><span>{t('profile.email')}</span><strong>{user?.profile?.email || '—'}</strong><small className="muted">{t('profile.emailManagedInSecurity')}</small></div>
         </div>

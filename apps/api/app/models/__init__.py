@@ -3,6 +3,7 @@ from app.models.chats import BranchComment, Chat, ChatParticipant, Message, Mess
 from app.models.oauth import OAuthAttempt, OAuthIdentity
 from app.models.security import PasswordCredential, RecoveryCode, TrustedDevicePin
 from app.models.sessions import LoginHistory, Session
+from app.models.storage import StoredObject
 from app.models.users import User, UserProfile
 from app.models.verification import EmailVerification, PasswordConfirmation, PhoneVerification
 
@@ -25,6 +26,7 @@ __all__ = [
     'RecoveryCode',
     'PushSubscription',
     'Session',
+    'StoredObject',
     'TelegramRecoveryRequest',
     'TrustedDevicePin',
     'User',

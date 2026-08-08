@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
@@ -9,6 +10,7 @@ import { confirmPasswordReset, startPasswordReset } from '../api/authApi.js';
 
 export function PasswordRecoveryPage() {
   const navigate = useNavigate();
+  const { language, t } = useI18n();
   const [form, setForm] = useState({ email: '', code: '', new_password: '', device_id: getDeviceId() });
   const [requested, setRequested] = useState(false);
   const [message, setMessage] = useState('');
@@ -23,9 +25,9 @@ export function PasswordRecoveryPage() {
     setIsLoading(true);
     setMessage('');
     try {
-      await startPasswordReset({ email: form.email, device_id: form.device_id });
+      await startPasswordReset({ email: form.email, device_id: form.device_id, language });
       setRequested(true);
-      setMessage('Если для этого адреса доступно восстановление, код отправлен на почту.');
+      setMessage(t('auth.recoveryCodeSent'));
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -49,13 +51,13 @@ export function PasswordRecoveryPage() {
 
   return (
     <main className="auth-page"><form className="panel auth-card" onSubmit={requested ? resetPassword : requestCode}>
-      <h1>Восстановление доступа</h1><p className="muted">Используйте подтверждённый e-mail AraChat.</p>
+      <h1>{t('auth.recoveryTitle')}</h1><p className="muted">{t('auth.recoverySubtitle')}</p>
       <div className="auth-fields"><TextInput label="E-mail" type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} required />
-        {requested ? <><TextInput label="Код из e-mail" inputMode="numeric" value={form.code} onChange={(event) => updateField('code', event.target.value.replace(/\D/g, '').slice(0, 6))} required /><TextInput label="Новый пароль" type="password" value={form.new_password} onChange={(event) => updateField('new_password', event.target.value)} required /></> : null}
+        {requested ? <><TextInput label={t('auth.recoveryEmailCode')} inputMode="numeric" value={form.code} onChange={(event) => updateField('code', event.target.value.replace(/\D/g, '').slice(0, 6))} required /><TextInput label={t('auth.recoveryNewPassword')} type="password" value={form.new_password} onChange={(event) => updateField('new_password', event.target.value)} required /></> : null}
       </div>
       {message ? <p className="muted">{message}</p> : null}
-      <Button type="submit" disabled={isLoading}>{isLoading ? 'Проверяем…' : requested ? 'Сменить пароль' : 'Отправить код'}</Button>
-      <Link className="auth-switch-link" to="/login">Вернуться ко входу</Link>
+      <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.recoveryChecking') : requested ? t('auth.recoveryResetPassword') : t('auth.recoverySendCode')}</Button>
+      <Link className="auth-switch-link" to="/login">{t('common.backToLogin')}</Link>
     </form></main>
   );
 }

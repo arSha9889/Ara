@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useTheme } from '../../app/providers/ThemeProvider.jsx';
+import { useI18n } from '../../app/providers/I18nProvider.jsx';
 import { themes } from '../config/themes.js';
 
 const themeIcons = {
@@ -18,6 +19,7 @@ const themeCodes = {
 };
 
 export function ThemeSwitcher({ onChange }) {
+  const { t } = useI18n();
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const switcherRef = useRef(null);
@@ -53,7 +55,7 @@ export function ThemeSwitcher({ onChange }) {
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        aria-label="Theme"
+        aria-label={t('common.theme')}
         onClick={() => setIsOpen((current) => !current)}
       >
         <span className={`theme-swatch ${selectedTheme.id}`} aria-hidden="true">
@@ -68,7 +70,7 @@ export function ThemeSwitcher({ onChange }) {
         <span className="select-switcher-chevron" aria-hidden="true">⌄</span>
       </button>
       {isOpen ? (
-        <div className="select-switcher-menu" role="listbox" aria-label="Theme">
+        <div className="select-switcher-menu" role="listbox" aria-label={t('common.theme')}>
           {themes.map((item) => (
             <button
               className={`select-switcher-option ${theme === item.id ? 'active' : ''}`}

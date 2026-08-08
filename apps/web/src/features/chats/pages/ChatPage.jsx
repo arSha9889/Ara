@@ -31,6 +31,8 @@ const REACTION_EMOJIS = [
 const MEDIA_MESSAGE_TYPES = ['photo', 'video', 'video_note', 'voice', 'file'];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CELEBRATION_REACTIONS = new Set(['❤️', '🔥', '🎉']);
+const VOICE_RECORDING_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4'];
+const VIDEO_RECORDING_MIME_TYPES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4'];
 
 function appendUniqueMessage(messages, nextMessage) {
   if (messages.some((message) => message.id === nextMessage.id)) {
@@ -162,14 +164,15 @@ function renderMessageContent(message, t, onOpenMedia) {
   if (message.deleted_at) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
   }
-  if (message.type === 'photo') {
+  const displayType = displayMessageType(message);
+  if (displayType === 'photo') {
     return (
       <button className="message-media-button" type="button" onClick={() => onOpenMedia(message)} aria-label={t('messages.openMedia')}>
         <img className="message-media" src={message.media_url} alt={message.media_name || t('messages.photoAlt')} />
       </button>
     );
   }
-  if (message.type === 'video') {
+  if (displayType === 'video') {
     return (
       <div className="message-video-wrap">
         <video className="message-media" src={message.media_url} controls />
@@ -179,13 +182,13 @@ function renderMessageContent(message, t, onOpenMedia) {
       </div>
     );
   }
-  if (message.type === 'video_note') {
+  if (displayType === 'video_note') {
     return <VideoNoteMessage message={message} t={t} />;
   }
-  if (message.type === 'voice') {
+  if (displayType === 'voice') {
     return <VoiceMessage message={message} t={t} />;
   }
-  if (message.type === 'file') {
+  if (displayType === 'file') {
     return (
       <a className="file-message" href={message.media_url} target="_blank" rel="noreferrer">
         📎 {message.media_name || t('messages.file')}
@@ -323,6 +326,36 @@ function messageTypeForFile(file) {
   return 'file';
 }
 
+function displayMessageType(message) {
+  if (message.type !== 'file') return message.type;
+  if (message.media_mime_type?.startsWith('image/')) return 'photo';
+  if (message.media_mime_type?.startsWith('video/')) return 'video';
+  if (message.media_mime_type?.startsWith('audio/')) return 'voice';
+  return 'file';
+}
+
+function createSupportedMediaRecorder(stream, supportedMimeTypes) {
+  const mimeType = typeof MediaRecorder.isTypeSupported === 'function'
+    ? supportedMimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate))
+    : null;
+  return mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+}
+
+function recordedMimeType(recorder, chunks) {
+  return recorder.mimeType || chunks.find((chunk) => chunk.type)?.type || '';
+}
+
+function mediaFileExtension(mimeType, fallback) {
+  const normalized = mimeType.split(';', 1)[0].toLowerCase();
+  if (normalized === 'audio/mp4') return 'm4a';
+  if (normalized === 'audio/ogg') return 'ogg';
+  if (normalized === 'audio/mpeg') return 'mp3';
+  if (normalized === 'audio/aac') return 'aac';
+  if (normalized === 'audio/wav') return 'wav';
+  if (normalized === 'video/mp4') return 'mp4';
+  return fallback;
+}
+
 function isValidChatId(value) {
   return typeof value === 'string' && UUID_PATTERN.test(value);
 }
@@ -338,21 +371,23 @@ function safeSocketSend(socket, payload) {
 
 function previewPinnedMessage(message, t) {
   if (!message) return '';
-  if (message.type === 'photo') return t('messages.photoAlt');
-  if (message.type === 'voice') return t('messages.voice');
-  if (message.type === 'video_note') return t('messages.videoNote');
-  if (message.type === 'file') return message.media_name || t('messages.file');
-  if (message.type === 'video') return t('messages.video');
+  const displayType = displayMessageType(message);
+  if (displayType === 'photo') return t('messages.photoAlt');
+  if (displayType === 'voice') return t('messages.voice');
+  if (displayType === 'video_note') return t('messages.videoNote');
+  if (displayType === 'file') return message.media_name || t('messages.file');
+  if (displayType === 'video') return t('messages.video');
   return message.payload;
 }
 
 function previewReplyMessage(message, t) {
   if (!message || message.deleted_at) return t('messages.deleted');
-  if (message.type === 'photo') return t('messages.photoAlt');
-  if (message.type === 'video') return t('messages.video');
-  if (message.type === 'video_note') return t('messages.videoNote');
-  if (message.type === 'voice') return t('messages.voice');
-  if (message.type === 'file') return message.media_name || t('messages.file');
+  const displayType = displayMessageType(message);
+  if (displayType === 'photo') return t('messages.photoAlt');
+  if (displayType === 'video') return t('messages.video');
+  if (displayType === 'video_note') return t('messages.videoNote');
+  if (displayType === 'voice') return t('messages.voice');
+  if (displayType === 'file') return message.media_name || t('messages.file');
   return message.payload;
 }
 
@@ -510,6 +545,7 @@ export function ChatPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingLocked, setIsRecordingLocked] = useState(false);
   const [isVideoRecording, setIsVideoRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [videoRecordingSeconds, setVideoRecordingSeconds] = useState(0);
@@ -562,6 +598,7 @@ export function ChatPage() {
   const recordHoldTimerRef = useRef(null);
   const recordHoldTriggeredRef = useRef(false);
   const recordPressActiveRef = useRef(false);
+  const recordingLockedRef = useRef(false);
   const suppressRecordClickRef = useRef(false);
   const stopAfterPendingRecordStartRef = useRef(false);
   const cancelAfterPendingRecordStartRef = useRef(false);
@@ -572,11 +609,12 @@ export function ChatPage() {
   const usesFocusedMobileWorkspace = isDirectChat || isSavedChat;
   const canPost = !isPublicBranch || chat?.can_post;
   const currentDraftStorageKey = draftStorageKey(session.user?.id, chatId);
-  const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(message.type) && message.media_url);
+  const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(displayMessageType(message)) && message.media_url);
   const mediaViewerIndex = mediaViewerMessage ? mediaMessages.findIndex((message) => message.id === mediaViewerMessage.id) : -1;
+  const mediaViewerType = mediaViewerMessage ? displayMessageType(mediaViewerMessage) : null;
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', chat?.peer?.last_seen_at, t, language);
-  const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || 'Ветвь' : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
-  const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || 'Публичная ветвь' : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
+  const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || t('chats.branchTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
+  const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || t('chats.publicBranchSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
   const call = useDirectCall({
     chatId,
     currentUserId: session.user?.id,
@@ -946,15 +984,21 @@ export function ChatPage() {
     try {
       safeSocketSend(socket, { event: type === 'voice' ? 'voice.uploading' : 'file.uploading', chat_id: chatId });
       const uploadedMedia = await uploadMedia(session.accessToken, file);
+      const suggestedMessageType = MEDIA_MESSAGE_TYPES.includes(uploadedMedia?.suggested_message_type)
+        ? uploadedMedia.suggested_message_type
+        : null;
+      const resolvedMessageType = ['voice', 'video_note'].includes(type)
+        ? type
+        : suggestedMessageType === 'voice' ? 'file' : suggestedMessageType || type;
       const message = await sendMessage(session.accessToken, chatId, {
-        type,
+        type: resolvedMessageType,
         text: messageText,
         reply_to_message_id: replyingTo?.id ?? null,
         media_url: uploadedMedia?.media_url ?? null,
         media_name: uploadedMedia?.media_name ?? null,
         media_mime_type: uploadedMedia?.media_mime_type ?? null,
         media_size_bytes: uploadedMedia?.media_size_bytes ?? null,
-        duration_seconds: ['voice', 'video_note'].includes(type) && mediaDurationSeconds ? Number(mediaDurationSeconds) : null,
+        duration_seconds: ['voice', 'video_note'].includes(resolvedMessageType) && mediaDurationSeconds ? Number(mediaDurationSeconds) : null,
       });
       setMessages((current) => appendUniqueMessage(current, message));
       if (clearComposer) {
@@ -1256,6 +1300,8 @@ export function ChatPage() {
     event.currentTarget.setPointerCapture?.(event.pointerId);
     recordPressActiveRef.current = true;
     recordHoldTriggeredRef.current = false;
+    recordingLockedRef.current = false;
+    setIsRecordingLocked(false);
     stopAfterPendingRecordStartRef.current = false;
     cancelAfterPendingRecordStartRef.current = false;
     if (recordHoldTimerRef.current) window.clearTimeout(recordHoldTimerRef.current);
@@ -1274,13 +1320,23 @@ export function ChatPage() {
       recordHoldTimerRef.current = null;
     }
     if (recordHoldTriggeredRef.current) {
-      stopActiveRecording();
-      if (!mediaRecorderRef.current && !videoRecorderRef.current) {
-        stopAfterPendingRecordStartRef.current = true;
+      if (!recordingLockedRef.current) {
+        stopActiveRecording();
+        if (!mediaRecorderRef.current && !videoRecorderRef.current) {
+          stopAfterPendingRecordStartRef.current = true;
+        }
       }
       window.setTimeout(() => {
         suppressRecordClickRef.current = false;
       }, 0);
+    }
+  }
+
+  function handleRecordPointerMove(event) {
+    if (!recordHoldTriggeredRef.current || recordingLockedRef.current || recordingMode !== 'voice') return;
+    if (event.clientY <= event.currentTarget.getBoundingClientRect().top - 36) {
+      recordingLockedRef.current = true;
+      setIsRecordingLocked(true);
     }
   }
 
@@ -1291,12 +1347,20 @@ export function ChatPage() {
       recordHoldTimerRef.current = null;
     }
     if (recordHoldTriggeredRef.current) {
-      cancelActiveRecording();
-      if (!mediaRecorderRef.current && !videoRecorderRef.current) {
-        cancelAfterPendingRecordStartRef.current = true;
+      if (!recordingLockedRef.current) {
+        cancelActiveRecording();
+        if (!mediaRecorderRef.current && !videoRecorderRef.current) {
+          cancelAfterPendingRecordStartRef.current = true;
+        }
       }
       suppressRecordClickRef.current = false;
     }
+  }
+
+  function lockVoiceRecording() {
+    if (mediaRecorderRef.current?.state !== 'recording') return;
+    recordingLockedRef.current = true;
+    setIsRecordingLocked(true);
   }
 
   function handleRecordButtonClick() {
@@ -1320,7 +1384,7 @@ export function ChatPage() {
     setError('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const recorder = createSupportedMediaRecorder(stream, VOICE_RECORDING_MIME_TYPES);
       recordingChunksRef.current = [];
       recordingCancelledRef.current = false;
       recordingStartedAtRef.current = Date.now();
@@ -1335,10 +1399,16 @@ export function ChatPage() {
           recordingChunksRef.current = [];
           return;
         }
-        const mimeType = recorder.mimeType || 'audio/webm';
+        const mimeType = recordedMimeType(recorder, recordingChunksRef.current);
+        if (!mimeType) {
+          setError(t('messages.voiceStartError'));
+          stopRecordingTracks();
+          recordingChunksRef.current = [];
+          return;
+        }
         const recordedSeconds = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
         const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-        const extension = mimeType.includes('mp4') ? 'm4a' : 'webm';
+        const extension = mediaFileExtension(mimeType, 'webm');
         const file = new File([blob], `voice-${Date.now()}.${extension}`, { type: mimeType });
         setRecordingSeconds(recordedSeconds);
         stopRecordingTracks();
@@ -1393,6 +1463,8 @@ export function ChatPage() {
     }
     mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
     mediaRecorderRef.current = null;
+    recordingLockedRef.current = false;
+    setIsRecordingLocked(false);
     setIsRecording(false);
   }
 
@@ -1408,7 +1480,7 @@ export function ChatPage() {
         audio: true,
         video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
       });
-      const recorder = new MediaRecorder(stream);
+      const recorder = createSupportedMediaRecorder(stream, VIDEO_RECORDING_MIME_TYPES);
       videoRecordingChunksRef.current = [];
       videoRecordingCancelledRef.current = false;
       videoRecordingStartedAtRef.current = Date.now();
@@ -1423,10 +1495,16 @@ export function ChatPage() {
           videoRecordingChunksRef.current = [];
           return;
         }
-        const mimeType = recorder.mimeType || 'video/webm';
+        const mimeType = recordedMimeType(recorder, videoRecordingChunksRef.current);
+        if (!mimeType) {
+          setError(t('messages.videoNoteStartError'));
+          stopVideoRecordingTracks();
+          videoRecordingChunksRef.current = [];
+          return;
+        }
         const recordedSeconds = Math.max(1, Math.round((Date.now() - videoRecordingStartedAtRef.current) / 1000));
         const blob = new Blob(videoRecordingChunksRef.current, { type: mimeType });
-        const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const extension = mediaFileExtension(mimeType, 'webm');
         const file = new File([blob], `video-note-${Date.now()}.${extension}`, { type: mimeType });
         setVideoRecordingSeconds(recordedSeconds);
         stopVideoRecordingTracks();
@@ -1516,7 +1594,7 @@ export function ChatPage() {
         <div>
           {!isSavedChat && !isPublicBranch ? <button className="chat-profile-title" type="button" onClick={openPeerProfile}><h1>{chatDisplayTitle}</h1></button> : <h1>{chatDisplayTitle}</h1>}
           <div className="chat-subtitle">
-            <span>{isPublicBranch ? t('chats.subscribers').replace('{count}', Number(chat?.subscriber_count || 0).toLocaleString()) : chatDisplaySubtitle}</span>
+            <span>{isPublicBranch ? t('chats.subscribers').replace('{count}', Number(chat?.subscriber_count || 0).toLocaleString(DATE_LOCALES[language] || DATE_LOCALES.ru)) : chatDisplaySubtitle}</span>
           {!isSavedChat && !isPublicBranch ? (
               <PresenceStatus
                 status={isSavedChat ? false : chat?.peer?.is_online ?? 'connecting'}
@@ -1828,6 +1906,7 @@ export function ChatPage() {
               type="button"
               onClick={handleRecordButtonClick}
               onPointerDown={handleRecordPointerDown}
+              onPointerMove={handleRecordPointerMove}
               onPointerUp={handleRecordPointerUp}
               onPointerCancel={handleRecordPointerCancel}
               disabled={isUploading}
@@ -1887,12 +1966,13 @@ export function ChatPage() {
         ) : (selectedFile || isRecording) ? (
           <div className="composer-preview">
             <span className="composer-preview-icon" aria-hidden="true">{messageType === 'voice' || isRecording ? '🎙' : '📎'}</span>
-            <span>{isRecording ? `${t('messages.recording')} · ${recordingSeconds}s` : selectedFile.name}</span>
+            <span>{isRecording ? `${t('messages.recording')} · ${recordingSeconds}s${isRecordingLocked ? ' · 🔒' : ''}` : selectedFile.name}</span>
+            {isRecording && !isRecordingLocked ? <button className="recording-lock-button" type="button" onClick={lockVoiceRecording} aria-label={t('messages.lockRecording')} title={t('messages.lockRecording')}>🔒</button> : null}
             {!isRecording ? <button type="button" onClick={clearSelectedMedia} aria-label={t('messages.removeAttachment')}>×</button> : null}
           </div>
         ) : null}
       </form> : <div className="branch-read-only-note">
-        <span>Публичная ветвь доступна для чтения. Публикации делает только владелец или администратор.</span>
+        <span>{t('chats.branchReadOnly')}</span>
         {effectiveMode === 'mobile' && !chat?.is_subscribed ? (
           <button className="button button-secondary" type="button" onClick={handleSubscribeToBranch} disabled={isSubscribingToBranch}>
             {isSubscribingToBranch ? '…' : t('chats.subscribe')}
@@ -1903,14 +1983,14 @@ export function ChatPage() {
         <div className="media-viewer-backdrop" role="presentation" onMouseDown={() => setMediaViewerMessage(null)}>
           <section className="media-viewer" role="dialog" aria-modal="true" aria-label={t('messages.mediaViewer')} onMouseDown={(event) => event.stopPropagation()}>
             <div className="media-viewer-toolbar">
-              <span>{mediaViewerMessage.media_name || (mediaViewerMessage.type === 'photo' ? t('messages.photoAlt') : t('messages.video'))}</span>
+              <span>{mediaViewerMessage.media_name || (mediaViewerType === 'photo' ? t('messages.photoAlt') : t('messages.video'))}</span>
               <div>
                 <a href={mediaViewerMessage.media_url} download target="_blank" rel="noreferrer" aria-label={t('messages.downloadMedia')} title={t('messages.downloadMedia')}>↓</a>
                 <button type="button" onClick={() => setMediaViewerMessage(null)} aria-label={t('messages.closeMedia')} title={t('messages.closeMedia')}>×</button>
               </div>
             </div>
             {mediaViewerIndex > 0 ? <button className="media-viewer-nav previous" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex - 1])} aria-label={t('messages.previousMedia')}>‹</button> : null}
-            {mediaViewerMessage.type === 'photo' ? <img src={mediaViewerMessage.media_url} alt={mediaViewerMessage.media_name || t('messages.photoAlt')} /> : <video src={mediaViewerMessage.media_url} controls autoPlay playsInline />}
+            {mediaViewerType === 'photo' ? <img src={mediaViewerMessage.media_url} alt={mediaViewerMessage.media_name || t('messages.photoAlt')} /> : <video src={mediaViewerMessage.media_url} controls autoPlay playsInline />}
             {mediaViewerIndex >= 0 && mediaViewerIndex < mediaMessages.length - 1 ? <button className="media-viewer-nav next" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex + 1])} aria-label={t('messages.nextMedia')}>›</button> : null}
           </section>
         </div>

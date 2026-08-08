@@ -41,6 +41,7 @@ async def create_email_verification(
     user_id: UUID | None = None,
     pending_password_hash: str | None = None,
     deliver: bool = True,
+    language: str = 'ru',
 ) -> EmailVerificationStart:
     normalized_email = normalize_email(email)
     if purpose not in EMAIL_VERIFICATION_PURPOSES:
@@ -68,7 +69,7 @@ async def create_email_verification(
     await session.refresh(verification)
     if deliver:
         try:
-            await send_verification_code(normalized_email, code, purpose, EMAIL_VERIFICATION_TTL_MINUTES)
+            await send_verification_code(normalized_email, code, purpose, EMAIL_VERIFICATION_TTL_MINUTES, language)
         except SmtpDeliveryError:
             verification.status = 'delivery_failed'
             verification.expires_at = now

@@ -1,9 +1,17 @@
 name: nexus-production
 
+x-container-logging: &container-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *container-logging
     environment:
       POSTGRES_DB: ${NEXUS_POSTGRES_DB:-nexus}
       POSTGRES_USER: ${NEXUS_POSTGRES_USER:-nexus}
@@ -19,7 +27,21 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    logging: *container-logging
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --auto-aof-rewrite-percentage
+      - "100"
+      - --auto-aof-rewrite-min-size
+      - 64mb
+      - --maxmemory
+      - ${NEXUS_REDIS_MAXMEMORY:-256mb}
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
       - nexus_redis_data:/data
     healthcheck:
@@ -32,6 +54,7 @@ services:
     build:
       context: ../apps/api
     restart: unless-stopped
+    logging: *container-logging
     environment:
       NEXUS_ENVIRONMENT: production
       NEXUS_DATABASE_URL: postgresql+asyncpg://${NEXUS_POSTGRES_USER:-nexus}:${NEXUS_POSTGRES_PASSWORD:?Set NEXUS_POSTGRES_PASSWORD in deploy/production.env}@postgres:5432/${NEXUS_POSTGRES_DB:-nexus}
@@ -74,6 +97,9 @@ services:
       NEXUS_PIN_TRUSTED_DAYS: ${NEXUS_PIN_TRUSTED_DAYS:-365}
       NEXUS_EARLY_ACCESS_BYPASS_LIMIT: ${NEXUS_EARLY_ACCESS_BYPASS_LIMIT:-0}
       NEXUS_UPLOAD_MAX_SIZE_BYTES: ${NEXUS_UPLOAD_MAX_SIZE_BYTES:-31457280}
+      NEXUS_MAINTENANCE_STATUS_FILE: /var/lib/arachat/maintenance/storage-status.json
+    volumes:
+      - /var/lib/arachat/maintenance:/var/lib/arachat/maintenance:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,6 +118,7 @@ services:
     build:
       context: ../apps/web
     restart: unless-stopped
+    logging: *container-logging
     environment:
       PORT: 8080
       NEXUS_API_UPSTREAM: http://api:8000
@@ -107,6 +134,7 @@ services:
   turn:
     image: coturn/coturn:latest
     restart: unless-stopped
+    logging: *container-logging
     profiles: ["calls"]
     network_mode: host
     command:
@@ -128,6 +156,7 @@ services:
   caddy:
     image: caddy:2.8-alpine
     restart: unless-stopped
+    logging: *container-logging
     environment:
       NEXUS_PUBLIC_DOMAIN: ${NEXUS_PUBLIC_DOMAIN:?Set NEXUS_PUBLIC_DOMAIN in deploy/production.env}
       NEXUS_ACME_EMAIL: ${NEXUS_ACME_EMAIL:?Set NEXUS_ACME_EMAIL in deploy/production.env}

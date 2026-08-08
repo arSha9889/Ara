@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.users import UserOut
 
@@ -17,6 +17,7 @@ class PhoneVerificationStartRequest(BaseModel):
     country: str = Field(pattern=r'^(RU|KZ|KG|UA|BY|UZ)$')
     phone: str = Field(min_length=7, max_length=32)
     device_id: str = Field(min_length=8, max_length=128)
+    language: str = Field(default='ru', pattern=r'^(ru|en|kk|ky|uk|be|uz)$')
 
 
 class PhoneVerificationStartResponse(BaseModel):
@@ -38,6 +39,7 @@ class PhoneVerificationConfirmResponse(BaseModel):
 class EmailVerificationStartRequest(BaseModel):
     email: str = Field(min_length=5, max_length=255)
     device_id: str = Field(min_length=8, max_length=128)
+    language: str = Field(default='ru', pattern=r'^(ru|en|kk|ky|uk|be|uz)$')
 
 
 class EmailVerificationStartResponse(BaseModel):
@@ -68,6 +70,13 @@ class RegisterCompleteRequest(BaseModel):
     avatar_ref: str = Field(default='animal-01', max_length=255)
     accepted_terms: bool = False
     accepted_privacy_policy: bool = False
+
+    @field_validator('pin', mode='before')
+    @classmethod
+    def normalize_optional_pin(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
 
 class RegisterCompleteResponse(BaseModel):
@@ -118,6 +127,7 @@ class PasswordChangeStartRequest(BaseModel):
     current_password: str = Field(min_length=5, max_length=30)
     new_password: str = Field(min_length=5, max_length=30)
     device_id: str = Field(min_length=8, max_length=128)
+    language: str = Field(default='ru', pattern=r'^(ru|en|kk|ky|uk|be|uz)$')
 
 
 class PasswordChangeStartResponse(BaseModel):
@@ -134,6 +144,7 @@ class PasswordChangeConfirmRequest(BaseModel):
 class PasswordResetStartRequest(BaseModel):
     email: str = Field(min_length=5, max_length=255)
     device_id: str = Field(min_length=8, max_length=128)
+    language: str = Field(default='ru', pattern=r'^(ru|en|kk|ky|uk|be|uz)$')
 
 
 class PasswordResetStartResponse(BaseModel):
@@ -151,6 +162,7 @@ class EmailChangeStartRequest(BaseModel):
     current_password: str = Field(min_length=5, max_length=30)
     email: str = Field(min_length=5, max_length=255)
     device_id: str = Field(min_length=8, max_length=128)
+    language: str = Field(default='ru', pattern=r'^(ru|en|kk|ky|uk|be|uz)$')
 
 
 class EmailChangeStartResponse(BaseModel):

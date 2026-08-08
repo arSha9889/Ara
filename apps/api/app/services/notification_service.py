@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.models.chats import ChatParticipant, Message, Notification, PushSubscription
 from app.models.users import UserProfile
 from app.schemas.chats import MessageOut, NotificationOut, PushSubscriptionCreateRequest
+from app.services.localization import message_preview, tr
 from app.services.realtime_manager import realtime_manager
 
 
@@ -123,14 +124,16 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
 
     sender = await session.get(UserProfile, message.sender_id)
     title = sender.display_name if sender else 'AraChat'
-    body = _message_preview(message)
+    recipient_languages = dict((await session.execute(
+        select(UserProfile.user_id, UserProfile.language).where(UserProfile.user_id.in_(recipients))
+    )).all())
     notifications = [
         Notification(
             recipient_user_id=recipient_id,
             chat_id=message.chat_id,
             message_id=message.id,
             title=title,
-            body=body,
+            body=message_preview(recipient_languages.get(recipient_id), message.type, message.payload, message.media_name),
             url=f'/app/chats/{message.chat_id}',
         )
         for recipient_id in recipients
@@ -158,12 +161,13 @@ async def create_branch_comment_notification(
     if recipient_user_id == sender_user_id:
         return
     sender = await session.get(UserProfile, sender_user_id)
+    recipient = await session.get(UserProfile, recipient_user_id)
     notification = Notification(
         recipient_user_id=recipient_user_id,
         chat_id=branch_id,
         message_id=post_id,
         title=sender.display_name if sender else 'AraChat',
-        body=f'Комментарий: {comment_text[:226]}',
+        body=tr(recipient.language if recipient else None, 'notification.comment', text=comment_text[:226]),
         url=f'/app/chats/{branch_id}',
     )
     session.add(notification)
@@ -177,12 +181,13 @@ async def create_branch_comment_notification(
 
 
 async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> bool:
+    profile = await session.get(UserProfile, user_id)
     notification = NotificationOut(
         id=uuid4(),
         chat_id=None,
         message_id=None,
         title='AraChat',
-        body='Проверка push-уведомлений',
+        body=tr(profile.language if profile else None, 'notification.test'),
         url='/app/settings',
         created_at=datetime.now(timezone.utc),
         read_at=None,
@@ -253,17 +258,3 @@ def _notification_out(notification: Notification) -> NotificationOut:
         created_at=notification.created_at,
         read_at=notification.read_at,
     )
-
-
-def _message_preview(message: MessageOut) -> str:
-    if message.type in {'text', 'emoji'}:
-        return message.payload[:240]
-    labels = {
-        'photo': '📷 Фото',
-        'video': '🎬 Видео',
-        'video_note': '🎥 Видеосообщение',
-        'voice': '🎤 Голосовое сообщение',
-        'file': '📎 Файл',
-    }
-    label = labels.get(message.type, 'Новое сообщение')
-    return f'{label}: {message.media_name}' if message.media_name else label

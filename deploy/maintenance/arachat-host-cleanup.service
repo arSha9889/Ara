@@ -1,0 +1,9 @@
+[Unit]
+Description=Safely clean unused AraChat Docker images and build cache
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/arachat/maintenance.env
+ExecStart=/usr/local/lib/arachat/cleanup-docker.sh

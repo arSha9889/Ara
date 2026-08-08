@@ -276,7 +276,7 @@ export function SettingsPage() {
   async function handleStartPasswordChange(event) {
     event.preventDefault();
     try {
-      const confirmation = await startPasswordChange(session.accessToken, { ...passwordForm, device_id: getDeviceId() });
+      const confirmation = await startPasswordChange(session.accessToken, { ...passwordForm, device_id: getDeviceId(), language });
       setPasswordConfirmation(confirmation);
       notify({ kind: 'success', title: t('settings.passwordConfirmationSent'), icon: 'shield' });
     } catch (err) {
@@ -304,7 +304,7 @@ export function SettingsPage() {
   async function handleStartEmailChange(event) {
     event.preventDefault();
     try {
-      const started = await startEmailChange(session.accessToken, { ...emailForm, device_id: getDeviceId() });
+      const started = await startEmailChange(session.accessToken, { ...emailForm, device_id: getDeviceId(), language });
       setEmailVerification(started);
       notify({ kind: 'success', title: t('settings.emailCodeSent'), icon: 'shield' });
     } catch (err) {
@@ -458,7 +458,7 @@ export function SettingsPage() {
                   {devices.map((device) => (
                     <article className="info-card" key={device.id}>
                       <strong>{device.device_id}</strong>
-                      <span className="muted">{t('settings.until')} {new Date(device.expires_at).toLocaleString()}</span>
+                      <span className="muted">{t('settings.until')} {new Date(device.expires_at).toLocaleString(language)}</span>
                       {device.revoked_at ? <span className="muted">{t('settings.revoked')}</span> : <button className="button button-secondary" type="button" onClick={() => handleRevokeDevice(device.device_id)}>{t('settings.revoke')}</button>}
                     </article>
                   ))}
@@ -470,7 +470,7 @@ export function SettingsPage() {
                   {history.map((item) => (
                     <article className="info-card" key={item.id}>
                       <strong>{item.method} — {item.result}</strong>
-                      <span className="muted">{new Date(item.created_at).toLocaleString()}</span>
+                      <span className="muted">{new Date(item.created_at).toLocaleString(language)}</span>
                     </article>
                   ))}
                 </div>

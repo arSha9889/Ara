@@ -1,13 +1,20 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { useSession } from '../providers/SessionProvider.jsx';
+import { AraChatLoader } from '../../shared/ui/AraChatLoader.jsx';
 
 export function ProtectedRoute() {
   const { session, isSessionLoading } = useSession();
   const location = useLocation();
 
   if (isSessionLoading) {
-    return null;
+    return (
+      <main className="app-boot-loader-page">
+        <section className="panel boot-loader-panel">
+          <AraChatLoader hero />
+        </section>
+      </main>
+    );
   }
 
   if (!session.accessToken) {

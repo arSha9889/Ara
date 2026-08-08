@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.domain.registration_proof import create_registration_proof
 from app.domain.security_hashing import hash_secret, verify_secret
 from app.models.verification import PhoneVerification
+from app.services.localization import country_name, normalize_language, tr
 from app.services.password_confirmation_service import handle_password_confirmation_callback
 from app.services.telegram_bot_client import answer_telegram_callback, send_telegram_message
 
@@ -42,7 +43,13 @@ class PhoneVerificationResult:
     registration_proof: str
 
 
-async def create_phone_verification(session: AsyncSession, country: str, phone: str, device_id: str) -> PhoneVerificationStart:
+async def create_phone_verification(
+    session: AsyncSession,
+    country: str,
+    phone: str,
+    device_id: str,
+    language: str = 'ru',
+) -> PhoneVerificationStart:
     normalized_country = normalize_phone_country(country)
     normalized_phone = normalize_phone(phone, normalized_country)
     now = datetime.now(timezone.utc)
@@ -52,6 +59,7 @@ async def create_phone_verification(session: AsyncSession, country: str, phone: 
         phone_country=normalized_country,
         phone=normalized_phone,
         device_id=device_id,
+        language=normalize_language(language),
         status='pending',
         expires_at=now + timedelta(minutes=PHONE_VERIFICATION_TTL_MINUTES),
     )
@@ -152,7 +160,7 @@ async def _handle_start_command(
     if not payload.startswith(START_PAYLOAD_PREFIX):
         await send_telegram_message(
             chat_id,
-            'Привет! Я бот AraChat. Начните регистрацию в приложении и выберите подтверждение телефона или email, чтобы я отправил код подтверждения.',
+            tr(None, 'telegram.greeting'),
         )
         return
 
@@ -162,13 +170,13 @@ async def _handle_start_command(
         if verification:
             verification.status = 'expired'
             await session.commit()
-        await send_telegram_message(chat_id, 'Заявка на подтверждение телефона истекла. Запросите новый код в приложении AraChat.')
+        await send_telegram_message(chat_id, tr(verification.language if verification else None, 'telegram.expired'))
         return
     if verification.consumed_at:
-        await send_telegram_message(chat_id, 'Эта заявка уже использована. Если нужно, запросите новый код в приложении.')
+        await send_telegram_message(chat_id, tr(verification.language, 'telegram.used'))
         return
     if verification.telegram_user_id and verification.telegram_user_id != telegram_user_id:
-        await send_telegram_message(chat_id, 'Эта заявка уже привязана к другому Telegram-аккаунту. Запросите новый код в приложении AraChat.')
+        await send_telegram_message(chat_id, tr(verification.language, 'telegram.other_account'))
         return
 
     verification.telegram_chat_id = chat_id
@@ -180,18 +188,18 @@ async def _handle_start_command(
 
 async def _handle_contact(session: AsyncSession, contact: dict, chat_id: str, telegram_user_id: str) -> None:
     if str(contact.get('user_id') or '') != telegram_user_id:
-        await send_telegram_message(chat_id, 'Пожалуйста, отправьте именно свой контакт через кнопку Telegram.')
+        await send_telegram_message(chat_id, tr(None, 'telegram.own_contact'))
         return
 
     verification = await _get_active_verification_by_chat(session, chat_id)
     if not verification:
-        await send_telegram_message(chat_id, 'Сначала запросите код в приложении AraChat, затем откройте бота по ссылке.')
+        await send_telegram_message(chat_id, tr(None, 'telegram.start_in_app'))
         return
 
     try:
         verification.phone = normalize_phone(str(contact.get('phone_number') or ''), verification.phone_country)
-    except PhoneVerificationError as exc:
-        await send_telegram_message(chat_id, f'{exc}. Введите номер выбранной страны сообщением или измените страну в приложении.')
+    except PhoneVerificationError:
+        await send_telegram_message(chat_id, tr(verification.language, 'telegram.invalid_phone'))
         return
     await session.commit()
     await _send_phone_confirmation_prompt(chat_id, verification)
@@ -200,13 +208,13 @@ async def _handle_contact(session: AsyncSession, contact: dict, chat_id: str, te
 async def _handle_phone_text(session: AsyncSession, text: str, chat_id: str) -> None:
     verification = await _get_active_verification_by_chat(session, chat_id)
     if not verification:
-        await send_telegram_message(chat_id, 'Сначала запросите код в приложении AraChat, затем откройте бота по ссылке.')
+        await send_telegram_message(chat_id, tr(None, 'telegram.start_in_app'))
         return
 
     try:
         verification.phone = normalize_phone(text, verification.phone_country)
-    except PhoneVerificationError as exc:
-        await send_telegram_message(chat_id, f'{exc}. Введите номер выбранной страны или отправьте контакт кнопкой Telegram.')
+    except PhoneVerificationError:
+        await send_telegram_message(chat_id, tr(verification.language, 'telegram.invalid_phone'))
         return
     await session.commit()
     await _send_phone_confirmation_prompt(chat_id, verification)
@@ -231,12 +239,12 @@ async def _handle_callback_query(session: AsyncSession, callback_query: dict) ->
             verification.status = 'expired'
             await session.commit()
         if callback_query_id:
-            await answer_telegram_callback(callback_query_id, 'Заявка истекла')
-        await send_telegram_message(chat_id, 'Заявка истекла. Запросите новый код в приложении AraChat.')
+            await answer_telegram_callback(callback_query_id, tr(verification.language if verification else None, 'telegram.callback_expired'))
+        await send_telegram_message(chat_id, tr(verification.language if verification else None, 'telegram.expired'))
         return
     if verification.telegram_user_id != telegram_user_id:
         if callback_query_id:
-            await answer_telegram_callback(callback_query_id, 'Это заявка другого Telegram-аккаунта')
+            await answer_telegram_callback(callback_query_id, tr(verification.language, 'telegram.callback_other_account'))
         return
 
     code = _generate_code()
@@ -245,10 +253,10 @@ async def _handle_callback_query(session: AsyncSession, callback_query: dict) ->
     verification.failed_attempts = 0
     await session.commit()
     if callback_query_id:
-        await answer_telegram_callback(callback_query_id, 'Код отправлен')
+        await answer_telegram_callback(callback_query_id, tr(verification.language, 'telegram.callback_sent'))
     await send_telegram_message(
         chat_id,
-        f'Ваш код подтверждения AraChat: {code}\nВведите его в приложении. Код действует {PHONE_VERIFICATION_TTL_MINUTES} минут.',
+        tr(verification.language, 'telegram.code', code=code, minutes=PHONE_VERIFICATION_TTL_MINUTES),
         {'remove_keyboard': True},
     )
 
@@ -256,23 +264,23 @@ async def _handle_callback_query(session: AsyncSession, callback_query: dict) ->
 async def _send_phone_confirmation_prompt(chat_id: str, verification: PhoneVerification) -> None:
     await send_telegram_message(
         chat_id,
-        (
-            'Привет! Подтвердите номер для регистрации в AraChat.\n\n'
-            f'Страна: {_phone_country_name(verification.phone_country)}\n'
-            f'Номер из приложения: {verification.phone}\n\n'
-            'Если это ваш номер, нажмите «Подтвердить». Если нужен другой номер — отправьте контакт кнопкой ниже или напишите номер сообщением.'
+        tr(
+            verification.language,
+            'telegram.prompt',
+            country=country_name(verification.language, verification.phone_country),
+            phone=verification.phone,
         ),
         {
             'inline_keyboard': [[
-                {'text': 'Подтвердить', 'callback_data': f'{CONFIRM_CALLBACK_PREFIX}{verification.public_token}'},
+                {'text': tr(verification.language, 'telegram.confirm'), 'callback_data': f'{CONFIRM_CALLBACK_PREFIX}{verification.public_token}'},
             ]],
         },
     )
     await send_telegram_message(
         chat_id,
-        'Можно отправить номер из Telegram одной кнопкой:',
+        tr(verification.language, 'telegram.contact_prompt'),
         {
-            'keyboard': [[{'text': 'Отправить мой номер', 'request_contact': True}]],
+            'keyboard': [[{'text': tr(verification.language, 'telegram.share_contact'), 'request_contact': True}]],
             'resize_keyboard': True,
             'one_time_keyboard': True,
         },
@@ -372,20 +380,6 @@ def _is_belarus_mobile_phone(phone: str) -> bool:
 
 def _is_uzbekistan_mobile_phone(phone: str) -> bool:
     return bool(re.fullmatch(r'\+998\d{9}', phone)) and phone[4:6] in UZBEKISTAN_MOBILE_PREFIXES
-
-
-def _phone_country_name(country: str) -> str:
-    if country == 'BY':
-        return 'Беларусь'
-    if country == 'UZ':
-        return 'Узбекистан'
-    if country == 'UA':
-        return 'Украина'
-    if country == 'KZ':
-        return 'Казахстан'
-    if country == 'KG':
-        return 'Кыргызстан'
-    return 'Россия'
 
 
 def _generate_code() -> str:

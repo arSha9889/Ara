@@ -4,17 +4,18 @@ import ssl
 from email.message import EmailMessage
 
 from app.core.config import settings
+from app.services.localization import email_message_content, tr
 
 
 class SmtpDeliveryError(RuntimeError):
     pass
 
 
-async def send_verification_code(email: str, code: str, purpose: str, expires_in_minutes: int) -> None:
+async def send_verification_code(email: str, code: str, purpose: str, expires_in_minutes: int, language: str = 'ru') -> None:
     if not settings.smtp_is_configured:
         raise SmtpDeliveryError('SMTP e-mail delivery is not configured')
 
-    subject, heading, description = _message_content(purpose)
+    subject, heading, description = email_message_content(language, purpose)
     message = EmailMessage()
     message['Subject'] = subject
     message['From'] = _from_header()
@@ -22,9 +23,8 @@ async def send_verification_code(email: str, code: str, purpose: str, expires_in
     message.set_content(
         f'{heading}\n\n'
         f'{description}\n\n'
-        f'Код: {code}\n\n'
-        f'Он действует {expires_in_minutes} мин. Никому не сообщайте этот код. '
-        'Если запрос сделали не вы, просто проигнорируйте это письмо.'
+        f'{tr(language, "email.code", code=code)}\n\n'
+        f'{tr(language, "email.safety", minutes=expires_in_minutes)}'
     )
     try:
         await asyncio.to_thread(_send_message, message)
@@ -61,13 +61,3 @@ def _authenticate_and_send(client: smtplib.SMTP, message: EmailMessage) -> None:
 def _from_header() -> str:
     name = settings.smtp_from_name.strip()
     return f'{name} <{settings.smtp_from_email}>' if name else settings.smtp_from_email
-
-
-def _message_content(purpose: str) -> tuple[str, str, str]:
-    messages = {
-        'registration': ('Код подтверждения e-mail — AraChat', 'Подтвердите e-mail', 'Введите этот код, чтобы завершить регистрацию в AraChat.'),
-        'password_change': ('Код смены пароля — AraChat', 'Подтвердите смену пароля', 'Введите этот код, чтобы изменить пароль AraChat.'),
-        'password_reset': ('Код восстановления доступа — AraChat', 'Восстановление доступа', 'Введите этот код, чтобы задать новый пароль AraChat.'),
-        'email_change': ('Код смены e-mail — AraChat', 'Подтвердите новый e-mail', 'Введите этот код, чтобы привязать этот e-mail к AraChat.'),
-    }
-    return messages.get(purpose, ('Код подтверждения — AraChat', 'Подтвердите действие', 'Введите этот код в AraChat.'))

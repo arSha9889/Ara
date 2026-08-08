@@ -50,7 +50,7 @@ export function RegisterPage() {
     setError('');
     setIsLoading(true);
     try {
-      const result = await startEmailVerification({ email: form.email, device_id: form.device_id });
+      const result = await startEmailVerification({ email: form.email, device_id: form.device_id, language });
       updateField('email_verification_id', result.verification_id);
       setStatus(t('register.emailCodeSent'));
     } catch (err) {
@@ -101,7 +101,7 @@ export function RegisterPage() {
     setError('');
     setIsLoading(true);
     try {
-      const result = await completeRegistration(form);
+      const result = await completeRegistration({ ...form, pin: form.pin.trim() || null });
       saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user: result.user });
       navigate('/app', { replace: true });
     } catch (err) {
@@ -129,9 +129,25 @@ export function RegisterPage() {
         ) : null}
         {step === 'profile' ? (
           <div className="auth-fields">
-            <TextInput label="Username" value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={checkUsernameAvailability} required />
+            <TextInput label={t('auth.username')} value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={checkUsernameAvailability} required />
             {usernameState ? <p className="muted">{usernameState}</p> : null}
-            <label className="field"><span>{t('register.avatarTitle')}</span><select value={form.avatar_ref} onChange={(event) => updateField('avatar_ref', event.target.value)}>{BUILT_IN_AVATARS.map((avatar, index) => <option value={avatar} key={avatar}>{AVATAR_EMOJIS[index]} {avatar}</option>)}</select></label>
+            <fieldset className="registration-avatar-picker">
+              <legend>{t('register.avatarTitle')}</legend>
+              <div className="registration-avatar-grid">
+                {BUILT_IN_AVATARS.map((avatar, index) => (
+                  <button
+                    className={`avatar-choice registration-avatar-choice ${form.avatar_ref === avatar ? 'active' : ''}`}
+                    type="button"
+                    key={avatar}
+                    onClick={() => updateField('avatar_ref', avatar)}
+                    aria-label={`${t('register.avatarTitle')}: ${AVATAR_EMOJIS[index]}`}
+                    aria-pressed={form.avatar_ref === avatar}
+                  >
+                    <span aria-hidden="true">{AVATAR_EMOJIS[index]}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
           </div>
         ) : null}
         {step === 'password' ? (

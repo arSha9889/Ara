@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from pathlib import PurePosixPath
 from tempfile import NamedTemporaryFile
 from uuid import UUID, uuid4
 
@@ -146,6 +147,13 @@ def media_url_for(public_path: str, request_base_url: str) -> str:
     return f'{base_url.rstrip("/")}{public_path}'
 
 
+def avatar_url_for(public_path: str, request_base_url: str) -> str:
+    """Return an avatar URL that remains valid when the web and API hosts differ."""
+    if settings.storage_backend == 'local':
+        return public_path
+    return media_url_for(public_path, request_base_url)
+
+
 async def check_storage() -> bool:
     if settings.storage_backend == 'local':
         try:
@@ -158,6 +166,27 @@ async def check_storage() -> bool:
         return True
     except (BotoCoreError, ClientError):
         return False
+
+
+async def delete_storage_object(storage_key: str) -> None:
+    """Delete a file created by this service, never an arbitrary host path or S3 key."""
+    if settings.storage_backend == 'local':
+        path = _local_path_for_storage_key(storage_key)
+        try:
+            await asyncio.to_thread(path.unlink, missing_ok=True)
+        except OSError as exc:
+            raise AuthError('File storage is temporarily unavailable') from exc
+        return
+
+    _validate_s3_object_key(storage_key)
+    try:
+        await asyncio.to_thread(
+            get_s3_client().delete_object,
+            Bucket=settings.s3_bucket,
+            Key=storage_key,
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise AuthError('File storage is temporarily unavailable') from exc
 
 
 async def _upload_to_s3(path: Path, object_key: str, mime_type: str) -> None:
@@ -180,6 +209,42 @@ async def _upload_to_s3(path: Path, object_key: str, mime_type: str) -> None:
 def _s3_object_key(user_id: UUID, stored_name: str) -> str:
     prefix = settings.s3_prefix.strip('/')
     return '/'.join(part for part in (prefix, str(user_id), stored_name) if part)
+
+
+def _local_path_for_storage_key(storage_key: str) -> Path:
+    prefix = settings.storage_public_url_prefix.rstrip('/')
+    if not prefix or not storage_key.startswith(f'{prefix}/'):
+        raise AuthError('Unsupported storage object')
+    return _path_from_key_parts(storage_key[len(prefix):].lstrip('/'), storage_root())
+
+
+def _validate_s3_object_key(storage_key: str) -> None:
+    prefix = settings.s3_prefix.strip('/')
+    expected_prefix = f'{prefix}/' if prefix else ''
+    if expected_prefix and not storage_key.startswith(expected_prefix):
+        raise AuthError('Unsupported storage object')
+    key_without_prefix = storage_key[len(expected_prefix):] if expected_prefix else storage_key
+    _path_from_key_parts(key_without_prefix, None)
+
+
+def _path_from_key_parts(value: str, root: Path | None) -> Path:
+    parts = PurePosixPath(value).parts
+    if len(parts) != 2 or any(part in {'', '.', '..'} for part in parts):
+        raise AuthError('Unsupported storage object')
+    try:
+        UUID(parts[0])
+    except ValueError as exc:
+        raise AuthError('Unsupported storage object') from exc
+    if Path(parts[1]).name != parts[1]:
+        raise AuthError('Unsupported storage object')
+    if root is None:
+        return Path(value)
+
+    resolved_root = root.resolve()
+    parent = (resolved_root / parts[0]).resolve()
+    if parent.parent != resolved_root:
+        raise AuthError('Unsupported storage object')
+    return parent / parts[1]
 
 
 def _clean_filename(filename: str) -> str:

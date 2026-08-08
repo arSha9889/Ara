@@ -55,6 +55,42 @@ class AdminSecurityMetricsOut(BaseModel):
     archived_branches: int
 
 
+class AdminHostStorageOut(BaseModel):
+    collector_available: bool
+    collected_at: datetime | None
+    last_cleanup_at: datetime | None
+    disk_total_bytes: int | None
+    disk_used_bytes: int | None
+    disk_available_bytes: int | None
+    disk_usage_percent: int | None
+    docker_bytes: int | None
+    docker_log_bytes: int | None
+    postgres_bytes: int | None
+    redis_bytes: int | None
+    local_backup_bytes: int | None
+
+
+class AdminRetentionCategoryOut(BaseModel):
+    key: str
+    count: int
+    bytes: int | None
+
+
+class AdminRetentionPreviewOut(BaseModel):
+    generated_at: datetime
+    categories: list[AdminRetentionCategoryOut]
+
+
+class AdminRetentionRunOut(BaseModel):
+    completed_at: datetime
+    deleted: dict[str, int]
+
+
+class AdminMaintenanceOut(BaseModel):
+    host: AdminHostStorageOut
+    retention: AdminRetentionPreviewOut
+
+
 class AdminAuditLogOut(BaseModel):
     id: UUID
     action: str

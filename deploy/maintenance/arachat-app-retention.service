@@ -1,0 +1,9 @@
+[Unit]
+Description=Run AraChat application retention
+After=docker.service arachat-storage-status.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/arachat/maintenance.env
+ExecStart=/usr/local/lib/arachat/run-app-retention.sh

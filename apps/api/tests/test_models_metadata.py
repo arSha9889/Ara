@@ -26,6 +26,7 @@ def test_web_core_tables_are_registered() -> None:
         'oauth_identities',
         'oauth_attempts',
         'audit_logs',
+        'stored_objects',
     }
 
     assert expected_tables.issubset(set(Base.metadata.tables))
