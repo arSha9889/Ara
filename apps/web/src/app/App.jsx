@@ -19,6 +19,7 @@ import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
 import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
 import { AdminPage } from '../features/admin/pages/AdminPage.jsx';
 import { AppFeedbackViewport } from '../shared/ui/AppFeedbackViewport.jsx';
+import { useSession } from './providers/SessionProvider.jsx';
 
 
 function AdminRoute() {
