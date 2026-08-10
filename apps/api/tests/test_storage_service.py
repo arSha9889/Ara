@@ -41,7 +41,7 @@ async def test_save_upload_file_stores_audio_with_normalized_mime_type(tmp_path,
     assert stored.suggested_message_type == 'voice'
     assert stored.public_path.startswith(f'/storage/uploads/{user_id}/')
     assert (tmp_path / str(user_id) / stored.public_path.rsplit('/', 1)[-1]).exists()
-    assert media_url_for(stored.public_path, 'http://api.local/') == f'http://api.local{stored.public_path}'
+    assert media_url_for(stored.public_path, 'http://api.local/') == stored.public_path
     assert avatar_url_for(stored.public_path, 'http://api.local/') == stored.public_path
 
 

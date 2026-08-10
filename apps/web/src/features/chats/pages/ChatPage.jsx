@@ -5,6 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useLayoutMode } from '../../../app/providers/LayoutModeProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
+import { mediaUrlForBrowser } from '../../../shared/api/mediaUrl.js';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
@@ -74,6 +75,7 @@ function VoiceMessage({ message, t }) {
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const duration = message.duration_seconds || audioRef.current?.duration || 0;
+  const mediaUrl = mediaUrlForBrowser(message.media_url);
 
   function togglePlayback() {
     const audio = audioRef.current;
@@ -116,7 +118,7 @@ function VoiceMessage({ message, t }) {
           ))}
         </div>
       </div>
-      <audio ref={audioRef} src={message.media_url} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+      <audio ref={audioRef} src={mediaUrl} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
     </div>
   );
 }
@@ -126,6 +128,7 @@ function VideoNoteMessage({ message, t }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const duration = message.duration_seconds || videoRef.current?.duration || 0;
+  const mediaUrl = mediaUrlForBrowser(message.media_url);
 
   function togglePlayback() {
     const video = videoRef.current;
@@ -152,7 +155,7 @@ function VideoNoteMessage({ message, t }) {
 
   return (
     <button className={`video-note ${isPlaying ? 'is-playing' : ''}`} type="button" onClick={togglePlayback} aria-label={isPlaying ? t('messages.pauseVideoNote') : t('messages.playVideoNote')} style={{ '--video-note-progress': progress }}>
-      <video ref={videoRef} src={message.media_url} playsInline preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+      <video ref={videoRef} src={mediaUrl} playsInline preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
       <span className="video-note-ring" aria-hidden="true" />
       <span className="video-note-play" aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span>
       <span className="video-note-duration">{formatVoiceTime(duration)}</span>
@@ -165,17 +168,18 @@ function renderMessageContent(message, t, onOpenMedia) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
   }
   const displayType = displayMessageType(message);
+  const mediaUrl = mediaUrlForBrowser(message.media_url);
   if (displayType === 'photo') {
     return (
       <button className="message-media-button" type="button" onClick={() => onOpenMedia(message)} aria-label={t('messages.openMedia')}>
-        <img className="message-media" src={message.media_url} alt={message.media_name || t('messages.photoAlt')} />
+        <img className="message-media" src={mediaUrl} alt={message.media_name || t('messages.photoAlt')} />
       </button>
     );
   }
   if (displayType === 'video') {
     return (
       <div className="message-video-wrap">
-        <video className="message-media" src={message.media_url} controls />
+        <video className="message-media" src={mediaUrl} controls />
         <button className="message-video-expand" type="button" onClick={() => onOpenMedia(message)} aria-label={t('messages.openMedia')} title={t('messages.openMedia')}>
           <span aria-hidden="true">⛶</span>
         </button>
@@ -190,7 +194,7 @@ function renderMessageContent(message, t, onOpenMedia) {
   }
   if (displayType === 'file') {
     return (
-      <a className="file-message" href={message.media_url} target="_blank" rel="noreferrer">
+      <a className="file-message" href={mediaUrl} target="_blank" rel="noreferrer">
         📎 {message.media_name || t('messages.file')}
       </a>
     );
@@ -612,6 +616,7 @@ export function ChatPage() {
   const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(displayMessageType(message)) && message.media_url);
   const mediaViewerIndex = mediaViewerMessage ? mediaMessages.findIndex((message) => message.id === mediaViewerMessage.id) : -1;
   const mediaViewerType = mediaViewerMessage ? displayMessageType(mediaViewerMessage) : null;
+  const mediaViewerUrl = mediaUrlForBrowser(mediaViewerMessage?.media_url);
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', chat?.peer?.last_seen_at, t, language);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || t('chats.branchTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || t('chats.publicBranchSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
@@ -1985,12 +1990,12 @@ export function ChatPage() {
             <div className="media-viewer-toolbar">
               <span>{mediaViewerMessage.media_name || (mediaViewerType === 'photo' ? t('messages.photoAlt') : t('messages.video'))}</span>
               <div>
-                <a href={mediaViewerMessage.media_url} download target="_blank" rel="noreferrer" aria-label={t('messages.downloadMedia')} title={t('messages.downloadMedia')}>↓</a>
+                <a href={mediaViewerUrl} download target="_blank" rel="noreferrer" aria-label={t('messages.downloadMedia')} title={t('messages.downloadMedia')}>↓</a>
                 <button type="button" onClick={() => setMediaViewerMessage(null)} aria-label={t('messages.closeMedia')} title={t('messages.closeMedia')}>×</button>
               </div>
             </div>
             {mediaViewerIndex > 0 ? <button className="media-viewer-nav previous" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex - 1])} aria-label={t('messages.previousMedia')}>‹</button> : null}
-            {mediaViewerType === 'photo' ? <img src={mediaViewerMessage.media_url} alt={mediaViewerMessage.media_name || t('messages.photoAlt')} /> : <video src={mediaViewerMessage.media_url} controls autoPlay playsInline />}
+            {mediaViewerType === 'photo' ? <img src={mediaViewerUrl} alt={mediaViewerMessage.media_name || t('messages.photoAlt')} /> : <video src={mediaViewerUrl} controls autoPlay playsInline />}
             {mediaViewerIndex >= 0 && mediaViewerIndex < mediaMessages.length - 1 ? <button className="media-viewer-nav next" type="button" onClick={() => setMediaViewerMessage(mediaMessages[mediaViewerIndex + 1])} aria-label={t('messages.nextMedia')}>›</button> : null}
           </section>
         </div>

@@ -143,8 +143,10 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
 def media_url_for(public_path: str, request_base_url: str) -> str:
     if settings.storage_backend == 's3':
         return f'{settings.s3_public_base_url.rstrip("/")}/{public_path.lstrip("/")}'
-    base_url = settings.storage_public_base_url.strip() or request_base_url
-    return f'{base_url.rstrip("/")}{public_path}'
+    base_url = settings.storage_public_base_url.strip()
+    if base_url:
+        return f'{base_url.rstrip("/")}{public_path}'
+    return public_path
 
 
 def avatar_url_for(public_path: str, request_base_url: str) -> str:
