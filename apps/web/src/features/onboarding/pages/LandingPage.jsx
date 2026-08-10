@@ -5,13 +5,16 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher.jsx';
 import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
+import { useFlagDayCampaign } from '../../../shared/config/seasonalCampaign.js';
 
 export function LandingPage() {
   const { t } = useI18n();
   const { session } = useSession();
+  const isFlagDayCampaignActive = useFlagDayCampaign();
   const isAuthenticated = Boolean(session?.accessToken);
   const ctaPath = isAuthenticated ? '/app' : '/register';
   const ctaLabel = isAuthenticated ? t('onboarding.enterMessenger') : t('onboarding.openMessenger');
+  const logoSrc = isFlagDayCampaignActive ? '/images/flag-day-ribbon-logo.jpg' : '/icons/arachat-parrot-icon-192.png';
   const featureCards = [
     { icon: 'chat', title: t('onboarding.directChatsTitle'), text: t('onboarding.directChatsText') },
     { icon: 'microphone', title: t('onboarding.voiceTitle'), text: t('onboarding.voiceText') },
@@ -25,11 +28,12 @@ export function LandingPage() {
 
   return (
     <main className="auth-page landing-page">
-      <section className="hero-card landing-hero">
+      <section className={`hero-card landing-hero ${isFlagDayCampaignActive ? 'is-flag-day' : ''}`}>
         <div className="halo-ring" aria-hidden="true" />
         <header className="landing-topbar">
-          <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
+          <Link to="/" className="brand compact"><img className="brand-mark" src={logoSrc} alt="" aria-hidden="true" /><span>AraChat</span></Link>
           <div className="landing-topbar-actions">
+            <Link to="/presentation" className="landing-presentation-link">Презентация</Link>
             <LanguageSwitcher />
             <ThemeSwitcher />
             {!isAuthenticated ? <Link to="/login" className="landing-login-link">{t('onboarding.login')}</Link> : null}
@@ -38,7 +42,8 @@ export function LandingPage() {
 
         <div className="landing-hero-grid">
           <div className="landing-copy">
-            <p className="eyebrow landing-beta-label"><span aria-hidden="true" />AraChat Web / Beta</p>
+            <p className="eyebrow landing-release-label"><span aria-hidden="true" />{t('onboarding.releaseLabel')}</p>
+            {isFlagDayCampaignActive ? <div className="flag-day-banner"><span className="flag-day-banner-mark" aria-hidden="true" /><span><strong>{t('seasonal.flagDayTitle')}</strong><small>{t('seasonal.flagDayUntil')}</small></span></div> : null}
             <h1>{t('onboarding.title')}</h1>
             <p>{t('onboarding.subtitle')}</p>
             <div className="stack landing-actions">
@@ -49,6 +54,7 @@ export function LandingPage() {
           </div>
 
           <div className="landing-showcase" aria-label={t('onboarding.previewLabel')}>
+            {isFlagDayCampaignActive ? <img className="flag-day-ribbon-art" src="/images/flag-day-ribbon-logo.jpg" alt="" aria-hidden="true" /> : null}
             <div className="landing-window">
               <div className="landing-window-topbar" aria-hidden="true">
                 <div className="landing-window-controls"><i /><i /><i /></div>
@@ -79,7 +85,7 @@ export function LandingPage() {
                 </div>
               </div>
             </div>
-            <div className="landing-floating-card landing-floating-id"><Icon name="shield" size={17} /><span>AraChat ID</span><strong>•••• 3741</strong></div>
+            {isFlagDayCampaignActive ? <div className="flag-day-logo-card"><img src="/images/flag-day-ribbon-logo.jpg" alt="" aria-hidden="true" /><span><strong>{t('seasonal.flagDayTitle')}</strong><small>{t('seasonal.flagDayUntil')}</small></span></div> : <div className="landing-floating-card landing-floating-id"><Icon name="shield" size={17} /><span>AraChat ID</span><strong>•••• 3741</strong></div>}
             <div className="landing-floating-card landing-floating-status"><span className="landing-live-dot" /><strong>{t('messages.online')}</strong><span>realtime</span></div>
           </div>
         </div>

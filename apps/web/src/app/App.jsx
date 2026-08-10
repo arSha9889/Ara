@@ -8,6 +8,7 @@ import { PasswordRecoveryPage } from '../features/auth/pages/PasswordRecoveryPag
 import { RegisterPage } from '../features/auth/pages/RegisterPage.jsx';
 import { LandingPage } from '../features/onboarding/pages/LandingPage.jsx';
 import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx';
+import { PresentationPage } from '../features/onboarding/pages/PresentationPage.jsx';
 import { ChatPage } from '../features/chats/pages/ChatPage.jsx';
 import { ChatsPage } from '../features/chats/pages/ChatsPage.jsx';
 import { NewChatPage } from '../features/chats/pages/NewChatPage.jsx';
@@ -41,6 +42,7 @@ export function App() {
     <>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/presentation" element={<PresentationPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/region" element={<Navigate to="/register" replace />} />
         <Route path="/login" element={<LoginPage />} />

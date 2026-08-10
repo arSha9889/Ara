@@ -10,6 +10,7 @@ import { useSession } from '../providers/SessionProvider.jsx';
 import { UserAvatar } from '../../shared/ui/Avatar.jsx';
 import { Icon } from '../../shared/ui/Icon.jsx';
 import { VpnWarningBanner } from '../../shared/ui/VpnWarningBanner.jsx';
+import { useFlagDayCampaign } from '../../shared/config/seasonalCampaign.js';
 
 export function AppNavigationTrigger({ isMenuOpen, onToggle, className = '' }) {
   const { t } = useI18n();
@@ -32,6 +33,7 @@ export function AppShell() {
   const { session, clearSession } = useSession();
   const { disableNotifications } = useNotifications();
   const location = useLocation();
+  const isFlagDayCampaignActive = useFlagDayCampaign();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const isChatRoute = location.pathname.startsWith('/app/chats/');
@@ -97,13 +99,13 @@ export function AppShell() {
   }
 
   return (
-    <div className={`app-shell ${isMenuOpen ? 'is-navigation-open' : ''} ${isChatRoute ? 'is-chat-route' : ''} ${isBranchesOnboarding ? 'is-branches-onboarding' : ''}`}>
+    <div className={`app-shell ${isMenuOpen ? 'is-navigation-open' : ''} ${isChatRoute ? 'is-chat-route' : ''} ${isBranchesOnboarding ? 'is-branches-onboarding' : ''} ${isFlagDayCampaignActive ? 'is-flag-day' : ''}`}>
       {!isChatsWorkspace ? <AppNavigationTrigger isMenuOpen={isMenuOpen} onToggle={() => setIsMenuOpen((current) => !current)} /> : null}
       {isMenuOpen ? <button className="app-navigation-backdrop" type="button" aria-label={t('common.close')} onClick={() => setIsMenuOpen(false)} /> : null}
       <aside className="app-navigation-drawer" aria-label={t('common.navigation')} aria-hidden={!isMenuOpen} inert={!isMenuOpen ? '' : undefined}>
         <div className="app-navigation-topbar">
           <NavLink className="brand" to="/app" aria-label="AraChat" onClick={() => setIsMenuOpen(false)}>
-            <img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" />
+            <img className="brand-mark" src={isFlagDayCampaignActive ? '/images/flag-day-ribbon-logo.jpg' : '/icons/arachat-parrot-icon-192.png'} alt="" aria-hidden="true" />
             <span>AraChat</span>
           </NavLink>
           <NotificationsMenu />
