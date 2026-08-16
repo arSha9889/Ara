@@ -173,12 +173,6 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
 
   const savedChat = chats.find((chat) => chat.type === 'saved');
   const listedChats = visibleChats.filter((chat) => chat.type !== 'saved');
-  const normalizedQuery = query.trim().toLowerCase();
-  const isSavedChatVisible = !normalizedQuery || [
-    t('chats.savedTitle'),
-    savedChat ? subtitleForChat(savedChat, session.user?.id, t) : t('chats.savedSubtitle'),
-    t('chats.savedBadge'),
-  ].join(' ').toLowerCase().includes(normalizedQuery);
 
   async function handleOpenSavedChat() {
     try {
@@ -208,17 +202,17 @@ export function ChatWorkspaceSidebar({ activeChatId }) {
           <Icon name="plus" size={22} />
         </Link>
       </div>
+      <div className="chat-list-saved-slot">
+        <button className={`info-card saved-chat-card ${savedChat?.id === activeChatId ? 'active' : ''}`} type="button" onClick={handleOpenSavedChat}>
+          <div className="chat-list-avatar saved-avatar" aria-hidden="true">★</div>
+          <div>
+            <strong>{t('chats.savedTitle')}</strong>
+            <span className="muted">{savedChat ? subtitleForChat(savedChat, session.user?.id, t) : t('chats.savedSubtitle')}</span>
+          </div>
+          <span className="chat-list-badge">{t('chats.savedBadge')}</span>
+        </button>
+      </div>
       <div className="list-stack">
-        {isSavedChatVisible ? (
-          <button className={`info-card saved-chat-card ${savedChat?.id === activeChatId ? 'active' : ''}`} type="button" onClick={handleOpenSavedChat}>
-            <div className="chat-list-avatar saved-avatar" aria-hidden="true">★</div>
-            <div>
-              <strong>{t('chats.savedTitle')}</strong>
-              <span className="muted">{savedChat ? subtitleForChat(savedChat, session.user?.id, t) : t('chats.savedSubtitle')}</span>
-            </div>
-            <span className="chat-list-badge">{t('chats.savedBadge')}</span>
-          </button>
-        ) : null}
         {listedChats.map((chat) => {
           const title = titleForChat(chat, t);
           const activityType = chat.id === activeChatId ? null : activityByChatId[chat.id];

@@ -71,6 +71,14 @@ export function restoreChat(accessToken, chatId) {
   });
 }
 
+export function updateChatWallpaper(accessToken, chatId, wallpaperId) {
+  return apiRequest(`/api/chats/${chatId}/wallpaper`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: { wallpaper_id: wallpaperId },
+  });
+}
+
 export function getMessages(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}/messages`, { headers: authHeaders(accessToken) });
 }

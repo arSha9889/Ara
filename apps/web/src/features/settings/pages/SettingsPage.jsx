@@ -29,6 +29,23 @@ function isApplePlatform() {
   return /Mac|iPhone|iPad|iPod/i.test(platform) || /iPhone|iPad|iPod|Macintosh/i.test(userAgent);
 }
 
+function loginHistoryLabel(t, value, labels) {
+  return labels[value] ? t(labels[value]) : value;
+}
+
+const LOGIN_METHOD_LABELS = {
+  email_register: 'settings.loginMethodEmailRegistration',
+  password: 'settings.loginMethodPassword',
+  pin: 'settings.loginMethodPin',
+  yandex_id: 'settings.loginMethodYandex',
+  vk_id: 'settings.loginMethodVk',
+};
+
+const LOGIN_RESULT_LABELS = {
+  success: 'settings.loginResultSuccess',
+  failed: 'settings.loginResultFailed',
+};
+
 function AppearanceSaveStatus({ status, onRetry }) {
   const { t } = useI18n();
   if (status.phase === 'idle') return null;
@@ -121,6 +138,10 @@ export function SettingsPage() {
   const [emailForm, setEmailForm] = useState({ current_password: '', email: '' });
   const [emailVerification, setEmailVerification] = useState(null);
   const [emailCode, setEmailCode] = useState('');
+  const [securityEditor, setSecurityEditor] = useState(null);
+  const currentDeviceId = getDeviceId();
+  const activeDevices = devices.filter((device) => !device.revoked_at);
+  const hasVerifiedEmail = Boolean(session.user?.profile?.email && session.user.profile.email_verified);
   const settingsTabs = [
     { id: 'appearance', icon: 'palette', label: t('settings.appearance') },
     { id: 'language', icon: 'globe', label: t('settings.language') },
@@ -452,64 +473,96 @@ export function SettingsPage() {
                   <p className="muted">{t('settings.activeDevices')} · {t('settings.loginHistory')}</p>
                 </div>
               </div>
+              <section className="security-overview" aria-label={t('settings.securityStatusTitle')}>
+                <div className="security-overview-icon" aria-hidden="true"><Icon name="shield" size={25} /></div>
+                <div>
+                  <p>{t('settings.securityStatusTitle')}</p>
+                  <strong>{hasVerifiedEmail ? t('settings.securityStatusVerified') : t('settings.securityStatusNeedsAttention')}</strong>
+                  <span>{hasVerifiedEmail ? t('settings.securityStatusVerifiedText') : t('settings.securityStatusNeedsAttentionText')}</span>
+                </div>
+                <div className="security-overview-stats">
+                  <span>{t('settings.activeSessions')}</span>
+                  <strong>{activeDevices.length}</strong>
+                </div>
+              </section>
+
+              <section className="settings-subsection security-access-section">
+                <h3>{t('settings.accountAccess')}</h3>
+                <div className="security-access-grid">
+                  <button className={`security-access-card ${securityEditor === 'email' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'email' ? null : 'email')}>
+                    <span className="security-access-icon"><Icon name="mail" size={19} /></span>
+                    <span><strong>{t('settings.emailAccess')}</strong><small>{session.user?.profile?.email || t('settings.emailNotSet')}</small></span>
+                    <span className={`security-access-status ${hasVerifiedEmail ? 'verified' : 'attention'}`}>{hasVerifiedEmail ? t('settings.verified') : t('settings.unverified')}</span>
+                  </button>
+                  <button className={`security-access-card ${securityEditor === 'password' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'password' ? null : 'password')}>
+                    <span className="security-access-icon"><Icon name="key" size={19} /></span>
+                    <span><strong>{t('settings.changePasswordTitle')}</strong><small>{t('settings.passwordAccessText')}</small></span>
+                    <Icon name="chevronRight" size={18} />
+                  </button>
+                  <button className={`security-access-card ${securityEditor === 'pin' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'pin' ? null : 'pin')}>
+                    <span className="security-access-icon"><Icon name="smartphone" size={19} /></span>
+                    <span><strong>{t('settings.devicePinTitle')}</strong><small>{t('settings.devicePinText')}</small></span>
+                    <Icon name="chevronRight" size={18} />
+                  </button>
+                  <button className={`security-access-card ${securityEditor === 'accounts' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'accounts' ? null : 'accounts')}>
+                    <span className="security-access-icon"><Icon name="user" size={19} /></span>
+                    <span><strong>{t('settings.linkedAccountsTitle')}</strong><small>{t('settings.linkedAccountsText')}</small></span>
+                    <Icon name="chevronRight" size={18} />
+                  </button>
+                </div>
+
+                {securityEditor === 'password' ? <form className="security-editor-card" onSubmit={handleStartPasswordChange}>
+                  <h4>{t('settings.changePasswordTitle')}</h4>
+                  <p>{t('settings.changePasswordText')}</p>
+                  <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={passwordForm.current_password} onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))} required />
+                  <input className="text-input" type="password" placeholder={t('settings.newPassword')} value={passwordForm.new_password} onChange={(event) => setPasswordForm((current) => ({ ...current, new_password: event.target.value }))} required />
+                  <button className="button button-secondary" type="submit">{t('settings.requestPasswordConfirmation')}</button>
+                  {passwordConfirmation ? <div className="password-confirmation-actions"><input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={passwordCode} onChange={(event) => setPasswordCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /><button className="button button-primary" type="button" onClick={handleConfirmPasswordChange} disabled={passwordCode.length !== 6}>{t('settings.completeWithEmailCode')}</button></div> : null}
+                </form> : null}
+                {securityEditor === 'email' ? <form className="security-editor-card" onSubmit={handleStartEmailChange}>
+                  <h4>{t('settings.emailChangeTitle')}</h4>
+                  <p>{t('settings.emailChangeText')}</p>
+                  <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={emailForm.current_password} onChange={(event) => setEmailForm((current) => ({ ...current, current_password: event.target.value }))} required />
+                  <input className="text-input" type="email" placeholder="name@example.com" value={emailForm.email} onChange={(event) => setEmailForm((current) => ({ ...current, email: event.target.value }))} required />
+                  <button className="button button-secondary" type="submit">{t('settings.sendEmailCode')}</button>
+                  {emailVerification ? <div className="password-confirmation-actions"><input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /><button className="button button-primary" type="button" onClick={handleConfirmEmailChange} disabled={emailCode.length !== 6}>{t('settings.confirmEmailChange')}</button></div> : null}
+                </form> : null}
+                {securityEditor === 'pin' ? <form className="security-editor-card" onSubmit={handleCreatePin}>
+                  <h4>{t('settings.devicePinTitle')}</h4>
+                  <p>{t('settings.devicePinText')}</p>
+                  <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required />
+                  <input className="text-input" inputMode="numeric" placeholder={t('settings.newPin')} value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value.replace(/\D/g, '').slice(0, 8) }))} required />
+                  <div className="security-editor-actions"><button className="button button-secondary" type="submit">{t('settings.savePin')}</button><button className="button button-secondary" type="button" onClick={handleRemovePin} disabled={!pinForm.current_password}>{t('settings.removePin')}</button></div>
+                </form> : null}
+                {securityEditor === 'accounts' ? <section className="security-editor-card">
+                  <h4>{t('settings.linkedAccountsTitle')}</h4>
+                  <p>{t('settings.linkedAccountsText')}</p>
+                  <div className="security-editor-actions"><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('yandex')}>{t('settings.linkYandex')}</button><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('vk')}>{t('settings.linkVk')}</button></div>
+                </section> : null}
+              </section>
+
               <section className="settings-subsection">
                 <h3>{t('settings.activeDevices')}</h3>
-                <div className="list-stack">
-                  {devices.map((device) => (
-                    <article className="info-card" key={device.id}>
-                      <strong>{device.device_id}</strong>
-                      <span className="muted">{t('settings.until')} {new Date(device.expires_at).toLocaleString(language)}</span>
-                      {device.revoked_at ? <span className="muted">{t('settings.revoked')}</span> : <button className="button button-secondary" type="button" onClick={() => handleRevokeDevice(device.device_id)}>{t('settings.revoke')}</button>}
-                    </article>
-                  ))}
+                <div className="security-device-list">
+                  {devices.length ? devices.map((device) => {
+                    const isCurrentDevice = device.device_id === currentDeviceId;
+                    return <article className={`security-device-card ${device.revoked_at ? 'revoked' : ''}`} key={device.id}>
+                      <span className="security-device-icon"><Icon name="monitor" size={19} /></span>
+                      <div><strong>{device.device_id}</strong><span>{t('settings.deviceCreated')} {new Date(device.created_at).toLocaleString(language)} · {t('settings.until')} {new Date(device.expires_at).toLocaleString(language)}</span></div>
+                      <div className="security-device-actions">{isCurrentDevice ? <span className="security-access-status verified">{t('settings.currentDevice')}</span> : null}{device.revoked_at ? <span className="security-access-status muted">{t('settings.revoked')}</span> : <button className="button button-secondary" type="button" onClick={() => handleRevokeDevice(device.device_id)}>{t('settings.revoke')}</button>}</div>
+                    </article>;
+                  }) : <p className="security-empty-state">{t('settings.noDevices')}</p>}
                 </div>
               </section>
+
               <section className="settings-subsection">
                 <h3>{t('settings.loginHistory')}</h3>
-                <div className="list-stack">
-                  {history.map((item) => (
-                    <article className="info-card" key={item.id}>
-                      <strong>{item.method} — {item.result}</strong>
-                      <span className="muted">{new Date(item.created_at).toLocaleString(language)}</span>
-                    </article>
-                  ))}
+                <div className="security-history-list">
+                  {history.length ? history.map((item) => <article className="security-history-item" key={item.id}><span className="security-history-marker" aria-hidden="true" /><div><strong>{loginHistoryLabel(t, item.method, LOGIN_METHOD_LABELS)} · {loginHistoryLabel(t, item.result, LOGIN_RESULT_LABELS)}</strong><span>{item.device_id || t('settings.unknownDevice')} · {new Date(item.created_at).toLocaleString(language)}</span></div></article>) : <p className="security-empty-state">{t('settings.noLoginHistory')}</p>}
                 </div>
               </section>
-              <form className="info-card" onSubmit={handleStartPasswordChange}>
-                <h3>{t('settings.changePasswordTitle')}</h3>
-                <p className="muted">{t('settings.changePasswordText')}</p>
-                <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={passwordForm.current_password} onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))} required />
-                <input className="text-input" type="password" placeholder={t('settings.newPassword')} value={passwordForm.new_password} onChange={(event) => setPasswordForm((current) => ({ ...current, new_password: event.target.value }))} required />
-                <button className="button button-secondary" type="submit">{t('settings.requestPasswordConfirmation')}</button>
-                {passwordConfirmation ? (
-                  <div className="password-confirmation-actions">
-                    <input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={passwordCode} onChange={(event) => setPasswordCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
-                    <button className="button button-primary" type="button" onClick={handleConfirmPasswordChange} disabled={passwordCode.length !== 6}>{t('settings.completeWithEmailCode')}</button>
-                  </div>
-                ) : null}
-              </form>
-              <form className="info-card" onSubmit={handleStartEmailChange}>
-                <h3>{t('settings.emailChangeTitle')}</h3>
-                <p className="muted">{t('settings.emailChangeText')}</p>
-                <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={emailForm.current_password} onChange={(event) => setEmailForm((current) => ({ ...current, current_password: event.target.value }))} required />
-                <input className="text-input" type="email" placeholder="name@example.com" value={emailForm.email} onChange={(event) => setEmailForm((current) => ({ ...current, email: event.target.value }))} required />
-                <button className="button button-secondary" type="submit">{t('settings.sendEmailCode')}</button>
-                {emailVerification ? <div className="password-confirmation-actions"><input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /><button className="button button-primary" type="button" onClick={handleConfirmEmailChange} disabled={emailCode.length !== 6}>{t('settings.confirmEmailChange')}</button></div> : null}
-              </form>
-              <section className="info-card">
-                <h3>{t('settings.linkedAccountsTitle')}</h3>
-                <p className="muted">{t('settings.linkedAccountsText')}</p>
-                <div className="toolbar"><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('yandex')}>{t('settings.linkYandex')}</button><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('vk')}>{t('settings.linkVk')}</button></div>
-              </section>
-              <form className="info-card" onSubmit={handleCreatePin}>
-                <h3>{t('settings.devicePinTitle')}</h3>
-                <p className="muted">{t('settings.devicePinText')}</p>
-                <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required />
-                <input className="text-input" inputMode="numeric" placeholder={t('settings.newPin')} value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value }))} required />
-                <button className="button button-secondary" type="submit">{t('settings.savePin')}</button>
-                <button className="button button-secondary" type="button" onClick={handleRemovePin} disabled={!pinForm.current_password}>{t('settings.removePin')}</button>
-              </form>
-              <section className="info-card danger-zone">
+
+              <section className="security-danger-zone">
                 <h3>{t('settings.dangerZone')}</h3>
                 <p className="muted">{t('settings.deleteAccountText')}</p>
                 <button className="button button-danger" type="button" onClick={handleDeleteAccount}>{t('settings.deleteAccount')}</button>

@@ -17,7 +17,7 @@ from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, list_branch_comments, update_branch_comment
 from app.services.branch_service import subscribe_to_branch, unsubscribe_from_branch
-from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction
+from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
 
@@ -154,6 +154,10 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             assert second_user.id in chat.participant_ids
             assert [item.id for item in await list_chats(session, second_user.id)] == []
 
+            updated_wallpaper = await update_chat_wallpaper(session, first_user.id, chat.id, 'aurora')
+            assert updated_wallpaper.wallpaper_id == 'aurora'
+            assert (await get_chat(session, second_user.id, chat.id)).wallpaper_id == 'default'
+
             message = await create_message(session, first_user.id, chat.id, MessageCreateRequest(text='Привет'))
             assert isinstance(message, MessageOut)
             assert message.payload == 'Привет'
@@ -248,6 +252,10 @@ async def test_public_branch_subscriptions_and_comments() -> None:
             branch_for_owner = await get_chat(session, owner.id, branch.id)
             assert branch_for_owner.subscriber_count == 0
             assert branch_for_owner.participant_ids == []
+
+            public_wallpaper = await update_chat_wallpaper(session, subscriber.id, branch.id, 'night')
+            assert public_wallpaper.wallpaper_id == 'night'
+            assert (await get_chat(session, owner.id, branch.id)).wallpaper_id == 'default'
 
             await subscribe_to_branch(session, subscriber.id, branch.id)
             await subscribe_to_branch(session, subscriber.id, branch.id)

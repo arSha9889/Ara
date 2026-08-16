@@ -1,5 +1,5 @@
 from app.models.audit import AuditLog, TelegramRecoveryRequest
-from app.models.chats import BranchComment, Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification, PushSubscription
+from app.models.chats import BranchComment, Chat, ChatParticipant, ChatPreference, Message, MessageReaction, MessageReceipt, Notification, PushSubscription
 from app.models.oauth import OAuthAttempt, OAuthIdentity
 from app.models.security import PasswordCredential, RecoveryCode, TrustedDevicePin
 from app.models.sessions import LoginHistory, Session
@@ -12,6 +12,7 @@ __all__ = [
     'BranchComment',
     'Chat',
     'ChatParticipant',
+    'ChatPreference',
     'EmailVerification',
     'LoginHistory',
     'Message',

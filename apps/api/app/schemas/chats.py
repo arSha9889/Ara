@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -30,6 +31,10 @@ class MessageReactionRequest(BaseModel):
 
 class MessageReadRequest(BaseModel):
     message_ids: list[UUID] = Field(min_length=1, max_length=100)
+
+
+class ChatWallpaperUpdateRequest(BaseModel):
+    wallpaper_id: Literal['default', 'grid', 'waves', 'aurora', 'paper', 'night']
 
 
 class MessageReactionOut(BaseModel):
@@ -96,6 +101,7 @@ class ChatOut(BaseModel):
     is_subscribed: bool = True
     subscriber_count: int = 0
     can_post: bool = False
+    wallpaper_id: str = 'default'
 
 
 class PublicBranchCreateRequest(BaseModel):

@@ -2152,11 +2152,19 @@ p { margin-bottom: 14px; }
 }
 
 .chat-workspace-sidebar .list-stack {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding: 0 2px 2px;
   scrollbar-width: thin;
 }
+
+.chat-list-saved-slot {
+  flex: 0 0 auto;
+  padding: 0 2px;
+}
+
+.chat-list-saved-slot .saved-chat-card { margin-bottom: 0; }
 
 .chat-thread-card.active,
 .saved-chat-card.active {
@@ -2452,7 +2460,8 @@ p { margin-bottom: 14px; }
   transition: color 150ms ease, background 150ms ease, transform 150ms ease;
 }
 
-.chat-actions-menu-item:hover { background: color-mix(in srgb, var(--danger), transparent 91%); transform: translateX(2px); }
+.chat-actions-menu-item:hover { background: color-mix(in srgb, var(--primary), transparent 91%); transform: translateX(2px); }
+.chat-actions-menu-item.danger:hover { background: color-mix(in srgb, var(--danger), transparent 91%); }
 .chat-actions-menu-item.danger { color: var(--danger); }
 .chat-actions-menu-item:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--ring); }
 
@@ -2516,6 +2525,23 @@ p { margin-bottom: 14px; }
 .app-dialog-copy p:not(.eyebrow) { margin: 0; color: var(--muted); line-height: 1.5; }
 .call-unavailable-dialog { animation: orbitDialogEnter 220ms var(--ease-out-soft) both; }
 .call-unavailable-dialog .app-dialog-icon { animation: orbitStepActivate 320ms var(--ease-out-soft) both; }
+
+.chat-wallpaper-dialog { width: min(100%, 620px); animation: orbitDialogEnter 220ms var(--ease-out-soft) both; }
+.chat-wallpaper-dialog .app-dialog-icon { background: color-mix(in srgb, var(--secondary), transparent 82%); color: var(--secondary); }
+.chat-wallpaper-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.chat-wallpaper-option { min-width: 0; min-height: 78px; border: 1px solid color-mix(in srgb, var(--primary), transparent 82%); border-radius: 16px; display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: center; gap: 10px; background: color-mix(in srgb, var(--surface), transparent 8%); color: var(--text); cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 850; text-align: left; padding: 9px; transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.chat-wallpaper-option:hover:not(:disabled) { border-color: color-mix(in srgb, var(--primary), transparent 48%); transform: translateY(-1px); box-shadow: 0 10px 22px color-mix(in srgb, var(--primary), transparent 86%); }
+.chat-wallpaper-option:focus-visible { outline: 0; border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); }
+.chat-wallpaper-option.active { border-color: color-mix(in srgb, var(--primary), transparent 38%); background: color-mix(in srgb, var(--primary), transparent 91%); color: var(--primary); cursor: default; }
+.chat-wallpaper-preview { height: 58px; border: 1px solid color-mix(in srgb, var(--primary), transparent 80%); border-radius: 11px; position: relative; overflow: hidden; background: color-mix(in srgb, var(--surface-elevated), transparent 4%); }
+.chat-wallpaper-preview i { width: 23px; height: 8px; position: absolute; border-radius: 999px; background: color-mix(in srgb, var(--primary), var(--surface) 70%); }
+.chat-wallpaper-preview i:first-child { right: 5px; bottom: 10px; }
+.chat-wallpaper-preview i:last-child { left: 5px; bottom: 21px; background: var(--surface-elevated); }
+.chat-wallpaper-option.grid .chat-wallpaper-preview { background-color: color-mix(in srgb, var(--primary), var(--surface) 92%); background-image: linear-gradient(color-mix(in srgb, var(--primary), transparent 88%) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--primary), transparent 88%) 1px, transparent 1px); background-size: 10px 10px; }
+.chat-wallpaper-option.waves .chat-wallpaper-preview { background: radial-gradient(ellipse at 10% 120%, color-mix(in srgb, var(--secondary), transparent 55%), transparent 58%), radial-gradient(ellipse at 90% -20%, color-mix(in srgb, var(--primary), transparent 62%), transparent 58%), var(--surface); }
+.chat-wallpaper-option.aurora .chat-wallpaper-preview { background: radial-gradient(circle at 0% 100%, #61d9d0aa, transparent 58%), radial-gradient(circle at 100% 0%, #a06cf3b3, transparent 58%), #26324f; }
+.chat-wallpaper-option.paper .chat-wallpaper-preview { background-color: #f4eee1; background-image: repeating-linear-gradient(0deg, transparent 0 8px, rgba(130, 111, 76, 0.12) 9px 10px); }
+.chat-wallpaper-option.night .chat-wallpaper-preview { background: radial-gradient(circle at 78% 23%, #d9e6ff 0 1px, transparent 2px), radial-gradient(circle at 25% 66%, #d9e6ff 0 1px, transparent 2px), #11182c; }
 
 .chat-call-button-icon {
   width: 30px;
@@ -3705,6 +3731,7 @@ p { margin-bottom: 14px; }
 .message-list {
   flex: 1 1 auto;
   min-height: 0;
+  position: relative;
   padding: 18px 2px;
   display: grid;
   align-content: start;
@@ -3712,6 +3739,13 @@ p { margin-bottom: 14px; }
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+.message-list.chat-wallpaper-default { background: color-mix(in srgb, var(--surface), transparent 42%); }
+.message-list.chat-wallpaper-grid { background-color: color-mix(in srgb, var(--primary), var(--surface) 95%); background-image: linear-gradient(color-mix(in srgb, var(--primary), transparent 92%) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--primary), transparent 92%) 1px, transparent 1px); background-size: 28px 28px; }
+.message-list.chat-wallpaper-waves { background: radial-gradient(ellipse at 0% 100%, color-mix(in srgb, var(--secondary), transparent 72%), transparent 55%), radial-gradient(ellipse at 100% -10%, color-mix(in srgb, var(--primary), transparent 70%), transparent 55%), color-mix(in srgb, var(--surface), transparent 8%); }
+.message-list.chat-wallpaper-aurora { background: radial-gradient(circle at 0% 100%, color-mix(in srgb, #52d9c9, transparent 55%), transparent 52%), radial-gradient(circle at 100% 0%, color-mix(in srgb, #a06cf3, transparent 52%), transparent 57%), color-mix(in srgb, #21304a, var(--surface) 38%); }
+.message-list.chat-wallpaper-paper { background-color: color-mix(in srgb, #f4eee1, var(--surface) 30%); background-image: repeating-linear-gradient(0deg, transparent 0 26px, color-mix(in srgb, #8c7b61, transparent 88%) 27px 28px); }
+.message-list.chat-wallpaper-night { background: radial-gradient(circle at 78% 23%, color-mix(in srgb, #d9e6ff, transparent 28%) 0 1px, transparent 2px), radial-gradient(circle at 25% 66%, color-mix(in srgb, #d9e6ff, transparent 34%) 0 1px, transparent 2px), radial-gradient(circle at 56% 42%, color-mix(in srgb, #d9e6ff, transparent 43%) 0 1px, transparent 2px), color-mix(in srgb, #10182c, var(--surface) 22%); }
 
 .message-bubble {
   position: relative;
@@ -6295,6 +6329,56 @@ button.info-card {
 .settings-subsection { border-top: 1px solid color-mix(in srgb, var(--primary), transparent 88%); margin-top: 20px; padding-top: 20px; }
 .settings-subsection h3 { margin: 0; }
 
+.security-overview { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; border: 1px solid color-mix(in srgb, var(--success), transparent 70%); border-radius: 20px; background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--secondary), transparent 78%), transparent 11rem), linear-gradient(135deg, color-mix(in srgb, var(--success), transparent 89%), color-mix(in srgb, var(--surface-elevated), transparent 4%)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46); padding: 17px; }
+.security-overview-icon { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--secondary), var(--success) 52%)); color: white; box-shadow: 0 10px 24px color-mix(in srgb, var(--success), transparent 66%); }
+.security-overview > div:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+.security-overview p, .security-overview strong, .security-overview span { margin: 0; }
+.security-overview p { color: var(--muted); font-size: 0.73rem; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em; }
+.security-overview strong { font-size: 1rem; line-height: 1.3; }
+.security-overview span { color: var(--muted); font-size: 0.8rem; font-weight: 650; line-height: 1.4; }
+.security-overview-stats { min-width: 84px; border-left: 1px solid color-mix(in srgb, var(--success), transparent 78%); display: grid; gap: 2px; text-align: right; padding-left: 14px; }
+.security-overview .security-overview-stats strong { color: var(--success); font-size: 1.5rem; }
+
+.security-access-section { display: grid; gap: 14px; }
+.security-access-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.security-access-card { min-width: 0; min-height: 96px; border: 1px solid color-mix(in srgb, var(--primary), transparent 84%); border-radius: 17px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; background: color-mix(in srgb, var(--surface), transparent 7%); color: var(--text); cursor: pointer; font: inherit; text-align: left; padding: 12px; transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+.security-access-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--primary), transparent 58%); background: color-mix(in srgb, var(--primary), transparent 94%); box-shadow: 0 10px 22px color-mix(in srgb, var(--primary), transparent 88%); }
+.security-access-card.active { border-color: color-mix(in srgb, var(--primary), transparent 40%); background: linear-gradient(135deg, color-mix(in srgb, var(--primary), transparent 88%), color-mix(in srgb, var(--secondary), transparent 93%)); box-shadow: inset 0 0 0 1px var(--ring); }
+.security-access-card:focus-visible { outline: 0; box-shadow: 0 0 0 4px var(--ring); }
+.security-access-card > span:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
+.security-access-card strong { font-size: 0.85rem; line-height: 1.2; }
+.security-access-card small { overflow: hidden; color: var(--muted); font-size: 0.73rem; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.security-access-icon, .security-device-icon { width: 38px; height: 38px; border-radius: 13px; display: grid; place-items: center; background: color-mix(in srgb, var(--primary), transparent 88%); color: var(--primary); }
+.security-access-status { width: fit-content; max-width: 100%; border-radius: 999px; display: inline-flex; align-items: center; color: var(--success); background: color-mix(in srgb, var(--success), transparent 86%); font-size: 0.67rem; font-weight: 900; line-height: 1.2; white-space: nowrap; padding: 5px 7px; }
+.security-access-status.attention { color: var(--warning); background: color-mix(in srgb, var(--warning), transparent 86%); }
+.security-access-status.muted { color: var(--muted); background: color-mix(in srgb, var(--muted), transparent 88%); }
+.security-editor-card { display: grid; gap: 10px; border: 1px solid color-mix(in srgb, var(--primary), transparent 76%); border-radius: 18px; background: color-mix(in srgb, var(--primary), transparent 95%); padding: 15px; animation: orbitContentEnter 180ms var(--ease-out-soft) both; }
+.security-editor-card h4, .security-editor-card p { margin: 0; }
+.security-editor-card h4 { font-size: 0.95rem; }
+.security-editor-card p { color: var(--muted); font-size: 0.82rem; font-weight: 650; line-height: 1.45; }
+.security-editor-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.security-editor-actions .button { width: auto; }
+
+.security-device-list, .security-history-list { display: grid; gap: 8px; margin-top: 12px; }
+.security-device-card { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid color-mix(in srgb, var(--primary), transparent 86%); border-radius: 16px; background: color-mix(in srgb, var(--surface), transparent 6%); padding: 12px; }
+.security-device-card.revoked { opacity: 0.66; }
+.security-device-card > div:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
+.security-device-card strong { overflow: hidden; font-size: 0.82rem; text-overflow: ellipsis; white-space: nowrap; }
+.security-device-card > div:nth-child(2) > span, .security-history-item div > span { color: var(--muted); font-size: 0.72rem; font-weight: 650; line-height: 1.4; }
+.security-device-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+.security-device-actions .button { width: auto; min-height: 34px; padding: 0 10px; font-size: 0.75rem; }
+.security-history-list { position: relative; gap: 0; padding-left: 18px; }
+.security-history-list::before { content: ''; position: absolute; top: 8px; bottom: 8px; left: 4px; width: 1px; background: color-mix(in srgb, var(--primary), transparent 76%); }
+.security-history-item { position: relative; min-height: 58px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 11px; padding: 2px 0 14px; }
+.security-history-marker { width: 9px; height: 9px; border: 2px solid var(--surface-elevated); border-radius: 999px; background: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary), transparent 82%); margin-top: 4px; }
+.security-history-item div { min-width: 0; display: grid; gap: 4px; }
+.security-history-item strong { font-size: 0.82rem; line-height: 1.35; }
+.security-empty-state { margin: 0; color: var(--muted); font-size: 0.82rem; font-weight: 650; }
+.security-danger-zone { display: grid; gap: 8px; border: 1px solid color-mix(in srgb, var(--danger), transparent 68%); border-radius: 18px; margin-top: 22px; background: color-mix(in srgb, var(--danger), transparent 95%); padding: 16px; }
+.security-danger-zone h3, .security-danger-zone p { margin: 0; }
+.security-danger-zone h3 { color: var(--danger); font-size: 0.95rem; }
+.security-danger-zone .button { width: fit-content; margin-top: 3px; }
+
 .settings-tab {
   min-height: 42px;
   border: 0;
@@ -7076,6 +7160,15 @@ code {
   .settings-page-header { margin-bottom: 14px; }
   .settings-section-heading { margin-bottom: 14px; }
   .settings-subsection { margin-top: 16px; padding-top: 16px; }
+  .security-overview { grid-template-columns: auto minmax(0, 1fr); padding: 14px; }
+  .security-overview-stats { grid-column: 2; border-top: 1px solid color-mix(in srgb, var(--success), transparent 78%); border-left: 0; grid-template-columns: 1fr auto; align-items: center; text-align: left; padding: 9px 0 0; }
+  .security-access-grid { grid-template-columns: 1fr; }
+  .security-access-card { min-height: 82px; }
+  .security-device-card { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .security-device-actions { grid-column: 2; justify-content: flex-start; flex-wrap: wrap; }
+  .security-editor-actions { display: grid; }
+  .security-editor-actions .button { width: 100%; }
+  .security-danger-zone .button { width: 100%; }
   .notification-settings-card { grid-template-columns: 1fr; gap: 14px; padding: 16px; }
   .notification-settings-action { width: 100%; }
   .notification-settings-action .button { width: 100%; }
@@ -7248,6 +7341,8 @@ code {
   .app-dialog-backdrop { align-items: end; padding: 12px; }
   .app-dialog { width: 100%; border-radius: 24px; padding: 18px; }
   .chat-create-dialog { max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .chat-wallpaper-dialog { max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .chat-wallpaper-options { grid-template-columns: 1fr; }
 
   .button,
   .select,

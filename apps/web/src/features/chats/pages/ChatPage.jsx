@@ -10,7 +10,7 @@ import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { createBranchComment, createDirectChatForUser, deleteBranchComment, deleteMessage, editMessage, getBranchComments, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch, unsubscribeFromBranch, updateBranchComment } from '../api/chatApi.js';
+import { createBranchComment, createDirectChatForUser, deleteBranchComment, deleteMessage, editMessage, getBranchComments, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch, unsubscribeFromBranch, updateBranchComment, updateChatWallpaper } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { CallOverlay } from '../components/CallOverlay.jsx';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
@@ -34,6 +34,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const CELEBRATION_REACTIONS = new Set(['❤️', '🔥', '🎉']);
 const VOICE_RECORDING_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4'];
 const VIDEO_RECORDING_MIME_TYPES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4'];
+const CHAT_WALLPAPERS = ['default', 'grid', 'waves', 'aurora', 'paper', 'night'];
 
 function appendUniqueMessage(messages, nextMessage) {
   if (messages.some((message) => message.id === nextMessage.id)) {
@@ -571,6 +572,8 @@ export function ChatPage() {
   const [isChatActionsOpen, setIsChatActionsOpen] = useState(false);
   const [isHideChatDialogOpen, setIsHideChatDialogOpen] = useState(false);
   const [isHidingChat, setIsHidingChat] = useState(false);
+  const [isWallpaperDialogOpen, setIsWallpaperDialogOpen] = useState(false);
+  const [isSavingWallpaper, setIsSavingWallpaper] = useState(false);
   const [profileCardAuthor, setProfileCardAuthor] = useState(null);
   const [isOpeningProfileChat, setIsOpeningProfileChat] = useState(false);
   const [profileCardError, setProfileCardError] = useState('');
@@ -791,6 +794,9 @@ export function ChatPage() {
         if (payload.event === 'chat.subscribed') {
           setRealtimeStatus('subscribed');
           loadMessages({ preserveMessages: true }).catch((err) => setError(err.message));
+        }
+        if (payload.event === 'chat.wallpaper_updated' && payload.chat_id === chatId) {
+          setChat((current) => current ? { ...current, wallpaper_id: payload.wallpaper_id || 'default' } : current);
         }
         if (payload.event === 'message.created' && payload.chat_id === chatId) {
           setMessages((current) => appendUniqueMessage(current, payload.message));
@@ -1107,6 +1113,21 @@ export function ChatPage() {
       }, 230);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function handleWallpaperChange(wallpaperId) {
+    if (!chat || wallpaperId === (chat.wallpaper_id || 'default') || isSavingWallpaper) return;
+    setError('');
+    setIsSavingWallpaper(true);
+    try {
+      const updatedChat = await updateChatWallpaper(session.accessToken, chat.id, wallpaperId);
+      setChat(updatedChat);
+      setIsWallpaperDialogOpen(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSavingWallpaper(false);
     }
   }
 
@@ -1627,7 +1648,7 @@ export function ChatPage() {
             {isSubscribingToBranch ? '…' : chat?.is_subscribed ? t('chats.unsubscribe') : t('chats.subscribe')}
           </button>
         ) : null}
-        {!isSavedChat && !isPublicBranch ? (
+        {chat ? (
           <div className={`chat-header-actions ${isChatActionsOpen ? 'is-open' : ''}`}>
             <button
               className="chat-more-button"
@@ -1643,6 +1664,18 @@ export function ChatPage() {
                 <button className="chat-actions-backdrop" type="button" aria-label={t('common.close')} onClick={() => setIsChatActionsOpen(false)} />
                 <div className="chat-actions-menu" role="menu" aria-label={t('chats.chatActions')}>
                   <button
+                    className="chat-actions-menu-item"
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsChatActionsOpen(false);
+                      setIsWallpaperDialogOpen(true);
+                    }}
+                  >
+                    <Icon name="palette" size={17} />
+                    <span>{t('chats.wallpaper')}</span>
+                  </button>
+                  {isDirectChat ? <button
                     className="chat-actions-menu-item danger"
                     type="button"
                     role="menuitem"
@@ -1653,7 +1686,7 @@ export function ChatPage() {
                   >
                     <Icon name="trash" size={17} />
                     <span>{t('chats.removeFromList')}</span>
-                  </button>
+                  </button> : null}
                 </div>
               </>
             ) : null}
@@ -1689,6 +1722,39 @@ export function ChatPage() {
           </section>
         </div>
       ) : null}
+      {isWallpaperDialogOpen ? (
+        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => !isSavingWallpaper && setIsWallpaperDialogOpen(false)}>
+          <section className="app-dialog chat-wallpaper-dialog" role="dialog" aria-modal="true" aria-labelledby="chat-wallpaper-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="app-dialog-icon" aria-hidden="true"><Icon name="palette" size={23} /></div>
+            <div className="app-dialog-copy">
+              <p className="eyebrow">AraChat</p>
+              <h2 id="chat-wallpaper-title">{t('chats.wallpaper')}</h2>
+              <p>{t('chats.wallpaperText')}</p>
+            </div>
+            <div className="chat-wallpaper-options" role="list" aria-label={t('chats.wallpaper')}>
+              {CHAT_WALLPAPERS.map((wallpaperId) => {
+                const isActive = (chat?.wallpaper_id || 'default') === wallpaperId;
+                return (
+                  <button
+                    className={`chat-wallpaper-option ${wallpaperId} ${isActive ? 'active' : ''}`}
+                    type="button"
+                    role="listitem"
+                    key={wallpaperId}
+                    onClick={() => handleWallpaperChange(wallpaperId)}
+                    disabled={isSavingWallpaper || isActive}
+                    aria-pressed={isActive}
+                  >
+                    <span className="chat-wallpaper-preview" aria-hidden="true"><i /><i /></span>
+                    <span>{t(`chats.wallpaperOptions.${wallpaperId}`)}</span>
+                    {isActive ? <Icon name="check" size={16} /> : null}
+                  </button>
+                );
+              })}
+            </div>
+            <button className="button button-secondary" type="button" onClick={() => setIsWallpaperDialogOpen(false)} disabled={isSavingWallpaper}>{t('common.close')}</button>
+          </section>
+        </div>
+      ) : null}
       <CallOverlay call={call} peer={chat?.peer} t={t} />
       {chat?.pinned_message ? (
         <button className="pinned-message-bar" type="button" onClick={() => document.getElementById(`message-${chat.pinned_message_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
@@ -1700,7 +1766,7 @@ export function ChatPage() {
           <span className="pinned-message-jump" aria-hidden="true">↗</span>
         </button>
       ) : null}
-      <div className="message-list" ref={messageListRef}>
+      <div className={`message-list chat-wallpaper-${chat?.wallpaper_id || 'default'}`} ref={messageListRef}>
         {isLoadingMessages ? <AraChatLoader compact title={t('messages.openingTitle')} text={t('messages.openingText')} /> : null}
         {messages.map((message) => (
           <article

@@ -17,6 +17,7 @@ def test_web_core_tables_are_registered() -> None:
         'branch_comments',
         'chats',
         'chat_participants',
+        'chat_preferences',
         'messages',
         'message_reactions',
         'message_receipts',

@@ -88,12 +88,7 @@ export function ChatsPage() {
       chatSubtitle(chat, session.user?.id, t),
     ].join(' ').toLowerCase().includes(normalizedChatSearch))
     : listedChats;
-  const isSavedChatVisible = !normalizedChatSearch || [
-    t('chats.savedTitle'),
-    savedChat ? chatSubtitle(savedChat, session.user?.id, t) : t('chats.savedSubtitle'),
-    t('chats.savedBadge'),
-  ].join(' ').toLowerCase().includes(normalizedChatSearch);
-  const hasVisibleChats = isSavedChatVisible || visibleChats.length > 0;
+  const hasVisibleChats = visibleChats.length > 0;
 
   function clearChatActivity(chatId, expectedType = null) {
     const activityTimer = activityTimersRef.current.get(chatId);
@@ -372,19 +367,19 @@ export function ChatsPage() {
             <Icon name="plus" size={22} />
           </button>
         </div>
+        <div className="chat-list-saved-slot">
+          <button className="info-card saved-chat-card" type="button" onClick={handleOpenSavedChat}>
+            <div className="chat-list-avatar saved-avatar" aria-hidden="true">★</div>
+            <div>
+              <strong>{t('chats.savedTitle')}</strong>
+              <span className="muted">{savedChat ? chatSubtitle(savedChat, session.user?.id, t) : t('chats.savedSubtitle')}</span>
+            </div>
+            <span className="chat-list-badge">{t('chats.savedBadge')}</span>
+          </button>
+        </div>
         {error ? <p className="error-text">{error}</p> : null}
         {isLoading ? <AraChatLoader compact title={t('chats.loadingTitle')} text={t('chats.loadingText')} /> : null}
         <div className="list-stack">
-          {isSavedChatVisible ? (
-            <button className="info-card saved-chat-card" type="button" onClick={handleOpenSavedChat}>
-              <div className="chat-list-avatar saved-avatar" aria-hidden="true">★</div>
-              <div>
-                <strong>{t('chats.savedTitle')}</strong>
-                <span className="muted">{savedChat ? chatSubtitle(savedChat, session.user?.id, t) : t('chats.savedSubtitle')}</span>
-              </div>
-              <span className="chat-list-badge">{t('chats.savedBadge')}</span>
-            </button>
-          ) : null}
           {visibleChats.map((chat) => {
             const activityType = activityByChatId[chat.id];
             return (

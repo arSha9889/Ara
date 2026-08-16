@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.chats import BranchComment, Chat, ChatParticipant, Message, MessageReaction, MessageReceipt, Notification
+from app.models.chats import BranchComment, Chat, ChatParticipant, ChatPreference, Message, MessageReaction, MessageReceipt, Notification
 from app.models.users import User, UserProfile
 from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageAuthorOut, MessageCreateRequest, MessageOut, MessageReactionOut, MessageReplyOut
 from app.services.branch_service import can_post_to_branch, ensure_official_branch
@@ -14,6 +14,7 @@ from app.services.realtime_manager import realtime_manager
 from app.services.stored_object_service import attach_upload_to_message, schedule_message_upload_deletion
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'file'}
+CHAT_WALLPAPER_IDS = {'default', 'grid', 'waves', 'aurora', 'paper', 'night'}
 REACTION_EMOJIS = {
     '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏', '😍', '🥰',
     '😁', '😆', '🤣', '😊', '😎', '🤩', '😘', '😋', '😜', '🤪',
@@ -130,6 +131,27 @@ async def restore_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> C
     if not participant:
         raise AuthError('Chat not found')
     participant.hidden_at = None
+    await session.commit()
+    return await _chat_out(session, chat, user_id)
+
+
+async def update_chat_wallpaper(
+    session: AsyncSession,
+    user_id: UUID,
+    chat_id: UUID,
+    wallpaper_id: str,
+) -> ChatOut:
+    if wallpaper_id not in CHAT_WALLPAPER_IDS:
+        raise AuthError('Unsupported chat wallpaper')
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    await _ensure_can_view(session, user_id, chat)
+    preference = await session.get(ChatPreference, {'chat_id': chat_id, 'user_id': user_id})
+    if preference:
+        preference.wallpaper_id = wallpaper_id
+    else:
+        session.add(ChatPreference(chat_id=chat_id, user_id=user_id, wallpaper_id=wallpaper_id))
     await session.commit()
     return await _chat_out(session, chat, user_id)
 
@@ -444,6 +466,11 @@ async def _create_delivery_receipts(session: AsyncSession, message: Message) -> 
 async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | None = None) -> ChatOut:
     result = await session.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat.id))
     participant_ids = list(result.scalars())
+    wallpaper_id = 'default'
+    if current_user_id:
+        preference = await session.get(ChatPreference, {'chat_id': chat.id, 'user_id': current_user_id})
+        if preference:
+            wallpaper_id = preference.wallpaper_id
     return ChatOut(
         id=chat.id,
         type=chat.type,
@@ -464,6 +491,7 @@ async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | N
         is_subscribed=bool(current_user_id and await session.get(ChatParticipant, {'chat_id': chat.id, 'user_id': current_user_id})),
         subscriber_count=await _subscriber_count(session, chat.id) if chat.type == 'branch' else 0,
         can_post=bool(current_user_id and await can_post_to_branch(session, current_user_id, chat.id)) if chat.type == 'branch' else True,
+        wallpaper_id=wallpaper_id,
     )
 
 

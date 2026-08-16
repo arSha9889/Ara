@@ -36,6 +36,15 @@ class ChatParticipant(Base):
     hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
 
+class ChatPreference(Base):
+    __tablename__ = 'chat_preferences'
+
+    chat_id: Mapped[UUID] = mapped_column(ForeignKey('chats.id', ondelete='CASCADE'), primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    wallpaper_id: Mapped[str] = mapped_column(String(32), default='default')
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Message(Base):
     __tablename__ = 'messages'
 
