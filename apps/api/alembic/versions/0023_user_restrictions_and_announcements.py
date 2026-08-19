@@ -1,6 +1,6 @@
 """add user restrictions and system announcements
 
-Revision ID: 0023_user_restrictions_and_announcements
+Revision ID: 0023_restrictions_announce
 Revises: 0022_chat_wallpapers
 Create Date: 2026-08-16
 """
@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = '0023_user_restrictions_and_announcements'
+revision = '0023_restrictions_announce'
 down_revision = '0022_chat_wallpapers'
 branch_labels = None
 depends_on = None
