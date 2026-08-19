@@ -147,8 +147,9 @@ services:
       - --min-port=${NEXUS_TURN_MIN_PORT:-49160}
       - --max-port=${NEXUS_TURN_MAX_PORT:-49200}
       - --external-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/production.env}
+      - --listening-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/production.env}
+      - --relay-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/production.env}
       - --fingerprint
-      - --lt-cred-mech
       - --use-auth-secret
       - --static-auth-secret=${NEXUS_TURN_SHARED_SECRET:?Set NEXUS_TURN_SHARED_SECRET in deploy/production.env}
       - --stale-nonce=600
@@ -159,9 +160,7 @@ services:
       - --denied-peer-ip=169.254.0.0-169.254.255.255
       - --denied-peer-ip=172.16.0.0-172.31.255.255
       - --denied-peer-ip=192.168.0.0-192.168.255.255
-      - --no-cli
       - --no-tls
-      - --no-dtls
 
   caddy:
     image: caddy:2.8-alpine
