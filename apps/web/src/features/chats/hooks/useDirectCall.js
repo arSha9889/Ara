@@ -36,7 +36,7 @@ export function isCallSignal(payload) {
   return CALL_EVENTS.has(payload?.event);
 }
 
-export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket, t, onError }) {
+export function useDirectCall({ accessToken, currentUserId, socket, t, onError }) {
   const [callState, setCallState] = useState('idle');
   const [callId, setCallId] = useState(null);
   const [remoteUserId, setRemoteUserId] = useState(null);
@@ -57,26 +57,24 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
   const isCallerRef = useRef(false);
   const callTimeoutRef = useRef(null);
   const socketRef = useRef(socket);
+  const chatIdRef = useRef(null);
   socketRef.current = socket;
 
   const canUseCalls = useMemo(() => Boolean(
-    chatId
-    && peer?.id
-    && peer.id !== currentUserId
-    && navigator.mediaDevices?.getUserMedia
+    navigator.mediaDevices?.getUserMedia
     && typeof RTCPeerConnection !== 'undefined'
-  ), [chatId, currentUserId, peer?.id]);
+  ), []);
   const canSignalCall = socket?.readyState === WebSocket.OPEN;
 
-  const sendSignal = useCallback((payload) => {
-    if (socket?.readyState !== WebSocket.OPEN || !chatId) return false;
+  const sendSignal = useCallback((payload, chatId = chatIdRef.current) => {
+    if (socketRef.current?.readyState !== WebSocket.OPEN || !chatId) return false;
     try {
-      socket.send(JSON.stringify({ ...payload, chat_id: chatId }));
+      socketRef.current.send(JSON.stringify({ ...payload, chat_id: chatId }));
       return true;
     } catch {
       return false;
     }
-  }, [chatId, socket]);
+  }, []);
 
   const resetCall = useCallback(() => {
     peerConnectionRef.current?.close();
@@ -206,11 +204,12 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
     }, CALL_RING_TIMEOUT_MS);
   }, [reportError, resetCall, sendSignal, t]);
 
-  const startCall = useCallback(async () => {
-    if (!canUseCalls || !canSignalCall || callState !== 'idle') return;
+  const startCall = useCallback(async ({ chatId, peer }) => {
+    if (!chatId || !peer?.id || peer.id === currentUserId || !canUseCalls || !canSignalCall || callState !== 'idle') return;
 
     const nextCallId = createCallId(chatId);
     try {
+      chatIdRef.current = chatId;
       callIdRef.current = nextCallId;
       isCallerRef.current = true;
       setCallId(nextCallId);
@@ -228,7 +227,7 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
       resetCall();
       reportError(err.message || t('calls.startError'));
     }
-  }, [callState, canUseCalls, chatId, getMicrophoneStream, loadIceServers, peer?.id, reportError, resetCall, sendSignal, startRingTimeout, t]);
+  }, [callState, canUseCalls, canSignalCall, currentUserId, getMicrophoneStream, loadIceServers, reportError, resetCall, sendSignal, startRingTimeout, t]);
 
   const acceptCall = useCallback(async () => {
     if (!callIdRef.current || callState !== 'incoming' || !canSignalCall) return;
@@ -290,14 +289,15 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
         return;
       }
 
-      if (payload.chat_id !== chatId || payload.user_id === currentUserId) return;
+      if (payload.user_id === currentUserId) return;
 
       if (payload.event === 'call.invite') {
         if (payload.call_id === callIdRef.current) return;
         if (callState !== 'idle') {
-          sendSignal({ event: 'call.reject', call_id: payload.call_id, reason: 'busy' });
+          sendSignal({ event: 'call.reject', call_id: payload.call_id, reason: 'busy' }, payload.chat_id);
           return;
         }
+        chatIdRef.current = payload.chat_id;
         callIdRef.current = payload.call_id;
         isCallerRef.current = false;
         setCallId(payload.call_id);
@@ -369,7 +369,7 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
       makingOfferRef.current = false;
       reportError(err.message || t('calls.connectionError'));
     }
-  }, [callState, chatId, currentUserId, ensurePeerConnection, flushIceCandidates, reportError, resetCall, sendSignal, startRingTimeout, t]);
+  }, [callState, currentUserId, ensurePeerConnection, flushIceCandidates, reportError, resetCall, sendSignal, startRingTimeout, t]);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
@@ -383,14 +383,14 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
         activeSocket.send(JSON.stringify({
           event: isCallerRef.current ? 'call.cancel' : 'call.end',
           call_id: activeCallId,
-          chat_id: chatId,
+          chat_id: chatIdRef.current,
         }));
       } catch {
         // The local cleanup still releases the microphone and peer connection.
       }
     }
     resetCall();
-  }, [chatId, resetCall]);
+  }, [resetCall]);
 
   return {
     canUseCalls,

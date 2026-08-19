@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { useCall } from '../../../app/providers/CallProvider.jsx';
 import { useLayoutMode } from '../../../app/providers/LayoutModeProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -12,9 +13,7 @@ import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { createBranchComment, createDirectChatForUser, deleteBranchComment, deleteMessage, editMessage, getBranchComments, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch, unsubscribeFromBranch, updateBranchComment, updateChatWallpaper } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
-import { CallOverlay } from '../components/CallOverlay.jsx';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
-import { useDirectCall } from '../hooks/useDirectCall.js';
 import { PublicProfileSheet } from '../../profile/components/PublicProfileSheet.jsx';
 
 const REACTION_EMOJIS = [
@@ -536,8 +535,9 @@ function BranchCommentsPanel({ branch, post, session, language, t, event, onClos
 export function ChatPage() {
   const { language, t } = useI18n();
   const { chatId } = useParams();
-  const { incomingCall, lastNotification, markMessageNotificationsRead, consumeIncomingCall } = useNotifications();
+  const { lastNotification, markMessageNotificationsRead } = useNotifications();
   const { session } = useSession();
+  const { call, startCall } = useCall();
   const { effectiveMode } = useLayoutMode();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
@@ -622,18 +622,6 @@ export function ChatPage() {
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', chat?.peer?.last_seen_at, t, language);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || t('chats.branchTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || t('chats.publicBranchSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
-  const call = useDirectCall({
-    accessToken: session.accessToken,
-    chatId,
-    currentUserId: session.user?.id,
-    peer: chat?.peer,
-    socket,
-    t,
-    onError: setError,
-  });
-  const callSignalHandlerRef = useRef(call.handleSignal);
-  callSignalHandlerRef.current = call.handleSignal;
-
   async function loadMessages({ preserveMessages = false } = {}) {
     if (!isChatIdValid) return;
     try {
@@ -708,14 +696,6 @@ export function ChatPage() {
     // Resyncing here recovers a message if that socket missed an event while reconnecting.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isChatIdValid, lastNotification?.id, session.accessToken]);
-
-  useEffect(() => {
-    if (!incomingCall || incomingCall.chat_id !== chatId || !call.canSignalCall) return;
-    if (call.callId !== incomingCall.call_id) {
-      void call.handleSignal(incomingCall);
-    }
-    consumeIncomingCall(incomingCall.call_id);
-  }, [call.callId, call.canSignalCall, call.handleSignal, chatId, consumeIncomingCall, incomingCall]);
 
   useLayoutEffect(() => {
     if (!usesFocusedMobileWorkspace) return undefined;
@@ -793,10 +773,6 @@ export function ChatPage() {
       });
       socket.addEventListener('message', (event) => {
         const payload = JSON.parse(event.data);
-        if (payload.event?.startsWith('call.')) {
-          void callSignalHandlerRef.current?.(payload);
-          return;
-        }
         if (payload.event === 'connection.authenticated') {
           setRealtimeStatus('connected');
           safeSocketSend(socket, { event: 'chat.subscribe', chat_id: chatId });
@@ -1646,8 +1622,8 @@ export function ChatPage() {
           <button
             className="chat-call-button"
             type="button"
-            onClick={() => void call.startCall()}
-            disabled={!call.canUseCalls || !call.canSignalCall}
+            onClick={() => void startCall(chat)}
+            disabled={!chat?.peer || !call.canUseCalls || !call.canSignalCall || call.callState !== 'idle'}
             aria-label={t('calls.start')}
             title={call.canUseCalls && call.canSignalCall ? t('calls.start') : t('calls.unavailable')}
           >
@@ -1754,7 +1730,6 @@ export function ChatPage() {
           </section>
         </div>
       ) : null}
-      <CallOverlay call={call} peer={chat?.peer} t={t} />
       {chat?.pinned_message ? (
         <button className="pinned-message-bar" type="button" onClick={() => document.getElementById(`message-${chat.pinned_message_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
           <span className="pinned-message-icon" aria-hidden="true">📌</span>

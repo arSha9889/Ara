@@ -31,7 +31,7 @@ export function AppNavigationTrigger({ isMenuOpen, onToggle, className = '' }) {
 export function AppShell() {
   const { t } = useI18n();
   const { session, clearSession } = useSession();
-  const { disableNotifications, incomingCall } = useNotifications();
+  const { disableNotifications } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
   const isFlagDayCampaignActive = useFlagDayCampaign();
@@ -76,12 +76,6 @@ export function AppShell() {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
-
-  useEffect(() => {
-    if (!incomingCall?.chat_id) return;
-    const targetPath = `/app/chats/${incomingCall.chat_id}`;
-    if (location.pathname !== targetPath) navigate(targetPath);
-  }, [incomingCall?.chat_id, location.pathname, navigate]);
 
   useEffect(() => {
     function handleKeyDown(event) {
