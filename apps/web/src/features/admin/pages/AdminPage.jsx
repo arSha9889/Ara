@@ -8,8 +8,9 @@ import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { createPublicBranch } from '../../chats/api/chatApi.js';
 import {
-  deleteAdminSystemBotMessage,
-  editAdminSystemBotMessage,
+  cancelAdminAnnouncement,
+  createAdminAnnouncement,
+  createAdminUserRestriction,
   getAdminAuditLogs,
   getAdminBranches,
   getAdminMaintenance,
@@ -18,18 +19,21 @@ import {
   getAdminSystemBot,
   getAdminUser,
   getAdminUsers,
-  publishAdminSystemBotMessage,
+  liftAdminUserRestriction,
+  publishAdminAnnouncement,
   runAdminRetention,
   setAdminBranchArchived,
   setAdminBranchMember,
-  toggleAdminSystemBotMessagePin,
   updateAdminBranch,
+  updateAdminAnnouncement,
   updateAdminUserStatus,
   updateAdminUserVpnStatus,
 } from '../api/adminApi.js';
 
 const TABS = ['overview', 'systemBot', 'users', 'branches', 'maintenance', 'audit'];
 const EMPTY_BRANCH_FORM = { title: '', slug: '', description: '', avatar_ref: '📢' };
+const EMPTY_RESTRICTION_FORM = { reason: 'spam', note: '', endsAt: '' };
+const EMPTY_ANNOUNCEMENT_FORM = { text: '', audienceType: 'all', audienceCountry: '', audienceBranchId: '', scheduledAt: '' };
 
 function AdminIcon({ name, size = 20 }) {
   const paths = {
@@ -93,6 +97,17 @@ function storageLevel(percent) {
   return 'normal';
 }
 
+function datetimeLocalToIso(value) {
+  return value ? new Date(value).toISOString() : null;
+}
+
+function isoToDatetimeLocal(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
 export function AdminPage() {
   const { language, t } = useI18n();
   const { session } = useSession();
@@ -114,6 +129,8 @@ export function AdminPage() {
   const [pendingAction, setPendingAction] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [restrictionForm, setRestrictionForm] = useState(EMPTY_RESTRICTION_FORM);
+  const [isRestrictionFormOpen, setIsRestrictionFormOpen] = useState(false);
   const [isBranchDialogOpen, setIsBranchDialogOpen] = useState(false);
   const [branchStatus, setBranchStatus] = useState('');
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
@@ -124,12 +141,10 @@ export function AdminPage() {
   const [isSavingBranch, setIsSavingBranch] = useState(false);
   const [systemBot, setSystemBot] = useState(null);
   const [isLoadingSystemBot, setIsLoadingSystemBot] = useState(false);
-  const [systemBotPost, setSystemBotPost] = useState('');
   const [systemBotStatus, setSystemBotStatus] = useState('');
-  const [isPublishingSystemBotPost, setIsPublishingSystemBotPost] = useState(false);
-  const [editingSystemBotMessageId, setEditingSystemBotMessageId] = useState(null);
-  const [editingSystemBotText, setEditingSystemBotText] = useState('');
-  const [isUpdatingSystemBotMessage, setIsUpdatingSystemBotMessage] = useState(false);
+  const [announcementForm, setAnnouncementForm] = useState(EMPTY_ANNOUNCEMENT_FORM);
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState(null);
+  const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
   const [maintenance, setMaintenance] = useState(null);
   const [isLoadingMaintenance, setIsLoadingMaintenance] = useState(false);
   const [isRunningRetention, setIsRunningRetention] = useState(false);
@@ -231,7 +246,10 @@ export function AdminPage() {
   }, [activeTab, session.accessToken]);
 
   useEffect(() => {
-    if (activeTab === 'systemBot') void loadSystemBot();
+    if (activeTab === 'systemBot') {
+      void loadSystemBot();
+      void loadBranches();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, session.accessToken]);
 
@@ -252,6 +270,11 @@ export function AdminPage() {
   function openUserAction(user, status) {
     setPendingAction({ user, status });
     setDeleteConfirmation('');
+  }
+
+  function openRestrictionForm() {
+    setRestrictionForm(EMPTY_RESTRICTION_FORM);
+    setIsRestrictionFormOpen(true);
   }
 
   function closeUserDetails() {
@@ -298,6 +321,40 @@ export function AdminPage() {
     try {
       const result = await updateAdminUserVpnStatus(session.accessToken, selectedUser.id, !selectedUser.vpn_enabled);
       setSelectedUser((current) => (current ? { ...current, vpn_enabled: result.vpn_enabled } : current));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  }
+
+  async function saveUserRestriction(event) {
+    event.preventDefault();
+    if (!selectedUser) return;
+    setIsUpdatingUser(true);
+    try {
+      const user = await createAdminUserRestriction(session.accessToken, selectedUser.id, {
+        reason: restrictionForm.reason,
+        note: restrictionForm.note.trim() || null,
+        ends_at: datetimeLocalToIso(restrictionForm.endsAt),
+      });
+      setSelectedUser(user);
+      setIsRestrictionFormOpen(false);
+      await Promise.all([loadUsers(), loadOverview()]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  }
+
+  async function liftUserRestriction() {
+    if (!selectedUser) return;
+    setIsUpdatingUser(true);
+    try {
+      const user = await liftAdminUserRestriction(session.accessToken, selectedUser.id);
+      setSelectedUser(user);
+      await Promise.all([loadUsers(), loadOverview()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -400,57 +457,84 @@ export function AdminPage() {
     }
   }
 
-  async function publishSystemBotPost(event) {
-    event.preventDefault();
-    const text = systemBotPost.trim();
-    if (!text) return;
-    setIsPublishingSystemBotPost(true);
-    try {
-      await publishAdminSystemBotMessage(session.accessToken, { text });
-      setSystemBotPost('');
-      setSystemBotStatus(t('admin.systemBotPostPublished'));
-      await Promise.all([loadSystemBot(), loadOverview()]);
-    } catch (err) {
-      setSystemBotStatus(err.message);
-    } finally {
-      setIsPublishingSystemBotPost(false);
-    }
+  function updateAnnouncementField(name, value) {
+    setAnnouncementForm((current) => ({ ...current, [name]: value }));
   }
 
-  function startSystemBotMessageEdit(message) {
-    setEditingSystemBotMessageId(message.id);
-    setEditingSystemBotText(message.payload);
+  function announcementPayload() {
+    const audienceType = announcementForm.audienceType;
+    return {
+      text: announcementForm.text.trim(),
+      audience_type: audienceType,
+      audience_country: audienceType === 'country' ? announcementForm.audienceCountry.trim().toUpperCase() || null : null,
+      audience_branch_id: audienceType === 'branch' ? announcementForm.audienceBranchId || null : null,
+      scheduled_at: datetimeLocalToIso(announcementForm.scheduledAt),
+    };
+  }
+
+  function startAnnouncementEdit(announcement) {
+    setEditingAnnouncementId(announcement.id);
+    setAnnouncementForm({
+      text: announcement.text,
+      audienceType: announcement.audience_type,
+      audienceCountry: announcement.audience_country || '',
+      audienceBranchId: announcement.audience_branch_id || '',
+      scheduledAt: isoToDatetimeLocal(announcement.scheduled_at),
+    });
     setSystemBotStatus('');
   }
 
-  async function saveSystemBotMessageEdit(messageId) {
-    const text = editingSystemBotText.trim();
-    if (!text) return;
-    setIsUpdatingSystemBotMessage(true);
+  function resetAnnouncementForm() {
+    setEditingAnnouncementId(null);
+    setAnnouncementForm(EMPTY_ANNOUNCEMENT_FORM);
+  }
+
+  async function saveAnnouncement(event) {
+    event.preventDefault();
+    const payload = announcementPayload();
+    if (!payload.text) return;
+    setIsSavingAnnouncement(true);
     try {
-      await editAdminSystemBotMessage(session.accessToken, messageId, text);
-      setEditingSystemBotMessageId(null);
-      setEditingSystemBotText('');
-      setSystemBotStatus(t('admin.systemBotPostUpdated'));
+      if (editingAnnouncementId) {
+        await updateAdminAnnouncement(session.accessToken, editingAnnouncementId, payload);
+        setSystemBotStatus(t('admin.announcementUpdated'));
+      } else {
+        await createAdminAnnouncement(session.accessToken, payload);
+        setSystemBotStatus(payload.scheduled_at ? t('admin.announcementScheduled') : t('admin.announcementDrafted'));
+      }
+      resetAnnouncementForm();
       await Promise.all([loadSystemBot(), loadOverview()]);
     } catch (err) {
       setSystemBotStatus(err.message);
     } finally {
-      setIsUpdatingSystemBotMessage(false);
+      setIsSavingAnnouncement(false);
     }
   }
 
-  async function updateSystemBotMessage(message, action) {
-    setIsUpdatingSystemBotMessage(true);
+  async function publishAnnouncement(announcement) {
+    setIsSavingAnnouncement(true);
     try {
-      if (action === 'pin') await toggleAdminSystemBotMessagePin(session.accessToken, message.id);
-      if (action === 'delete') await deleteAdminSystemBotMessage(session.accessToken, message.id);
-      setSystemBotStatus(action === 'delete' ? t('admin.systemBotPostDeleted') : message.is_pinned ? t('admin.systemBotPostUnpinned') : t('admin.systemBotPostPinned'));
+      await publishAdminAnnouncement(session.accessToken, announcement.id);
+      setSystemBotStatus(t('admin.announcementPublished'));
       await Promise.all([loadSystemBot(), loadOverview()]);
     } catch (err) {
       setSystemBotStatus(err.message);
     } finally {
-      setIsUpdatingSystemBotMessage(false);
+      setIsSavingAnnouncement(false);
+    }
+  }
+
+  async function cancelAnnouncement(announcement) {
+    setIsSavingAnnouncement(true);
+    try {
+      await cancelAdminAnnouncement(session.accessToken, announcement.id);
+      if (editingAnnouncementId === announcement.id) resetAnnouncementForm();
+      setSystemBotStatus(t('admin.announcementCancelled'));
+      await Promise.all([loadSystemBot(), loadOverview()]);
+    } catch (err) {
+      setSystemBotStatus(err.message);
+    } finally {
+      setIsSavingAnnouncement(false);
     }
   }
 
@@ -542,22 +626,30 @@ export function AdminPage() {
                         <div><div className="system-bot-name"><h2>{systemBot?.branch?.title || 'Ara Updates'}</h2><span>✓</span></div><p>#{systemBot?.branch?.slug || 'ara-updates'} · {t('admin.subscribers').replace('{count}', String(systemBot?.branch?.subscriber_count ?? 0))}</p></div>
                         {systemBot?.branch ? <button className="system-bot-settings-button" type="button" onClick={() => openBranchEditor(systemBot.branch)}><AdminIcon name="pencil" size={15} />{t('admin.systemBotSettings')}</button> : null}
                       </div>
-                      <form onSubmit={publishSystemBotPost}>
-                        <label className="field"><span>{t('admin.systemBotNewPost')}</span><textarea className="text-input" value={systemBotPost} maxLength="4000" placeholder={t('admin.systemBotPostPlaceholder')} onChange={(event) => setSystemBotPost(event.target.value)} /></label>
-                        <div className="system-bot-composer-actions"><small>{systemBotPost.trim().length}/4000</small><Button type="submit" disabled={!systemBotPost.trim() || isPublishingSystemBotPost}><AdminIcon name="send" size={17} />{isPublishingSystemBotPost ? t('admin.systemBotPublishing') : t('admin.systemBotPublish')}</Button></div>
+                      <form onSubmit={saveAnnouncement}>
+                        <label className="field"><span>{t('admin.announcementText')}</span><textarea className="text-input" value={announcementForm.text} maxLength="4000" placeholder={t('admin.systemBotPostPlaceholder')} onChange={(event) => updateAnnouncementField('text', event.target.value)} /></label>
+                        <label className="field"><span>{t('admin.announcementAudience')}</span><select className="text-input" value={announcementForm.audienceType} onChange={(event) => updateAnnouncementField('audienceType', event.target.value)}><option value="all">{t('admin.announcementAudienceAll')}</option><option value="country">{t('admin.announcementAudienceCountry')}</option><option value="branch">{t('admin.announcementAudienceBranch')}</option></select></label>
+                        {announcementForm.audienceType === 'country' ? <label className="field"><span>{t('admin.announcementCountry')}</span><input className="text-input" value={announcementForm.audienceCountry} maxLength="8" placeholder="KZ" onChange={(event) => updateAnnouncementField('audienceCountry', event.target.value)} required /></label> : null}
+                        {announcementForm.audienceType === 'branch' ? <label className="field"><span>{t('admin.announcementBranch')}</span><select className="text-input" value={announcementForm.audienceBranchId} onChange={(event) => updateAnnouncementField('audienceBranchId', event.target.value)} required><option value="">{t('admin.announcementBranchPlaceholder')}</option>{branches.filter((branch) => !branch.is_archived).map((branch) => <option key={branch.id} value={branch.id}>{branch.title} · #{branch.slug}</option>)}</select></label> : null}
+                        <label className="field"><span>{t('admin.announcementSchedule')}</span><input className="text-input" type="datetime-local" value={announcementForm.scheduledAt} onChange={(event) => updateAnnouncementField('scheduledAt', event.target.value)} /></label>
+                        <p className="announcement-delivery-note">{t('admin.announcementDeliveryNote')}</p>
+                        <div className="system-bot-composer-actions"><small>{announcementForm.text.trim().length}/4000</small><div>{editingAnnouncementId ? <Button type="button" variant="secondary" onClick={resetAnnouncementForm}>{t('messages.cancel')}</Button> : null}<Button type="submit" disabled={!announcementForm.text.trim() || isSavingAnnouncement}><AdminIcon name="send" size={17} />{isSavingAnnouncement ? t('admin.announcementSaving') : editingAnnouncementId ? t('admin.announcementSave') : t('admin.announcementCreate')}</Button></div></div>
                       </form>
-                      {systemBotStatus ? <p className={systemBotStatus === t('admin.systemBotPostPublished') || systemBotStatus === t('admin.systemBotPostUpdated') || systemBotStatus === t('admin.systemBotPostPinned') || systemBotStatus === t('admin.systemBotPostUnpinned') || systemBotStatus === t('admin.systemBotPostDeleted') ? 'success-text system-bot-status' : 'error-text system-bot-status'}>{systemBotStatus}</p> : null}
+                      {systemBotStatus ? <p className={systemBotStatus === t('admin.announcementUpdated') || systemBotStatus === t('admin.announcementScheduled') || systemBotStatus === t('admin.announcementDrafted') || systemBotStatus === t('admin.announcementPublished') || systemBotStatus === t('admin.announcementCancelled') ? 'success-text system-bot-status' : 'error-text system-bot-status'}>{systemBotStatus}</p> : null}
                     </section>
                     <section className="system-bot-posts admin-surface">
-                      <header><div><h2>{t('admin.systemBotPosts')}</h2><p>{t('admin.systemBotPostsText')}</p></div><span className="system-bot-post-count">{systemBot?.messages?.filter((message) => !message.deleted_at).length ?? 0}</span></header>
+                      <header><div><h2>{t('admin.announcements')}</h2><p>{t('admin.announcementsText')}</p></div><span className="system-bot-post-count">{systemBot?.announcements?.length ?? 0}</span></header>
                       <div className="system-bot-post-list">
-                        {systemBot?.messages?.filter((message) => !message.deleted_at).slice().reverse().map((message) => (
-                          <article className={`system-bot-post ${message.is_pinned ? 'pinned' : ''}`} key={message.id}>
-                            <div className="system-bot-post-head"><div><span className="system-bot-post-icon"><AdminIcon name={message.is_pinned ? 'pin' : 'systemBot'} size={16} /></span><time>{formatDate(message.created_at, language)}{message.edited_at ? ` · ${t('admin.systemBotEdited')}` : ''}</time></div><div className="system-bot-post-actions"><button type="button" onClick={() => void updateSystemBotMessage(message, 'pin')} disabled={isUpdatingSystemBotMessage} title={message.is_pinned ? t('admin.systemBotUnpin') : t('admin.systemBotPin')} aria-label={message.is_pinned ? t('admin.systemBotUnpin') : t('admin.systemBotPin')}><AdminIcon name="pin" size={16} /></button><button type="button" onClick={() => startSystemBotMessageEdit(message)} disabled={isUpdatingSystemBotMessage} title={t('admin.edit')} aria-label={t('admin.edit')}><AdminIcon name="pencil" size={16} /></button><button className="danger" type="button" onClick={() => void updateSystemBotMessage(message, 'delete')} disabled={isUpdatingSystemBotMessage} title={t('admin.delete')} aria-label={t('admin.delete')}><AdminIcon name="trash" size={16} /></button></div></div>
-                            {editingSystemBotMessageId === message.id ? <div className="system-bot-edit"><textarea className="text-input" value={editingSystemBotText} maxLength="4000" onChange={(event) => setEditingSystemBotText(event.target.value)} /><div><Button type="button" variant="secondary" onClick={() => { setEditingSystemBotMessageId(null); setEditingSystemBotText(''); }}>{t('messages.cancel')}</Button><Button type="button" onClick={() => void saveSystemBotMessageEdit(message.id)} disabled={!editingSystemBotText.trim() || isUpdatingSystemBotMessage}>{t('admin.systemBotSavePost')}</Button></div></div> : <p>{message.payload}</p>}
+                        {systemBot?.announcements?.map((announcement) => (
+                          <article className="system-bot-post announcement-card" key={announcement.id}>
+                            <div className="system-bot-post-head"><div><span className="system-bot-post-icon"><AdminIcon name="systemBot" size={16} /></span><time>{formatDate(announcement.created_at, language)}</time></div><b className={`announcement-status ${announcement.status}`}>{t(`admin.announcementStatuses.${announcement.status}`)}</b></div>
+                            <p>{announcement.text}</p>
+                            <div className="announcement-meta"><span>{announcement.audience_type === 'all' ? t('admin.announcementAudienceAll') : announcement.audience_type === 'country' ? `${t('admin.announcementAudienceCountry')}: ${announcement.audience_country}` : `${t('admin.announcementAudienceBranch')}: ${branches.find((branch) => branch.id === announcement.audience_branch_id)?.title || '—'}`}</span>{announcement.scheduled_at ? <span>{t('admin.announcementScheduledFor').replace('{date}', formatDate(announcement.scheduled_at, language))}</span> : null}</div>
+                            {announcement.status === 'published' ? <div className="announcement-metrics"><span>{t('admin.announcementAudienceMetric').replace('{count}', String(announcement.recipient_count))}</span><span>{t('admin.announcementNotificationsMetric').replace('{count}', String(announcement.notification_count))}</span><span>{t('admin.announcementPushMetric').replace('{count}', String(announcement.push_provider_accepted_count))}</span><span>{t('admin.announcementReadMetric').replace('{count}', String(announcement.read_count))}</span></div> : null}
+                            {['draft', 'scheduled'].includes(announcement.status) ? <div className="announcement-actions"><Button type="button" variant="secondary" onClick={() => startAnnouncementEdit(announcement)} disabled={isSavingAnnouncement}>{t('admin.edit')}</Button><Button type="button" onClick={() => void publishAnnouncement(announcement)} disabled={isSavingAnnouncement}>{t('admin.announcementPublishNow')}</Button><Button type="button" variant="danger" onClick={() => void cancelAnnouncement(announcement)} disabled={isSavingAnnouncement}>{t('admin.announcementCancel')}</Button></div> : null}
                           </article>
                         ))}
-                        {!systemBot?.messages?.some((message) => !message.deleted_at) ? <p className="admin-empty-state">{t('admin.systemBotNoPosts')}</p> : null}
+                        {!systemBot?.announcements?.length ? <p className="admin-empty-state">{t('admin.announcementsEmpty')}</p> : null}
                       </div>
                     </section>
                   </div>
@@ -587,7 +679,7 @@ export function AdminPage() {
         </div>
       </section>
 
-      {selectedUser ? <div className="admin-drawer-layer" role="presentation" onMouseDown={closeUserDetails}><aside className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-user-title" onMouseDown={(event) => event.stopPropagation()}><header><button className="admin-drawer-close" type="button" onClick={closeUserDetails} aria-label={t('common.close')}><AdminIcon name="close" /></button><p className="eyebrow">{t('admin.userDetails')}</p>{isLoadingUserDetails ? <AraChatLoader compact title={t('admin.userDetails')} text={t('admin.loadingUserDetails')} /> : <><div className="admin-drawer-person"><span>{selectedUser.display_name?.[0] || selectedUser.username?.[0] || 'A'}</span><div><h2 id="admin-user-title">{selectedUser.display_name}</h2><p>@{selectedUser.username}</p></div></div><p className="admin-drawer-id">{selectedUser.nexus_id}</p><dl className="admin-drawer-data"><div><dt>{t('admin.status')}</dt><dd><b className={`admin-status ${selectedUser.status}`}>{statusLabel(selectedUser.status, t)}</b></dd></div><div><dt>{t('admin.country')}</dt><dd>{countryLabel(selectedUser.country)}</dd></div><div><dt>{t('admin.registeredAt')}</dt><dd>{formatDate(selectedUser.created_at, language)}</dd></div><div><dt>{t('admin.contactDetails')}</dt><dd>{selectedUser.phone || selectedUser.email || '—'}</dd></div><div><dt>{t('admin.vpnStatus')}</dt><dd>{selectedUser.vpn_enabled ? t('admin.vpnEnabled') : t('admin.vpnDisabled')}</dd></div></dl>{selectedUser.status !== 'deleted' ? <div className="admin-drawer-actions"><Button variant="secondary" type="button" disabled={isUpdatingUser} onClick={() => void toggleUserVpnStatus()}>{selectedUser.vpn_enabled ? t('admin.clearVpnWarning') : t('admin.enableVpnWarning')}</Button>{!selectedUser.is_official ? <><Button variant="secondary" type="button" onClick={() => openUserAction(selectedUser, selectedUser.status === 'blocked' ? 'active' : 'blocked')}>{selectedUser.status === 'blocked' ? t('admin.unblock') : t('admin.block')}</Button><Button variant="danger" type="button" onClick={() => openUserAction(selectedUser, 'deleted')}>{t('admin.delete')}</Button></> : null}</div> : null}</>}</header></aside></div> : null}
+      {selectedUser ? <div className="admin-drawer-layer" role="presentation" onMouseDown={closeUserDetails}><aside className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-user-title" onMouseDown={(event) => event.stopPropagation()}><header><button className="admin-drawer-close" type="button" onClick={closeUserDetails} aria-label={t('common.close')}><AdminIcon name="close" /></button><p className="eyebrow">{t('admin.userDetails')}</p>{isLoadingUserDetails ? <AraChatLoader compact title={t('admin.userDetails')} text={t('admin.loadingUserDetails')} /> : <><div className="admin-drawer-person"><span>{selectedUser.display_name?.[0] || selectedUser.username?.[0] || 'A'}</span><div><h2 id="admin-user-title">{selectedUser.display_name}</h2><p>@{selectedUser.username}</p></div></div><p className="admin-drawer-id">{selectedUser.nexus_id}</p><dl className="admin-drawer-data"><div><dt>{t('admin.status')}</dt><dd><b className={`admin-status ${selectedUser.status}`}>{statusLabel(selectedUser.status, t)}</b></dd></div><div><dt>{t('admin.country')}</dt><dd>{countryLabel(selectedUser.country)}</dd></div><div><dt>{t('admin.registeredAt')}</dt><dd>{formatDate(selectedUser.created_at, language)}</dd></div><div><dt>{t('admin.contactDetails')}</dt><dd>{selectedUser.phone || selectedUser.email || '—'}</dd></div><div><dt>{t('admin.vpnStatus')}</dt><dd>{selectedUser.vpn_enabled ? t('admin.vpnEnabled') : t('admin.vpnDisabled')}</dd></div></dl>{selectedUser.status !== 'deleted' && !selectedUser.is_official ? <section className="admin-restrictions"><header><div><h3>{t('admin.restrictions')}</h3><p>{t('admin.restrictionsText')}</p></div>{selectedUser.active_restriction ? <b className="admin-status blocked">{t('admin.restrictionActive')}</b> : null}</header>{selectedUser.active_restriction ? <div className="admin-active-restriction"><strong>{t(`admin.restrictionReasons.${selectedUser.active_restriction.reason}`)}</strong><span>{selectedUser.active_restriction.ends_at ? t('admin.restrictionUntil').replace('{date}', formatDate(selectedUser.active_restriction.ends_at, language)) : t('admin.restrictionPermanent')}</span>{selectedUser.active_restriction.note ? <p>{selectedUser.active_restriction.note}</p> : null}<Button type="button" variant="secondary" disabled={isUpdatingUser} onClick={() => void liftUserRestriction()}>{t('admin.liftRestriction')}</Button></div> : null}{!selectedUser.active_restriction ? <>{isRestrictionFormOpen ? <form className="admin-restriction-form" onSubmit={saveUserRestriction}><label className="field"><span>{t('admin.restrictionReason')}</span><select className="text-input" value={restrictionForm.reason} onChange={(event) => setRestrictionForm((current) => ({ ...current, reason: event.target.value }))}>{['spam', 'abuse', 'fraud', 'security', 'other'].map((reason) => <option key={reason} value={reason}>{t(`admin.restrictionReasons.${reason}`)}</option>)}</select></label><label className="field"><span>{t('admin.restrictionNote')}</span><textarea className="text-input" value={restrictionForm.note} maxLength="2000" onChange={(event) => setRestrictionForm((current) => ({ ...current, note: event.target.value }))} /></label><label className="field"><span>{t('admin.restrictionEndsAt')}</span><input className="text-input" type="datetime-local" value={restrictionForm.endsAt} onChange={(event) => setRestrictionForm((current) => ({ ...current, endsAt: event.target.value }))} /></label><div><Button type="button" variant="secondary" onClick={() => setIsRestrictionFormOpen(false)}>{t('messages.cancel')}</Button><Button type="submit" disabled={isUpdatingUser}>{t('admin.applyRestriction')}</Button></div></form> : <Button type="button" variant="secondary" disabled={isUpdatingUser} onClick={openRestrictionForm}>{t('admin.applyRestriction')}</Button>}</> : null}<ol className="admin-restriction-history">{selectedUser.restrictions?.map((restriction) => <li key={restriction.id}><strong>{t(`admin.restrictionReasons.${restriction.reason}`)}</strong><span>{formatDate(restriction.started_at, language)} · {restriction.lifted_at ? t('admin.restrictionLifted') : restriction.ends_at ? t('admin.restrictionUntil').replace('{date}', formatDate(restriction.ends_at, language)) : t('admin.restrictionPermanent')}</span>{restriction.note ? <p>{restriction.note}</p> : null}</li>)}</ol></section> : null}{selectedUser.status !== 'deleted' ? <div className="admin-drawer-actions"><Button variant="secondary" type="button" disabled={isUpdatingUser} onClick={() => void toggleUserVpnStatus()}>{selectedUser.vpn_enabled ? t('admin.clearVpnWarning') : t('admin.enableVpnWarning')}</Button>{!selectedUser.is_official ? <Button variant="danger" type="button" onClick={() => openUserAction(selectedUser, 'deleted')}>{t('admin.delete')}</Button> : null}</div> : null}</>}</header></aside></div> : null}
 
       {pendingAction ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setPendingAction(null)}><section className="app-dialog admin-confirm-dialog" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}><p className="eyebrow">{pendingAction.status === 'deleted' ? t('admin.irreversibleAction') : t('admin.confirmAction')}</p><h2>{pendingAction.status === 'deleted' ? t('admin.deleteUserTitle') : pendingAction.status === 'blocked' ? t('admin.blockUserTitle') : t('admin.unblockUserTitle')}</h2><p>{t('admin.actionTarget').replace('{name}', pendingAction.user.display_name)}</p>{pendingAction.status === 'deleted' ? <label className="field"><span>{t('admin.deleteConfirmation').replace('{word}', t('admin.deleteConfirmWord'))}</span><input className="text-input" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoFocus /></label> : null}<div className="admin-dialog-actions"><Button variant="secondary" type="button" onClick={() => setPendingAction(null)}>{t('messages.cancel')}</Button><Button variant={pendingAction.status === 'deleted' ? 'danger' : 'primary'} type="button" disabled={isUpdatingUser || (pendingAction.status === 'deleted' && deleteConfirmation !== t('admin.deleteConfirmWord'))} onClick={confirmUserAction}>{isUpdatingUser ? '…' : pendingAction.status === 'deleted' ? t('admin.delete') : pendingAction.status === 'blocked' ? t('admin.block') : t('admin.unblock')}</Button></div></section></div> : null}
 

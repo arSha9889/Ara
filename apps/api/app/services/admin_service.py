@@ -9,7 +9,7 @@ from app.models.audit import AuditLog
 from app.models.chats import Chat, PushSubscription
 from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import Session
-from app.models.users import User, UserProfile
+from app.models.users import User, UserProfile, UserRestriction
 from app.services.email_verification_service import EmailVerificationError, normalize_email
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
@@ -235,6 +235,14 @@ async def get_admin_user(session: AsyncSession, admin_user_id: UUID, target_user
     if not row:
         raise AdminError('User not found')
     user, profile = row
+    restrictions = list((await session.execute(
+        select(UserRestriction)
+        .where(UserRestriction.user_id == target_user_id)
+        .order_by(UserRestriction.started_at.desc())
+        .limit(20)
+    )).scalars())
+    now = datetime.now(timezone.utc)
+    active_restriction = next((item for item in restrictions if item.lifted_at is None and (item.ends_at is None or item.ends_at > now)), None)
     return {
         'id': str(user.id),
         'nexus_id': user.nexus_id,
@@ -247,6 +255,8 @@ async def get_admin_user(session: AsyncSession, admin_user_id: UUID, target_user
         'status': user.status,
         'created_at': user.created_at,
         'is_official': is_configured_admin_profile(profile),
+        'active_restriction': _restriction_out(active_restriction) if active_restriction else None,
+        'restrictions': [_restriction_out(item) for item in restrictions],
     }
 
 
@@ -256,11 +266,33 @@ async def change_user_status(session: AsyncSession, admin_user_id: UUID, target_
         raise AdminError('Unsupported user status')
     if target_user_id == admin_user_id:
         raise AdminError('Administrator account cannot be changed here')
-    user = await session.get(User, target_user_id)
+    if next_status == 'blocked':
+        await create_user_restriction(
+            session,
+            admin_user_id,
+            target_user_id,
+            reason='other',
+            note='Created through the legacy status endpoint.',
+            ends_at=None,
+        )
+        return
+    user = (await session.execute(
+        select(User).where(User.id == target_user_id).with_for_update()
+    )).scalar_one_or_none()
     if not user or user.deleted_at:
         raise AdminError('User not found')
     now = datetime.now(timezone.utc)
     previous_status = user.status
+    if next_status == 'active':
+        restrictions = list((await session.execute(
+            select(UserRestriction).where(
+                UserRestriction.user_id == target_user_id,
+                UserRestriction.lifted_at.is_(None),
+            )
+        )).scalars())
+        for restriction in restrictions:
+            restriction.lifted_at = now
+            restriction.lifted_by_user_id = admin_user_id
     user.status = next_status
     if next_status == 'deleted':
         user.deleted_at = now
@@ -277,6 +309,83 @@ async def change_user_status(session: AsyncSession, admin_user_id: UUID, target_
         target_id=str(user.id),
         metadata={'previous_status': previous_status},
     )
+    await session.commit()
+
+
+async def create_user_restriction(
+    session: AsyncSession,
+    admin_user_id: UUID,
+    target_user_id: UUID,
+    reason: str,
+    note: str | None,
+    ends_at: datetime | None,
+) -> UserRestriction:
+    await require_admin(session, admin_user_id)
+    if target_user_id == admin_user_id:
+        raise AdminError('Administrator account cannot be changed here')
+    if ends_at and ends_at <= datetime.now(timezone.utc):
+        raise AdminError('Restriction end time must be in the future')
+    user = (await session.execute(
+        select(User).where(User.id == target_user_id).with_for_update()
+    )).scalar_one_or_none()
+    if not user or user.deleted_at:
+        raise AdminError('User not found')
+
+    now = datetime.now(timezone.utc)
+    active_restrictions = list((await session.execute(
+        select(UserRestriction).where(
+            UserRestriction.user_id == target_user_id,
+            UserRestriction.lifted_at.is_(None),
+        )
+    )).scalars())
+    for restriction in active_restrictions:
+        restriction.lifted_at = now
+        restriction.lifted_by_user_id = admin_user_id
+    restriction = UserRestriction(
+        user_id=target_user_id,
+        admin_user_id=admin_user_id,
+        reason=reason,
+        note=note.strip() if note else None,
+        ends_at=ends_at,
+    )
+    session.add(restriction)
+    user.status = 'blocked'
+    await session.execute(update(Session).where(Session.user_id == user.id, Session.revoked_at.is_(None)).values(revoked_at=now))
+    await session.execute(update(TrustedDevicePin).where(TrustedDevicePin.user_id == user.id, TrustedDevicePin.revoked_at.is_(None)).values(revoked_at=now))
+    record_admin_audit(
+        session,
+        admin_user_id,
+        'user.restricted',
+        target_type='user',
+        target_id=str(user.id),
+        metadata={'reason': reason, 'ends_at': ends_at.isoformat() if ends_at else None},
+    )
+    await session.commit()
+    await session.refresh(restriction)
+    return restriction
+
+
+async def lift_user_restriction(session: AsyncSession, admin_user_id: UUID, target_user_id: UUID) -> None:
+    await require_admin(session, admin_user_id)
+    user = (await session.execute(
+        select(User).where(User.id == target_user_id).with_for_update()
+    )).scalar_one_or_none()
+    if not user or user.deleted_at:
+        raise AdminError('User not found')
+    now = datetime.now(timezone.utc)
+    restrictions = list((await session.execute(
+        select(UserRestriction).where(
+            UserRestriction.user_id == target_user_id,
+            UserRestriction.lifted_at.is_(None),
+        )
+    )).scalars())
+    if not restrictions:
+        raise AdminError('Active restriction not found')
+    for restriction in restrictions:
+        restriction.lifted_at = now
+        restriction.lifted_by_user_id = admin_user_id
+    user.status = 'active'
+    record_admin_audit(session, admin_user_id, 'user.restriction_lifted', 'user', str(user.id))
     await session.commit()
 
 
@@ -302,3 +411,14 @@ async def set_user_vpn_enabled(
         )
         await session.commit()
     return user.vpn_enabled
+
+
+def _restriction_out(restriction: UserRestriction) -> dict:
+    return {
+        'id': str(restriction.id),
+        'reason': restriction.reason,
+        'note': restriction.note,
+        'started_at': restriction.started_at,
+        'ends_at': restriction.ends_at,
+        'lifted_at': restriction.lifted_at,
+    }

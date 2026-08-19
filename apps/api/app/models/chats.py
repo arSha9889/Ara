@@ -118,13 +118,38 @@ class PushSubscription(Base):
 
 class Notification(Base):
     __tablename__ = 'notifications'
+    __table_args__ = (
+        UniqueConstraint('announcement_id', 'recipient_user_id', name='uq_notifications_announcement_recipient'),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     recipient_user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
     chat_id: Mapped[UUID | None] = mapped_column(ForeignKey('chats.id', ondelete='CASCADE'), index=True)
     message_id: Mapped[UUID | None] = mapped_column(ForeignKey('messages.id', ondelete='CASCADE'), index=True)
+    announcement_id: Mapped[UUID | None] = mapped_column(ForeignKey('system_announcements.id', ondelete='SET NULL'), index=True)
     title: Mapped[str] = mapped_column(String(120))
     body: Mapped[str] = mapped_column(String(240))
     url: Mapped[str] = mapped_column(String(512))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class SystemAnnouncement(Base):
+    __tablename__ = 'system_announcements'
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    author_user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    message_id: Mapped[UUID | None] = mapped_column(ForeignKey('messages.id', ondelete='SET NULL'), unique=True)
+    text: Mapped[str] = mapped_column(Text)
+    audience_type: Mapped[str] = mapped_column(String(32), default='all')
+    audience_country: Mapped[str | None] = mapped_column(String(8), index=True)
+    audience_branch_id: Mapped[UUID | None] = mapped_column(ForeignKey('chats.id', ondelete='SET NULL'), index=True)
+    status: Mapped[str] = mapped_column(String(32), default='draft', index=True)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    recipient_count: Mapped[int] = mapped_column(Integer, default=0)
+    notification_count: Mapped[int] = mapped_column(Integer, default=0)
+    push_provider_accepted_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

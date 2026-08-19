@@ -36,32 +36,15 @@ function StreamAudio({ stream }) {
   return <audio ref={ref} autoPlay playsInline />;
 }
 
-function StreamVideo({ className, label, muted, stream }) {
-  const ref = useRef(null);
-  useMediaElementStream(ref, stream, muted);
-
-  return (
-    <video
-      ref={ref}
-      className={className}
-      aria-label={label}
-      autoPlay
-      playsInline
-    />
-  );
-}
-
 export function CallOverlay({ call, peer, t }) {
   const duration = useCallDuration(call.startedAt);
   const isVisible = call.callState !== 'idle';
   const isIncoming = call.callState === 'incoming';
   const isOutgoingRinging = call.callState === 'calling';
   const isActive = call.callState === 'active' || call.callState === 'connecting';
-  const remoteVideoTracks = call.remoteStream?.getVideoTracks() ?? [];
-  const hasRemoteScreen = remoteVideoTracks.some((track) => track.readyState === 'live');
   const title = peer?.display_name || peer?.username || t('chats.directChat');
   const subtitle = call.statusText || (isActive ? t('calls.connected') : t('calls.calling'));
-  const callModeLabel = hasRemoteScreen ? t('calls.remoteScreen') : (isIncoming ? t('calls.incomingLabel') : t('calls.audioLabel'));
+  const callModeLabel = isIncoming ? t('calls.incomingLabel') : t('calls.audioLabel');
 
   useEffect(() => {
     if (!isOutgoingRinging) return undefined;
@@ -79,7 +62,7 @@ export function CallOverlay({ call, peer, t }) {
       </div>
       {call.remoteStream ? <StreamAudio stream={call.remoteStream} /> : null}
 
-      <section className={`call-card ${hasRemoteScreen ? 'with-screen' : 'audio-only'}`}>
+      <section className="call-card audio-only">
         <div className="call-card-glow" aria-hidden="true" />
         <header className="call-topbar">
           <div className="call-peer-compact">
@@ -92,11 +75,8 @@ export function CallOverlay({ call, peer, t }) {
           <div className="call-duration-pill" aria-label={`${t('calls.duration')}: ${duration}`}>{duration}</div>
         </header>
 
-        <div className="call-content">
-          <div className="call-visual">
-            {hasRemoteScreen ? (
-              <StreamVideo className="call-screen-video" label={t('calls.remoteScreen')} stream={call.remoteStream} muted />
-            ) : (
+          <div className="call-content">
+            <div className="call-visual">
               <div className="call-hero">
                 <div className="call-avatar-orbit">
                   <span className="call-wave one" />
@@ -110,32 +90,17 @@ export function CallOverlay({ call, peer, t }) {
                   <span>{subtitle}</span>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-
-          <aside className="call-side-panel" aria-label={t('calls.hdScreen')}>
-            {call.screenStream ? (
-              <div className="call-local-preview">
-                <StreamVideo className="call-local-video" label={t('calls.yourScreen')} stream={call.screenStream} muted />
-                <span>{t('calls.youShareScreen')}</span>
-              </div>
-            ) : (
-              <div className="call-screen-placeholder">
-                <span aria-hidden="true"><Icon name="monitor" size={23} /></span>
-                <p>{t('calls.screenReady')}</p>
-              </div>
-            )}
-          </aside>
-        </div>
 
         <footer className="call-controls" aria-label={t('calls.controls')}>
           {isIncoming ? (
             <>
-              <button className="call-control-button decline" type="button" onClick={call.rejectCall} aria-label={t('calls.reject')}>
+              <button className="call-control-button decline" type="button" onClick={call.rejectCall} disabled={!call.canSignalCall} aria-label={t('calls.reject')}>
                 <span aria-hidden="true"><Icon name="x" size={22} /></span>
                 <small>{t('calls.reject')}</small>
               </button>
-              <button className="call-control-button accept" type="button" onClick={call.acceptCall} aria-label={t('calls.accept')}>
+              <button className="call-control-button accept" type="button" onClick={call.acceptCall} disabled={!call.canSignalCall} aria-label={t('calls.accept')}>
                 <span aria-hidden="true"><Icon name="phone" size={21} /></span>
                 <small>{t('calls.accept')}</small>
               </button>
@@ -145,10 +110,6 @@ export function CallOverlay({ call, peer, t }) {
               <button className={`call-control-button ${call.isMuted ? 'active' : ''}`} type="button" onClick={call.toggleMute} aria-label={call.isMuted ? t('calls.unmute') : t('calls.mute')}>
                 <span aria-hidden="true"><Icon name={call.isMuted ? 'microphoneOff' : 'microphone'} size={22} /></span>
                 <small>{call.isMuted ? t('calls.unmuteShort') : t('calls.muteShort')}</small>
-              </button>
-              <button className={`call-control-button ${call.isScreenSharing ? 'active' : ''}`} type="button" onClick={call.toggleScreenShare} disabled={!isActive} aria-label={call.isScreenSharing ? t('calls.stopScreen') : t('calls.shareScreen')}>
-                <span aria-hidden="true"><Icon name="monitor" size={22} /></span>
-                <small>{call.isScreenSharing ? t('calls.stopScreenShort') : t('calls.screenShort')}</small>
               </button>
               <button className="call-control-button hangup" type="button" onClick={call.endCall} aria-label={t('calls.hangUp')}>
                 <span aria-hidden="true"><Icon name="phoneOff" size={22} /></span>

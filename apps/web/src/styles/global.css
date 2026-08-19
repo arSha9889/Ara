@@ -5832,6 +5832,23 @@ button.info-card {
 .admin-drawer-form { display: grid; gap: 12px; }
 .admin-drawer-form textarea { min-height: 96px; resize: vertical; }
 .admin-drawer-form .button { margin-top: 3px; }
+.admin-restrictions { border-top: 1px solid var(--border-soft); display: grid; gap: 12px; margin-top: 24px; padding-top: 20px; }
+.admin-restrictions > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.admin-restrictions h3 { margin: 0; font-size: 0.9rem; }
+.admin-restrictions header p { margin: 4px 0 0; color: var(--muted); font-size: 0.73rem; line-height: 1.45; }
+.admin-active-restriction { border: 1px solid color-mix(in srgb, var(--danger), transparent 70%); border-radius: 13px; display: grid; gap: 6px; background: color-mix(in srgb, var(--danger), transparent 94%); padding: 12px; }
+.admin-active-restriction strong { color: var(--danger); font-size: 0.8rem; }
+.admin-active-restriction span,
+.admin-active-restriction p { margin: 0; color: var(--muted); font-size: 0.73rem; line-height: 1.4; }
+.admin-active-restriction .button { justify-self: start; margin-top: 5px; min-height: 36px; padding: 7px 10px; font-size: 0.73rem; }
+.admin-restriction-form { display: grid; gap: 10px; }
+.admin-restriction-form textarea { min-height: 74px; resize: vertical; }
+.admin-restriction-form > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-restriction-history { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.admin-restriction-history li { display: grid; gap: 3px; border-top: 1px solid var(--border-soft); padding: 10px 0; }
+.admin-restriction-history strong { font-size: 0.76rem; }
+.admin-restriction-history span,
+.admin-restriction-history p { margin: 0; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
 .admin-member-form { border-top: 1px solid var(--border-soft); display: grid; gap: 11px; margin-top: 25px; padding-top: 22px; }
 .admin-member-form h3 { margin: 0; }
 .admin-member-form p { margin: -4px 0 0; color: var(--muted); font-size: 0.76rem; }
@@ -5858,6 +5875,8 @@ button.info-card {
 .system-bot-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .system-bot-composer-actions small { color: var(--muted); font-size: 0.7rem; font-weight: 750; }
 .system-bot-composer-actions .button { min-height: 42px; gap: 7px; }
+.system-bot-composer-actions > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.announcement-delivery-note { margin: -1px 0 0; border-radius: 10px; background: color-mix(in srgb, var(--primary), transparent 94%); color: var(--muted); padding: 9px 10px; font-size: 0.7rem; line-height: 1.4; }
 .system-bot-status { margin: 14px 0 0; font-size: 0.78rem; font-weight: 750; }
 .system-bot-posts { min-height: 300px; }
 .system-bot-posts > header { padding-bottom: 15px; border-bottom: 1px solid var(--border-soft); }
@@ -5866,6 +5885,18 @@ button.info-card {
 .system-bot-post { border: 1px solid var(--border-soft); border-radius: 15px; background: color-mix(in srgb, var(--surface), transparent 11%); padding: 14px; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
 .system-bot-post:hover { border-color: color-mix(in srgb, var(--primary), transparent 62%); box-shadow: 0 10px 24px color-mix(in srgb, var(--primary), transparent 91%); transform: translateY(-1px); }
 .system-bot-post.pinned { border-color: color-mix(in srgb, var(--accent), transparent 52%); background: linear-gradient(135deg, color-mix(in srgb, var(--accent), transparent 92%), color-mix(in srgb, var(--surface), transparent 5%)); }
+.announcement-card > p { margin: 0; white-space: pre-wrap; font-size: 0.84rem; line-height: 1.5; }
+.announcement-status { border-radius: 999px; background: color-mix(in srgb, var(--muted), transparent 86%); color: var(--muted); padding: 5px 8px; font-size: 0.64rem; font-weight: 900; text-transform: uppercase; }
+.announcement-status.scheduled { background: color-mix(in srgb, var(--primary), transparent 85%); color: var(--primary); }
+.announcement-status.published { background: color-mix(in srgb, var(--success), transparent 84%); color: var(--success); }
+.announcement-status.cancelled { background: color-mix(in srgb, var(--danger), transparent 86%); color: var(--danger); }
+.announcement-meta,
+.announcement-metrics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.announcement-meta span,
+.announcement-metrics span { border-radius: 999px; background: color-mix(in srgb, var(--primary), transparent 93%); color: var(--muted); padding: 5px 7px; font-size: 0.67rem; font-weight: 750; line-height: 1.25; }
+.announcement-metrics span { background: color-mix(in srgb, var(--success), transparent 91%); }
+.announcement-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.announcement-actions .button { min-height: 35px; padding: 6px 9px; font-size: 0.72rem; }
 .system-bot-post-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .system-bot-post-head > div:first-child { min-width: 0; display: flex; align-items: center; gap: 7px; color: var(--muted); }
 .system-bot-post-icon { width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; flex: 0 0 auto; background: color-mix(in srgb, var(--secondary), transparent 83%); color: var(--primary); }
@@ -7615,7 +7646,14 @@ code {
   .admin-drawer-close { top: 14px; right: 14px; }
   .admin-drawer-data > div { grid-template-columns: 102px minmax(0, 1fr); gap: 8px; }
   .admin-drawer-actions { grid-template-columns: 1fr; }
+  .admin-restrictions > header { display: grid; }
+  .admin-restriction-form > div,
+  .announcement-actions { display: grid; grid-template-columns: 1fr; }
+  .announcement-actions .button { width: 100%; }
   .system-bot-composer textarea { min-height: 145px; }
+  .system-bot-composer-actions { align-items: flex-end; }
+  .system-bot-composer-actions > div { display: grid; width: 100%; }
+  .system-bot-composer-actions > div .button { width: 100%; }
   .system-bot-post { padding: 12px; }
   .system-bot-post-head { align-items: flex-start; }
   .system-bot-post-actions { margin: -3px; }

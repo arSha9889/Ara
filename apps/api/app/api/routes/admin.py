@@ -9,6 +9,9 @@ from app.api.dependencies.auth import get_current_user
 from app.db.session import get_db_session
 from app.schemas.admin import (
     AdminAuditLogListOut,
+    AdminAnnouncementCreateRequest,
+    AdminAnnouncementOut,
+    AdminAnnouncementUpdateRequest,
     AdminBranchListOut,
     AdminBranchMemberRequest,
     AdminBranchOut,
@@ -20,6 +23,7 @@ from app.schemas.admin import (
     AdminSystemBotOut,
     AdminUserListOut,
     AdminUserOut,
+    AdminUserRestrictionCreateRequest,
     AdminUserStatusRequest,
     AdminUserVpnUpdateRequest,
 )
@@ -30,7 +34,9 @@ from app.services.admin_service import (
     admin_overview,
     admin_security_metrics,
     change_user_status,
+    create_user_restriction,
     get_admin_user,
+    lift_user_restriction,
     list_admin_audit_logs,
     list_admin_users,
     require_admin,
@@ -42,7 +48,17 @@ from app.models.chats import ChatParticipant
 from app.services.notification_service import create_message_notifications
 from app.services.realtime_manager import realtime_manager
 from app.services.retention_service import RetentionError, preview_retention, read_host_storage_status, run_retention
-from app.services.system_bot_service import delete_system_bot_message, edit_system_bot_message, get_system_bot, publish_system_bot_message, toggle_system_bot_message_pin
+from app.services.system_bot_service import (
+    cancel_system_announcement,
+    create_system_announcement,
+    delete_system_bot_message,
+    edit_system_bot_message,
+    get_system_bot,
+    publish_system_announcement,
+    publish_system_bot_message,
+    toggle_system_bot_message_pin,
+    update_system_announcement,
+)
 
 
 router = APIRouter()
@@ -69,6 +85,69 @@ async def get_system_bot_route(
         return AdminSystemBotOut.model_validate(await get_system_bot(session, current_user.id))
     except AdminError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.post('/announcements', response_model=AdminAnnouncementOut)
+async def create_announcement_route(
+    request: AdminAnnouncementCreateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminAnnouncementOut:
+    try:
+        return AdminAnnouncementOut.model_validate(await create_system_announcement(
+            session,
+            current_user.id,
+            text=request.text,
+            audience_type=request.audience_type,
+            audience_country=request.audience_country,
+            audience_branch_id=request.audience_branch_id,
+            scheduled_at=request.scheduled_at,
+        ))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.patch('/announcements/{announcement_id}', response_model=AdminAnnouncementOut)
+async def update_announcement_route(
+    announcement_id: UUID,
+    request: AdminAnnouncementUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminAnnouncementOut:
+    try:
+        updates = {field: getattr(request, field) for field in request.model_fields_set}
+        return AdminAnnouncementOut.model_validate(await update_system_announcement(session, current_user.id, announcement_id, updates))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/announcements/{announcement_id}/publish', response_model=AdminAnnouncementOut)
+async def publish_announcement_route(
+    announcement_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminAnnouncementOut:
+    try:
+        return AdminAnnouncementOut.model_validate(await publish_system_announcement(
+            session,
+            announcement_id,
+            actor_user_id=current_user.id,
+        ))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/announcements/{announcement_id}/cancel')
+async def cancel_announcement_route(
+    announcement_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, str]:
+    try:
+        await cancel_system_announcement(session, current_user.id, announcement_id)
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {'status': 'ok'}
 
 
 @router.post('/system-bot/messages', response_model=MessageOut)
@@ -245,6 +324,41 @@ async def update_user_vpn_status(
     except AdminError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return {'vpn_enabled': vpn_enabled}
+
+
+@router.post('/users/{user_id}/restrictions', response_model=AdminUserOut)
+async def create_user_restriction_route(
+    user_id: UUID,
+    request: AdminUserRestrictionCreateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminUserOut:
+    try:
+        await create_user_restriction(
+            session,
+            current_user.id,
+            user_id,
+            request.reason,
+            request.note,
+            request.ends_at,
+        )
+        await realtime_manager.disconnect_user(user_id)
+        return AdminUserOut.model_validate(await get_admin_user(session, current_user.id, user_id))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/users/{user_id}/restrictions/lift', response_model=AdminUserOut)
+async def lift_user_restriction_route(
+    user_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminUserOut:
+    try:
+        await lift_user_restriction(session, current_user.id, user_id)
+        return AdminUserOut.model_validate(await get_admin_user(session, current_user.id, user_id))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post('/branches/{chat_id}/restore')

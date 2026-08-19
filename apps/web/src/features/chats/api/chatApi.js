@@ -79,6 +79,10 @@ export function updateChatWallpaper(accessToken, chatId, wallpaperId) {
   });
 }
 
+export function getCallIceConfiguration(accessToken) {
+  return apiRequest('/api/calls/ice-servers', { headers: authHeaders(accessToken) });
+}
+
 export function getMessages(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}/messages`, { headers: authHeaders(accessToken) });
 }

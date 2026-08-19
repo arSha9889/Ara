@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db_session
 from app.domain.tokens import decode_access_token
 from app.services.auth_service import get_user_with_profile, to_user_out
+from app.services.user_access_service import user_can_access
 from app.schemas.users import UserOut
 
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -22,6 +23,6 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid access token') from exc
 
     user = await get_user_with_profile(session, user_id)
-    if not user or user.status != 'active':
+    if not await user_can_access(session, user):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='User not found')
     return to_user_out(user)

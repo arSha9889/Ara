@@ -24,12 +24,14 @@ export function NotificationsProvider({ children }) {
   const { session } = useSession();
   const [notifications, setNotifications] = useState([]);
   const [lastNotification, setLastNotification] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
   const [pushConfig, setPushConfig] = useState({ enabled: false, public_key: null });
   const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
   const [hasSubscription, setHasSubscription] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const reconnectTimerRef = useRef(null);
   const knownNotificationIdsRef = useRef(new Set());
+  const incomingCallTimeoutRef = useRef(null);
 
   const pushSupport = getPushSupportState();
   const isSupported = isPushSupported();
@@ -73,6 +75,9 @@ export function NotificationsProvider({ children }) {
     if (!session.accessToken || !session.user) {
       setNotifications([]);
       setLastNotification(null);
+      setIncomingCall(null);
+      window.clearTimeout(incomingCallTimeoutRef.current);
+      incomingCallTimeoutRef.current = null;
       knownNotificationIdsRef.current = new Set();
       setPushConfig({ enabled: false, public_key: null });
       setHasSubscription(false);
@@ -136,6 +141,19 @@ export function NotificationsProvider({ children }) {
           ]));
           if (isNewNotification) playNotificationSound();
         }
+        if (payload.event === 'call.invite' && payload.chat_id && payload.call_id) {
+          window.clearTimeout(incomingCallTimeoutRef.current);
+          setIncomingCall(payload);
+          incomingCallTimeoutRef.current = window.setTimeout(() => {
+            setIncomingCall((current) => current?.call_id === payload.call_id ? null : current);
+          }, 70_000);
+        }
+        if (
+          ['call.cancel', 'call.end', 'call.reject'].includes(payload.event)
+          && payload.call_id
+        ) {
+          setIncomingCall((current) => current?.call_id === payload.call_id ? null : current);
+        }
       });
       socket.addEventListener('close', () => {
         if (!active) return;
@@ -150,6 +168,8 @@ export function NotificationsProvider({ children }) {
     return () => {
       active = false;
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
+      window.clearTimeout(incomingCallTimeoutRef.current);
+      incomingCallTimeoutRef.current = null;
       socket?.close();
     };
   }, [session.accessToken]);
@@ -227,9 +247,19 @@ export function NotificationsProvider({ children }) {
     )));
   }
 
+  function consumeIncomingCall(callId) {
+    setIncomingCall((current) => {
+      if (current?.call_id !== callId) return current;
+      window.clearTimeout(incomingCallTimeoutRef.current);
+      incomingCallTimeoutRef.current = null;
+      return null;
+    });
+  }
+
   const value = useMemo(() => ({
     notifications,
     lastNotification,
+    incomingCall,
     unreadCount,
     isLoading,
     isSupported,
@@ -241,7 +271,8 @@ export function NotificationsProvider({ children }) {
     markAllRead,
     markNotificationRead,
     markMessageNotificationsRead,
-  }), [notifications, lastNotification, unreadCount, isLoading, isSupported, isEnabled, permission, pushConfig.enabled]);
+    consumeIncomingCall,
+  }), [notifications, lastNotification, incomingCall, unreadCount, isLoading, isSupported, isEnabled, permission, pushConfig.enabled]);
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }

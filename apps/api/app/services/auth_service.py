@@ -32,6 +32,7 @@ from app.services.email_verification_service import (
 )
 from app.services.smtp_mailer import SmtpDeliveryError
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
+from app.services.user_access_service import user_can_access
 
 
 class AuthError(ValueError):
@@ -336,7 +337,7 @@ async def login_with_password(session: AsyncSession, identifier: str, password: 
         raise AuthError('Invalid login identifier or password')
     if user.status == 'deleted' or user.deleted_at:
         raise AuthError('Account has been deleted')
-    if user.status != 'active':
+    if not await user_can_access(session, user):
         raise AuthError('Invalid login identifier or password')
 
     credential = await session.get(PasswordCredential, user.id)
@@ -356,7 +357,7 @@ async def login_with_password(session: AsyncSession, identifier: str, password: 
 async def issue_session_for_user(session: AsyncSession, user: User, device_id: str, method: str) -> tuple[UserOut, str, str]:
     if user.status == 'deleted' or user.deleted_at:
         raise AuthError('Account has been deleted')
-    if user.status != 'active':
+    if not await user_can_access(session, user):
         raise AuthError('Invalid login identifier or password')
     refresh_token = _generate_refresh_token()
     session.add(_create_session(user.id, device_id, refresh_token))
@@ -379,7 +380,7 @@ async def refresh_access_token(session: AsyncSession, refresh_token: str) -> tup
         user = await find_user_by_id(session, item.user_id)
         if not user:
             raise AuthError('Invalid refresh token')
-        if user.status != 'active':
+        if not await user_can_access(session, user):
             raise AuthError('Invalid refresh token')
         item.expires_at = now + timedelta(days=settings.refresh_token_days)
         await session.commit()

@@ -32,6 +32,36 @@ export function getAdminSystemBot(accessToken) {
   return apiRequest('/api/admin/system-bot', { headers: authHeaders(accessToken) });
 }
 
+export function createAdminAnnouncement(accessToken, payload) {
+  return apiRequest('/api/admin/announcements', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function updateAdminAnnouncement(accessToken, announcementId, payload) {
+  return apiRequest(`/api/admin/announcements/${announcementId}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function publishAdminAnnouncement(accessToken, announcementId) {
+  return apiRequest(`/api/admin/announcements/${announcementId}/publish`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function cancelAdminAnnouncement(accessToken, announcementId) {
+  return apiRequest(`/api/admin/announcements/${announcementId}/cancel`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function publishAdminSystemBotMessage(accessToken, payload) {
   return apiRequest('/api/admin/system-bot/messages', {
     method: 'POST',
@@ -103,6 +133,21 @@ export function updateAdminUserStatus(accessToken, userId, status) {
     method: 'PATCH',
     headers: authHeaders(accessToken),
     body: { status },
+  });
+}
+
+export function createAdminUserRestriction(accessToken, userId, payload) {
+  return apiRequest(`/api/admin/users/${userId}/restrictions`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function liftAdminUserRestriction(accessToken, userId) {
+  return apiRequest(`/api/admin/users/${userId}/restrictions/lift`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
   });
 }
 

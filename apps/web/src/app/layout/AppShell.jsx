@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { deleteAccount, logoutSession } from '../../features/auth/api/authApi.js';
 import { NotificationsMenu } from '../../features/notifications/components/NotificationsMenu.jsx';
@@ -31,8 +31,9 @@ export function AppNavigationTrigger({ isMenuOpen, onToggle, className = '' }) {
 export function AppShell() {
   const { t } = useI18n();
   const { session, clearSession } = useSession();
-  const { disableNotifications } = useNotifications();
+  const { disableNotifications, incomingCall } = useNotifications();
   const location = useLocation();
+  const navigate = useNavigate();
   const isFlagDayCampaignActive = useFlagDayCampaign();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
@@ -75,6 +76,12 @@ export function AppShell() {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!incomingCall?.chat_id) return;
+    const targetPath = `/app/chats/${incomingCall.chat_id}`;
+    if (location.pathname !== targetPath) navigate(targetPath);
+  }, [incomingCall?.chat_id, location.pathname, navigate]);
 
   useEffect(() => {
     function handleKeyDown(event) {

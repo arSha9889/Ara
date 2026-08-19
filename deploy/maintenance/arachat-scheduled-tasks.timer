@@ -1,0 +1,10 @@
+[Unit]
+Description=Run AraChat scheduled application tasks every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+RandomizedDelaySec=10s
+
+[Install]
+WantedBy=timers.target

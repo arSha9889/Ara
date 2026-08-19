@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { getRtcConfiguration } from '../../../shared/webrtc/iceServers.js';
+import { getCallIceConfiguration } from '../api/chatApi.js';
 
 const CALL_EVENTS = new Set([
   'call.invite',
@@ -11,8 +12,10 @@ const CALL_EVENTS = new Set([
   'call.offer',
   'call.answer',
   'call.ice_candidate',
-  'call.screen_stopped',
+  'call.failed',
 ]);
+
+const CALL_RING_TIMEOUT_MS = 70_000;
 
 function createCallId(chatId) {
   const randomPart = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -29,40 +32,32 @@ function setAudioEnabled(stream, enabled) {
   });
 }
 
-function replaceSenderTrack(peerConnection, kind, nextTrack) {
-  const sender = peerConnection
-    ?.getSenders()
-    .find((item) => item.track?.kind === kind || (!item.track && kind === 'video'));
-
-  if (!sender) return Promise.resolve();
-  return sender.replaceTrack(nextTrack ?? null);
-}
-
 export function isCallSignal(payload) {
   return CALL_EVENTS.has(payload?.event);
 }
 
-export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError }) {
+export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket, t, onError }) {
   const [callState, setCallState] = useState('idle');
   const [callId, setCallId] = useState(null);
   const [remoteUserId, setRemoteUserId] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const [screenStream, setScreenStream] = useState(null);
   const [startedAt, setStartedAt] = useState(null);
   const [statusText, setStatusText] = useState('');
 
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
-  const screenStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
+  const iceServersRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
   const makingOfferRef = useRef(false);
   const callIdRef = useRef(null);
   const isMutedRef = useRef(false);
   const isCallerRef = useRef(false);
+  const callTimeoutRef = useRef(null);
+  const socketRef = useRef(socket);
+  socketRef.current = socket;
 
   const canUseCalls = useMemo(() => Boolean(
     chatId
@@ -71,6 +66,7 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     && navigator.mediaDevices?.getUserMedia
     && typeof RTCPeerConnection !== 'undefined'
   ), [chatId, currentUserId, peer?.id]);
+  const canSignalCall = socket?.readyState === WebSocket.OPEN;
 
   const sendSignal = useCallback((payload) => {
     if (socket?.readyState !== WebSocket.OPEN || !chatId) return false;
@@ -86,10 +82,11 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     peerConnectionRef.current?.close();
     peerConnectionRef.current = null;
     stopStream(localStreamRef.current);
-    stopStream(screenStreamRef.current);
     localStreamRef.current = null;
-    screenStreamRef.current = null;
     remoteStreamRef.current = null;
+    iceServersRef.current = null;
+    window.clearTimeout(callTimeoutRef.current);
+    callTimeoutRef.current = null;
     pendingIceCandidatesRef.current = [];
     makingOfferRef.current = false;
     isCallerRef.current = false;
@@ -98,10 +95,8 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     setCallId(null);
     setRemoteUserId(null);
     setIsMuted(false);
-    setIsScreenSharing(false);
     setLocalStream(null);
     setRemoteStream(null);
-    setScreenStream(null);
     setStartedAt(null);
     setStatusText('');
   }, []);
@@ -130,10 +125,23 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     return stream;
   }, [t]);
 
+  const loadIceServers = useCallback(async () => {
+    if (iceServersRef.current) return iceServersRef.current;
+    if (!accessToken) throw new Error(t('calls.unavailable'));
+
+    const configuration = await getCallIceConfiguration(accessToken);
+    if (!Array.isArray(configuration?.ice_servers) || configuration.ice_servers.length === 0) {
+      throw new Error(t('calls.unavailable'));
+    }
+    iceServersRef.current = configuration.ice_servers;
+    return iceServersRef.current;
+  }, [accessToken, t]);
+
   const ensurePeerConnection = useCallback(async () => {
     if (peerConnectionRef.current) return peerConnectionRef.current;
 
-    const connection = new RTCPeerConnection(getRtcConfiguration());
+    const iceServers = await loadIceServers();
+    const connection = new RTCPeerConnection(getRtcConfiguration(iceServers));
     const nextRemoteStream = new MediaStream();
     remoteStreamRef.current = nextRemoteStream;
     setRemoteStream(nextRemoteStream);
@@ -174,7 +182,7 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     stream.getTracks().forEach((track) => connection.addTrack(track, stream));
     peerConnectionRef.current = connection;
     return connection;
-  }, [getMicrophoneStream, sendSignal, t]);
+  }, [getMicrophoneStream, loadIceServers, sendSignal, t]);
 
   const flushIceCandidates = useCallback(async () => {
     const connection = peerConnectionRef.current;
@@ -183,6 +191,20 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     const candidates = pendingIceCandidatesRef.current.splice(0);
     await Promise.all(candidates.map((candidate) => connection.addIceCandidate(candidate).catch(() => undefined)));
   }, []);
+
+  const startRingTimeout = useCallback((nextCallId, isCaller) => {
+    window.clearTimeout(callTimeoutRef.current);
+    callTimeoutRef.current = window.setTimeout(() => {
+      if (callIdRef.current !== nextCallId) return;
+      if (isCaller) {
+        sendSignal({ event: 'call.cancel', call_id: nextCallId });
+        reportError(t('calls.noAnswer'));
+      } else {
+        sendSignal({ event: 'call.reject', call_id: nextCallId });
+      }
+      resetCall();
+    }, CALL_RING_TIMEOUT_MS);
+  }, [reportError, resetCall, sendSignal, t]);
 
   const startCall = useCallback(async () => {
     if (!canUseCalls || callState !== 'idle') return;
@@ -196,30 +218,36 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
       setCallState('calling');
       setStatusText(t('calls.requestingMicrophone'));
       await getMicrophoneStream();
-      sendSignal({ event: 'call.invite', call_id: nextCallId });
+      await loadIceServers();
+      if (!sendSignal({ event: 'call.invite', call_id: nextCallId })) {
+        throw new Error(t('calls.connectionError'));
+      }
+      startRingTimeout(nextCallId, true);
       setStatusText(t('calls.calling'));
     } catch (err) {
       resetCall();
       reportError(err.message || t('calls.startError'));
     }
-  }, [callState, canUseCalls, chatId, getMicrophoneStream, peer?.id, reportError, resetCall, sendSignal, t]);
+  }, [callState, canUseCalls, chatId, getMicrophoneStream, loadIceServers, peer?.id, reportError, resetCall, sendSignal, startRingTimeout, t]);
 
   const acceptCall = useCallback(async () => {
-    if (!callIdRef.current || callState !== 'incoming') return;
+    if (!callIdRef.current || callState !== 'incoming' || !canSignalCall) return;
 
     try {
       setCallState('connecting');
       setStatusText(t('calls.requestingMicrophone'));
       await getMicrophoneStream();
       await ensurePeerConnection();
-      sendSignal({ event: 'call.accept', call_id: callIdRef.current });
+      if (!sendSignal({ event: 'call.accept', call_id: callIdRef.current })) {
+        throw new Error(t('calls.connectionError'));
+      }
       setStatusText(t('calls.connectingCall'));
     } catch (err) {
       sendSignal({ event: 'call.reject', call_id: callIdRef.current, reason: 'media_failed' });
       resetCall();
       reportError(err.message || t('calls.startError'));
     }
-  }, [callState, ensurePeerConnection, getMicrophoneStream, reportError, resetCall, sendSignal, t]);
+  }, [callState, canSignalCall, ensurePeerConnection, getMicrophoneStream, reportError, resetCall, sendSignal, t]);
 
   const rejectCall = useCallback(() => {
     if (!callIdRef.current) return;
@@ -244,79 +272,21 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     setAudioEnabled(localStreamRef.current, !nextMuted);
   }, []);
 
-  const stopScreenShare = useCallback(async ({ notify = true } = {}) => {
-    const connection = peerConnectionRef.current;
-    await replaceSenderTrack(connection, 'video', null);
-    stopStream(screenStreamRef.current);
-    screenStreamRef.current = null;
-    setScreenStream(null);
-    setIsScreenSharing(false);
-    if (notify && callIdRef.current) {
-      sendSignal({ event: 'call.screen_stopped', call_id: callIdRef.current });
-    }
-  }, [sendSignal]);
-
-  const startScreenShare = useCallback(async () => {
-    if (!navigator.mediaDevices?.getDisplayMedia || !peerConnectionRef.current) {
-      reportError(t('calls.screenUnsupported'));
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30, max: 30 },
-        },
-        audio: false,
-      });
-      const [track] = stream.getVideoTracks();
-      if (!track) return;
-
-      screenStreamRef.current = stream;
-      setScreenStream(stream);
-      setIsScreenSharing(true);
-      track.addEventListener('ended', () => {
-        void stopScreenShare();
-      }, { once: true });
-
-      const connection = peerConnectionRef.current;
-      const videoSender = connection.getSenders().find((sender) => sender.track?.kind === 'video');
-      if (videoSender) {
-        await videoSender.replaceTrack(track);
-      } else {
-        connection.addTrack(track, stream);
-      }
-
-      makingOfferRef.current = true;
-      const offer = await connection.createOffer();
-      await connection.setLocalDescription(offer);
-      sendSignal({ event: 'call.offer', call_id: callIdRef.current, description: connection.localDescription });
-      setStatusText(t('calls.screenSharing'));
-    } catch (err) {
-      if (err.name !== 'NotAllowedError') {
-        reportError(err.message || t('calls.screenStartError'));
-      }
-      await stopScreenShare({ notify: false });
-    } finally {
-      makingOfferRef.current = false;
-    }
-  }, [reportError, sendSignal, stopScreenShare, t]);
-
-  const toggleScreenShare = useCallback(() => {
-    if (isScreenSharing) {
-      void stopScreenShare();
-      return;
-    }
-    void startScreenShare();
-  }, [isScreenSharing, startScreenShare, stopScreenShare]);
-
   const handleSignal = useCallback(async (payload) => {
-    if (!isCallSignal(payload) || payload.chat_id !== chatId || payload.user_id === currentUserId) return;
+    if (!isCallSignal(payload)) return;
 
     try {
+      if (payload.event === 'call.failed') {
+        if (!payload.call_id || payload.call_id !== callIdRef.current) return;
+        reportError(payload.reason === 'peer_busy' ? t('calls.peerBusy') : t('calls.connectionError'));
+        resetCall();
+        return;
+      }
+
+      if (payload.chat_id !== chatId || payload.user_id === currentUserId) return;
+
       if (payload.event === 'call.invite') {
+        if (payload.call_id === callIdRef.current) return;
         if (callState !== 'idle') {
           sendSignal({ event: 'call.reject', call_id: payload.call_id, reason: 'busy' });
           return;
@@ -327,12 +297,15 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
         setRemoteUserId(payload.user_id);
         setCallState('incoming');
         setStatusText(t('calls.incoming'));
+        startRingTimeout(payload.call_id, false);
         return;
       }
 
       if (!payload.call_id || payload.call_id !== callIdRef.current) return;
 
       if (payload.event === 'call.accept') {
+        window.clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
         setCallState('connecting');
         setStatusText(t('calls.connectingCall'));
         const connection = await ensurePeerConnection();
@@ -352,17 +325,6 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
 
       if (payload.event === 'call.cancel' || payload.event === 'call.end') {
         resetCall();
-        return;
-      }
-
-      if (payload.event === 'call.screen_stopped') {
-        const currentRemoteStream = remoteStreamRef.current;
-        currentRemoteStream?.getVideoTracks().forEach((track) => {
-          currentRemoteStream.removeTrack(track);
-        });
-        if (currentRemoteStream) {
-          setRemoteStream(new MediaStream(currentRemoteStream.getTracks()));
-        }
         return;
       }
 
@@ -400,24 +362,38 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
       makingOfferRef.current = false;
       reportError(err.message || t('calls.connectionError'));
     }
-  }, [callState, chatId, currentUserId, ensurePeerConnection, flushIceCandidates, reportError, resetCall, sendSignal, t]);
+  }, [callState, chatId, currentUserId, ensurePeerConnection, flushIceCandidates, reportError, resetCall, sendSignal, startRingTimeout, t]);
 
   useEffect(() => {
     isMutedRef.current = isMuted;
   }, [isMuted]);
 
-  useEffect(() => () => resetCall(), [chatId, resetCall]);
+  useEffect(() => () => {
+    const activeCallId = callIdRef.current;
+    const activeSocket = socketRef.current;
+    if (activeCallId && activeSocket?.readyState === WebSocket.OPEN) {
+      try {
+        activeSocket.send(JSON.stringify({
+          event: isCallerRef.current ? 'call.cancel' : 'call.end',
+          call_id: activeCallId,
+          chat_id: chatId,
+        }));
+      } catch {
+        // The local cleanup still releases the microphone and peer connection.
+      }
+    }
+    resetCall();
+  }, [chatId, resetCall]);
 
   return {
     canUseCalls,
+    canSignalCall,
     callState,
     callId,
     remoteUserId,
     isMuted,
-    isScreenSharing,
     localStream,
     remoteStream,
-    screenStream,
     startedAt,
     statusText,
     startCall,
@@ -425,7 +401,6 @@ export function useDirectCall({ chatId, currentUserId, peer, socket, t, onError 
     rejectCall,
     endCall,
     toggleMute,
-    toggleScreenShare,
     handleSignal,
   };
 }

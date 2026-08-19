@@ -6,7 +6,7 @@
 - `api` — FastAPI-приложение;
 - `postgres` — основная база данных;
 - `redis` — инфраструктурный Redis для текущего контура и будущего масштабирования realtime;
-- `turn` — подготовленный, но пока выключенный coturn для будущих WebRTC-звонков;
+- `turn` — coturn для аудиозвонков WebRTC;
 - `caddy` — внешний reverse proxy с автоматическим HTTPS от Let's Encrypt.
 
 В этом варианте фронтенд, API и WebSocket находятся на одном домене, а медиафайлы — в S3-совместимом object storage:
@@ -170,8 +170,10 @@ NEXUS_EARLY_ACCESS_BYPASS_LIMIT=0
 ```
 
 Для публичного релиза укажите `NEXUS_EARLY_ACCESS_BYPASS_LIMIT=0`. Положительное значение включает ограничение на число активных аккаунтов и подходит только для закрытой беты.
-Параметры `NEXUS_TURN_*` и `VITE_RTC_ICE_SERVERS` пока можно оставить
-примерными: профиль `calls` по умолчанию выключен.
+
+Для аудиозвонков заполните `NEXUS_TURN_*`: домен, публичный IPv4 и секрет TURN.
+API выдаёт авторизованному пользователю краткоживущие учётные данные, поэтому
+секрет не попадает в JavaScript или в публичную конфигурацию сайта.
 
 ### Администратор и контактный номер
 
@@ -242,9 +244,10 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 4. web соберёт React-приложение и запустит Nginx;
 5. Caddy выпустит HTTPS-сертификат и начнёт принимать внешний трафик.
 
-`turn` не запускается по умолчанию: звонки пока не реализованы на backend,
-и API возвращает `calls_temporarily_unavailable`. Это не мешает чатам,
-вложениям, WebSocket и push-уведомлениям.
+Профиль `calls` нужен для coturn и включается отдельной командой после открытия
+UDP-портов, описанной ниже. Пока профиль не включён, интерфейс звонка покажет
+ошибку подключения, но чаты, вложения, WebSocket и push-уведомления продолжат
+работать независимо.
 
 Перед `up` можно проверить итоговую конфигурацию без запуска контейнеров:
 
@@ -296,10 +299,11 @@ pip install -r requirements.txt
 .venv/bin/python -c "import base64; from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat; from py_vapid import Vapid; v=Vapid(); v.generate_keys(); print('NEXUS_VAPID_PRIVATE_KEY=' + base64.urlsafe_b64encode(v.private_key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())).rstrip(b'=').decode()); print('NEXUS_VAPID_PUBLIC_KEY=' + base64.urlsafe_b64encode(v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)).rstrip(b'=').decode())"
 ```
 
-## 10. TURN/WebRTC-звонки (задел на будущее)
+## 10. TURN/WebRTC-аудиозвонки
 
-Сейчас запускать этот раздел не нужно: серверная сигнализация звонков ещё не
-реализована. Когда она появится, откройте порты в UFW и в панели FirstVPS:
+Звонки используют WebRTC: голос передаётся через coturn на этом же VPS, а API
+передаёт только служебные сигналы. Для устойчивой работы в мобильных сетях и за
+NAT откройте **те же** порты и в UFW, и в firewall-панели провайдера:
 
 ```bash
 sudo ufw allow 3478/tcp
@@ -307,27 +311,41 @@ sudo ufw allow 3478/udp
 sudo ufw allow 49160:49200/udp
 ```
 
-После этого включите профиль TURN:
-
-```bash
-docker compose --profile calls --env-file deploy/production.env -f deploy/compose.production.yml up -d
-```
-
-Фронтенд получает ICE-конфигурацию из runtime-переменной `VITE_RTC_ICE_SERVERS`. Значение — JSON-массив для `RTCPeerConnection`, например:
+Укажите в `deploy/production.env` реальные значения. `NEXUS_TURN_PUBLIC_HOST`
+должен быть доменом, A-запись которого указывает на этот VPS, а
+`NEXUS_TURN_EXTERNAL_IP` — его публичным IPv4:
 
 ```dotenv
-VITE_RTC_ICE_SERVERS=[{"urls":["stun:<ваш-домен>:3478","turn:<ваш-домен>:3478?transport=udp","turn:<ваш-домен>:3478?transport=tcp"],"username":"<turn-логин>","credential":"<turn-пароль>"}]
+NEXUS_TURN_REALM=<ваш-домен>
+NEXUS_TURN_PUBLIC_HOST=<ваш-домен>
+NEXUS_TURN_EXTERNAL_IP=<публичный-IPv4-VPS>
+NEXUS_TURN_SHARED_SECRET=<вывод openssl rand -hex 32>
+NEXUS_TURN_PORT=3478
+NEXUS_TURN_MIN_PORT=49160
+NEXUS_TURN_MAX_PORT=49200
 ```
 
-Текущая конфигурация использует static TURN credentials. Это нормально для первого production-baseline, но перед публичной нагрузкой лучше перейти на временные TURN credentials через backend endpoint.
+Запустите или обновите все сервисы вместе с профильным TURN-контейнером:
+
+```bash
+docker compose --profile calls --env-file deploy/production.env -f deploy/compose.production.yml up -d --build
+```
+
+Не задавайте `VITE_RTC_ICE_SERVERS`: браузер получает временные TURN-учётные
+данные по защищённому `/api/calls/ice-servers` после входа в аккаунт. Они действуют
+один час по умолчанию и не дают использовать ваш TURN посторонним.
 
 Проверить порты на сервере:
 
 ```bash
-sudo ss -lunpt | grep 3478
+sudo ss -lunpt | grep -E ':(3478|49160|49200)\b'
+docker compose --profile calls --env-file deploy/production.env -f deploy/compose.production.yml logs --tail=100 turn
 ```
 
-Проверить снаружи можно через WebRTC ICE checker, указав `turn:<домен>:3478?transport=udp`, username и credential из production env. Для реального smoke-check откройте direct chat у двух пользователей на разных сетях, начните звонок и включите демонстрацию экрана.
+Для реальной проверки войдите в два аккаунта с разных сетей (например, домашний
+Wi-Fi и мобильный интернет), откройте личный чат и проведите аудиозвонок. Первый
+релиз включает только голос: демонстрация экрана и видеозвонки намеренно не
+включены.
 
 ## 11. Smoke-check после запуска
 
@@ -347,7 +365,9 @@ sudo ss -lunpt | grep 3478
 12. Realtime-сообщения приходят во второй вкладке без обновления страницы.
 13. Загруженные файлы открываются по URL `https://<media-домен>/uploads/...` и имеют корректный `Content-Type`.
 14. Push-подписка включается в профиле/настройках, если заполнены VAPID-ключи.
-15. Проверка аудиозвонков и демонстрации экрана откладывается до реализации server-side call signaling.
+15. Аудиозвонок между двумя пользователями из разных сетей соединяется, звук идёт
+    в обе стороны, отключение микрофона и завершение звонка работают. В логах
+    `turn` нет ошибок аутентификации или назначения relay-портов.
 
 Дополнительно проверьте HTTP-заголовки и отсутствие открытых служебных портов:
 
@@ -364,7 +384,7 @@ sudo ss -lntup
 
 ```bash
 git pull
-docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --build
+docker compose --profile calls --env-file deploy/production.env -f deploy/compose.production.yml up -d --build
 ```
 
 API-контейнер при старте применяет миграции:
@@ -408,7 +428,7 @@ ARACHAT_REDIS_VOLUME=nexus-production_nexus_redis_data
 EOF
 sudo chmod 600 /etc/arachat/maintenance.env
 sudo systemctl daemon-reload
-sudo systemctl enable --now arachat-storage-status.timer arachat-host-cleanup.timer arachat-app-retention.timer
+sudo systemctl enable --now arachat-storage-status.timer arachat-host-cleanup.timer arachat-app-retention.timer arachat-scheduled-tasks.timer
 sudo systemctl start arachat-storage-status.service
 ```
 
@@ -418,6 +438,10 @@ sudo systemctl start arachat-storage-status.service
 `arachat-app-retention` запускает фиксированную команду внутри API-контейнера;
 ручной запуск из вкладки «Хранение» использует тот же прикладной механизм и
 защищён от параллельного запуска PostgreSQL advisory lock.
+
+`arachat-scheduled-tasks` запускается раз в минуту и публикует запланированные
+объявления Ara Updates, а также снимает истёкшие ограничения доступа. Он не
+принимает параметры из панели и вызывает только фиксированную команду приложения.
 
 Периоды прикладного retention по умолчанию:
 
@@ -442,8 +466,8 @@ sudo systemctl start arachat-storage-status.service
 
 ```bash
 sudo systemctl list-timers 'arachat-*'
-sudo systemctl status arachat-storage-status.service arachat-host-cleanup.service arachat-app-retention.service
-sudo journalctl -u arachat-host-cleanup.service -u arachat-app-retention.service --since '24 hours ago'
+sudo systemctl status arachat-storage-status.service arachat-host-cleanup.service arachat-app-retention.service arachat-scheduled-tasks.service
+sudo journalctl -u arachat-host-cleanup.service -u arachat-app-retention.service -u arachat-scheduled-tasks.service --since '24 hours ago'
 cat /var/lib/arachat/maintenance/storage-status.json
 docker system df
 df -h /

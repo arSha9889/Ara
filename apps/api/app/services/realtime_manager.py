@@ -66,5 +66,13 @@ class RealtimeManager:
         for websocket in stale_connections:
             await self.disconnect(websocket)
 
+    async def disconnect_user(self, user_id: UUID, code: int = 1008) -> None:
+        for websocket in list(self._user_connections.get(user_id, set())):
+            try:
+                await websocket.close(code=code)
+            except (RuntimeError, WebSocketDisconnect):
+                pass
+            await self.disconnect(websocket)
+
 
 realtime_manager = RealtimeManager()

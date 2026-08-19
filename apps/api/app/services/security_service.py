@@ -14,6 +14,7 @@ from app.models.users import User, UserProfile
 from app.schemas.users import UserOut
 from app.services.auth_service import issue_session_for_user
 from app.services.email_verification_service import EmailVerificationError, normalize_email
+from app.services.user_access_service import user_can_access
 
 
 class SecurityError(ValueError):
@@ -74,7 +75,7 @@ async def login_with_pin(session: AsyncSession, identifier: str, pin: str, devic
         raise SecurityError('Invalid login identifier or PIN')
     if user.status == 'deleted' or user.deleted_at:
         raise SecurityError('Account has been deleted')
-    if user.status != 'active':
+    if not await user_can_access(session, user):
         raise SecurityError('Invalid login identifier or PIN')
 
     trusted_pin = await _get_active_pin_for_device(session, user.id, device_id)

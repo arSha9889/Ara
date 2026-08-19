@@ -92,6 +92,10 @@ services:
       NEXUS_VAPID_PRIVATE_KEY: ${NEXUS_VAPID_PRIVATE_KEY:-}
       NEXUS_VAPID_PUBLIC_KEY: ${NEXUS_VAPID_PUBLIC_KEY:-}
       NEXUS_VAPID_CLAIMS_EMAIL: ${NEXUS_VAPID_CLAIMS_EMAIL:-}
+      NEXUS_TURN_PUBLIC_HOST: ${NEXUS_TURN_PUBLIC_HOST:-}
+      NEXUS_TURN_SHARED_SECRET: ${NEXUS_TURN_SHARED_SECRET:-}
+      NEXUS_TURN_PORT: ${NEXUS_TURN_PORT:-3478}
+      NEXUS_TURN_CREDENTIAL_TTL_SECONDS: ${NEXUS_TURN_CREDENTIAL_TTL_SECONDS:-3600}
       NEXUS_ACCESS_TOKEN_MINUTES: ${NEXUS_ACCESS_TOKEN_MINUTES:-15}
       NEXUS_REFRESH_TOKEN_DAYS: ${NEXUS_REFRESH_TOKEN_DAYS:-180}
       NEXUS_PIN_TRUSTED_DAYS: ${NEXUS_PIN_TRUSTED_DAYS:-365}
@@ -124,7 +128,6 @@ services:
       NEXUS_API_UPSTREAM: http://api:8000
       VITE_API_BASE_URL: ""
       VITE_WS_BASE_URL: ""
-      VITE_RTC_ICE_SERVERS: ${VITE_RTC_ICE_SERVERS:-}
     depends_on:
       api:
         condition: service_healthy
@@ -139,16 +142,24 @@ services:
     network_mode: host
     command:
       - --realm=${NEXUS_TURN_REALM:?Set NEXUS_TURN_REALM in deploy/production.env}
-      - --server-name=${NEXUS_TURN_REALM:?Set NEXUS_TURN_REALM in deploy/production.env}
-      - --listening-port=3478
-      - --tls-listening-port=5349
+      - --server-name=${NEXUS_TURN_PUBLIC_HOST:?Set NEXUS_TURN_PUBLIC_HOST in deploy/production.env}
+      - --listening-port=${NEXUS_TURN_PORT:-3478}
       - --min-port=${NEXUS_TURN_MIN_PORT:-49160}
       - --max-port=${NEXUS_TURN_MAX_PORT:-49200}
       - --external-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/production.env}
-      - --user=${NEXUS_TURN_USERNAME:?Set NEXUS_TURN_USERNAME in deploy/production.env}:${NEXUS_TURN_PASSWORD:?Set NEXUS_TURN_PASSWORD in deploy/production.env}
       - --fingerprint
       - --lt-cred-mech
+      - --use-auth-secret
+      - --static-auth-secret=${NEXUS_TURN_SHARED_SECRET:?Set NEXUS_TURN_SHARED_SECRET in deploy/production.env}
+      - --stale-nonce=600
+      - --user-quota=12
       - --no-multicast-peers
+      - --no-loopback-peers
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
       - --no-cli
       - --no-tls
       - --no-dtls

@@ -7,12 +7,12 @@ from uuid import UUID, uuid4
 
 from pywebpush import WebPushException, webpush
 from py_vapid import Vapid
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.chats import ChatParticipant, Message, Notification, PushSubscription
-from app.models.users import UserProfile
+from app.models.chats import ChatParticipant, Message, Notification, PushSubscription, SystemAnnouncement
+from app.models.users import User, UserProfile
 from app.schemas.chats import MessageOut, NotificationOut, PushSubscriptionCreateRequest
 from app.services.localization import message_preview, tr
 from app.services.realtime_manager import realtime_manager
@@ -148,6 +148,74 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
             {'event': 'notification.created', 'notification': payload.model_dump(mode='json')},
         )
         await _send_push_to_user(session, notification.recipient_user_id, payload)
+
+
+async def create_announcement_notifications(
+    session: AsyncSession,
+    announcement: SystemAnnouncement,
+    message: MessageOut,
+) -> tuple[dict[str, int], list[Notification]]:
+    recipients = await _announcement_recipient_ids(session, announcement)
+    existing_recipient_ids = set((await session.execute(
+        select(Notification.recipient_user_id).where(Notification.announcement_id == announcement.id)
+    )).scalars())
+    recipients = [user_id for user_id in recipients if user_id not in existing_recipient_ids]
+
+    sender = await session.get(UserProfile, message.sender_id)
+    title = sender.display_name if sender else 'AraChat'
+    recipient_languages = dict((await session.execute(
+        select(UserProfile.user_id, UserProfile.language).where(UserProfile.user_id.in_(recipients))
+    )).all()) if recipients else {}
+    notifications = [
+        Notification(
+            recipient_user_id=recipient_id,
+            chat_id=message.chat_id,
+            message_id=message.id,
+            announcement_id=announcement.id,
+            title=title,
+            body=message_preview(recipient_languages.get(recipient_id), message.type, message.payload, message.media_name),
+            url=f'/app/chats/{message.chat_id}',
+        )
+        for recipient_id in recipients
+    ]
+    if notifications:
+        session.add_all(notifications)
+        await session.flush()
+
+    recipient_count = int((await session.execute(
+        select(func.count()).select_from(Notification).where(Notification.announcement_id == announcement.id)
+    )).scalar_one())
+    return {
+        'recipient_count': recipient_count,
+        'notification_count': recipient_count,
+    }, notifications
+
+
+async def deliver_announcement_notifications(session: AsyncSession, notifications: list[Notification]) -> int:
+    push_provider_accepted = 0
+    for notification in notifications:
+        payload = _notification_out(notification)
+        await realtime_manager.broadcast_to_user(
+            notification.recipient_user_id,
+            {'event': 'notification.created', 'notification': payload.model_dump(mode='json')},
+        )
+        if await _send_push_to_user(session, notification.recipient_user_id, payload):
+            push_provider_accepted += 1
+    return push_provider_accepted
+
+
+async def _announcement_recipient_ids(session: AsyncSession, announcement: SystemAnnouncement) -> list[UUID]:
+    statement = select(User.id).where(User.deleted_at.is_(None), User.status == 'active')
+    if announcement.audience_type == 'country':
+        statement = statement.join(UserProfile, UserProfile.user_id == User.id).where(
+            UserProfile.registration_country == announcement.audience_country,
+        )
+    elif announcement.audience_type == 'branch':
+        statement = statement.join(ChatParticipant, ChatParticipant.user_id == User.id).where(
+            ChatParticipant.chat_id == announcement.audience_branch_id,
+            ChatParticipant.role == 'member',
+        )
+    return list((await session.execute(statement)).scalars())
 
 
 async def create_branch_comment_notification(

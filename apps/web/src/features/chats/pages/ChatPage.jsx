@@ -536,7 +536,7 @@ function BranchCommentsPanel({ branch, post, session, language, t, event, onClos
 export function ChatPage() {
   const { language, t } = useI18n();
   const { chatId } = useParams();
-  const { lastNotification, markMessageNotificationsRead } = useNotifications();
+  const { incomingCall, lastNotification, markMessageNotificationsRead, consumeIncomingCall } = useNotifications();
   const { session } = useSession();
   const { effectiveMode } = useLayoutMode();
   const navigate = useNavigate();
@@ -568,7 +568,6 @@ export function ChatPage() {
   const [isComposerEmojiPickerOpen, setIsComposerEmojiPickerOpen] = useState(false);
   const [recordingMode, setRecordingMode] = useState('voice');
   const [selectedVideoPreviewUrl, setSelectedVideoPreviewUrl] = useState('');
-  const [isCallUnavailableDialogOpen, setIsCallUnavailableDialogOpen] = useState(false);
   const [isChatActionsOpen, setIsChatActionsOpen] = useState(false);
   const [isHideChatDialogOpen, setIsHideChatDialogOpen] = useState(false);
   const [isHidingChat, setIsHidingChat] = useState(false);
@@ -624,6 +623,7 @@ export function ChatPage() {
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || t('chats.branchTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || t('chats.publicBranchSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
   const call = useDirectCall({
+    accessToken: session.accessToken,
     chatId,
     currentUserId: session.user?.id,
     peer: chat?.peer,
@@ -631,6 +631,8 @@ export function ChatPage() {
     t,
     onError: setError,
   });
+  const callSignalHandlerRef = useRef(call.handleSignal);
+  callSignalHandlerRef.current = call.handleSignal;
 
   async function loadMessages({ preserveMessages = false } = {}) {
     if (!isChatIdValid) return;
@@ -706,6 +708,14 @@ export function ChatPage() {
     // Resyncing here recovers a message if that socket missed an event while reconnecting.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, isChatIdValid, lastNotification?.id, session.accessToken]);
+
+  useEffect(() => {
+    if (!incomingCall || incomingCall.chat_id !== chatId || !call.canSignalCall) return;
+    if (call.callId !== incomingCall.call_id) {
+      void call.handleSignal(incomingCall);
+    }
+    consumeIncomingCall(incomingCall.call_id);
+  }, [call.callId, call.canSignalCall, call.handleSignal, chatId, consumeIncomingCall, incomingCall]);
 
   useLayoutEffect(() => {
     if (!usesFocusedMobileWorkspace) return undefined;
@@ -784,6 +794,7 @@ export function ChatPage() {
       socket.addEventListener('message', (event) => {
         const payload = JSON.parse(event.data);
         if (payload.event?.startsWith('call.')) {
+          void callSignalHandlerRef.current?.(payload);
           return;
         }
         if (payload.event === 'connection.authenticated') {
@@ -1635,9 +1646,10 @@ export function ChatPage() {
           <button
             className="chat-call-button"
             type="button"
-            onClick={() => setIsCallUnavailableDialogOpen(true)}
+            onClick={() => void call.startCall()}
+            disabled={!call.canUseCalls}
             aria-label={t('calls.start')}
-            title={t('calls.temporarilyUnavailable')}
+            title={call.canUseCalls ? t('calls.start') : t('calls.unavailable')}
           >
             <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
             <strong>{t('calls.call')}</strong>
@@ -1693,19 +1705,6 @@ export function ChatPage() {
           </div>
         ) : null}
       </header>
-      {isCallUnavailableDialogOpen ? (
-        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setIsCallUnavailableDialogOpen(false)}>
-          <section className="app-dialog call-unavailable-dialog" role="dialog" aria-modal="true" aria-labelledby="call-unavailable-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="app-dialog-icon" aria-hidden="true"><Icon name="phone" size={23} /></div>
-            <div className="app-dialog-copy">
-              <p className="eyebrow">AraChat</p>
-              <h2 id="call-unavailable-title">{t('calls.temporarilyUnavailable')}</h2>
-              <p>{t('calls.temporarilyUnavailableText')}</p>
-            </div>
-            <button className="button button-primary" type="button" onClick={() => setIsCallUnavailableDialogOpen(false)}>{t('common.gotIt')}</button>
-          </section>
-        </div>
-      ) : null}
       {isHideChatDialogOpen ? (
         <div className="app-dialog-backdrop chat-hide-dialog-backdrop" role="presentation" onMouseDown={() => setIsHideChatDialogOpen(false)}>
           <section className="app-dialog chat-hide-dialog" role="dialog" aria-modal="true" aria-labelledby="hide-chat-title" onMouseDown={(event) => event.stopPropagation()}>

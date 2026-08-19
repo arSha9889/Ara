@@ -22,10 +22,21 @@ class AdminUserListItemOut(BaseModel):
     is_official: bool
 
 
+class AdminUserRestrictionOut(BaseModel):
+    id: UUID
+    reason: str
+    note: str | None
+    started_at: datetime
+    ends_at: datetime | None
+    lifted_at: datetime | None
+
+
 class AdminUserOut(AdminUserListItemOut):
     phone: str | None
     email: str | None
     vpn_enabled: bool
+    active_restriction: AdminUserRestrictionOut | None = None
+    restrictions: list[AdminUserRestrictionOut] = Field(default_factory=list)
 
 
 class AdminOverviewOut(BaseModel):
@@ -45,6 +56,12 @@ class AdminUserStatusRequest(BaseModel):
 
 class AdminUserVpnUpdateRequest(BaseModel):
     vpn_enabled: bool
+
+
+class AdminUserRestrictionCreateRequest(BaseModel):
+    reason: str = Field(pattern=r'^(spam|abuse|fraud|security|other)$')
+    note: str | None = Field(default=None, max_length=2000)
+    ends_at: datetime | None = None
 
 
 class AdminSecurityMetricsOut(BaseModel):
@@ -140,3 +157,39 @@ class AdminBranchMemberRequest(BaseModel):
 class AdminSystemBotOut(BaseModel):
     branch: AdminBranchOut
     messages: list[MessageOut]
+    announcements: list['AdminAnnouncementOut'] = Field(default_factory=list)
+
+
+class AdminAnnouncementCreateRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    audience_type: str = Field(default='all', pattern=r'^(all|country|branch)$')
+    audience_country: str | None = Field(default=None, max_length=8)
+    audience_branch_id: UUID | None = None
+    scheduled_at: datetime | None = None
+
+
+class AdminAnnouncementUpdateRequest(BaseModel):
+    text: str | None = Field(default=None, min_length=1, max_length=4000)
+    audience_type: str | None = Field(default=None, pattern=r'^(all|country|branch)$')
+    audience_country: str | None = Field(default=None, max_length=8)
+    audience_branch_id: UUID | None = None
+    scheduled_at: datetime | None = None
+
+
+class AdminAnnouncementOut(BaseModel):
+    id: UUID
+    text: str
+    audience_type: str
+    audience_country: str | None
+    audience_branch_id: UUID | None
+    status: str
+    scheduled_at: datetime | None
+    published_at: datetime | None
+    cancelled_at: datetime | None
+    recipient_count: int
+    notification_count: int
+    push_provider_accepted_count: int
+    read_count: int
+    message_id: UUID | None
+    created_at: datetime
+    updated_at: datetime

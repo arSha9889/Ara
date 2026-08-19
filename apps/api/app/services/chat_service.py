@@ -165,7 +165,14 @@ async def list_messages(session: AsyncSession, user_id: UUID, chat_id: UUID) -> 
     return [await _message_out(session, message, user_id) for message in result.scalars()]
 
 
-async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, request: MessageCreateRequest) -> MessageOut:
+async def create_message(
+    session: AsyncSession,
+    user_id: UUID,
+    chat_id: UUID,
+    request: MessageCreateRequest,
+    *,
+    commit: bool = True,
+) -> MessageOut:
     chat = await session.get(Chat, chat_id)
     if not chat:
         raise AuthError('Chat not found')
@@ -198,7 +205,10 @@ async def create_message(session: AsyncSession, user_id: UUID, chat_id: UUID, re
     chat.last_message_id = message.id
     await _activate_direct_chat_participants(session, chat_id)
     await _restore_hidden_chat_recipients(session, chat_id, user_id)
-    await session.commit()
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
     return await _message_out(session, message, user_id)
 
 

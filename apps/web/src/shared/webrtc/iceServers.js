@@ -1,10 +1,3 @@
-import { getRuntimeConfigValue } from '../config/runtimeConfig.js';
-
-const DEFAULT_ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-];
-
 function normalizeUrls(urls) {
   if (typeof urls === 'string' && urls.trim()) return urls.trim();
   if (Array.isArray(urls)) {
@@ -25,22 +18,14 @@ function normalizeIceServer(server) {
   };
 }
 
-export function getRtcIceServers() {
-  const rawConfig = getRuntimeConfigValue('VITE_RTC_ICE_SERVERS') || import.meta.env.VITE_RTC_ICE_SERVERS || '';
-  if (!rawConfig.trim()) return DEFAULT_ICE_SERVERS;
-
-  try {
-    const parsed = JSON.parse(rawConfig);
-    if (!Array.isArray(parsed)) return DEFAULT_ICE_SERVERS;
-    const servers = parsed.map(normalizeIceServer).filter(Boolean);
-    return servers.length ? servers : DEFAULT_ICE_SERVERS;
-  } catch {
-    return DEFAULT_ICE_SERVERS;
-  }
+export function getRtcIceServers(servers) {
+  if (!Array.isArray(servers)) return [];
+  return servers.map(normalizeIceServer).filter(Boolean);
 }
 
-export function getRtcConfiguration() {
+export function getRtcConfiguration(iceServers) {
   return {
-    iceServers: getRtcIceServers(),
+    iceServers: getRtcIceServers(iceServers),
+    iceTransportPolicy: 'relay',
   };
 }

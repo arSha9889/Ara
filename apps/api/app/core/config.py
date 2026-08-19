@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     vapid_private_key: str = ''
     vapid_public_key: str = ''
     vapid_claims_email: str = ''
+    turn_public_host: str = ''
+    turn_shared_secret: str = ''
+    turn_port: int = Field(default=3478, ge=1, le=65535)
+    turn_credential_ttl_seconds: int = Field(default=3600, ge=60, le=86400)
     maintenance_status_file: str = '/var/lib/arachat/maintenance/storage-status.json'
     verification_retention_days: int = Field(default=30, ge=1)
     oauth_attempt_retention_days: int = Field(default=7, ge=1)
