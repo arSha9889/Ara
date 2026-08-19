@@ -207,7 +207,7 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
   }, [reportError, resetCall, sendSignal, t]);
 
   const startCall = useCallback(async () => {
-    if (!canUseCalls || callState !== 'idle') return;
+    if (!canUseCalls || !canSignalCall || callState !== 'idle') return;
 
     const nextCallId = createCallId(chatId);
     try {
@@ -241,6 +241,8 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
       if (!sendSignal({ event: 'call.accept', call_id: callIdRef.current })) {
         throw new Error(t('calls.connectionError'));
       }
+      window.clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
       setStatusText(t('calls.connectingCall'));
     } catch (err) {
       sendSignal({ event: 'call.reject', call_id: callIdRef.current, reason: 'media_failed' });
@@ -278,7 +280,12 @@ export function useDirectCall({ accessToken, chatId, currentUserId, peer, socket
     try {
       if (payload.event === 'call.failed') {
         if (!payload.call_id || payload.call_id !== callIdRef.current) return;
-        reportError(payload.reason === 'peer_busy' ? t('calls.peerBusy') : t('calls.connectionError'));
+        const errorMessage = payload.reason === 'peer_busy'
+          ? t('calls.peerBusy')
+          : payload.reason === 'peer_offline'
+            ? t('calls.peerOffline')
+            : t('calls.connectionError');
+        reportError(errorMessage);
         resetCall();
         return;
       }

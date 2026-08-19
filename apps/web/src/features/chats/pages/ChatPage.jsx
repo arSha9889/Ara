@@ -1647,9 +1647,9 @@ export function ChatPage() {
             className="chat-call-button"
             type="button"
             onClick={() => void call.startCall()}
-            disabled={!call.canUseCalls}
+            disabled={!call.canUseCalls || !call.canSignalCall}
             aria-label={t('calls.start')}
-            title={call.canUseCalls ? t('calls.start') : t('calls.unavailable')}
+            title={call.canUseCalls && call.canSignalCall ? t('calls.start') : t('calls.unavailable')}
           >
             <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
             <strong>{t('calls.call')}</strong>
