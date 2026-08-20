@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.schemas.chats import MessageOut
+from app.schemas.safety import AdminContentReportOut
 
 
 class AdminCountryOut(BaseModel):
@@ -62,6 +63,10 @@ class AdminUserRestrictionCreateRequest(BaseModel):
     reason: str = Field(pattern=r'^(spam|abuse|fraud|security|other)$')
     note: str | None = Field(default=None, max_length=2000)
     ends_at: datetime | None = None
+
+
+class AdminContentReportListOut(BaseModel):
+    reports: list[AdminContentReportOut]
 
 
 class AdminSecurityMetricsOut(BaseModel):

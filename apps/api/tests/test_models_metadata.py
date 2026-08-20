@@ -21,6 +21,8 @@ def test_web_core_tables_are_registered() -> None:
         'messages',
         'message_reactions',
         'message_receipts',
+        'mobile_push_tokens',
+        'content_reports',
         'telegram_recovery_requests',
         'phone_verifications',
         'email_verifications',
@@ -28,6 +30,7 @@ def test_web_core_tables_are_registered() -> None:
         'oauth_attempts',
         'audit_logs',
         'stored_objects',
+        'user_blocks',
     }
 
     assert expected_tables.issubset(set(Base.metadata.tables))

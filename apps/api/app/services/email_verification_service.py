@@ -197,7 +197,10 @@ def _generate_code() -> str:
 
 
 def _is_expired(verification: EmailVerification) -> bool:
-    return verification.expires_at <= datetime.now(timezone.utc)
+    expires_at = verification.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at <= datetime.now(timezone.utc)
 
 
 async def _get_verification_for_update(session: AsyncSession, verification_id: UUID) -> EmailVerification | None:

@@ -272,8 +272,8 @@ async def test_smtp_code_is_hashed_bound_to_device_and_single_use(anyio_backend,
 
     delivered_codes = []
 
-    async def capture_email_code(email, code, purpose, expires_in_minutes):
-        delivered_codes.append((email, code, purpose, expires_in_minutes))
+    async def capture_email_code(email, code, purpose, expires_in_minutes, language):
+        delivered_codes.append((email, code, purpose, expires_in_minutes, language))
 
     monkeypatch.setattr('app.services.email_verification_service.send_verification_code', capture_email_code)
     engine = create_async_engine('sqlite+aiosqlite:///:memory:')
@@ -293,7 +293,7 @@ async def test_smtp_code_is_hashed_bound_to_device_and_single_use(anyio_backend,
             code = delivered_codes[0][1]
             wrong_code = '000000' if code != '000000' else '000001'
 
-            assert delivered_codes == [('new.user@example.test', code, 'registration', 10)]
+            assert delivered_codes == [('new.user@example.test', code, 'registration', 10, 'ru')]
             assert verification.code_hash and code not in verification.code_hash
 
             with pytest.raises(EmailVerificationError, match='Invalid e-mail confirmation code'):
@@ -349,6 +349,7 @@ async def test_oauth_requires_existing_manual_link_and_binds_result_to_device(an
         return 'yandex-subject-42' if state == 'link-state' else 'unlinked-yandex-subject'
 
     monkeypatch.setattr(oauth_service, '_exchange_code_and_get_subject', fake_exchange)
+    monkeypatch.setattr(oauth_service.settings, 'public_base_url', 'https://app.example.test')
     engine = create_async_engine('sqlite+aiosqlite:///:memory:')
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:

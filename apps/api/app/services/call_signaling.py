@@ -166,6 +166,16 @@ class CallSignalingManager:
             self._remove_call_locked(call_id)
             return [(recipient_user_id, session)]
 
+    async def end_call_between_users(self, first_user_id: UUID, second_user_id: UUID) -> CallSession | None:
+        async with self._lock:
+            self._remove_expired_calls_locked()
+            call_id = self._user_call_ids.get(first_user_id)
+            session = self._calls.get(call_id) if call_id else None
+            if not session or {session.caller_user_id, session.callee_user_id} != {first_user_id, second_user_id}:
+                return None
+            self._remove_call_locked(call_id)
+            return session
+
     def _remove_expired_calls_locked(self) -> None:
         now = monotonic()
         for call_id, session in list(self._calls.items()):

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import get_current_user
 from app.db.session import get_db_session
 from app.schemas.users import ProfileUpdateRequest, PublicUserOut, UserOut, UsernameCheckRequest, UsernameCheckResponse, UsernameUpdateRequest
+from app.api.routes._responses import domain_error_response
 from app.services.auth_service import AuthError
 from app.services.user_service import find_public_user, get_current_user_out, is_username_available, search_users, update_profile, update_username
 
@@ -38,7 +39,7 @@ async def search(
     current_user: Annotated[UserOut, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> list[PublicUserOut]:
-    return await search_users(session, query)
+    return await search_users(session, query, current_user.id)
 
 
 @router.get('/{nexus_id_or_username}')
@@ -48,9 +49,9 @@ async def get_user(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PublicUserOut:
     try:
-        return await find_public_user(session, nexus_id_or_username)
+        return await find_public_user(session, nexus_id_or_username, current_user.id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_404_NOT_FOUND)
 
 
 @router.post('/username/check')

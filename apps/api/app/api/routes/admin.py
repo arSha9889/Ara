@@ -18,6 +18,7 @@ from app.schemas.admin import (
     AdminBranchUpdateRequest,
     AdminMaintenanceOut,
     AdminOverviewOut,
+    AdminContentReportListOut,
     AdminRetentionRunOut,
     AdminSecurityMetricsOut,
     AdminSystemBotOut,
@@ -28,6 +29,7 @@ from app.schemas.admin import (
     AdminUserVpnUpdateRequest,
 )
 from app.schemas.chats import MessageCreateRequest, MessageOut, MessageUpdateRequest
+from app.schemas.safety import AdminContentReportOut, ContentReportModerationRequest
 from app.schemas.users import UserOut
 from app.services.admin_service import (
     AdminError,
@@ -48,6 +50,7 @@ from app.models.chats import ChatParticipant
 from app.services.notification_service import create_message_notifications
 from app.services.realtime_manager import realtime_manager
 from app.services.retention_service import RetentionError, preview_retention, read_host_storage_status, run_retention
+from app.services.safety_service import SafetyError, list_admin_reports, moderate_content_report
 from app.services.system_bot_service import (
     cancel_system_announcement,
     create_system_announcement,
@@ -62,6 +65,33 @@ from app.services.system_bot_service import (
 
 
 router = APIRouter()
+
+
+@router.get('/reports', response_model=AdminContentReportListOut)
+async def get_content_reports(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    report_status: str | None = Query(default=None, pattern=r'^(open|under_review|resolved|dismissed)$'),
+) -> AdminContentReportListOut:
+    try:
+        return AdminContentReportListOut(reports=await list_admin_reports(session, current_user.id, report_status))
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
+@router.patch('/reports/{report_id}', response_model=AdminContentReportOut)
+async def patch_content_report(
+    report_id: UUID,
+    request: ContentReportModerationRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminContentReportOut:
+    try:
+        return await moderate_content_report(session, current_user.id, report_id, request)
+    except AdminError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except SafetyError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
 
 async def _broadcast_system_bot_event(session: AsyncSession, chat_id: UUID, event: str, message: MessageOut) -> None:

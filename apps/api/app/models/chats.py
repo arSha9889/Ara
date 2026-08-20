@@ -116,6 +116,26 @@ class PushSubscription(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class MobilePushToken(Base):
+    __tablename__ = 'mobile_push_tokens'
+    __table_args__ = (
+        UniqueConstraint('user_id', 'device_id', 'provider', name='uq_mobile_push_tokens_user_device_provider'),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    device_id: Mapped[str] = mapped_column(String(128), index=True)
+    platform: Mapped[str] = mapped_column(String(16), default='android')
+    provider: Mapped[str] = mapped_column(String(32))
+    package_name: Mapped[str] = mapped_column(String(255))
+    app_version: Mapped[str | None] = mapped_column(String(64))
+    token: Mapped[str] = mapped_column(Text, unique=True)
+    is_active: Mapped[bool] = mapped_column(default=True, index=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Notification(Base):
     __tablename__ = 'notifications'
     __table_args__ = (

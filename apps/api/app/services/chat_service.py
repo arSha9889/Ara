@@ -11,6 +11,7 @@ from app.services.branch_service import can_post_to_branch, ensure_official_bran
 from app.services.auth_service import AuthError
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
+from app.services.safety_service import ensure_chat_interaction_allowed, ensure_direct_interaction_allowed
 from app.services.stored_object_service import attach_upload_to_message, schedule_message_upload_deletion
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'file'}
@@ -42,7 +43,14 @@ async def list_chats(session: AsyncSession, user_id: UUID) -> list[ChatOut]:
         )
         .order_by(Chat.updated_at.desc())
     )
-    return [await _chat_out(session, chat, user_id) for chat in result.scalars()]
+    visible_chats = []
+    for chat in result.scalars():
+        try:
+            await ensure_chat_interaction_allowed(session, user_id, chat)
+        except AuthError:
+            continue
+        visible_chats.append(await _chat_out(session, chat, user_id))
+    return visible_chats
 
 
 async def create_or_get_direct_chat(session: AsyncSession, user_id: UUID, country: str, phone: str) -> ChatOut:
@@ -56,6 +64,7 @@ async def create_or_get_direct_chat_for_user(session: AsyncSession, user_id: UUI
         raise AuthError('User not found')
     if other_user.id == user_id:
         raise AuthError('Cannot create direct chat with yourself')
+    await ensure_direct_interaction_allowed(session, user_id, other_user.id)
 
     existing = await session.execute(
         select(ChatParticipant.chat_id)
@@ -116,9 +125,8 @@ async def hide_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> None
     chat = await session.get(Chat, chat_id)
     if not chat or chat.type != 'direct':
         raise AuthError('Only direct chats can be hidden')
+    await _ensure_can_view(session, user_id, chat)
     participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
-    if not participant:
-        raise AuthError('Chat not found')
     participant.hidden_at = datetime.now(timezone.utc)
     await session.commit()
 
@@ -127,9 +135,8 @@ async def restore_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> C
     chat = await session.get(Chat, chat_id)
     if not chat or chat.type != 'direct':
         raise AuthError('Only direct chats can be restored')
+    await _ensure_can_view(session, user_id, chat)
     participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
-    if not participant:
-        raise AuthError('Chat not found')
     participant.hidden_at = None
     await session.commit()
     return await _chat_out(session, chat, user_id)
@@ -277,7 +284,7 @@ async def toggle_reaction(session: AsyncSession, user_id: UUID, chat_id: UUID, m
         raise AuthError('Chat not found')
     if chat.type == 'branch':
         raise AuthError('Reactions are unavailable in public branches')
-    await _ensure_participant(session, user_id, chat_id)
+    await _ensure_can_view(session, user_id, chat)
     message = await session.get(Message, message_id)
     if not message or message.chat_id != chat_id:
         raise AuthError('Message not found')
@@ -411,6 +418,7 @@ async def _ensure_can_view(session: AsyncSession, user_id: UUID, chat: Chat) -> 
             raise AuthError('Public branch not found')
         return
     await _ensure_participant(session, user_id, chat.id)
+    await ensure_chat_interaction_allowed(session, user_id, chat)
 
 
 async def _ensure_can_post(session: AsyncSession, user_id: UUID, chat: Chat) -> None:
@@ -419,6 +427,7 @@ async def _ensure_can_post(session: AsyncSession, user_id: UUID, chat: Chat) -> 
             raise AuthError('Only branch administrators can post')
         return
     await _ensure_participant(session, user_id, chat.id)
+    await ensure_chat_interaction_allowed(session, user_id, chat)
 
 
 async def _activate_direct_chat_participants(session: AsyncSession, chat_id: UUID) -> None:
@@ -474,6 +483,7 @@ async def _create_delivery_receipts(session: AsyncSession, message: Message) -> 
 
 
 async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | None = None) -> ChatOut:
+    await session.refresh(chat)
     result = await session.execute(select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat.id))
     participant_ids = list(result.scalars())
     wallpaper_id = 'default'

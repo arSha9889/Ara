@@ -11,11 +11,12 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.chats import ChatParticipant, Message, Notification, PushSubscription, SystemAnnouncement
+from app.models.chats import Chat, ChatParticipant, Message, MobilePushToken, Notification, PushSubscription, SystemAnnouncement
 from app.models.users import User, UserProfile
-from app.schemas.chats import MessageOut, NotificationOut, PushSubscriptionCreateRequest
+from app.schemas.chats import MessageOut, MobilePushTokenRegisterRequest, NotificationOut, PushSubscriptionCreateRequest
 from app.services.localization import message_preview, tr
 from app.services.realtime_manager import realtime_manager
+from app.services.safety_service import is_user_interaction_blocked
 
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,90 @@ async def remove_push_subscription(session: AsyncSession, user_id: UUID, endpoin
         await session.commit()
 
 
+async def save_mobile_push_token(
+    session: AsyncSession,
+    user_id: UUID,
+    request: MobilePushTokenRegisterRequest,
+) -> MobilePushToken:
+    try:
+        matching_token = await session.scalar(select(MobilePushToken).where(MobilePushToken.token == request.token))
+        matching_device = await session.scalar(
+            select(MobilePushToken).where(
+                MobilePushToken.user_id == user_id,
+                MobilePushToken.device_id == request.device_id,
+                MobilePushToken.provider == request.provider,
+            )
+        )
+        now = datetime.now(timezone.utc)
+        if matching_token and matching_device and matching_device.id != matching_token.id:
+            await session.delete(matching_device)
+            await session.flush()
+            token = matching_token
+            token.user_id = user_id
+            token.device_id = request.device_id
+            token.provider = request.provider
+            token.package_name = request.package_name
+            token.app_version = request.app_version
+            token.is_active = True
+            token.last_seen_at = now
+        elif matching_token:
+            token = matching_token
+            token.user_id = user_id
+            token.device_id = request.device_id
+            token.provider = request.provider
+            token.package_name = request.package_name
+            token.app_version = request.app_version
+            token.is_active = True
+            token.last_seen_at = now
+        elif matching_device:
+            token = matching_device
+            token.package_name = request.package_name
+            token.app_version = request.app_version
+            token.token = request.token
+            token.is_active = True
+            token.last_seen_at = now
+        else:
+            token = MobilePushToken(
+                user_id=user_id,
+                device_id=request.device_id,
+                provider=request.provider,
+                package_name=request.package_name,
+                app_version=request.app_version,
+                token=request.token,
+                is_active=True,
+                last_seen_at=now,
+            )
+            session.add(token)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    await session.refresh(token)
+    return token
+
+
+async def deactivate_mobile_push_tokens(
+    session: AsyncSession,
+    user_id: UUID,
+    device_id: str,
+    provider: str | None = None,
+) -> None:
+    statement = select(MobilePushToken).where(
+        MobilePushToken.user_id == user_id,
+        MobilePushToken.device_id == device_id,
+        MobilePushToken.is_active.is_(True),
+    )
+    if provider:
+        statement = statement.where(MobilePushToken.provider == provider)
+    tokens = (await session.execute(statement)).scalars()
+    changed = False
+    for token in tokens:
+        token.is_active = False
+        changed = True
+    if changed:
+        await session.commit()
+
+
 async def list_notifications(session: AsyncSession, user_id: UUID, limit: int = 40) -> list[NotificationOut]:
     result = await session.execute(
         select(Notification)
@@ -119,6 +204,12 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
             ChatParticipant.user_id != message.sender_id,
         )
     )).scalars())
+    chat = await session.get(Chat, message.chat_id)
+    if chat and chat.type == 'direct':
+        recipients = [
+            recipient_id for recipient_id in recipients
+            if not await is_user_interaction_blocked(session, message.sender_id, recipient_id)
+        ]
     if not recipients:
         return
 
@@ -252,6 +343,7 @@ async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> b
     profile = await session.get(UserProfile, user_id)
     notification = NotificationOut(
         id=uuid4(),
+        notification_id=uuid4(),
         chat_id=None,
         message_id=None,
         title='AraChat',
@@ -264,23 +356,47 @@ async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> b
 
 
 async def _send_push_to_user(session: AsyncSession, user_id: UUID, notification: NotificationOut) -> bool:
-    if not web_push_is_configured():
-        return False
-    subscriptions = list((await session.execute(
-        select(PushSubscription).where(
-            PushSubscription.user_id == user_id,
-            PushSubscription.is_active.is_(True),
-        )
-    )).scalars())
     delivered = False
-    for subscription in subscriptions:
-        result = await asyncio.to_thread(_send_push, subscription, notification)
-        delivered = delivered or result.delivered
-        if result.expired:
-            await session.delete(subscription)
+    subscriptions: list[PushSubscription] = []
+    if web_push_is_configured():
+        subscriptions = list((await session.execute(
+            select(PushSubscription).where(
+                PushSubscription.user_id == user_id,
+                PushSubscription.is_active.is_(True),
+            )
+        )).scalars())
+        for subscription in subscriptions:
+            result = await asyncio.to_thread(_send_push, subscription, notification)
+            delivered = delivered or result.delivered
+            if result.expired:
+                await session.delete(subscription)
     if subscriptions:
         await session.commit()
+    mobile_tokens = list((await session.execute(
+        select(MobilePushToken).where(
+            MobilePushToken.user_id == user_id,
+            MobilePushToken.is_active.is_(True),
+        )
+    )).scalars())
+    for token in mobile_tokens:
+        result = await _send_mobile_push(token, notification)
+        delivered = delivered or result.delivered
+        if result.expired:
+            token.is_active = False
+    if mobile_tokens:
+        await session.commit()
     return delivered
+
+
+async def _send_mobile_push(token: MobilePushToken, notification: NotificationOut) -> PushDeliveryResult:
+    # A provider adapter is intentionally not selected before it is verified on real
+    # RuStore and direct-APK devices. Tokens remain registered for the later adapter.
+    logger.info(
+        'Mobile Push delivery skipped for token %s: provider %s is not configured',
+        token.id,
+        token.provider,
+    )
+    return PushDeliveryResult(delivered=False)
 
 
 def _send_push(subscription: PushSubscription, notification: NotificationOut) -> PushDeliveryResult:
@@ -318,6 +434,8 @@ def _send_push(subscription: PushSubscription, notification: NotificationOut) ->
 def _notification_out(notification: Notification) -> NotificationOut:
     return NotificationOut(
         id=notification.id,
+        notification_id=notification.id,
+        kind='announcement' if notification.announcement_id else 'message',
         chat_id=notification.chat_id,
         message_id=notification.message_id,
         title=notification.title,

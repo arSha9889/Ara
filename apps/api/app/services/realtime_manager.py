@@ -31,6 +31,15 @@ class RealtimeManager:
         if not self._chat_connections[chat_id]:
             self._chat_connections.pop(chat_id, None)
 
+    async def unsubscribe_users_from_chats(self, user_ids: set[UUID], chat_ids: list[UUID]) -> None:
+        if not chat_ids:
+            return
+        chat_id_set = set(chat_ids)
+        for user_id in user_ids:
+            for websocket in list(self._user_connections.get(user_id, set())):
+                for chat_id in self._connection_chats.get(websocket, set()) & chat_id_set:
+                    await self.unsubscribe(websocket, chat_id)
+
     async def disconnect(self, websocket: WebSocket) -> tuple[UUID | None, bool]:
         for chat_id in list(self._connection_chats.get(websocket, set())):
             await self.unsubscribe(websocket, chat_id)

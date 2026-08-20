@@ -8,6 +8,10 @@ from app.api.dependencies.auth import get_current_user
 from app.core.config import settings
 from app.db.session import get_db_session
 from app.schemas.chats import (
+    MobilePushConfigOut,
+    MobilePushTokenDeleteRequest,
+    MobilePushTokenOut,
+    MobilePushTokenRegisterRequest,
     NotificationOut,
     PushConfigOut,
     PushSubscriptionCreateRequest,
@@ -17,13 +21,42 @@ from app.schemas.users import UserOut
 from app.services.notification_service import (
     list_notifications,
     mark_notifications_read,
+    deactivate_mobile_push_tokens,
     remove_push_subscription,
+    save_mobile_push_token,
     save_push_subscription,
     send_test_push_notification,
     web_push_is_configured,
 )
 
 router = APIRouter()
+
+
+@router.get('/mobile-config', response_model=MobilePushConfigOut)
+async def get_mobile_push_config(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+) -> MobilePushConfigOut:
+    return MobilePushConfigOut(enabled=False, package_name='arachat.messenger')
+
+
+@router.put('/mobile-tokens', response_model=MobilePushTokenOut)
+async def register_mobile_push_token(
+    request: MobilePushTokenRegisterRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MobilePushTokenOut:
+    token = await save_mobile_push_token(session, current_user.id, request)
+    return MobilePushTokenOut(active=token.is_active)
+
+
+@router.delete('/mobile-tokens')
+async def unregister_mobile_push_token(
+    request: MobilePushTokenDeleteRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, bool]:
+    await deactivate_mobile_push_tokens(session, current_user.id, request.device_id, request.provider)
+    return {'ok': True}
 
 
 @router.get('/push-config')

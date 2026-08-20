@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.audit import AuditLog
-from app.models.chats import Chat, PushSubscription
+from app.models.chats import Chat, MobilePushToken, PushSubscription
 from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import Session
 from app.models.users import User, UserProfile, UserRestriction
@@ -301,6 +301,7 @@ async def change_user_status(session: AsyncSession, admin_user_id: UUID, target_
         await session.execute(update(TrustedDevicePin).where(TrustedDevicePin.user_id == user.id, TrustedDevicePin.revoked_at.is_(None)).values(revoked_at=now))
     if next_status == 'deleted':
         await session.execute(delete(PushSubscription).where(PushSubscription.user_id == user.id))
+        await session.execute(delete(MobilePushToken).where(MobilePushToken.user_id == user.id))
     record_admin_audit(
         session,
         admin_user_id,

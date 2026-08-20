@@ -10,6 +10,7 @@ from app.models.users import User, UserProfile
 from app.schemas.users import ProfileUpdateRequest, PublicUserOut, PublicUserProfileOut
 from app.services.auth_service import AuthError, get_user_with_profile, to_user_out
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
+from app.services.safety_service import is_user_interaction_blocked
 from app.services.stored_object_service import replace_uploaded_avatar, retire_uploaded_avatars
 
 
@@ -111,7 +112,7 @@ async def update_username(session: AsyncSession, user_id, username: str):
     return await get_current_user_out(session, user_id)
 
 
-async def search_users(session: AsyncSession, query: str):
+async def search_users(session: AsyncSession, query: str, current_user_id=None):
     value = query.strip()
     if not value:
         return []
@@ -123,10 +124,14 @@ async def search_users(session: AsyncSession, query: str):
     users = result.scalars().all()
     for user in users:
         set_committed_value(user, 'profile', await session.get(UserProfile, user.id))
-    return [to_public_user_out(user) for user in users]
+    return [
+        to_public_user_out(user)
+        for user in users
+        if current_user_id is None or not await is_user_interaction_blocked(session, current_user_id, user.id)
+    ]
 
 
-async def find_public_user(session: AsyncSession, identifier: str):
+async def find_public_user(session: AsyncSession, identifier: str, current_user_id=None):
     if is_valid_nexus_id(identifier):
         statement = select(User).where(User.nexus_id == identifier, User.deleted_at.is_(None))
     else:
@@ -134,6 +139,8 @@ async def find_public_user(session: AsyncSession, identifier: str):
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
     if not user:
+        raise AuthError('User not found')
+    if current_user_id is not None and await is_user_interaction_blocked(session, current_user_id, user.id):
         raise AuthError('User not found')
     set_committed_value(user, 'profile', await session.get(UserProfile, user.id))
     return to_public_user_out(user)

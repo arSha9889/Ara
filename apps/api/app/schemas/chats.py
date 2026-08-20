@@ -178,8 +178,32 @@ class PushConfigOut(BaseModel):
     public_key: str | None = None
 
 
+class MobilePushTokenRegisterRequest(BaseModel):
+    device_id: str = Field(min_length=8, max_length=128)
+    provider: Literal['rustore', 'universal']
+    package_name: Literal['arachat.messenger']
+    app_version: str | None = Field(default=None, max_length=64)
+    token: str = Field(min_length=16, max_length=8192)
+
+
+class MobilePushTokenDeleteRequest(BaseModel):
+    device_id: str = Field(min_length=8, max_length=128)
+    provider: Literal['rustore', 'universal'] | None = None
+
+
+class MobilePushTokenOut(BaseModel):
+    active: bool
+
+
+class MobilePushConfigOut(BaseModel):
+    enabled: bool
+    package_name: Literal['arachat.messenger']
+
+
 class NotificationOut(BaseModel):
     id: UUID
+    notification_id: UUID
+    kind: Literal['message', 'announcement', 'system'] = 'message'
     chat_id: UUID | None
     message_id: UUID | None
     title: str

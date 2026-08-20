@@ -15,7 +15,7 @@ from app.domain.security_hashing import hash_secret, verify_secret
 from app.domain.tokens import create_access_token
 from app.domain.validators import is_valid_password, is_valid_pin, is_valid_username
 from app.models.audit import AuditLog
-from app.models.chats import PushSubscription
+from app.models.chats import MobilePushToken, PushSubscription
 from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import LoginHistory, Session
 from app.models.users import User, UserProfile
@@ -423,6 +423,7 @@ async def delete_account(session: AsyncSession, user_id: UUID) -> None:
         .values(revoked_at=now)
     )
     await session.execute(delete(PushSubscription).where(PushSubscription.user_id == user_id))
+    await session.execute(delete(MobilePushToken).where(MobilePushToken.user_id == user_id))
     await session.commit()
 
 

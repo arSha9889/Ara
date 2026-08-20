@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import select
@@ -72,13 +72,14 @@ async def test_list_admin_users_searches_filters_and_includes_deleted(anyio_back
             assert found_by_email['total'] == 1
             assert found_by_email['users'][0]['username'] == 'alice'
 
-            details = await get_admin_user(session, admin.id, found_by_email['users'][0]['id'])
+            target_user_id = UUID(found_by_email['users'][0]['id'])
+            details = await get_admin_user(session, admin.id, target_user_id)
             assert details['email'] == 'alice@example.com'
             assert details['vpn_enabled'] is False
 
-            vpn_enabled = await set_user_vpn_enabled(session, admin.id, found_by_email['users'][0]['id'], True)
+            vpn_enabled = await set_user_vpn_enabled(session, admin.id, target_user_id, True)
             assert vpn_enabled is True
-            assert (await get_admin_user(session, admin.id, found_by_email['users'][0]['id']))['vpn_enabled'] is True
+            assert (await get_admin_user(session, admin.id, target_user_id))['vpn_enabled'] is True
 
             deleted = await list_admin_users(session, admin.id, user_status='deleted')
             assert deleted['total'] == 1

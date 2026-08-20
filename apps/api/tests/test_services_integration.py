@@ -200,7 +200,7 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             read_message = await mark_message_read(session, second_user.id, chat.id, message.id)
             assert read_message.delivery_status == 'received'
             read_chat = await create_or_get_direct_chat(session, second_user.id, 'RU', '+7 999 000-00-01')
-            assert read_chat.unread_count == 0
+            assert read_chat.unread_count == 1
 
             second_message = await create_message(session, first_user.id, chat.id, MessageCreateRequest(text='Ещё одно сообщение'))
             await create_message_notifications(session, second_message)
@@ -213,12 +213,17 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             assert notifications[0].read_at is not None
 
             messages_for_reader = await list_messages(session, second_user.id, chat.id)
-            assert [item.payload for item in messages_for_reader] == ['Привет', 'И тебе привет', 'Ещё одно сообщение']
+            assert [item.payload for item in messages_for_reader] == [
+                'Привет',
+                'И тебе привет',
+                'Новое входящее',
+                'Ещё одно сообщение',
+            ]
             assert messages_for_reader[1].reply_to and messages_for_reader[1].reply_to.id == message.id
             assert messages_for_reader[0].reactions[0].emoji == '👍'
 
             messages_for_sender = await list_messages(session, first_user.id, chat.id)
-            assert [item.delivery_status for item in messages_for_sender] == ['read', 'received', 'read']
+            assert [item.delivery_status for item in messages_for_sender] == ['read', 'received', 'delivered', 'read']
 
             await delete_message(session, first_user.id, chat.id, message.id)
             messages_with_deleted_reply_source = await list_messages(session, second_user.id, chat.id)

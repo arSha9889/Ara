@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocketDisconnect
 
 from app.api.router import api_router
@@ -14,8 +15,10 @@ from app.models.chats import Chat, ChatParticipant
 from app.models.users import User
 from app.db.health import check_database
 from app.services.call_signaling import CallSignalingError, call_signaling_manager, normalize_call_signal
+from app.services.auth_service import AuthError
 from app.services.realtime_manager import realtime_manager
 from app.services.redis_client import check_redis
+from app.services.safety_service import ensure_chat_interaction_allowed, is_user_interaction_blocked
 from app.services.storage_service import check_storage, storage_root
 from app.services.user_access_service import user_can_access
 
@@ -173,8 +176,13 @@ def _parse_uuid(value: object) -> UUID | None:
 
 async def _is_chat_participant(user_id: UUID, chat_id: UUID) -> bool:
     async with AsyncSessionLocal() as session:
+        chat = await session.get(Chat, chat_id)
+        if not chat:
+            return False
         participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
-        return participant is not None
+        if not participant:
+            return False
+        return await _can_interact_with_chat(session, user_id, chat)
 
 
 async def _get_direct_call_peer(user_id: UUID, chat_id: UUID) -> UUID | None:
@@ -187,9 +195,12 @@ async def _get_direct_call_peer(user_id: UUID, chat_id: UUID) -> UUID | None:
         )
         participant_ids = set(result.scalars())
 
-    if user_id not in participant_ids or len(participant_ids) != 2:
-        return None
-    return next(participant_id for participant_id in participant_ids if participant_id != user_id)
+        if user_id not in participant_ids or len(participant_ids) != 2:
+            return None
+        peer_user_id = next(participant_id for participant_id in participant_ids if participant_id != user_id)
+        if await is_user_interaction_blocked(session, user_id, peer_user_id):
+            return None
+        return peer_user_id
 
 
 async def _can_subscribe_to_chat(user_id: UUID, chat_id: UUID) -> bool:
@@ -198,7 +209,15 @@ async def _can_subscribe_to_chat(user_id: UUID, chat_id: UUID) -> bool:
         if chat and chat.type == 'branch':
             return True
         participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
-        return participant is not None
+        return bool(chat and participant and await _can_interact_with_chat(session, user_id, chat))
+
+
+async def _can_interact_with_chat(session: AsyncSession, user_id: UUID, chat: Chat) -> bool:
+    try:
+        await ensure_chat_interaction_allowed(session, user_id, chat)
+    except AuthError:
+        return False
+    return True
 
 
 async def _is_active_user(user_id: UUID) -> bool:
@@ -213,8 +232,17 @@ async def _broadcast_presence_to_user_chats(
     last_seen_at: datetime | None = None,
 ) -> None:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(ChatParticipant.chat_id).where(ChatParticipant.user_id == user_id))
-        chat_ids = list(result.scalars())
+        result = await session.execute(
+            select(Chat)
+            .join(ChatParticipant, ChatParticipant.chat_id == Chat.id)
+            .where(ChatParticipant.user_id == user_id)
+        )
+        chats = list(result.scalars())
+        chat_ids = [
+            chat.id
+            for chat in chats
+            if await _can_interact_with_chat(session, user_id, chat)
+        ]
     for chat_id in chat_ids:
         await realtime_manager.broadcast_to_chat(chat_id, {
             'event': 'presence.status',
@@ -247,6 +275,10 @@ async def _handle_call_signal(websocket: WebSocket, message: dict, user_id: UUID
         signal = normalize_call_signal(message)
     except CallSignalingError as exc:
         await _send_call_failure(websocket, message.get('call_id'), exc.reason)
+        return
+
+    if not await _get_direct_call_peer(user_id, chat_id):
+        await _send_call_failure(websocket, signal['call_id'], 'direct_chat_required')
         return
 
     if signal['event'] == 'call.invite':

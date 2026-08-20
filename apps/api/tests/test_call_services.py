@@ -72,6 +72,21 @@ async def test_call_signaling_releases_users_after_call_ends() -> None:
     assert replacement.call_id == 'call-456'
 
 
+@pytest.mark.anyio
+async def test_call_signaling_ends_call_when_one_participant_blocks_the_other() -> None:
+    manager = CallSignalingManager()
+    chat_id = uuid4()
+    caller_id = uuid4()
+    callee_id = uuid4()
+
+    await manager.start_call('call-123', chat_id, caller_id, callee_id)
+    ended = await manager.end_call_between_users(caller_id, callee_id)
+
+    assert ended and ended.call_id == 'call-123'
+    replacement = await manager.start_call('call-456', chat_id, caller_id, callee_id)
+    assert replacement.call_id == 'call-456'
+
+
 def test_turn_rest_credentials_are_deterministic_for_a_fixed_time() -> None:
     user_id = UUID('12345678-1234-5678-1234-567812345678')
     now = datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)

@@ -7,8 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_user
+from app.api.routes._responses import domain_error_response
 from app.db.session import get_db_session
-from app.models.chats import ChatParticipant
+from app.models.chats import Chat, ChatParticipant
 from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
@@ -22,9 +23,25 @@ from app.services.chat_service import mark_messages_read, toggle_pin_message, to
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, get_branch_post_author_id, list_branch_comments, update_branch_comment
 from app.services.branch_service import create_public_branch, list_public_branches, subscribe_to_branch, unsubscribe_from_branch
 from app.services.realtime_manager import realtime_manager
+from app.services.safety_service import is_user_interaction_blocked
 from app.services.notification_service import create_branch_comment_notification, create_message_notifications
 
 router = APIRouter()
+
+
+async def _broadcast_chat_event(session: AsyncSession, chat_id: UUID, payload: dict) -> None:
+    chat = await session.get(Chat, chat_id)
+    if not chat or chat.type != 'direct':
+        await realtime_manager.broadcast_to_chat(chat_id, payload)
+        return
+
+    participant_ids = list((await session.execute(
+        select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id)
+    )).scalars())
+    if len(participant_ids) != 2 or await is_user_interaction_blocked(session, participant_ids[0], participant_ids[1]):
+        return
+    for participant_id in participant_ids:
+        await realtime_manager.broadcast_to_user(participant_id, payload)
 
 
 @router.get('')
@@ -44,7 +61,7 @@ async def create_direct_chat(
     try:
         return await create_or_get_direct_chat(session, current_user.id, request.country, request.phone)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
 
 
 @router.post('/direct/users/{user_id}')
@@ -56,7 +73,7 @@ async def create_direct_chat_for_user(
     try:
         return await create_or_get_direct_chat_for_user(session, current_user.id, user_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
 
 
 @router.post('/saved')
@@ -134,7 +151,7 @@ async def get_chat(
     try:
         return await get_user_chat(session, current_user.id, chat_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_404_NOT_FOUND)
 
 
 @router.delete('/{chat_id}')
@@ -146,7 +163,7 @@ async def hide_user_chat(
     try:
         await hide_chat(session, current_user.id, chat_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
 
 
 @router.post('/{chat_id}/restore')
@@ -158,7 +175,7 @@ async def restore_user_chat(
     try:
         return await restore_chat(session, current_user.id, chat_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
 
 
 @router.patch('/{chat_id}/wallpaper')
@@ -171,7 +188,7 @@ async def update_user_chat_wallpaper(
     try:
         chat = await update_chat_wallpaper(session, current_user.id, chat_id, request.wallpaper_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
     await realtime_manager.broadcast_to_user(
         current_user.id,
         {
@@ -193,7 +210,7 @@ async def list_messages(
     try:
         return await list_chat_messages(session, current_user.id, chat_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_404_NOT_FOUND)
 
 
 @router.get('/{branch_id}/messages/{post_id}/comments', response_model=list[BranchCommentOut])
@@ -291,18 +308,14 @@ async def create_message(
     try:
         message = await create_chat_message(session, current_user.id, chat_id, request)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
     await create_message_notifications(session, message)
     message_event = {
         'event': 'message.created',
         'chat_id': str(chat_id),
         'message': message.model_dump(mode='json'),
     }
-    participant_ids = (await session.execute(
-        select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id)
-    )).scalars()
-    for participant_id in participant_ids:
-        await realtime_manager.broadcast_to_user(participant_id, message_event)
+    await _broadcast_chat_event(session, chat_id, message_event)
     return message
 
 
@@ -317,8 +330,9 @@ async def update_message(
     try:
         message = await edit_chat_message(session, current_user.id, chat_id, message_id, request.text)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    await realtime_manager.broadcast_to_chat(
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
+    await _broadcast_chat_event(
+        session,
         chat_id,
         {
             'event': 'message.updated',
@@ -339,8 +353,9 @@ async def remove_message(
     try:
         message = await delete_chat_message(session, current_user.id, chat_id, message_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    await realtime_manager.broadcast_to_chat(
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
+    await _broadcast_chat_event(
+        session,
         chat_id,
         {
             'event': 'message.deleted',
@@ -361,8 +376,9 @@ async def pin_message(
     try:
         chat = await toggle_pin_message(session, current_user.id, chat_id, message_id)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    await realtime_manager.broadcast_to_chat(
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
+    await _broadcast_chat_event(
+        session,
         chat_id,
         {
             'event': 'message.pin_updated',
@@ -384,8 +400,9 @@ async def react_to_message(
     try:
         message = await toggle_reaction(session, current_user.id, chat_id, message_id, request.emoji)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    await realtime_manager.broadcast_to_chat(
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
+    await _broadcast_chat_event(
+        session,
         chat_id,
         {
             'event': 'message.reactions_updated',
@@ -406,9 +423,10 @@ async def read_message(
     try:
         messages = await mark_messages_read(session, current_user.id, chat_id, request.message_ids)
     except AuthError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
     for message in messages:
-        await realtime_manager.broadcast_to_chat(
+        await _broadcast_chat_event(
+            session,
             chat_id,
             {
                 'event': 'message.read',
