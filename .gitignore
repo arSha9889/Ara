@@ -10,9 +10,11 @@ __pycache__/
 .env
 .env.*
 deploy/production.env
+deploy/staging.env
 !.env.example
 !apps/api/.env.example
 !apps/web/.env.example
 !deploy/production.env.example
+!deploy/staging.env.example
 .coverage
 htmlcov/

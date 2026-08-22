@@ -1,0 +1,99 @@
+name: arachat-staging
+
+x-container-logging: &container-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *container-logging
+    environment:
+      POSTGRES_DB: ${NEXUS_POSTGRES_DB:-arachat_staging}
+      POSTGRES_USER: ${NEXUS_POSTGRES_USER:-arachat_staging}
+      POSTGRES_PASSWORD: ${NEXUS_POSTGRES_PASSWORD:?Set NEXUS_POSTGRES_PASSWORD in deploy/staging.env}
+    volumes:
+      - arachat_staging_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *container-logging
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - ${NEXUS_REDIS_MAXMEMORY:-128mb}
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - arachat_staging_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../apps/api
+    restart: unless-stopped
+    logging: *container-logging
+    environment:
+      NEXUS_ENVIRONMENT: staging
+      NEXUS_DATABASE_URL: postgresql+asyncpg://${NEXUS_POSTGRES_USER:-arachat_staging}:${NEXUS_POSTGRES_PASSWORD:?Set NEXUS_POSTGRES_PASSWORD in deploy/staging.env}@postgres:5432/${NEXUS_POSTGRES_DB:-arachat_staging}
+      NEXUS_REDIS_URL: redis://redis:6379/0
+      NEXUS_ALLOWED_ORIGINS: ${NEXUS_ALLOWED_ORIGINS:?Set NEXUS_ALLOWED_ORIGINS in deploy/staging.env}
+      NEXUS_PUBLIC_BASE_URL: ${NEXUS_PUBLIC_BASE_URL:?Set NEXUS_PUBLIC_BASE_URL in deploy/staging.env}
+      NEXUS_STORAGE_BACKEND: local
+      NEXUS_UPLOAD_DIR: /var/lib/arachat/uploads
+      NEXUS_STORAGE_PUBLIC_BASE_URL: ${NEXUS_STORAGE_PUBLIC_BASE_URL:?Set NEXUS_STORAGE_PUBLIC_BASE_URL in deploy/staging.env}
+      NEXUS_REGISTRATION_PROOF_SECRET: ${NEXUS_REGISTRATION_PROOF_SECRET:?Set NEXUS_REGISTRATION_PROOF_SECRET in deploy/staging.env}
+      NEXUS_ACCESS_TOKEN_SECRET: ${NEXUS_ACCESS_TOKEN_SECRET:?Set NEXUS_ACCESS_TOKEN_SECRET in deploy/staging.env}
+      NEXUS_SMTP_HOST: ${NEXUS_SMTP_HOST:?Set NEXUS_SMTP_HOST in deploy/staging.env}
+      NEXUS_SMTP_PORT: ${NEXUS_SMTP_PORT:-587}
+      NEXUS_SMTP_USERNAME: ${NEXUS_SMTP_USERNAME:-}
+      NEXUS_SMTP_PASSWORD: ${NEXUS_SMTP_PASSWORD:-}
+      NEXUS_SMTP_FROM_EMAIL: ${NEXUS_SMTP_FROM_EMAIL:?Set NEXUS_SMTP_FROM_EMAIL in deploy/staging.env}
+      NEXUS_SMTP_FROM_NAME: ${NEXUS_SMTP_FROM_NAME:-AraChat Staging}
+      NEXUS_SMTP_USE_STARTTLS: ${NEXUS_SMTP_USE_STARTTLS:-true}
+      NEXUS_SMTP_USE_SSL: ${NEXUS_SMTP_USE_SSL:-false}
+      NEXUS_SMTP_TIMEOUT_SECONDS: ${NEXUS_SMTP_TIMEOUT_SECONDS:-15}
+      NEXUS_ACCESS_TOKEN_MINUTES: ${NEXUS_ACCESS_TOKEN_MINUTES:-15}
+      NEXUS_REFRESH_TOKEN_DAYS: ${NEXUS_REFRESH_TOKEN_DAYS:-30}
+      NEXUS_PIN_TRUSTED_DAYS: ${NEXUS_PIN_TRUSTED_DAYS:-30}
+      NEXUS_EARLY_ACCESS_BYPASS_LIMIT: ${NEXUS_EARLY_ACCESS_BYPASS_LIMIT:-0}
+      NEXUS_UPLOAD_MAX_SIZE_BYTES: ${NEXUS_UPLOAD_MAX_SIZE_BYTES:-10485760}
+      NEXUS_REDIS_MAXMEMORY: ${NEXUS_REDIS_MAXMEMORY:-128mb}
+    volumes:
+      - arachat_staging_uploads:/var/lib/arachat/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  arachat_staging_postgres_data:
+  arachat_staging_redis_data:
+  arachat_staging_uploads:
