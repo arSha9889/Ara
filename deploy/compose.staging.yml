@@ -84,6 +84,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      default:
+      caddy_proxy:
+        aliases:
+          - arachat-staging-api
     ports:
       - "127.0.0.1:18000:8000"
     healthcheck:
@@ -97,3 +102,8 @@ volumes:
   arachat_staging_postgres_data:
   arachat_staging_redis_data:
   arachat_staging_uploads:
+
+networks:
+  caddy_proxy:
+    external: true
+    name: ${NEXUS_CADDY_PROXY_NETWORK:?Set NEXUS_CADDY_PROXY_NETWORK in deploy/staging.env}

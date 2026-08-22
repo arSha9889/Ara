@@ -4,7 +4,8 @@
 работающим сайтом. Оно не использует production Compose и **не занимает порты
 80/443**: API публикуется Docker только на `127.0.0.1:18000`. Внешний HTTPS
 поддомен подключается одним дополнительным правилом в уже работающем Caddy или
-Nginx.
+Nginx. Если Caddy сам запущен в Docker, staging API дополнительно подключается
+к его внутренней Docker-сети под именем `arachat-staging-api`.
 
 > Не заменяйте существующий `Caddyfile`, конфигурацию Nginx или Docker Compose
 > сайта целиком. Добавляйте только блок для нового staging-поддомена.
@@ -37,10 +38,13 @@ nano deploy/staging.env
 
 1. `NEXUS_PUBLIC_DOMAIN` — только hostname, например `staging.example.ru`;
 2. `NEXUS_ALLOWED_ORIGINS`, `NEXUS_PUBLIC_BASE_URL` и
-   `NEXUS_STORAGE_PUBLIC_BASE_URL` — тот же адрес с `https://`;
-3. отдельный пароль PostgreSQL, а также два независимых секрета. Для каждого
+    `NEXUS_STORAGE_PUBLIC_BASE_URL` — тот же адрес с `https://`;
+3. `NEXUS_CADDY_PROXY_NETWORK` — имя Docker-сети уже запущенного Caddy. Для
+   текущего production Compose AraChat это `nexus-production_default`; не
+   меняйте значение, если проверка ниже возвращает именно его;
+4. отдельный пароль PostgreSQL, а также два независимых секрета. Для каждого
    значения выполните локально на VPS `openssl rand -hex 32`;
-4. SMTP-параметры и отдельный адрес отправителя.
+5. SMTP-параметры и отдельный адрес отправителя.
 
 Не оставляйте `replace-with-...`, `example.ru` или одинаковые секреты. Файл
 `deploy/staging.env` игнорируется Git и не должен покидать VPS.
@@ -53,7 +57,78 @@ nano deploy/staging.env
 dig +short staging.example.ru A
 ```
 
-### Если на VPS используется Caddy
+### Если Caddy запущен в Docker
+
+Это схема текущего production-деплоя AraChat. Узнайте имя сети Caddy:
+
+```sh
+docker inspect nexus-production-caddy-1 \
+  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}'
+```
+
+Для текущего VPS результат должен быть `nexus-production_default`; такое же
+значение укажите в `NEXUS_CADDY_PROXY_NETWORK` файла `deploy/staging.env`.
+Не заменяйте его именем контейнера или `127.0.0.1`.
+
+Когда staging API будет запущен (раздел 4), добавьте **в конец** уже
+смонтированного Caddyfile отдельный блок. Для текущего VPS его путь:
+`/opt/aramsg-git/deploy/Caddyfile`.
+
+```caddyfile
+staging.example.ru {
+    encode zstd gzip
+
+    log {
+        output stdout
+        format console
+    }
+
+    header {
+        -Server
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Strict-Transport-Security "max-age=31536000"
+    }
+
+    reverse_proxy arachat-staging-api:8000 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+```
+
+Замените только `staging.example.ru` на реальный staging-поддомен. Не меняйте
+существующие блоки production-сайта и **не** используйте
+`reverse_proxy 127.0.0.1:18000`: внутри контейнера Caddy этот адрес указывает
+на сам Caddy, а не на VPS-хост.
+
+Перед изменением создайте резервную копию и откройте файл:
+
+```sh
+cp /opt/aramsg-git/deploy/Caddyfile /opt/aramsg-git/deploy/Caddyfile.backup.$(date +%Y%m%d%H%M%S)
+nano /opt/aramsg-git/deploy/Caddyfile
+```
+
+Проверьте Caddyfile контейнером до применения:
+
+```sh
+docker exec nexus-production-caddy-1 \
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Если проверка успешна, примените конфигурацию без перезапуска production-сайта:
+
+```sh
+docker exec nexus-production-caddy-1 \
+  caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Caddy сам выпустит сертификат, когда DNS staging-поддомена уже указывает на VPS
+и порты `80/443` доступны снаружи.
+
+### Если на VPS используется systemd Caddy
 
 Добавьте **отдельный** блок в текущий Caddyfile, сохранив остальные сайты:
 
@@ -72,9 +147,8 @@ sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
-Если Caddy работает в контейнере, используйте путь и команду reload из его
-существующего Compose-проекта. Не запускайте второй Caddy из этого репозитория:
-он конфликтовал бы с портами `80/443`.
+Не запускайте второй Caddy из этого репозитория: он конфликтовал бы с портами
+`80/443`.
 
 ### Если на VPS используется Nginx
 
@@ -132,7 +206,9 @@ docker compose --env-file deploy/staging.env -f deploy/compose.staging.yml ps
 
 Первый запуск собирает API, создаёт отдельные Docker volumes, применяет Alembic
 миграции и запускает сервис. Он не подключается к production PostgreSQL, Redis
-или object storage.
+или object storage. В Docker Caddy-схеме лишь API присоединяется к общей сети
+proxy как `arachat-staging-api`; PostgreSQL и Redis остаются доступны только
+внутри staging-контейнеров.
 
 Если API не перешёл в `healthy`, смотрите только логи staging-контура:
 
@@ -163,6 +239,9 @@ curl -fsS http://127.0.0.1:18000/health/infrastructure
 curl -fsS https://staging.example.ru/health
 curl -fsS https://staging.example.ru/health/infrastructure
 ```
+
+Для Docker Caddy добавляйте Caddyfile из раздела 3 после локального smoke-check
+и перед этим публичным запросом.
 
 После этого создайте тестовый аккаунт на staging и подтвердите, что письмо
 пришло на контролируемый ящик. Проверьте регистрацию, вход, refresh/logout и
