@@ -1,10 +1,10 @@
-import { ApiConfigurationError } from '../../config/runtimeConfig';
+import { ApiConfigurationError, runtimeConfig } from '../../config/runtimeConfig';
 import { ApiError } from '../../infrastructure/http/apiClient';
 import type { TranslationKey } from '../../localization/messages';
 
 export function authErrorKey(error: unknown, credentials = false): TranslationKey {
   if (error instanceof ApiConfigurationError) {
-    return 'invalidApiConfiguration';
+    return runtimeConfig.apiBaseUrlError ? 'invalidApiConfiguration' : 'apiNotConfigured';
   }
 
   if (error instanceof ApiError) {
