@@ -109,6 +109,7 @@
 - frontend chat list с созданием direct-чата;
 - frontend chat page с загрузкой и отправкой сообщений;
 - WebSocket `/ws`:
+  - access token передаётся только первым JSON-сообщением `connection.authenticate`, не в URL;
   - `connection.authenticated` / `connection.rejected`;
 - `ping` -> `pong`;
 - `chat.subscribe` / `chat.unsubscribe` с проверкой участия в чате;

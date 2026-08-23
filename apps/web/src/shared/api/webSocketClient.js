@@ -14,11 +14,6 @@ const HEARTBEAT_TIMEOUT_MS = 10_000;
 
 export function createRealtimeConnection(token) {
   const url = new URL('/ws', WS_BASE_URL);
-
-  if (token) {
-    url.searchParams.set('token', token);
-  }
-
   const socket = new WebSocket(url);
   let heartbeatIntervalId = null;
   let heartbeatTimeoutId = null;
@@ -28,6 +23,13 @@ export function createRealtimeConnection(token) {
     window.clearTimeout(heartbeatTimeoutId);
     heartbeatIntervalId = null;
     heartbeatTimeoutId = null;
+  }
+
+  function startHeartbeat() {
+    if (heartbeatIntervalId !== null) return;
+
+    sendHeartbeat();
+    heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
   }
 
   function sendHeartbeat() {
@@ -41,13 +43,16 @@ export function createRealtimeConnection(token) {
   }
 
   socket.addEventListener('open', () => {
-    sendHeartbeat();
-    heartbeatIntervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    socket.send(JSON.stringify({ event: 'connection.authenticate', token }));
   });
 
   socket.addEventListener('message', (event) => {
     try {
-      if (JSON.parse(event.data)?.event === 'pong') {
+      const payload = JSON.parse(event.data);
+      if (payload?.event === 'connection.authenticated') {
+        startHeartbeat();
+      }
+      if (payload?.event === 'pong') {
         window.clearTimeout(heartbeatTimeoutId);
         heartbeatTimeoutId = null;
       }

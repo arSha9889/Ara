@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -21,6 +22,8 @@ from app.services.redis_client import check_redis
 from app.services.safety_service import ensure_chat_interaction_allowed, is_user_interaction_blocked
 from app.services.storage_service import check_storage, storage_root
 from app.services.user_access_service import user_can_access
+
+WEBSOCKET_AUTH_TIMEOUT_SECONDS = 10
 
 
 def create_app() -> FastAPI:
@@ -69,25 +72,8 @@ def create_app() -> FastAPI:
     @app.websocket('/ws')
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
-        token = websocket.query_params.get('token')
-        if not token:
-            await _safe_send_json(websocket, {'event': 'connection.rejected', 'reason': 'missing_token'})
-            await _safe_close_websocket(websocket, code=1008)
-            return
-
-        try:
-            user_id = decode_access_token(token)
-        except Exception:
-            await _safe_send_json(websocket, {'event': 'connection.rejected', 'reason': 'invalid_token'})
-            await _safe_close_websocket(websocket, code=1008)
-            return
-
-        if not await _is_active_user(user_id):
-            await _safe_send_json(websocket, {'event': 'connection.rejected', 'reason': 'user_not_available'})
-            await _safe_close_websocket(websocket, code=1008)
-            return
-
-        if not await _safe_send_json(websocket, {'event': 'connection.authenticated', 'user_id': str(user_id)}):
+        user_id = await _authenticate_websocket(websocket)
+        if not user_id:
             return
         was_offline = await realtime_manager.connect_user(websocket, user_id)
         if was_offline:
@@ -163,6 +149,47 @@ def create_app() -> FastAPI:
             return
 
     return app
+
+
+async def _authenticate_websocket(websocket: WebSocket) -> UUID | None:
+    try:
+        message = await asyncio.wait_for(websocket.receive_json(), timeout=WEBSOCKET_AUTH_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError:
+        await _reject_websocket_connection(websocket, 'authentication_timeout')
+        return None
+    except (RuntimeError, WebSocketDisconnect):
+        return None
+    except (KeyError, ValueError):
+        await _reject_websocket_connection(websocket, 'invalid_authentication_message')
+        return None
+
+    if not isinstance(message, dict) or message.get('event') != 'connection.authenticate':
+        await _reject_websocket_connection(websocket, 'authentication_required')
+        return None
+
+    token = message.get('token')
+    if not isinstance(token, str) or not token:
+        await _reject_websocket_connection(websocket, 'missing_token')
+        return None
+
+    try:
+        user_id = decode_access_token(token)
+    except Exception:
+        await _reject_websocket_connection(websocket, 'invalid_token')
+        return None
+
+    if not await _is_active_user(user_id):
+        await _reject_websocket_connection(websocket, 'user_not_available')
+        return None
+
+    if not await _safe_send_json(websocket, {'event': 'connection.authenticated', 'user_id': str(user_id)}):
+        return None
+    return user_id
+
+
+async def _reject_websocket_connection(websocket: WebSocket, reason: str) -> None:
+    await _safe_send_json(websocket, {'event': 'connection.rejected', 'reason': reason})
+    await _safe_close_websocket(websocket, code=1008)
 
 
 def _parse_uuid(value: object) -> UUID | None:
