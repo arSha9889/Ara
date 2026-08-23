@@ -39,15 +39,22 @@ nano deploy/staging.env
 1. `NEXUS_PUBLIC_DOMAIN` — только hostname, например `staging.example.ru`;
 2. `NEXUS_ALLOWED_ORIGINS`, `NEXUS_PUBLIC_BASE_URL` и
     `NEXUS_STORAGE_PUBLIC_BASE_URL` — тот же адрес с `https://`;
-3. `NEXUS_CADDY_PROXY_NETWORK` — имя Docker-сети уже запущенного Caddy. Для
-   текущего production Compose AraChat это `nexus-production_default`; не
-   меняйте значение, если проверка ниже возвращает именно его;
+3. `NEXUS_CADDY_PROXY_NETWORK` — имя выделенной Docker-сети Caddy. Для
+   текущего production Compose AraChat это `nexus-production_caddy_proxy`;
+   сначала примените migration из раздела 3, если такой сети ещё нет;
 4. отдельный пароль PostgreSQL, а также два независимых секрета. Для каждого
    значения выполните локально на VPS `openssl rand -hex 32`;
 5. SMTP-параметры и отдельный адрес отправителя.
 
 Не оставляйте `replace-with-...`, `example.ru` или одинаковые секреты. Файл
 `deploy/staging.env` игнорируется Git и не должен покидать VPS.
+
+> Этот staging-контур публикует только API, а не React-сайт. Поэтому адреса
+> наподобие `https://staging.example.ru/login/...` намеренно вернут `404`.
+> Не регистрируйте staging-домен как OAuth callback у Yandex ID или VK ID и не
+> включайте OAuth-секреты в staging: полный OAuth-поток требует браузерный
+> клиент на том же домене. Для проверки Android на staging используйте обычный
+> вход тестового аккаунта.
 
 ## 3. Подключить HTTPS-поддомен к существующему reverse proxy
 
@@ -66,9 +73,48 @@ docker inspect nexus-production-caddy-1 \
   --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}'
 ```
 
-Для текущего VPS результат должен быть `nexus-production_default`; такое же
+После применения актуального production Compose Caddy должен состоять в двух
+сетях: `nexus-production_default` и `nexus-production_caddy_proxy`. В
+`NEXUS_CADDY_PROXY_NETWORK` укажите только `nexus-production_caddy_proxy`.
+Эта отдельная сеть не даёт staging-контейнеру попасть в production-сеть, где
+production web обращается к сервису `api`.
+
+Для текущего VPS результат проверки должен включать `nexus-production_caddy_proxy`; такое же
 значение укажите в `NEXUS_CADDY_PROXY_NETWORK` файла `deploy/staging.env`.
 Не заменяйте его именем контейнера или `127.0.0.1`.
+
+#### Обязательная migration со старой общей сетью
+
+Если staging API раньше был подключён к `nexus-production_default`, остановите
+его **до** обновления production. Иначе он продолжит иметь DNS-имя `api` в
+production-сети и может получать запросы сайта. Из корня репозитория выполните:
+
+```sh
+# 1. Удаляет только контейнеры staging, его volumes и данные сохраняются.
+docker compose --env-file deploy/staging.env -f deploy/compose.staging.yml down
+
+# 2. Создаёт выделенную сеть и пересоздаёт только Caddy.
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml \
+  up -d --no-deps caddy
+
+# 3. В deploy/staging.env замените только это значение:
+# NEXUS_CADDY_PROXY_NETWORK=nexus-production_caddy_proxy
+nano deploy/staging.env
+```
+
+Убедитесь, что staging действительно покинул внутреннюю сеть production, а Caddy
+получил выделенную proxy-сеть:
+
+```sh
+docker network inspect nexus-production_default \
+  --format '{{range .Containers}}{{println .Name}}{{end}}'
+docker network inspect nexus-production_caddy_proxy \
+  --format '{{range .Containers}}{{println .Name}}{{end}}'
+```
+
+В первом выводе не должно быть контейнера `arachat-staging-api-1`; во втором на
+этом этапе должен быть `nexus-production-caddy-1`. Не продолжайте, если staging
+API остаётся в `nexus-production_default`.
 
 Когда staging API будет запущен (раздел 4), добавьте **в конец** уже
 смонтированного Caddyfile отдельный блок. Для текущего VPS его путь:
@@ -202,13 +248,21 @@ sudo systemctl reload nginx
 docker compose --env-file deploy/staging.env -f deploy/compose.staging.yml config -q
 docker compose --env-file deploy/staging.env -f deploy/compose.staging.yml up -d --build
 docker compose --env-file deploy/staging.env -f deploy/compose.staging.yml ps
+docker inspect arachat-staging-api-1 \
+  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}'
 ```
 
 Первый запуск собирает API, создаёт отдельные Docker volumes, применяет Alembic
 миграции и запускает сервис. Он не подключается к production PostgreSQL, Redis
 или object storage. В Docker Caddy-схеме лишь API присоединяется к общей сети
 proxy как `arachat-staging-api`; PostgreSQL и Redis остаются доступны только
-внутри staging-контейнеров.
+внутри staging-контейнеров. Никогда не подключайте staging API к
+`nexus-production_default`: в этой сети оно может получить имя `api` и начать
+отвечать на запросы production web.
+
+Последняя команда должна вывести только `arachat-staging_default` и
+`nexus-production_caddy_proxy`. В ней не должно быть
+`nexus-production_default`.
 
 Если API не перешёл в `healthy`, смотрите только логи staging-контура:
 

@@ -166,6 +166,9 @@ services:
     image: caddy:2.8-alpine
     restart: unless-stopped
     logging: *container-logging
+    networks:
+      default:
+      caddy_proxy:
     environment:
       NEXUS_PUBLIC_DOMAIN: ${NEXUS_PUBLIC_DOMAIN:?Set NEXUS_PUBLIC_DOMAIN in deploy/production.env}
       NEXUS_ACME_EMAIL: ${NEXUS_ACME_EMAIL:?Set NEXUS_ACME_EMAIL in deploy/production.env}
@@ -184,3 +187,6 @@ volumes:
   nexus_redis_data:
   nexus_caddy_data:
   nexus_caddy_config:
+
+networks:
+  caddy_proxy:

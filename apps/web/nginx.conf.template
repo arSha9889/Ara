@@ -24,6 +24,23 @@ server {
     add_header Cache-Control "public, max-age=31536000, immutable";
   }
 
+  # HTML chooses the current hashed assets, while env.js selects the API origin.
+  # Never let a browser keep an old app shell after a deployment.
+  location = /env.js {
+    try_files $uri =404;
+    add_header Cache-Control "no-store";
+  }
+
+  location = /service-worker.js {
+    try_files $uri =404;
+    add_header Cache-Control "no-cache, must-revalidate";
+  }
+
+  location = /index.html {
+    try_files $uri =404;
+    add_header Cache-Control "no-cache, must-revalidate";
+  }
+
   location /api/ {
     proxy_pass ${NEXUS_API_UPSTREAM};
     proxy_http_version 1.1;
@@ -96,5 +113,6 @@ server {
 
   location / {
     try_files $uri $uri/ /index.html;
+    add_header Cache-Control "no-cache, must-revalidate";
   }
 }

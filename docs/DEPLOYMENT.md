@@ -387,6 +387,31 @@ git pull
 docker compose --profile calls --env-file deploy/production.env -f deploy/compose.production.yml up -d --build
 ```
 
+### Если на VPS есть staging API
+
+В актуальной схеме staging API не должен подключаться к
+`nexus-production_default`: production web использует в этой сети DNS-имя
+`api`, и одинаковое имя сервиса staging может приводить к случайному попаданию
+авторизованных запросов в другой контур. Staging разрешено подключать только к
+выделенной сети `nexus-production_caddy_proxy`, общей с Caddy.
+
+При первом обновлении до этой схемы сначала остановите старый staging-контур,
+затем примените production Compose и только после этого запустите staging с
+обновлённым `NEXUS_CADDY_PROXY_NETWORK`:
+
+```bash
+docker compose --env-file deploy/staging.env -f deploy/compose.staging.yml down
+docker compose --profile calls --env-file deploy/production.env -f deploy/compose.production.yml up -d --build
+
+# В deploy/staging.env должно быть:
+# NEXUS_CADDY_PROXY_NETWORK=nexus-production_caddy_proxy
+docker compose --env-file deploy/staging.env -f deploy/compose.staging.yml up -d --build
+```
+
+До повторного запуска staging убедитесь, что `docker network inspect
+nexus-production_default` не содержит `arachat-staging-api-1`. Подробный
+порядок проверки и настройка Caddy приведены в [инструкции staging](STAGING.md).
+
 API-контейнер при старте применяет миграции:
 
 ```text
