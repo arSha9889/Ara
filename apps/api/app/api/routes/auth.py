@@ -1,3 +1,4 @@
+import logging
 import secrets
 from typing import Annotated
 
@@ -82,6 +83,7 @@ from app.services.phone_verification_service import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post('/telegram/start')
@@ -341,7 +343,8 @@ async def oauth_callback(
         return RedirectResponse(callback_redirect_url(error='provider_not_found'), status_code=status.HTTP_303_SEE_OTHER)
     try:
         result_token = await finish_oauth_callback(session, provider, code, state_value, device_id)
-    except OAuthError:
+    except OAuthError as exc:
+        logger.warning('OAuth callback failed for provider %s: %s', provider, exc)
         return RedirectResponse(callback_redirect_url(error='oauth_failed'), status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(callback_redirect_url(result_token=result_token), status_code=status.HTTP_303_SEE_OTHER)
 

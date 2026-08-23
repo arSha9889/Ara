@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -12,8 +12,12 @@ export function OAuthCallbackPage() {
   const { t } = useI18n();
   const { session, saveSession } = useSession();
   const [message, setMessage] = useState(() => t('auth.oauthCompleting'));
+  const hasStartedCompletion = useRef(false);
 
   useEffect(() => {
+    if (hasStartedCompletion.current) return;
+    hasStartedCompletion.current = true;
+
     async function complete() {
       const params = new URLSearchParams(window.location.hash.slice(1));
       const resultToken = params.get('result');

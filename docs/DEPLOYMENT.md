@@ -273,7 +273,7 @@ Yandex ID и VK ID необязательны. Если они нужны, дл�
 
 1. Создайте OAuth-приложение в кабинете провайдера.
 2. Зарегистрируйте точный callback URL: `https://<ваш-домен>/api/auth/oauth/yandex/callback` либо `https://<ваш-домен>/api/auth/oauth/vk/callback`.
-3. Укажите соответствующие `NEXUS_YANDEX_CLIENT_ID`/`NEXUS_YANDEX_CLIENT_SECRET` либо `NEXUS_VK_CLIENT_ID`/`NEXUS_VK_CLIENT_SECRET`.
+3. Укажите соответствующие `NEXUS_YANDEX_OAUTH_CLIENT_ID`/`NEXUS_YANDEX_OAUTH_CLIENT_SECRET` либо `NEXUS_VK_OAUTH_CLIENT_ID`/`NEXUS_VK_OAUTH_CLIENT_SECRET`.
 4. Выполните тест: войдите обычным способом, привяжите provider identity в настройках, затем выйдите и войдите через этого провайдера.
 
 OAuth-клиентские секреты и SMTP-пароль не публикуйте в репозитории, issues, чатах или логах. Внешние identity не создают аккаунты автоматически: они работают только после ручной привязки из авторизованного AraChat-аккаунта.
