@@ -46,6 +46,7 @@ export function SessionProvider({ children }) {
     }
     syncPreferences(nextSession.user);
     setSession(nextSession);
+    setIsSessionLoading(false);
   }
 
   function syncPreferences(user) {
@@ -81,30 +82,32 @@ export function SessionProvider({ children }) {
     let active = true;
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), SESSION_RESTORE_TIMEOUT_MS);
+    const initialAccessToken = session.accessToken;
+    const initialRefreshToken = session.refreshToken;
 
     async function restoreSession() {
-      if (!session.accessToken && !session.refreshToken) {
-        return;
-      }
       try {
-        if (session.accessToken) {
+        if (!initialAccessToken && !initialRefreshToken) {
+          return;
+        }
+        if (initialAccessToken) {
           try {
-            const user = await getCurrentUser(session.accessToken, { signal: controller.signal });
-            if (!active) return;
+            const user = await getCurrentUser(initialAccessToken, { signal: controller.signal });
+            if (!active || localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) !== initialAccessToken) return;
             syncPreferences(user);
-            setSession((current) => ({ ...current, user }));
+            setSession((current) => current.accessToken === initialAccessToken ? { ...current, user } : current);
             return;
           } catch (err) {
-            if (!session.refreshToken || controller.signal.aborted) {
+            if (!initialRefreshToken || controller.signal.aborted) {
               throw err;
             }
           }
         }
-        const refreshed = await refreshSession(session.refreshToken, { signal: controller.signal });
-        if (!active) return;
+        const refreshed = await refreshSession(initialRefreshToken, { signal: controller.signal });
+        if (!active || localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) !== initialRefreshToken) return;
         saveSession({ accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token, user: refreshed.user });
       } catch {
-        if (active) clearSession();
+        if (active && localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) === initialRefreshToken) clearSession();
       } finally {
         window.clearTimeout(timeoutId);
         if (active) setIsSessionLoading(false);
@@ -124,11 +127,13 @@ export function SessionProvider({ children }) {
     if (isSessionLoading || !session.refreshToken) return undefined;
 
     async function refreshNow() {
+      const refreshToken = session.refreshToken;
       try {
-        const refreshed = await refreshSession(session.refreshToken);
+        const refreshed = await refreshSession(refreshToken);
+        if (localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) !== refreshToken) return;
         saveSession({ accessToken: refreshed.access_token, refreshToken: refreshed.refresh_token, user: refreshed.user });
       } catch {
-        clearSession();
+        if (localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) === refreshToken) clearSession();
       }
     }
 

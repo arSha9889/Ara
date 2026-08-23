@@ -14,6 +14,7 @@ let authSessionHandlers = {
   onExpire: null,
 };
 let refreshPromise = null;
+let refreshPromiseToken = null;
 
 const API_ERROR_MESSAGES = {
   'Username contains invalid characters': 'Username должен содержать только латинские буквы и цифры, от 3 до 32 символов.',
@@ -137,12 +138,11 @@ async function parseErrorMessage(response) {
 }
 
 async function refreshStoredSession() {
-  if (refreshPromise) return refreshPromise;
-
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
   if (!refreshToken) {
     throw new Error(API_ERROR_MESSAGES['Invalid refresh token']);
   }
+  if (refreshPromise && refreshPromiseToken === refreshToken) return refreshPromise;
 
   refreshPromise = (async () => {
     const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
@@ -153,13 +153,18 @@ async function refreshStoredSession() {
     });
 
     if (!response.ok) {
-      localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-      authSessionHandlers.onExpire?.();
+      if (localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) === refreshToken) {
+        localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+        authSessionHandlers.onExpire?.();
+      }
       throw new Error(await parseErrorMessage(response));
     }
 
     const refreshed = await response.json();
+    if (localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY) !== refreshToken) {
+      throw new Error('Session changed while refreshing');
+    }
     localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, refreshed.access_token);
     localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshed.refresh_token);
     authSessionHandlers.onRefresh?.({
@@ -169,8 +174,12 @@ async function refreshStoredSession() {
     });
     return refreshed;
   })().finally(() => {
-    refreshPromise = null;
+    if (refreshPromiseToken === refreshToken) {
+      refreshPromise = null;
+      refreshPromiseToken = null;
+    }
   });
+  refreshPromiseToken = refreshToken;
 
   return refreshPromise;
 }
