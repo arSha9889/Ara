@@ -5,8 +5,10 @@ import { useI18n } from '../../../localization/I18nProvider';
 import { colors, spacing } from '../../../theme/theme';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../authError';
+import { legalDocumentUrls } from '../legalDocuments';
 import { useSession } from '../session/useSession';
 import { AuthLayout, authStyles } from './AuthLayout';
+import { LegalDocumentLink } from './LegalDocumentLink';
 
 export function LegalAcceptanceScreen() {
   const { t } = useI18n();
@@ -50,12 +52,22 @@ export function LegalAcceptanceScreen() {
       title={t('legalUpdateTitle')}
     >
       <Text style={styles.documentName}>{t('privacyPolicy')}</Text>
+      <LegalDocumentLink
+        label={t('openPrivacyPolicy')}
+        onOpenError={() => setError(t('documentOpenError'))}
+        url={legalDocumentUrls.privacy}
+      />
       <ConsentCheck
         checked={acceptedPrivacy}
         label={t('legalPrivacy')}
         onChange={() => setAcceptedPrivacy(current => !current)}
       />
       <Text style={styles.documentName}>{t('termsOfUse')}</Text>
+      <LegalDocumentLink
+        label={t('openTermsOfUse')}
+        onOpenError={() => setError(t('documentOpenError'))}
+        url={legalDocumentUrls.terms}
+      />
       <ConsentCheck
         checked={acceptedTerms}
         label={t('legalTerms')}

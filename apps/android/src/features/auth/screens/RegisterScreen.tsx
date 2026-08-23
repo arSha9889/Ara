@@ -7,6 +7,7 @@ import { useI18n } from '../../../localization/I18nProvider';
 import { colors, spacing } from '../../../theme/theme';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../authError';
+import { legalDocumentUrls } from '../legalDocuments';
 import {
   completeRegistration,
   confirmEmailVerification,
@@ -14,6 +15,7 @@ import {
 } from '../api/authApi';
 import { useSession } from '../session/useSession';
 import { AuthLayout, authStyles } from './AuthLayout';
+import { LegalDocumentLink } from './LegalDocumentLink';
 
 type RegisterStep = 'email' | 'details';
 
@@ -247,10 +249,20 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         />
         <Text style={styles.sectionTitle}>{t('legalTitle')}</Text>
         <Text style={styles.legalDescription}>{t('legalDescription')}</Text>
+        <LegalDocumentLink
+          label={t('openPrivacyPolicy')}
+          onOpenError={() => setError(t('documentOpenError'))}
+          url={legalDocumentUrls.privacy}
+        />
         <ConsentCheck
           checked={acceptedPrivacy}
           label={t('legalPrivacy')}
           onChange={() => setAcceptedPrivacy(current => !current)}
+        />
+        <LegalDocumentLink
+          label={t('openTermsOfUse')}
+          onOpenError={() => setError(t('documentOpenError'))}
+          url={legalDocumentUrls.terms}
         />
         <ConsentCheck
           checked={acceptedTerms}
