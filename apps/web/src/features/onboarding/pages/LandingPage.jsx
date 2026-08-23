@@ -34,6 +34,7 @@ export function LandingPage() {
           <Link to="/" className="brand compact"><img className="brand-mark" src={logoSrc} alt="" aria-hidden="true" /><span>AraChat</span></Link>
           <div className="landing-topbar-actions">
             <Link to="/presentation" className="landing-presentation-link">Презентация</Link>
+            <a href="#download" className="landing-download-link">{t('onboarding.downloadNavigation')}</a>
             <LanguageSwitcher />
             <ThemeSwitcher />
             {!isAuthenticated ? <Link to="/login" className="landing-login-link">{t('onboarding.login')}</Link> : null}
@@ -104,6 +105,34 @@ export function LandingPage() {
               </article>
             ))}
           </div>
+        </section>
+
+        <section className="landing-section landing-download-section" id="download" aria-labelledby="download-title">
+          <div className="landing-download-heading">
+            <div>
+              <p className="eyebrow">{t('onboarding.downloadEyebrow')}</p>
+              <h2 id="download-title">{t('onboarding.downloadTitle')}</h2>
+            </div>
+            <p>{t('onboarding.downloadText')}</p>
+          </div>
+          <div className="landing-store-grid">
+            <button className="landing-store-card" type="button" disabled>
+              <span className="landing-store-mark rustore" aria-hidden="true">Ru</span>
+              <span className="landing-store-copy"><small>Android</small><strong>RuStore</strong><em>{t('onboarding.downloadAndroidRequirement')}</em></span>
+              <span className="landing-store-status"><span aria-hidden="true" />{t('onboarding.downloadSoon')}</span>
+            </button>
+            <button className="landing-store-card" type="button" disabled>
+              <span className="landing-store-mark apk" aria-hidden="true">APK</span>
+              <span className="landing-store-copy"><small>Android</small><strong>{t('onboarding.downloadApk')}</strong><em>{t('onboarding.downloadAndroidRequirement')}</em></span>
+              <span className="landing-store-status"><span aria-hidden="true" />{t('onboarding.downloadSoon')}</span>
+            </button>
+            <button className="landing-store-card" type="button" disabled>
+              <span className="landing-store-mark ios" aria-hidden="true">iOS</span>
+              <span className="landing-store-copy"><small>iPhone &amp; iPad</small><strong>App Store</strong><em>{t('onboarding.downloadIosRequirement')}</em></span>
+              <span className="landing-store-status"><span aria-hidden="true" />{t('onboarding.downloadSoon')}</span>
+            </button>
+          </div>
+          <p className="landing-download-note"><Icon name="bell" size={16} />{t('onboarding.downloadNote')}</p>
         </section>
 
         <div className="landing-compact-row">
