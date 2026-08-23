@@ -218,6 +218,45 @@ Production Compose намеренно требует S3-совместимое �
    в `NEXUS_S3_PUBLIC_BASE_URL`: это именно публичный URL для браузера.
 4. Заполните `NEXUS_S3_*` в `deploy/production.env` по примеру.
 
+API назначает каждому новому объекту ACL `public-read`, поэтому изображения,
+аудио и другие вложения открываются по прямой ссылке media-домена. Не открывайте
+публичное право `ListBucket`: пользователям нужен доступ к конкретному файлу, а
+не возможность получать список всех ключей bucket. Для уже загруженных объектов,
+которые по ошибке получили private ACL, выполните на VPS из каталога проекта:
+
+```bash
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml \
+  exec -T api python - <<'PY'
+from app.core.config import settings
+from app.services.storage_service import get_s3_client
+
+client = get_s3_client()
+prefix = settings.s3_prefix.strip('/')
+prefix = f'{prefix}/' if prefix else ''
+updated = 0
+
+for page in client.get_paginator('list_objects_v2').paginate(
+    Bucket=settings.s3_bucket,
+    Prefix=prefix,
+):
+    for item in page.get('Contents', []):
+        client.put_object_acl(
+            Bucket=settings.s3_bucket,
+            Key=item['Key'],
+            ACL='public-read',
+        )
+        updated += 1
+
+# Убирает публичное перечисление bucket, не затрагивая public-read объектов.
+client.put_bucket_acl(Bucket=settings.s3_bucket, ACL='private')
+print(f'Updated public-read ACL for {updated} object(s).')
+PY
+```
+
+Команда использует учётные данные уже работающего API-контейнера: не выводит и
+не требует вводить ключи S3. После неё проверьте конкретный URL вложения через
+браузер или `curl -I`; ожидается `200`, а не `403`.
+
 Для Cloudflare R2 endpoint имеет вид
 `https://<account-id>.r2.cloudflarestorage.com`, регион — `auto`. Для AWS S3
 укажите регион bucket и его региональный endpoint. Не добавляйте ключи доступа в

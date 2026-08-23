@@ -93,6 +93,7 @@ async def test_save_upload_file_uploads_validated_content_to_s3(tmp_path, monkey
     assert uploaded['bucket'] == 'arachat-media'
     assert uploaded['key'].startswith(f'production-media/{user_id}/')
     assert uploaded['extra_args'] == {
+        'ACL': 'public-read',
         'ContentType': 'image/png',
         'ContentDisposition': 'inline',
         'CacheControl': 'public, max-age=31536000, immutable',

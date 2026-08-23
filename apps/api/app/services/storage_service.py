@@ -199,6 +199,7 @@ async def _upload_to_s3(path: Path, object_key: str, mime_type: str) -> None:
             settings.s3_bucket,
             object_key,
             ExtraArgs={
+                'ACL': 'public-read',
                 'ContentType': mime_type,
                 'ContentDisposition': 'inline',
                 'CacheControl': 'public, max-age=31536000, immutable',
