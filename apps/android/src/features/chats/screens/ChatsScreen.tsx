@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -16,18 +16,30 @@ import { useSession } from '../../auth/session/useSession';
 import { authErrorKey } from '../../auth/authError';
 import { chatPreview, chatTitle, formatConversationTime, type ChatPresentationCopy } from '../chatPresentation';
 import { getChats, type Chat } from '../api/chatApi';
+import { applyCreatedMessageToChats, applyReadMessageToChats } from '../chatRealtime';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { useI18n } from '../../../localization/I18nProvider';
+import { useRealtime } from '../../realtime/RealtimeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
+
+function ChatSubscription({ chatId }: { chatId: string }) {
+  const { subscribeToChat } = useRealtime();
+
+  useEffect(() => subscribeToChat(chatId), [chatId, subscribeToChat]);
+
+  return null;
+}
 
 export function ChatsScreen() {
   const { language, t } = useI18n();
   const { session } = useSession();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { subscribeToEvents } = useRealtime();
   const [chats, setChats] = useState<Chat[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const resyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copy: ChatPresentationCopy = {
     attachment: t('chatsAttachment'),
     directChat: t('chatsDirectFallback'),
@@ -36,16 +48,20 @@ export function ChatsScreen() {
     youPrefix: t('youPrefix'),
   };
 
-  const loadChats = useCallback(async () => {
-    setError('');
-    setIsLoading(true);
+  const loadChats = useCallback(async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+    if (showLoading) {
+      setError('');
+      setIsLoading(true);
+    }
 
     try {
       setChats(await getChats());
     } catch (nextError) {
       setError(t(authErrorKey(nextError)));
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   }, [t]);
 
@@ -54,6 +70,75 @@ export function ChatsScreen() {
       loadChats().catch(() => undefined);
     }, [loadChats]),
   );
+
+  const scheduleResync = useCallback(() => {
+    if (resyncTimer.current) {
+      clearTimeout(resyncTimer.current);
+    }
+
+    resyncTimer.current = setTimeout(() => {
+      resyncTimer.current = null;
+      loadChats({ showLoading: false }).catch(() => undefined);
+    }, 350);
+  }, [loadChats]);
+
+  useEffect(() => {
+    return () => {
+      if (resyncTimer.current) {
+        clearTimeout(resyncTimer.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return subscribeToEvents(event => {
+      if (event.event === 'connection.authenticated') {
+        scheduleResync();
+        return;
+      }
+
+      if (event.event === 'message.created' && event.message) {
+        const message = event.message;
+        setChats(current => applyCreatedMessageToChats(current, message, session?.user.id));
+        scheduleResync();
+        return;
+      }
+
+      if (event.event === 'message.read' && event.message) {
+        const message = event.message;
+        setChats(current =>
+          applyReadMessageToChats(current, message, event.readerId, session?.user.id),
+        );
+        return;
+      }
+
+      if (event.event === 'presence.status' && event.userId) {
+        setChats(current =>
+          current.map(chat => {
+            const peer = chat.peer;
+            if (!peer || peer.id !== event.userId) {
+              return chat;
+            }
+
+            return {
+              ...chat,
+              peer: {
+                ...peer,
+                is_online: event.isOnline ?? peer.is_online,
+                last_seen_at:
+                  event.lastSeenAt === undefined ? peer.last_seen_at : event.lastSeenAt,
+              },
+            };
+          }),
+        );
+        return;
+      }
+
+      if (event.event.startsWith('message.')) {
+        scheduleResync();
+      }
+    });
+  }, [scheduleResync, session?.user.id, subscribeToEvents]);
 
   function openChat(chat: Chat): void {
     navigation.navigate('Chat', { chatId: chat.id, title: chatTitle(chat, copy) });
@@ -99,6 +184,7 @@ export function ChatsScreen() {
 
   return (
     <AppScreen scroll={false} contentStyle={styles.content}>
+      {chats.map(chat => <ChatSubscription chatId={chat.id} key={chat.id} />)}
       <View style={styles.heading}>
         <View>
           <Text style={sharedStyles.eyebrow}>AraChat</Text>

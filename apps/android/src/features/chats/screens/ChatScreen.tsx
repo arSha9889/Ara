@@ -17,7 +17,9 @@ import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
 import { getMessages, markMessagesRead, sendTextMessage, type ChatMessage } from '../api/chatApi';
+import { mergeChatMessages, upsertChatMessage } from '../messageState';
 import { useI18n } from '../../../localization/I18nProvider';
+import { useRealtime } from '../../realtime/RealtimeProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
@@ -32,6 +34,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 export function ChatScreen({ navigation, route }: Props) {
   const { language, t } = useI18n();
   const { session } = useSession();
+  const { subscribeToChat, subscribeToEvents } = useRealtime();
   const messageList = useRef<FlatList<ChatMessage>>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
@@ -39,13 +42,15 @@ export function ChatScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
-  const loadMessages = useCallback(async () => {
-    setError('');
-    setIsLoading(true);
+  const loadMessages = useCallback(async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
+    if (showLoading) {
+      setError('');
+      setIsLoading(true);
+    }
 
     try {
       const nextMessages = await getMessages(route.params.chatId);
-      setMessages(nextMessages);
+      setMessages(current => mergeChatMessages(current, nextMessages));
 
       const unreadIds = nextMessages
         .filter(message => !message.deleted_at && message.sender_id !== session?.user.id)
@@ -57,13 +62,64 @@ export function ChatScreen({ navigation, route }: Props) {
     } catch (nextError) {
       setError(t(authErrorKey(nextError)));
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   }, [route.params.chatId, session?.user.id, t]);
 
   useEffect(() => {
     loadMessages().catch(() => undefined);
   }, [loadMessages]);
+
+  useEffect(() => subscribeToChat(route.params.chatId), [route.params.chatId, subscribeToChat]);
+
+  useEffect(() => {
+    return subscribeToEvents(event => {
+      if (event.event === 'connection.authenticated') {
+        loadMessages({ showLoading: false }).catch(() => undefined);
+        return;
+      }
+
+      if (event.chatId !== route.params.chatId || !event.message) {
+        return;
+      }
+
+      const message = event.message;
+      if (
+        event.event === 'message.created' ||
+        event.event === 'message.updated' ||
+        event.event === 'message.deleted' ||
+        event.event === 'message.reactions_updated'
+      ) {
+        setMessages(current => upsertChatMessage(current, message));
+
+        if (event.event === 'message.created' && message.sender_id !== session?.user.id) {
+          markMessagesRead(route.params.chatId, [message.id]).catch(() => undefined);
+        }
+        return;
+      }
+
+      if (event.event === 'message.read') {
+        setMessages(current =>
+          current.map(currentMessage => {
+            if (currentMessage.id !== message.id) {
+              return currentMessage;
+            }
+
+            if (
+              currentMessage.sender_id === session?.user.id &&
+              event.readerId !== session?.user.id
+            ) {
+              return { ...currentMessage, delivery_status: 'read' };
+            }
+
+            return message;
+          }),
+        );
+      }
+    });
+  }, [loadMessages, route.params.chatId, session?.user.id, subscribeToEvents]);
 
   async function handleSend(): Promise<void> {
     const messageText = text.trim();
@@ -76,7 +132,7 @@ export function ChatScreen({ navigation, route }: Props) {
     setIsSending(true);
     try {
       const message = await sendTextMessage(route.params.chatId, messageText);
-      setMessages(current => [...current, message]);
+      setMessages(current => upsertChatMessage(current, message));
       setText('');
       requestAnimationFrame(() => messageList.current?.scrollToEnd({ animated: true }));
     } catch (nextError) {

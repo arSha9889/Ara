@@ -7,6 +7,7 @@ import { LegalAcceptanceScreen } from '../features/auth/screens/LegalAcceptanceS
 import { PasswordRecoveryScreen } from '../features/auth/screens/PasswordRecoveryScreen';
 import { RegisterScreen } from '../features/auth/screens/RegisterScreen';
 import { SignInScreen } from '../features/auth/screens/SignInScreen';
+import { RealtimeProvider } from '../features/realtime/RealtimeProvider';
 import { useI18n } from '../localization/I18nProvider';
 import { colors } from '../theme/theme';
 import { HaloMark } from '../ui/HaloMark';
@@ -21,7 +22,13 @@ export function AppRoot() {
   }
 
   if (status === 'signedIn') {
-    return session?.user.legalDocumentsCurrent ? <AppNavigator /> : <LegalAcceptanceScreen />;
+    return session?.user.legalDocumentsCurrent ? (
+      <RealtimeProvider accessToken={session.accessToken}>
+        <AppNavigator />
+      </RealtimeProvider>
+    ) : (
+      <LegalAcceptanceScreen />
+    );
   }
 
   if (screen === 'register') {
