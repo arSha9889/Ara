@@ -73,7 +73,7 @@
 - смена e-mail и пароля после проверки текущего пароля и SMTP-кода;
 - необязательные Яндекс ID и VK ID как заранее привязанные запасные способы входа без передачи OAuth-токенов в браузер.
 
-Для реальной регистрации требуется SMTP (`NEXUS_SMTP_HOST`, `NEXUS_SMTP_FROM_EMAIL`) и настроенные SPF, DKIM и DMARC для домена отправителя. Для Яндекс ID/VK ID укажите `NEXUS_PUBLIC_BASE_URL`, client ID/secret и зарегистрируйте точные callback URL. Эти провайдеры не создают и не объединяют аккаунты автоматически: сначала пользователь входит в AraChat по e-mail и вручную привязывает внешний способ.
+Для реальной регистрации требуется SMTP (`NEXUS_SMTP_HOST`, `NEXUS_SMTP_FROM_EMAIL`) и настроенные SPF, DKIM и DMARC для домена отправителя. Для Яндекс ID укажите `NEXUS_PUBLIC_BASE_URL`, `NEXUS_YANDEX_OAUTH_CLIENT_ID` и `NEXUS_YANDEX_OAUTH_CLIENT_SECRET`; для конфиденциального web-приложения VK ID — `NEXUS_VK_OAUTH_CLIENT_ID` и `NEXUS_VK_OAUTH_SERVICE_TOKEN`. У обоих провайдеров зарегистрируйте точные callback URL. Эти провайдеры не создают и не объединяют аккаунты автоматически: сначала пользователь входит в AraChat по e-mail и вручную привязывает внешний способ.
 
 ### Этап 4 — profile/settings/devices
 

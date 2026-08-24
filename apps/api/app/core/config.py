@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     yandex_oauth_client_id: str = ''
     yandex_oauth_client_secret: str = ''
     vk_oauth_client_id: str = ''
-    vk_oauth_client_secret: str = ''
+    vk_oauth_service_token: str = ''
     registration_proof_secret: str = 'dev-registration-proof-secret-change-me'
     access_token_secret: str = 'dev-access-token-secret-change-me'
     access_token_algorithm: str = 'HS256'

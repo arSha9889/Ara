@@ -215,7 +215,7 @@ def _validate_provider_configuration(provider: OAuthProvider) -> None:
     _public_base_url()
     values = {
         'yandex': (settings.yandex_oauth_client_id, settings.yandex_oauth_client_secret),
-        'vk': (settings.vk_oauth_client_id, settings.vk_oauth_client_secret),
+        'vk': (settings.vk_oauth_client_id, settings.vk_oauth_service_token),
     }
     if provider not in values:
         raise OAuthError('Unsupported OAuth provider')
@@ -235,7 +235,7 @@ def _authorization_url(provider: OAuthProvider, state: str, challenge: str) -> s
             'code_challenge': challenge,
             'code_challenge_method': 'S256',
         }
-        return f'https://oauth.yandex.ru/authorize?{urlencode(query)}'
+        return f'https://oauth.yandex.com/authorize?{urlencode(query)}'
     query = {
         'response_type': 'code',
         'client_id': settings.vk_oauth_client_id,
@@ -256,7 +256,7 @@ async def _exchange_code_and_get_subject(
 ) -> str:
     if provider == 'yandex':
         token_payload = await _post_form(
-            'https://oauth.yandex.ru/token',
+            'https://oauth.yandex.com/token',
             {
                 'grant_type': 'authorization_code',
                 'code': code,
@@ -273,21 +273,27 @@ async def _exchange_code_and_get_subject(
     if not provider_device_id:
         raise OAuthError('VK ID did not return a device identifier')
     token_payload = await _post_form(
-        'https://id.vk.ru/oauth2/auth?'
-        + urlencode({
+        'https://id.vk.ru/oauth2/auth',
+        {
             'grant_type': 'authorization_code',
             'client_id': settings.vk_oauth_client_id,
             'redirect_uri': _redirect_uri(provider),
             'code_verifier': verifier,
             'device_id': provider_device_id,
             'state': state,
-        }),
-        {'code': code},
+            'code': code,
+            'service_token': settings.vk_oauth_service_token,
+        },
     )
+    if token_payload.get('state') is not None and not secrets.compare_digest(str(token_payload['state']), state):
+        raise OAuthError('OAuth provider returned invalid state')
     access_token = _required_value(token_payload, 'access_token')
     profile = await _post_form(
-        f'https://id.vk.ru/oauth2/user_info?{urlencode({"client_id": settings.vk_oauth_client_id})}',
-        {'access_token': access_token},
+        'https://id.vk.ru/oauth2/user_info',
+        {
+            'client_id': settings.vk_oauth_client_id,
+            'access_token': access_token,
+        },
     )
     return _required_value(profile.get('user') if isinstance(profile.get('user'), dict) else profile, 'user_id')
 

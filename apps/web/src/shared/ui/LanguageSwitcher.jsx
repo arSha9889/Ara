@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useI18n } from '../../app/providers/I18nProvider.jsx';
 import { Icon } from './Icon.jsx';
@@ -59,7 +60,7 @@ export function LanguageSwitcher({ onChange }) {
         </span>
         <span className="select-switcher-chevron" aria-hidden="true">⌄</span>
       </button>
-      {isOpen ? (
+      {isOpen ? createPortal(
         <div className="language-dialog-layer" role="presentation" onMouseDown={() => setIsOpen(false)}>
           <section className="language-dialog" role="dialog" aria-modal="true" aria-labelledby="language-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="language-dialog-handle" aria-hidden="true" />
@@ -74,7 +75,8 @@ export function LanguageSwitcher({ onChange }) {
             <button className="language-dialog-close" type="button" onClick={() => setIsOpen(false)} aria-label={t('common.close')}><Icon name="x" size={19} /></button>
             <LanguagePickerList selectedLanguage={language} onSelect={handleChange} inputRef={searchRef} />
           </section>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

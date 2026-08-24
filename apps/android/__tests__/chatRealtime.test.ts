@@ -1,5 +1,8 @@
 import type { Chat, ChatMessage } from '../src/features/chats/api/chatApi';
-import { applyCreatedMessageToChats, applyReadMessageToChats } from '../src/features/chats/chatRealtime';
+import {
+  applyCreatedMessageToChats,
+  applyReadMessageToChats,
+} from '../src/features/chats/chatRealtime';
 
 const chat: Chat = {
   id: 'chat-1',
@@ -42,34 +45,37 @@ const incomingMessage: ChatMessage = {
   created_at: '2026-08-23T12:00:00Z',
   edited_at: null,
   deleted_at: null,
+  reactions: [],
 };
 
 test('updates the preview and unread count for an incoming realtime message', () => {
-  expect(applyCreatedMessageToChats([chat], incomingMessage, 'user-1')).toEqual([
-    {
-      ...chat,
-      last_message: {
-        id: 'message-1',
-        sender_id: 'user-2',
-        type: 'text',
-        payload: 'Привет',
-        media_name: null,
-        created_at: '2026-08-23T12:00:00Z',
+  expect(applyCreatedMessageToChats([chat], incomingMessage, 'user-1')).toEqual(
+    [
+      {
+        ...chat,
+        last_message: {
+          id: 'message-1',
+          sender_id: 'user-2',
+          type: 'text',
+          payload: 'Привет',
+          media_name: null,
+          created_at: '2026-08-23T12:00:00Z',
+        },
+        last_message_id: 'message-1',
+        unread_count: 1,
+        updated_at: '2026-08-23T12:00:00Z',
       },
-      last_message_id: 'message-1',
-      unread_count: 1,
-      updated_at: '2026-08-23T12:00:00Z',
-    },
-  ]);
+    ],
+  );
 });
 
 test('decrements unread count only for a read event from the current user', () => {
   const unreadChat = { ...chat, unread_count: 2 };
 
-  expect(applyReadMessageToChats([unreadChat], incomingMessage, 'user-1', 'user-1')).toEqual([
-    { ...unreadChat, unread_count: 1 },
-  ]);
-  expect(applyReadMessageToChats([unreadChat], incomingMessage, 'user-2', 'user-1')).toEqual([
-    unreadChat,
-  ]);
+  expect(
+    applyReadMessageToChats([unreadChat], incomingMessage, 'user-1', 'user-1'),
+  ).toEqual([{ ...unreadChat, unread_count: 1 }]);
+  expect(
+    applyReadMessageToChats([unreadChat], incomingMessage, 'user-2', 'user-1'),
+  ).toEqual([unreadChat]);
 });

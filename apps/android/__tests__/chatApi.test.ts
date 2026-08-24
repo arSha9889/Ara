@@ -1,10 +1,13 @@
 import { apiClient } from '../src/infrastructure/http/apiClient';
 import {
   createDirectChatForUser,
+  deleteMessage,
+  editTextMessage,
   getChats,
   getMessages,
   markMessagesRead,
   sendTextMessage,
+  toggleMessageReaction,
 } from '../src/features/chats/api/chatApi';
 
 jest.mock('../src/infrastructure/http/apiClient', () => ({
@@ -51,10 +54,44 @@ test('uses the existing backend endpoints for history, sending, and read state',
   });
 });
 
+test('uses the existing backend endpoints for editing, deleting, and reactions', async () => {
+  request.mockResolvedValue({ id: 'message-1' });
+
+  await editTextMessage('chat-1', 'message-1', '  Обновлённый текст  ');
+  await toggleMessageReaction('chat-1', 'message-1', '👍');
+  await deleteMessage('chat-1', 'message-1');
+
+  expect(request).toHaveBeenNthCalledWith(
+    1,
+    '/api/chats/chat-1/messages/message-1',
+    {
+      method: 'PATCH',
+      body: { text: 'Обновлённый текст' },
+    },
+  );
+  expect(request).toHaveBeenNthCalledWith(
+    2,
+    '/api/chats/chat-1/messages/message-1/reactions',
+    {
+      method: 'POST',
+      body: { emoji: '👍' },
+    },
+  );
+  expect(request).toHaveBeenNthCalledWith(
+    3,
+    '/api/chats/chat-1/messages/message-1',
+    {
+      method: 'DELETE',
+    },
+  );
+});
+
 test('opens or creates a direct chat with a selected user', async () => {
   request.mockResolvedValue({ id: 'chat-1', type: 'direct' });
 
   await createDirectChatForUser('user-1');
 
-  expect(request).toHaveBeenCalledWith('/api/chats/direct/users/user-1', { method: 'POST' });
+  expect(request).toHaveBeenCalledWith('/api/chats/direct/users/user-1', {
+    method: 'POST',
+  });
 });

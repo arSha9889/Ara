@@ -417,6 +417,109 @@ async def test_oauth_requires_existing_manual_link_and_binds_result_to_device(an
         await engine.dispose()
 
 
+def test_oauth_authorization_urls_follow_yandex_and_vk_id_pkce_requirements(monkeypatch) -> None:
+    from urllib.parse import parse_qs, urlparse
+
+    from app.services import oauth_service
+
+    monkeypatch.setattr(oauth_service.settings, 'public_base_url', 'https://app.example.test')
+    monkeypatch.setattr(oauth_service.settings, 'yandex_oauth_client_id', 'yandex-client-id')
+    monkeypatch.setattr(oauth_service.settings, 'yandex_oauth_client_secret', 'yandex-client-secret')
+    monkeypatch.setattr(oauth_service.settings, 'vk_oauth_client_id', 'vk-client-id')
+    monkeypatch.setattr(oauth_service.settings, 'vk_oauth_service_token', 'vk-service-token')
+
+    yandex = urlparse(oauth_service._authorization_url('yandex', 'yandex-state', 'yandex-challenge'))
+    vk = urlparse(oauth_service._authorization_url('vk', 'vk-state', 'vk-challenge'))
+
+    assert yandex.scheme == 'https'
+    assert yandex.netloc == 'oauth.yandex.com'
+    assert parse_qs(yandex.query) == {
+        'response_type': ['code'],
+        'client_id': ['yandex-client-id'],
+        'redirect_uri': ['https://app.example.test/api/auth/oauth/yandex/callback'],
+        'state': ['yandex-state'],
+        'code_challenge': ['yandex-challenge'],
+        'code_challenge_method': ['S256'],
+    }
+    assert vk.scheme == 'https'
+    assert vk.netloc == 'id.vk.ru'
+    assert vk.path == '/authorize'
+    assert parse_qs(vk.query) == {
+        'response_type': ['code'],
+        'client_id': ['vk-client-id'],
+        'redirect_uri': ['https://app.example.test/api/auth/oauth/vk/callback'],
+        'state': ['vk-state'],
+        'code_challenge': ['vk-challenge'],
+        'code_challenge_method': ['S256'],
+    }
+
+
+@pytest.mark.anyio
+async def test_oauth_exchanges_yandex_and_vk_id_codes_on_the_server(monkeypatch) -> None:
+    from app.services import oauth_service
+
+    monkeypatch.setattr(oauth_service.settings, 'public_base_url', 'https://app.example.test')
+    monkeypatch.setattr(oauth_service.settings, 'yandex_oauth_client_id', 'yandex-client-id')
+    monkeypatch.setattr(oauth_service.settings, 'yandex_oauth_client_secret', 'yandex-client-secret')
+    monkeypatch.setattr(oauth_service.settings, 'vk_oauth_client_id', 'vk-client-id')
+    monkeypatch.setattr(oauth_service.settings, 'vk_oauth_service_token', 'vk-service-token')
+    requests = []
+
+    async def fake_post_form(url, payload):
+        requests.append((url, payload))
+        if url == 'https://oauth.yandex.com/token':
+            return {'access_token': 'yandex-access-token'}
+        if url == 'https://id.vk.ru/oauth2/auth':
+            return {'access_token': 'vk-access-token', 'state': 'vk-state'}
+        if url == 'https://id.vk.ru/oauth2/user_info':
+            return {'user': {'user_id': 'vk-subject-42'}}
+        raise AssertionError(f'Unexpected OAuth request: {url}')
+
+    async def fake_get_json(url, headers):
+        assert url == 'https://login.yandex.ru/info?format=json'
+        assert headers == {'Authorization': 'OAuth yandex-access-token'}
+        return {'id': 'yandex-subject-42'}
+
+    monkeypatch.setattr(oauth_service, '_post_form', fake_post_form)
+    monkeypatch.setattr(oauth_service, '_get_json', fake_get_json)
+
+    assert await oauth_service._exchange_code_and_get_subject('yandex', 'yandex-code', 'yandex-state', 'yandex-verifier', None) == 'yandex-subject-42'
+    assert await oauth_service._exchange_code_and_get_subject('vk', 'vk-code', 'vk-state', 'vk-verifier', 'vk-device-id') == 'vk-subject-42'
+    assert requests == [
+        (
+            'https://oauth.yandex.com/token',
+            {
+                'grant_type': 'authorization_code',
+                'code': 'yandex-code',
+                'client_id': 'yandex-client-id',
+                'client_secret': 'yandex-client-secret',
+                'redirect_uri': 'https://app.example.test/api/auth/oauth/yandex/callback',
+                'code_verifier': 'yandex-verifier',
+            },
+        ),
+        (
+            'https://id.vk.ru/oauth2/auth',
+            {
+                'grant_type': 'authorization_code',
+                'client_id': 'vk-client-id',
+                'redirect_uri': 'https://app.example.test/api/auth/oauth/vk/callback',
+                'code_verifier': 'vk-verifier',
+                'device_id': 'vk-device-id',
+                'state': 'vk-state',
+                'code': 'vk-code',
+                'service_token': 'vk-service-token',
+            },
+        ),
+        (
+            'https://id.vk.ru/oauth2/user_info',
+            {
+                'client_id': 'vk-client-id',
+                'access_token': 'vk-access-token',
+            },
+        ),
+    ]
+
+
 @pytest.mark.anyio
 async def test_production_auth_rate_limit_hashes_ip_and_fails_open_for_redis_errors(anyio_backend, monkeypatch) -> None:
     from fastapi import HTTPException

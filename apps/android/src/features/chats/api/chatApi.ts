@@ -44,6 +44,12 @@ export interface ChatMessageAuthor {
   is_official: boolean;
 }
 
+export interface ChatMessageReaction {
+  emoji: string;
+  count: number;
+  reacted_by_me: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   chat_id: string;
@@ -61,6 +67,7 @@ export interface ChatMessage {
   created_at: string;
   edited_at: string | null;
   deleted_at: string | null;
+  reactions: ChatMessageReaction[];
 }
 
 function isSupportedMobileChat(chat: Chat): boolean {
@@ -77,19 +84,68 @@ export function getMessages(chatId: string): Promise<ChatMessage[]> {
 }
 
 export function createDirectChatForUser(userId: string): Promise<Chat> {
-  return apiClient.request<Chat>(`/api/chats/direct/users/${encodeURIComponent(userId)}`, {
-    method: 'POST',
-  });
+  return apiClient.request<Chat>(
+    `/api/chats/direct/users/${encodeURIComponent(userId)}`,
+    {
+      method: 'POST',
+    },
+  );
 }
 
-export function sendTextMessage(chatId: string, text: string): Promise<ChatMessage> {
+export function sendTextMessage(
+  chatId: string,
+  text: string,
+): Promise<ChatMessage> {
   return apiClient.request<ChatMessage>(`/api/chats/${chatId}/messages`, {
     method: 'POST',
     body: { text: text.trim(), type: 'text' },
   });
 }
 
-export function markMessagesRead(chatId: string, messageIds: string[]): Promise<ChatMessage[]> {
+export function editTextMessage(
+  chatId: string,
+  messageId: string,
+  text: string,
+): Promise<ChatMessage> {
+  return apiClient.request<ChatMessage>(
+    `/api/chats/${chatId}/messages/${messageId}`,
+    {
+      method: 'PATCH',
+      body: { text: text.trim() },
+    },
+  );
+}
+
+export function deleteMessage(
+  chatId: string,
+  messageId: string,
+): Promise<ChatMessage> {
+  return apiClient.request<ChatMessage>(
+    `/api/chats/${chatId}/messages/${messageId}`,
+    {
+      method: 'DELETE',
+    },
+  );
+}
+
+export function toggleMessageReaction(
+  chatId: string,
+  messageId: string,
+  emoji: string,
+): Promise<ChatMessage> {
+  return apiClient.request<ChatMessage>(
+    `/api/chats/${chatId}/messages/${messageId}/reactions`,
+    {
+      method: 'POST',
+      body: { emoji },
+    },
+  );
+}
+
+export function markMessagesRead(
+  chatId: string,
+  messageIds: string[],
+): Promise<ChatMessage[]> {
   return apiClient.request<ChatMessage[]>(`/api/chats/${chatId}/read`, {
     method: 'POST',
     body: { message_ids: messageIds },

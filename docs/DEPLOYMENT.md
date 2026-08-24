@@ -310,10 +310,10 @@ docker compose --env-file deploy/production.env -f deploy/compose.production.yml
 
 Yandex ID и VK ID необязательны. Если они нужны, для каждого провайдера:
 
-1. Создайте OAuth-приложение в кабинете провайдера.
-2. Зарегистрируйте точный callback URL: `https://<ваш-домен>/api/auth/oauth/yandex/callback` либо `https://<ваш-домен>/api/auth/oauth/vk/callback`.
-3. Укажите соответствующие `NEXUS_YANDEX_OAUTH_CLIENT_ID`/`NEXUS_YANDEX_OAUTH_CLIENT_SECRET` либо `NEXUS_VK_OAUTH_CLIENT_ID`/`NEXUS_VK_OAUTH_CLIENT_SECRET`.
-4. Выполните тест: войдите обычным способом, привяжите provider identity в настройках, затем выйдите и войдите через этого провайдера.
+1. В [кабинете Яндекс ID](https://oauth.yandex.com/) создайте web-приложение и добавьте точный callback URL: `https://<ваш-домен>/api/auth/oauth/yandex/callback`. В `deploy/production.env` задайте `NEXUS_YANDEX_OAUTH_CLIENT_ID` и `NEXUS_YANDEX_OAUTH_CLIENT_SECRET`.
+2. В [кабинете VK ID](https://id.vk.ru/about/business/go/) создайте **конфиденциальное** web-приложение, добавьте базовый домен и точный доверенный redirect URL `https://<ваш-домен>/api/auth/oauth/vk/callback`. Разрешите публичный IP API-сервера в настройках конфиденциального приложения. В `deploy/production.env` задайте `NEXUS_VK_OAUTH_CLIENT_ID` и сервисный ключ доступа `NEXUS_VK_OAUTH_SERVICE_TOKEN` — защищённый ключ браузерного SDK для серверного обмена не подходит.
+3. После изменения `deploy/production.env` пересоздайте API-контейнер: `docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --no-deps api`.
+4. Выполните тест каждого провайдера: войдите обычным способом, привяжите identity в настройках, затем выйдите и войдите через этого провайдера.
 
 OAuth-клиентские секреты и SMTP-пароль не публикуйте в репозитории, issues, чатах или логах. Внешние identity не создают аккаунты автоматически: они работают только после ручной привязки из авторизованного AraChat-аккаунта.
 
