@@ -146,6 +146,7 @@ class Notification(Base):
     recipient_user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
     chat_id: Mapped[UUID | None] = mapped_column(ForeignKey('chats.id', ondelete='CASCADE'), index=True)
     message_id: Mapped[UUID | None] = mapped_column(ForeignKey('messages.id', ondelete='CASCADE'), index=True)
+    support_ticket_id: Mapped[UUID | None] = mapped_column(ForeignKey('support_tickets.id', ondelete='CASCADE'), index=True)
     announcement_id: Mapped[UUID | None] = mapped_column(ForeignKey('system_announcements.id', ondelete='SET NULL'), index=True)
     title: Mapped[str] = mapped_column(String(120))
     body: Mapped[str] = mapped_column(String(240))

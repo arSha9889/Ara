@@ -7,6 +7,7 @@ import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { createPublicBranch } from '../../chats/api/chatApi.js';
+import { SupportTicketsPanel } from '../components/SupportTicketsPanel.jsx';
 import {
   cancelAdminAnnouncement,
   createAdminAnnouncement,
@@ -30,7 +31,7 @@ import {
   updateAdminUserVpnStatus,
 } from '../api/adminApi.js';
 
-const TABS = ['overview', 'systemBot', 'users', 'branches', 'maintenance', 'audit'];
+const TABS = ['overview', 'systemBot', 'support', 'users', 'branches', 'maintenance', 'audit'];
 const EMPTY_BRANCH_FORM = { title: '', slug: '', description: '', avatar_ref: '📢' };
 const EMPTY_RESTRICTION_FORM = { reason: 'spam', note: '', endsAt: '' };
 const EMPTY_ANNOUNCEMENT_FORM = { text: '', audienceType: 'all', audienceCountry: '', audienceBranchId: '', scheduledAt: '' };
@@ -42,6 +43,7 @@ function AdminIcon({ name, size = 20 }) {
     branches: <><path d="M4 20V4m0 3h9l-1 4 4 2H4" /><path d="M4 20h16" /></>,
     maintenance: <><ellipse cx="12" cy="5" rx="7" ry="3" /><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5" /><path d="M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7" /></>,
     systemBot: <><rect x="4" y="5" width="16" height="14" rx="4" /><path d="M9 5V3m6 2V3M8.5 12h.01M15.5 12h.01M9 16h6" /></>,
+    support: <><path d="M5 19.5V9a7 7 0 0 1 14 0v10.5" /><path d="M5 14H3.5A1.5 1.5 0 0 0 2 15.5v2A1.5 1.5 0 0 0 3.5 19H5M19 14h1.5a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1-1.5 1.5H19M19 19.5c0 1.1-.9 2-2 2h-2" /></>,
     audit: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     shield: <><path d="M12 3 4 6v5c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10V6l-8-3Z" /><path d="m8.5 12 2.2 2.2 4.8-5" /></>,
     search: <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></>,
@@ -656,6 +658,8 @@ export function AdminPage() {
                 )}
               </>
             ) : null}
+
+            {activeTab === 'support' ? <SupportTicketsPanel /> : null}
 
             {activeTab === 'users' ? (
               <>

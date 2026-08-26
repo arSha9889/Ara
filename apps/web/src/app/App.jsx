@@ -19,6 +19,7 @@ import { LegalAcceptancePage } from '../features/legal/pages/LegalAcceptancePage
 import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
 import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
 import { AdminPage } from '../features/admin/pages/AdminPage.jsx';
+import { SupportPage } from '../features/support/pages/SupportPage.jsx';
 import { AppFeedbackViewport } from '../shared/ui/AppFeedbackViewport.jsx';
 import { useSession } from './providers/SessionProvider.jsx';
 
@@ -59,6 +60,8 @@ export function App() {
             <Route path="new-chat" element={<NewChatPage />} />
             <Route path="branches" element={<PublicBranchesPage />} />
             <Route path="chats/:chatId" element={<ChatRoute />} />
+            <Route path="support" element={<SupportPage />} />
+            <Route path="support/:ticketId" element={<SupportPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="admin" element={<Navigate to="/admin" replace />} />

@@ -15,3 +15,4 @@ def test_retention_never_selects_active_message_attachments() -> None:
     assert "stored_objects.status = 'pending'" in condition
     assert "stored_objects.status IN ('orphaned', 'deletion_pending')" in condition
     assert 'attached_message' not in condition
+    assert "stored_objects.status = 'attached_support_message'" in condition

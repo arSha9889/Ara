@@ -339,6 +339,30 @@ async def create_branch_comment_notification(
     await _send_push_to_user(session, recipient_user_id, payload)
 
 
+async def create_support_notification(
+    session: AsyncSession,
+    recipient_user_id: UUID,
+    ticket_id: UUID,
+    title: str,
+    body: str,
+) -> None:
+    notification = Notification(
+        recipient_user_id=recipient_user_id,
+        support_ticket_id=ticket_id,
+        title=title[:120],
+        body=body[:240],
+        url=f'/app/support/{ticket_id}',
+    )
+    session.add(notification)
+    await session.commit()
+    payload = _notification_out(notification)
+    await realtime_manager.broadcast_to_user(
+        recipient_user_id,
+        {'event': 'notification.created', 'notification': payload.model_dump(mode='json')},
+    )
+    await _send_push_to_user(session, recipient_user_id, payload)
+
+
 async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> bool:
     profile = await session.get(UserProfile, user_id)
     notification = NotificationOut(
@@ -435,9 +459,10 @@ def _notification_out(notification: Notification) -> NotificationOut:
     return NotificationOut(
         id=notification.id,
         notification_id=notification.id,
-        kind='announcement' if notification.announcement_id else 'message',
+        kind='announcement' if notification.announcement_id else 'support' if notification.support_ticket_id else 'message',
         chat_id=notification.chat_id,
         message_id=notification.message_id,
+        support_ticket_id=notification.support_ticket_id,
         title=notification.title,
         body=notification.body,
         url=notification.url,

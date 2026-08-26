@@ -56,6 +56,32 @@ async def attach_upload_to_message(
     stored_object.attached_at = datetime.now(timezone.utc)
 
 
+async def attach_upload_to_support_message(
+    session: AsyncSession,
+    owner_user_id: UUID,
+    support_message_id: UUID,
+    public_url: str | None,
+) -> None:
+    if not public_url:
+        return
+
+    stored_object = await session.scalar(
+        select(StoredObject).where(StoredObject.public_url == public_url).limit(1).with_for_update()
+    )
+    if not stored_object:
+        raise ValueError('Uploaded file is not available for this support message')
+    if (
+        stored_object.owner_user_id != owner_user_id
+        or stored_object.purpose != 'support'
+        or stored_object.status != 'pending'
+    ):
+        raise ValueError('Uploaded file is not available for this support message')
+
+    stored_object.status = 'attached_support_message'
+    stored_object.support_message_id = support_message_id
+    stored_object.attached_at = datetime.now(timezone.utc)
+
+
 async def replace_uploaded_avatar(
     session: AsyncSession,
     owner_user_id: UUID,

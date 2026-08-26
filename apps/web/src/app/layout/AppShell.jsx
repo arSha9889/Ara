@@ -44,11 +44,12 @@ export function AppShell() {
   const navItems = [
     { to: '/app', icon: 'chat', label: t('chats.title') },
     { to: '/app/branches', icon: 'branches', label: t('chats.publicBranches') },
+    { to: '/app/support', icon: 'support', label: t('support.title') },
     { to: '/app/profile', icon: 'user', label: t('profile.title') },
     { to: '/app/settings', icon: 'settings', label: t('settings.title') },
     ...(isAdministrator ? [{ to: '/admin', icon: 'shield', label: t('auth.adminEntry') }] : []),
   ];
-  const mobileNavItems = navItems.filter((item) => ['/app', '/app/branches', '/app/profile'].includes(item.to));
+  const mobileNavItems = navItems.filter((item) => ['/app', '/app/branches', '/app/support', '/app/profile'].includes(item.to));
 
   useEffect(() => {
     let isCurrent = true;
@@ -176,11 +177,13 @@ export function AppShell() {
               onClick={() => setIsMenuOpen(false)}
             >
               <span className="mobile-bottom-nav-icon" aria-hidden="true">
-                <UserAvatar
-                  baseClass="mobile-bottom-nav-profile-avatar"
-                  profile={session.user?.profile}
-                  fallback={session.user?.profile?.display_name?.[0] || session.user?.username?.[0] || 'A'}
-                />
+                {item.to === '/app/profile' ? (
+                  <UserAvatar
+                    baseClass="mobile-bottom-nav-profile-avatar"
+                    profile={session.user?.profile}
+                    fallback={session.user?.profile?.display_name?.[0] || session.user?.username?.[0] || 'A'}
+                  />
+                ) : <Icon name={item.icon} size={21} />}
               </span>
               <span>{item.label}</span>
             </NavLink>

@@ -203,9 +203,10 @@ class MobilePushConfigOut(BaseModel):
 class NotificationOut(BaseModel):
     id: UUID
     notification_id: UUID
-    kind: Literal['message', 'announcement', 'system'] = 'message'
+    kind: Literal['message', 'announcement', 'support', 'system'] = 'message'
     chat_id: UUID | None
     message_id: UUID | None
+    support_ticket_id: UUID | None = None
     title: str
     body: str
     url: str

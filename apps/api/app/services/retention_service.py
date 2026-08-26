@@ -256,4 +256,9 @@ def _expired_object_condition(now: datetime):
             StoredObject.delete_after.is_not(None),
             StoredObject.delete_after <= now,
         ),
+        and_(
+            StoredObject.status == 'attached_support_message',
+            StoredObject.delete_after.is_not(None),
+            StoredObject.delete_after <= now,
+        ),
     )

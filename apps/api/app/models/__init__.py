@@ -5,6 +5,7 @@ from app.models.safety import ContentReport, UserBlock
 from app.models.security import PasswordCredential, RecoveryCode, TrustedDevicePin
 from app.models.sessions import LoginHistory, Session
 from app.models.storage import StoredObject
+from app.models.support import SupportMessage, SupportTicket, SupportTicketCounter
 from app.models.users import User, UserProfile, UserRestriction
 from app.models.verification import EmailVerification, PasswordConfirmation, PhoneVerification
 
@@ -31,6 +32,9 @@ __all__ = [
     'PushSubscription',
     'Session',
     'StoredObject',
+    'SupportMessage',
+    'SupportTicket',
+    'SupportTicketCounter',
     'SystemAnnouncement',
     'TelegramRecoveryRequest',
     'TrustedDevicePin',

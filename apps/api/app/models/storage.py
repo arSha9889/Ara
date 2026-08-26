@@ -14,6 +14,7 @@ class StoredObject(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     owner_user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
     message_id: Mapped[UUID | None] = mapped_column(ForeignKey('messages.id', ondelete='CASCADE'), index=True)
+    support_message_id: Mapped[UUID | None] = mapped_column(ForeignKey('support_messages.id', ondelete='CASCADE'), index=True)
     storage_key: Mapped[str] = mapped_column(String(1024), unique=True)
     public_url: Mapped[str] = mapped_column(Text)
     purpose: Mapped[str] = mapped_column(String(32), default='message')
