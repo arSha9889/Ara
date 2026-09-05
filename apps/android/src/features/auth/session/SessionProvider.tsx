@@ -5,6 +5,7 @@ import {
   sessionStore,
   type AuthSession,
 } from '../../../infrastructure/storage/sessionStore';
+import { unregisterMobilePushTokens } from '../../notifications/api/mobilePushApi';
 
 type SessionStatus = 'loading' | 'signedOut' | 'signedIn';
 
@@ -69,6 +70,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     try {
       if (currentSession) {
+        await (async () => {
+          const deviceId = await sessionStore.getDeviceId();
+          await unregisterMobilePushTokens(deviceId);
+        })().catch(() => undefined);
         await logout(currentSession.refreshToken);
       }
     } finally {

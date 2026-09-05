@@ -1,0 +1,6 @@
+# Local production signing configuration. Copy this file to release-signing.properties.
+# The copied file is ignored by Git. Do not commit it, the keystore, or the passwords.
+storeFile=/absolute/path/to/arachat-release.p12
+storePassword=
+keyAlias=arachat-release
+keyPassword=

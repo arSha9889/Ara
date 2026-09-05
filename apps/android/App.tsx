@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppRoot } from './src/app/AppRoot';
 import { SessionProvider } from './src/features/auth/session/SessionProvider';
+import { MobilePushProvider } from './src/features/notifications/MobilePushProvider';
 import { I18nProvider } from './src/localization/I18nProvider';
 
 function App() {
@@ -11,7 +12,9 @@ function App() {
       <StatusBar barStyle="light-content" />
       <I18nProvider>
         <SessionProvider>
-          <AppRoot />
+          <MobilePushProvider>
+            <AppRoot />
+          </MobilePushProvider>
         </SessionProvider>
       </I18nProvider>
     </SafeAreaProvider>

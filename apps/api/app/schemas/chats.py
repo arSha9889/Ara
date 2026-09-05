@@ -192,7 +192,7 @@ class PushConfigOut(BaseModel):
 
 class MobilePushTokenRegisterRequest(BaseModel):
     device_id: str = Field(min_length=8, max_length=128)
-    provider: Literal['rustore', 'universal']
+    provider: Literal['rustore', 'fcm']
     package_name: Literal['arachat.messenger']
     app_version: str | None = Field(default=None, max_length=64)
     token: str = Field(min_length=16, max_length=8192)
@@ -200,7 +200,7 @@ class MobilePushTokenRegisterRequest(BaseModel):
 
 class MobilePushTokenDeleteRequest(BaseModel):
     device_id: str = Field(min_length=8, max_length=128)
-    provider: Literal['rustore', 'universal'] | None = None
+    provider: Literal['rustore', 'fcm'] | None = None
 
 
 class MobilePushTokenOut(BaseModel):

@@ -109,7 +109,12 @@ const messages = {
     notifications: 'Уведомления',
     notificationsUnavailable: 'Мобильные уведомления пока недоступны',
     notificationsDescription:
-      'Они появятся только после настройки провайдера и проверки на подписанном устройстве.',
+      'Включите системное разрешение, чтобы AraChat мог зарегистрировать это устройство. Доставка в фоне будет проверена отдельно на физическом подписанном устройстве.',
+    notificationsEnable: 'Включить уведомления',
+    notificationsEnabling: 'Включаем…',
+    notificationsEnabled: 'Устройство подготовлено для уведомлений',
+    notificationsEnabledDescription:
+      'Разрешение выдано, а токены устройства зарегистрированы. Фоновая доставка будет включена только после проверки на физическом подписанном устройстве.',
     blockedUsers: 'Заблокированные пользователи',
     blockedUsersDescription: 'Пользователи, которым вы запретили писать вам и находить ваши чаты.',
     blockedUsersEmptyTitle: 'Заблокированных пользователей нет',
@@ -443,7 +448,12 @@ const messages = {
     notifications: 'Notifications',
     notificationsUnavailable: 'Mobile notifications are not available yet',
     notificationsDescription:
-      'They will be available after the provider is configured and tested on a signed device.',
+      'Enable the system permission so AraChat can register this device. Background delivery will be verified separately on a signed physical device.',
+    notificationsEnable: 'Enable notifications',
+    notificationsEnabling: 'Enabling…',
+    notificationsEnabled: 'This device is prepared for notifications',
+    notificationsEnabledDescription:
+      'Permission was granted and the device tokens are registered. Background delivery will be enabled only after verification on a signed physical device.',
     blockedUsers: 'Blocked users',
     blockedUsersDescription: 'People you have prevented from messaging you or accessing your chats.',
     blockedUsersEmptyTitle: 'No blocked users',

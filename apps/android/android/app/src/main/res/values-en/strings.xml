@@ -1,0 +1,7 @@
+<resources>
+    <string name="push_messages_channel">Messages</string>
+    <string name="push_system_channel">System notifications</string>
+    <string name="push_message_title">New AraChat notification</string>
+    <string name="push_message_body">Open the app to read the new message.</string>
+    <string name="push_system_body">Open the app to view the notification.</string>
+</resources>

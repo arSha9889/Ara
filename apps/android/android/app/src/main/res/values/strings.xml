@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">AraChat</string>
+    <string name="push_messages_channel">Сообщения</string>
+    <string name="push_system_channel">Системные уведомления</string>
+    <string name="push_message_title">Новое уведомление AraChat</string>
+    <string name="push_message_body">Откройте приложение, чтобы прочитать новое сообщение.</string>
+    <string name="push_system_body">Откройте приложение, чтобы посмотреть уведомление.</string>
 </resources>

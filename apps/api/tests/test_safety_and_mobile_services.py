@@ -54,10 +54,14 @@ async def _create_user(session, marker: str) -> User:
     return user
 
 
-def _mobile_request(device_id: str, token: str) -> MobilePushTokenRegisterRequest:
+def _mobile_request(
+    device_id: str,
+    token: str,
+    provider: str = 'fcm',
+) -> MobilePushTokenRegisterRequest:
     return MobilePushTokenRegisterRequest(
         device_id=device_id,
-        provider='universal',
+        provider=provider,
         package_name='arachat.messenger',
         app_version='1.0.0',
         token=token,
@@ -93,8 +97,39 @@ async def test_mobile_push_token_moves_to_current_user_and_deactivates() -> None
             assert len(tokens) == 1
             assert tokens[0].user_id == second_user.id
 
-            await deactivate_mobile_push_tokens(session, second_user.id, device_id, 'universal')
+            await deactivate_mobile_push_tokens(session, second_user.id, device_id, 'fcm')
             assert not (await session.get(MobilePushToken, refreshed.id)).is_active
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_mobile_push_tokens_keep_rustore_and_fcm_for_one_device() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        async with session_factory() as session:
+            user = await _create_user(session, '103')
+            device_id = f'device-{uuid4()}'
+            await save_mobile_push_token(
+                session,
+                user.id,
+                _mobile_request(device_id, f'rustore-{uuid4()}', provider='rustore'),
+            )
+            await save_mobile_push_token(
+                session,
+                user.id,
+                _mobile_request(device_id, f'fcm-{uuid4()}', provider='fcm'),
+            )
+
+            tokens = list((await session.execute(select(MobilePushToken))).scalars())
+            assert {token.provider for token in tokens} == {'rustore', 'fcm'}
+            assert all(token.is_active for token in tokens)
     finally:
         await engine.dispose()
 

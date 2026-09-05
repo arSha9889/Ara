@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -45,7 +46,7 @@ react {
 
     /* Hermes Commands */
     //   The hermes compiler command to run. By default it is 'hermesc'
-    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
+    hermesCommand = "$rootDir/../../../node_modules/hermes-compiler/hermesc/%OS-BIN%/hermesc"
     //
     //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
     // hermesFlags = ["-O", "-output-source-map"]
@@ -60,6 +61,41 @@ react {
 def enableProguardInReleaseBuilds = false
 def apiBaseUrl = (findProperty("ARACHAT_API_BASE_URL") ?: "").toString().trim()
 def escapedApiBaseUrl = apiBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")
+def pushPropertiesFile = rootProject.file("push.properties")
+def pushProperties = new Properties()
+
+if (pushPropertiesFile.isFile()) {
+    pushPropertiesFile.withInputStream { stream ->
+        pushProperties.load(stream)
+    }
+}
+
+def rustorePushProjectId = (findProperty("ARACHAT_RUSTORE_PUSH_PROJECT_ID")
+    ?: pushProperties.getProperty("rustorePushProjectId", "")).toString().trim()
+def escapedRustorePushProjectId = rustorePushProjectId.replace("\\", "\\\\").replace("\"", "\\\"")
+def releaseSigningPropertiesFile = rootProject.file("release-signing.properties")
+def releaseSigningProperties = new Properties()
+
+if (releaseSigningPropertiesFile.isFile()) {
+    releaseSigningPropertiesFile.withInputStream { stream ->
+        releaseSigningProperties.load(stream)
+    }
+}
+
+def releaseSigningPropertyNames = ["storeFile", "storePassword", "keyAlias", "keyPassword"]
+def missingReleaseSigningProperties = releaseSigningPropertyNames.findAll { propertyName ->
+    !releaseSigningProperties.getProperty(propertyName, "").trim()
+}
+def releaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.toLowerCase().contains("release")
+}
+
+if (releaseTaskRequested && !missingReleaseSigningProperties.isEmpty()) {
+    throw new GradleException(
+        "Release signing is not configured. Create android/release-signing.properties from " +
+        "release-signing.properties.example and set: ${missingReleaseSigningProperties.join(', ')}."
+    )
+}
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -90,6 +126,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         buildConfigField "String", "API_BASE_URL", "\"${escapedApiBaseUrl}\""
+        buildConfigField "String", "RUSTORE_PUSH_PROJECT_ID", "\"${escapedRustorePushProjectId}\""
     }
     signingConfigs {
         debug {
@@ -98,15 +135,21 @@ android {
             keyAlias = 'androiddebugkey'
             keyPassword = 'android'
         }
+        release {
+            if (missingReleaseSigningProperties.isEmpty()) {
+                storeFile = file(releaseSigningProperties.getProperty("storeFile"))
+                storePassword = releaseSigningProperties.getProperty("storePassword")
+                keyAlias = releaseSigningProperties.getProperty("keyAlias")
+                keyPassword = releaseSigningProperties.getProperty("keyPassword")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig = signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig = signingConfigs.debug
+            signingConfig = signingConfigs.release
             minifyEnabled = enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
@@ -122,4 +165,8 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation("ru.rustore.sdk:universalpush:7.4.1")
+    implementation("ru.rustore.sdk:universalrustore:7.4.1")
+    implementation("ru.rustore.sdk:universalfcm:7.4.1")
 }

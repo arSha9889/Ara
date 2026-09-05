@@ -11,12 +11,15 @@ import { LanguageSwitcher } from '../../../localization/LanguageSwitcher';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { deleteAccount, updateMyProfile } from '../../account/api/accountApi';
+import { useMobilePush } from '../../notifications/MobilePushProvider';
 
 export function SettingsScreen() {
   const { session, saveSession, signOut } = useSession();
   const { setLanguage, t } = useI18n();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { enableNotifications, status: mobilePushStatus } = useMobilePush();
   const [languageNotice, setLanguageNotice] = useState('');
+  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
 
   async function handleSignOut(): Promise<void> {
     try {
@@ -39,6 +42,15 @@ export function SettingsScreen() {
       await saveSession({ ...session, user });
     } catch {
       setLanguageNotice(t('languageSyncError'));
+    }
+  }
+
+  async function handleEnableNotifications(): Promise<void> {
+    setIsEnablingNotifications(true);
+    try {
+      await enableNotifications();
+    } finally {
+      setIsEnablingNotifications(false);
     }
   }
 
@@ -154,10 +166,22 @@ export function SettingsScreen() {
 
       <View style={[sharedStyles.glassCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('notifications')}</Text>
-        <Text style={styles.rowTitle}>{t('notificationsUnavailable')}</Text>
+        <Text style={styles.rowTitle}>{t(mobilePushStatus === 'enabled' ? 'notificationsEnabled' : 'notificationsUnavailable')}</Text>
         <Text style={styles.rowDescription}>
-          {t('notificationsDescription')}
+          {t(mobilePushStatus === 'enabled' ? 'notificationsEnabledDescription' : 'notificationsDescription')}
         </Text>
+        {mobilePushStatus !== 'enabled' && mobilePushStatus !== 'unsupported' ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={isEnablingNotifications}
+            onPress={() => { handleEnableNotifications().catch(() => undefined); }}
+            style={({ pressed }) => [styles.notificationButton, pressed && !isEnablingNotifications && styles.notificationButtonPressed]}
+          >
+            <Text style={styles.notificationButtonLabel}>
+              {t(isEnablingNotifications ? 'notificationsEnabling' : 'notificationsEnable')}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={[sharedStyles.glassCard, styles.section]}>
@@ -227,6 +251,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     marginTop: 4,
+  },
+  notificationButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  notificationButtonPressed: {
+    opacity: 0.78,
+  },
+  notificationButtonLabel: {
+    color: colors.canvas,
+    fontSize: 14,
+    fontWeight: '700',
   },
   languageSwitcher: {
     alignSelf: 'flex-start',

@@ -429,7 +429,9 @@ Production signing key создаётся один раз, хранится вн
 3. Package name `arachat.messenger` утверждён; назначить владельца RuStore,
    владельца ключа подписи, официальный домен APK и поддержку.
 4. Зафиксировать API-контракты mobile push, report/block и встроенной поддержки,
-   стабильные коды ошибок, retention и правила offline/retry.
+   стабильные коды ошибок, retention и правила offline/retry. Для mobile push
+   provider — только `rustore`/`fcm`/`hms`, client key `firebase` переводится в
+   `fcm`, а payload содержит нейтральное назначение вместо web URL.
 5. Обновить legal-документы после профессиональной юридической проверки.
 
 ### Этап 1. Backend и production readiness
@@ -466,11 +468,20 @@ Production signing key создаётся один раз, хранится вн
 
 ### Этап 4. Push, обновления и тестирование
 
-1. Встроить выбранный Android push provider и notification channels.
-2. Проверить permission flow, token lifecycle, deep link, фон, закрытое
-   приложение и отсутствие RuStore на direct APK устройстве.
-3. Реализовать UX уведомления об обновлении по источнику установки.
-4. Собрать подписанный internal APK и проверить сценарий обновления предыдущей
+1. Провести isolated Gradle compile-spike Universal SDK с актуальной связкой
+   RN/AGP/Gradle/Kotlin, затем встроить Kotlin bridge, provider-specific token
+   lifecycle и notification channels. Версии плагинов из старых примеров
+   RuStore нельзя копировать поверх текущего AGP вслепую.
+2. Встроить server adapter Universal API с группировкой токенов, безопасным
+   получением краткоживущих FCM/HMS credentials, timeout без retry и тестами
+   сериализации/ошибок. Только после этого включать isolated signed-device
+   prototype.
+3. Проверить permission flow, token lifecycle, pending navigation, фон,
+   выгруженное из памяти приложение и отсутствие RuStore на direct APK
+   устройстве. Отдельно зафиксировать, что Android force-stop не является
+   валидным тестом delivery: ОС блокирует получение до ручного запуска.
+4. Реализовать UX уведомления об обновлении по источнику установки.
+5. Собрать подписанный internal APK и проверить сценарий обновления предыдущей
    версии тем же ключом.
 
 ### Этап 5. Подготовка RuStore и выпуск
@@ -545,7 +556,7 @@ Production signing key создаётся один раз, хранится вн
 | --- | --- | --- |
 | Android package name | `arachat.messenger` | Значение станет неизменяемым идентификатором для RuStore, прямого APK и обновлений. |
 | Прямой APK | Официальный universal signed APK с того же package/signing key, что и RuStore | Пользователь получит отдельный канал без распада обновлений. |
-| Push для RuStore и прямого APK | Universal Push через Kotlin bridge: RuStore + FCM + HMS; `provider: "universal"` | Единственный целевой путь для равного опыта; delivery включается лишь после подписанного device-прототипа, учётных данных и server adapter. |
+| Push для RuStore и прямого APK | Universal Push через Kotlin bridge: RuStore + FCM + HMS; отдельные `provider: "rustore" | "fcm" | "hms"` | Единственный целевой путь для равного опыта; delivery включается лишь после подписанного device-прототипа, учётных данных и server adapter. |
 | Public branches/comments | Не включать в Android v1; рассмотреть после стабильного private messaging | Снижает риск и объём первого релиза. |
 | Звонки в Android v1 | UI-муляж с сообщением «Звонки скоро появятся», без WebRTC и `call.*` | Сохраняет место в интерфейсе без ложного обещания работающей функции. |
 | Минимальная Android-версия | Android 13 / API 33 | Позволяет опираться на современную платформу; для уведомлений обязателен runtime-permission `POST_NOTIFICATIONS` в подходящий момент UX. |

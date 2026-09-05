@@ -10,6 +10,7 @@ class AppConfigPackage : BaseReactPackage() {
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? =
     when (name) {
       AppConfigModule.NAME -> AppConfigModule(reactContext)
+      PushModule.NAME -> PushModule(reactContext)
       else -> null
     }
 
@@ -22,6 +23,15 @@ class AppConfigPackage : BaseReactPackage() {
             className = AppConfigModule::class.java.name,
             canOverrideExistingModule = false,
             needsEagerInit = false,
+            isCxxModule = false,
+            isTurboModule = false,
+          ),
+        PushModule.NAME to
+          ReactModuleInfo(
+            name = PushModule.NAME,
+            className = PushModule::class.java.name,
+            canOverrideExistingModule = false,
+            needsEagerInit = true,
             isCxxModule = false,
             isTurboModule = false,
           ),

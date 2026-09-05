@@ -13,6 +13,7 @@ class AppConfigModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
   override fun getConstants(): Map<String, Any> = mapOf(
     "apiBaseUrl" to BuildConfig.API_BASE_URL,
+    "appVersion" to BuildConfig.VERSION_NAME,
     "deviceLanguage" to reactApplicationContext.resources.configuration.locales[0].toLanguageTag(),
   )
 

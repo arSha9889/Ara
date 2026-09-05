@@ -32,8 +32,15 @@ local.properties
 *.hprof
 .cxx/
 *.keystore
+*.p12
 !debug.keystore
 .kotlin/
+
+# Local release signing and Firebase configuration. Never commit these files.
+/android/release-signing.properties
+/android/push.properties
+/android/app/google-services.json
+**/*firebase-adminsdk*.json
 
 # node.js
 #

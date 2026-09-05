@@ -1,0 +1,3 @@
+# Local RuStore Push configuration. Copy this file to push.properties.
+# The copied file is ignored by Git. The project ID is configuration, not a credential.
+rustorePushProjectId=
