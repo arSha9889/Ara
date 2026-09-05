@@ -43,3 +43,15 @@ class TrustedDevicePin(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class E2eeWebKey(Base):
+    __tablename__ = 'e2ee_web_keys'
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(128), primary_key=True, index=True)
+    encryption_public_key: Mapped[str] = mapped_column(Text)
+    signing_public_key: Mapped[str] = mapped_column(Text)
+    algorithm: Mapped[str] = mapped_column(String(64), default='ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

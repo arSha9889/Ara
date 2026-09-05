@@ -10,7 +10,7 @@ from app.api.dependencies.auth import get_current_user
 from app.api.routes._responses import domain_error_response
 from app.db.session import get_db_session
 from app.models.chats import Chat, ChatParticipant
-from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
+from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, ChatE2eeKeyOut, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
@@ -20,6 +20,7 @@ from app.services.chat_service import edit_message as edit_chat_message
 from app.services.chat_service import list_chats as list_user_chats
 from app.services.chat_service import list_messages as list_chat_messages
 from app.services.chat_service import mark_messages_read, toggle_pin_message, toggle_reaction
+from app.services.e2ee_service import list_direct_chat_e2ee_keys
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, get_branch_post_author_id, list_branch_comments, update_branch_comment
 from app.services.branch_service import create_public_branch, list_public_branches, subscribe_to_branch, unsubscribe_from_branch
 from app.services.realtime_manager import realtime_manager
@@ -209,6 +210,18 @@ async def list_messages(
 ) -> list[MessageOut]:
     try:
         return await list_chat_messages(session, current_user.id, chat_id)
+    except AuthError as exc:
+        return domain_error_response(exc, status.HTTP_404_NOT_FOUND)
+
+
+@router.get('/{chat_id}/e2ee-keys', response_model=list[ChatE2eeKeyOut])
+async def list_e2ee_keys(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[ChatE2eeKeyOut]:
+    try:
+        return await list_direct_chat_e2ee_keys(session, current_user.id, chat_id)
     except AuthError as exc:
         return domain_error_response(exc, status.HTTP_404_NOT_FOUND)
 

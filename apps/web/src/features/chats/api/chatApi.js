@@ -87,6 +87,10 @@ export function getMessages(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}/messages`, { headers: authHeaders(accessToken) });
 }
 
+export function getChatE2eeKeys(accessToken, chatId) {
+  return apiRequest(`/api/chats/${chatId}/e2ee-keys`, { headers: authHeaders(accessToken) });
+}
+
 export function getBranchComments(accessToken, branchId, postId) {
   return apiRequest(`/api/chats/${branchId}/messages/${postId}/comments`, { headers: authHeaders(accessToken) });
 }

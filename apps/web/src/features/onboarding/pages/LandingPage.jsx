@@ -20,6 +20,11 @@ export function LandingPage() {
     { icon: 'microphone', title: t('onboarding.voiceTitle'), text: t('onboarding.voiceText') },
     { icon: 'bell', title: t('onboarding.notificationsTitle'), text: t('onboarding.notificationsText') },
   ];
+  const privacyCards = [
+    { icon: 'shield', title: t('onboarding.privacyIdTitle'), text: t('onboarding.privacyIdText') },
+    { icon: 'monitor', title: t('onboarding.privacyDevicesTitle'), text: t('onboarding.privacyDevicesText') },
+    { icon: 'user', title: t('onboarding.privacyPhoneTitle'), text: t('onboarding.privacyPhoneText') },
+  ];
   const stageItems = [
     t('onboarding.stageWebCore'),
     t('onboarding.stageRealtime'),
@@ -28,13 +33,18 @@ export function LandingPage() {
 
   return (
     <main className="auth-page landing-page">
-      <section className={`hero-card landing-hero ${isFlagDayCampaignActive ? 'is-flag-day' : ''}`}>
+      <section className={`hero-card landing-hero ${isFlagDayCampaignActive ? 'is-flag-day' : ''}`} id="product" aria-labelledby="landing-title">
         <div className="halo-ring" aria-hidden="true" />
         <header className="landing-topbar">
           <Link to="/" className="brand compact"><img className="brand-mark" src={logoSrc} alt="" aria-hidden="true" /><span>AraChat</span></Link>
+          <nav className="landing-section-nav" aria-label={t('common.navigation')}>
+            <a href="#product">{t('onboarding.navigationProduct')}</a>
+            <a href="#capabilities">{t('onboarding.navigationCapabilities')}</a>
+            <a href="#privacy">{t('onboarding.navigationPrivacy')}</a>
+            <a href="#devices">{t('onboarding.navigationDevices')}</a>
+          </nav>
           <div className="landing-topbar-actions">
-            <Link to="/presentation" className="landing-presentation-link">Презентация</Link>
-            <a href="#download" className="landing-download-link">{t('onboarding.downloadNavigation')}</a>
+            <Link to="/presentation" className="landing-presentation-link">{t('onboarding.openPresentation')}</Link>
             <LanguageSwitcher />
             <ThemeSwitcher />
             {!isAuthenticated ? <Link to="/login" className="landing-login-link">{t('onboarding.login')}</Link> : null}
@@ -43,10 +53,10 @@ export function LandingPage() {
 
         <div className="landing-hero-grid">
           <div className="landing-copy">
-            <p className="eyebrow landing-release-label"><span aria-hidden="true" />{t('onboarding.releaseLabel')}</p>
+            <p className="eyebrow landing-release-label"><span aria-hidden="true" />{t('onboarding.landingEyebrow')}</p>
             {isFlagDayCampaignActive ? <div className="flag-day-banner"><span className="flag-day-banner-mark" aria-hidden="true" /><span><strong>{t('seasonal.flagDayTitle')}</strong><small>{t('seasonal.flagDayUntil')}</small></span></div> : null}
-            <h1>{t('onboarding.title')}</h1>
-            <p>{t('onboarding.subtitle')}</p>
+            <h1 id="landing-title">{t('onboarding.landingTitle')}</h1>
+            <p>{t('onboarding.landingSubtitle')}</p>
             <div className="stack landing-actions">
               <Link to={ctaPath} className="button button-primary landing-primary-action">{ctaLabel}<Icon name="arrowRight" size={18} /></Link>
               {!isAuthenticated ? <Link to="/login" className="landing-secondary-action">{t('onboarding.login')}</Link> : null}
@@ -91,10 +101,10 @@ export function LandingPage() {
           </div>
         </div>
 
-        <section className="landing-section landing-features-section">
+        <section className="landing-section landing-features-section" id="capabilities" aria-labelledby="capabilities-title">
           <div className="landing-section-heading">
-            <p className="eyebrow">{t('onboarding.whatInside')}</p>
-            <h2>{t('onboarding.featuresTitle')}</h2>
+            <p className="eyebrow landing-section-kicker"><span>02</span>{t('onboarding.capabilitiesEyebrow')}</p>
+            <h2 id="capabilities-title">{t('onboarding.capabilitiesTitle')}</h2>
           </div>
           <div className="landing-feature-cards">
             {featureCards.map((item) => (
@@ -107,10 +117,36 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="landing-section landing-download-section" id="download" aria-labelledby="download-title">
+        <section className="landing-section landing-privacy-section" id="privacy" aria-labelledby="privacy-title">
+          <div className="landing-privacy-intro">
+            <div>
+              <p className="eyebrow landing-section-kicker"><span>03</span>{t('onboarding.privacyEyebrow')}</p>
+              <h2 id="privacy-title">{t('onboarding.privacyTitle')}</h2>
+              <p>{t('onboarding.privacyText')}</p>
+            </div>
+            <div className="landing-privacy-orbit" aria-hidden="true">
+              <span className="landing-privacy-ring landing-privacy-ring-outer" />
+              <span className="landing-privacy-ring landing-privacy-ring-inner" />
+              <span className="landing-privacy-node landing-privacy-node-one" />
+              <span className="landing-privacy-node landing-privacy-node-two" />
+              <span className="landing-privacy-core"><Icon name="shield" size={27} /></span>
+            </div>
+          </div>
+          <div className="landing-privacy-cards">
+            {privacyCards.map((item) => (
+              <article className="landing-privacy-card" key={item.title}>
+                <span className="landing-feature-icon"><Icon name={item.icon} size={22} /></span>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="landing-section landing-download-section" id="devices" aria-labelledby="download-title">
           <div className="landing-download-heading">
             <div>
-              <p className="eyebrow">{t('onboarding.downloadEyebrow')}</p>
+              <p className="eyebrow landing-section-kicker"><span>04</span>{t('onboarding.devicesEyebrow')}</p>
               <h2 id="download-title">{t('onboarding.downloadTitle')}</h2>
             </div>
             <p>{t('onboarding.downloadText')}</p>
@@ -136,10 +172,10 @@ export function LandingPage() {
         </section>
 
         <div className="landing-compact-row">
-          <section className="landing-section landing-stage-card">
+          <section className="landing-section landing-stage-card" aria-labelledby="roadmap-title">
             <div>
-              <p className="eyebrow">{t('onboarding.stageEyebrow')}</p>
-              <h2>{t('onboarding.stageTitle')}</h2>
+              <p className="eyebrow landing-section-kicker"><span>05</span>{t('onboarding.roadmapEyebrow')}</p>
+              <h2 id="roadmap-title">{t('onboarding.roadmapTitle')}</h2>
               <p>{t('onboarding.stageText')}</p>
             </div>
             <ul className="landing-stage-list">
@@ -149,6 +185,7 @@ export function LandingPage() {
 
           <section className="landing-final-cta">
             <span className="landing-final-icon"><Icon name="sparkles" size={21} /></span>
+            <p className="eyebrow landing-section-kicker"><span>06</span>{t('onboarding.finalEyebrow')}</p>
             <h2>{t('onboarding.finalTitle')}</h2>
             <p>{t('onboarding.finalText')}</p>
             <div className="stack landing-final-actions">

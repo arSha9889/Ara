@@ -12,6 +12,12 @@ export interface SessionUser {
   displayName?: string;
   username?: string;
   email?: string;
+  emailVerified?: boolean;
+  avatarType?: string;
+  avatarRef?: string;
+  optionalPhone?: string;
+  phonePublic?: boolean;
+  language?: 'ru' | 'en';
 }
 
 export interface AuthSession {

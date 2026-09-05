@@ -9,6 +9,7 @@ from app.models.users import User, UserProfile
 from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageAuthorOut, MessageCreateRequest, MessageOut, MessageReactionOut, MessageReplyOut
 from app.services.branch_service import can_post_to_branch, ensure_official_branch
 from app.services.auth_service import AuthError
+from app.services.e2ee_service import validate_e2ee_message_envelope
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import ensure_chat_interaction_allowed, ensure_direct_interaction_allowed
@@ -184,7 +185,11 @@ async def create_message(
     if not chat:
         raise AuthError('Chat not found')
     await _ensure_can_post(session, user_id, chat)
+    if request.encryption_state == 'e2ee_web_v1' and chat.type != 'direct':
+        raise AuthError('End-to-end encryption is available only in direct chats')
     _validate_message_request(request)
+    if request.encryption_state == 'e2ee_web_v1':
+        await validate_e2ee_message_envelope(session, chat_id, user_id, request.text.strip())
     reply_to_message = None
     if request.reply_to_message_id:
         reply_to_message = await session.get(Message, request.reply_to_message_id)
@@ -203,7 +208,7 @@ async def create_message(
         media_mime_type=request.media_mime_type,
         media_size_bytes=request.media_size_bytes,
         duration_seconds=request.duration_seconds,
-        encryption_state='plain_web_core',
+        encryption_state=request.encryption_state,
     )
     session.add(message)
     await session.flush()
@@ -233,6 +238,8 @@ async def edit_message(session: AsyncSession, user_id: UUID, chat_id: UUID, mess
         raise AuthError('Deleted message cannot be edited')
     if message.type not in {'text', 'emoji'}:
         raise AuthError('Only text messages can be edited')
+    if message.encryption_state == 'e2ee_web_v1':
+        raise AuthError('Encrypted messages cannot be edited')
     next_text = text.strip()
     if not next_text:
         raise AuthError('Text message cannot be empty')
@@ -456,10 +463,17 @@ async def _restore_hidden_chat_recipients(session: AsyncSession, chat_id: UUID, 
 def _validate_message_request(request: MessageCreateRequest) -> None:
     if request.type not in MESSAGE_TYPES:
         raise AuthError('Unsupported message type')
+    if request.encryption_state == 'plain_web_core' and len(request.text) > 4000:
+        raise AuthError('Text message is too long')
     if request.type == 'text' and not request.text.strip():
         raise AuthError('Text message cannot be empty')
     if request.type == 'emoji' and request.text.strip() not in REACTION_EMOJIS:
         raise AuthError('Unsupported emoji message')
+    if request.encryption_state == 'e2ee_web_v1':
+        if request.type != 'text' or not request.text.strip():
+            raise AuthError('End-to-end encryption is available only for text messages')
+        if request.media_url or request.media_name or request.media_mime_type or request.media_size_bytes or request.duration_seconds:
+            raise AuthError('Encrypted messages cannot contain media')
     if request.type in {'photo', 'video', 'video_note', 'voice', 'file'} and not request.media_url:
         raise AuthError('Media message requires media_url')
     if request.type in {'voice', 'video_note'} and not request.duration_seconds:
@@ -561,8 +575,9 @@ async def _chat_preview_message_out(session: AsyncSession, message_id: UUID | No
         id=message.id,
         sender_id=message.sender_id,
         type=message.type,
-        payload=message.payload,
+        payload='' if message.encryption_state == 'e2ee_web_v1' else message.payload,
         media_name=message.media_name,
+        encryption_state=message.encryption_state,
         created_at=message.created_at,
     )
 
@@ -619,6 +634,7 @@ async def _message_reply_out(session: AsyncSession, message_id: UUID | None) -> 
         type=message.type,
         payload=message.payload,
         media_name=message.media_name,
+        encryption_state=message.encryption_state,
         deleted_at=message.deleted_at,
     )
 

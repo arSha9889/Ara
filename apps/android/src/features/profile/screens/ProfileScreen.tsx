@@ -1,9 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useSession } from '../../auth/session/useSession';
 import { useI18n } from '../../../localization/I18nProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
+import { avatarEmoji } from '../avatar';
 
 function firstLetter(value: string): string {
   return value.trim().charAt(0).toUpperCase() || 'A';
@@ -12,32 +16,43 @@ function firstLetter(value: string): string {
 export function ProfileScreen() {
   const { session } = useSession();
   const { t } = useI18n();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = session?.user;
   const name = user?.displayName || user?.username || t('profileFallback');
+  const avatar = avatarEmoji(user?.avatarRef);
 
   return (
     <AppScreen>
       <Text style={sharedStyles.eyebrow}>{t('account')}</Text>
       <Text style={sharedStyles.title}>{t('profile')}</Text>
 
-      <View style={[sharedStyles.glassCard, styles.profileCard]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => navigation.navigate('ProfileEdit')}
+        style={({ pressed }) => [sharedStyles.glassCard, styles.profileCard, pressed && styles.pressed]}
+      >
         <View accessibilityLabel={`${t('profile')} ${name}`} style={styles.avatar}>
-          <Text style={styles.avatarLetter}>{firstLetter(name)}</Text>
+          <Text style={avatar ? styles.avatarEmoji : styles.avatarLetter}>{avatar ?? firstLetter(name)}</Text>
         </View>
         <Text style={styles.name}>{name}</Text>
         {user?.username ? <Text style={styles.username}>@{user.username}</Text> : null}
         {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
-      </View>
+        <Text style={styles.editLabel}>{t('editProfile')}</Text>
+      </Pressable>
 
       <View style={[sharedStyles.glassCard, styles.identifierCard]}>
         <Text style={styles.identifierLabel}>{t('arachatId')}</Text>
         <Text selectable style={styles.identifier}>
-          {user?.nexusId ?? '—'}
+          {formatNexusId(user?.nexusId)}
         </Text>
         <Text style={styles.identifierHint}>{t('arachatIdHint')}</Text>
       </View>
     </AppScreen>
   );
+}
+
+function formatNexusId(value?: string): string {
+  return value ? value.replace(/(.{4})/g, '$1 ').trim() : '—';
 }
 
 const styles = StyleSheet.create({
@@ -61,6 +76,9 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: '700',
   },
+  avatarEmoji: {
+    fontSize: 40,
+  },
   name: {
     color: colors.text,
     fontSize: 24,
@@ -76,6 +94,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
     marginTop: spacing.xs,
+  },
+  editLabel: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: spacing.md,
   },
   identifierCard: {
     marginTop: spacing.md,
@@ -100,5 +124,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: spacing.sm,
+  },
+  pressed: {
+    opacity: 0.78,
   },
 });

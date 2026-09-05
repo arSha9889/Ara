@@ -10,6 +10,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -45,7 +46,17 @@ function sessionUser(value: unknown, fallback: SessionUser): SessionUser {
     nexus_id?: unknown;
     status?: unknown;
     legal_documents_current?: unknown;
-    profile?: { display_name?: unknown; username?: unknown; email?: unknown } | null;
+    profile?: {
+      display_name?: unknown;
+      username?: unknown;
+      email?: unknown;
+      email_verified?: unknown;
+      avatar_type?: unknown;
+      avatar_ref?: unknown;
+      optional_phone?: unknown;
+      phone_public?: unknown;
+      language?: unknown;
+    } | null;
   };
 
   if (
@@ -67,10 +78,32 @@ function sessionUser(value: unknown, fallback: SessionUser): SessionUser {
     displayName:
       typeof user.profile?.display_name === 'string'
         ? user.profile.display_name
-        : undefined,
+        : fallback.displayName,
     username:
-      typeof user.profile?.username === 'string' ? user.profile.username : undefined,
-    email: typeof user.profile?.email === 'string' ? user.profile.email : undefined,
+      typeof user.profile?.username === 'string' ? user.profile.username : fallback.username,
+    email: typeof user.profile?.email === 'string' ? user.profile.email : fallback.email,
+    emailVerified:
+      typeof user.profile?.email_verified === 'boolean'
+        ? user.profile.email_verified
+        : fallback.emailVerified,
+    avatarType:
+      typeof user.profile?.avatar_type === 'string' ? user.profile.avatar_type : fallback.avatarType,
+    avatarRef:
+      typeof user.profile?.avatar_ref === 'string' ? user.profile.avatar_ref : fallback.avatarRef,
+    optionalPhone:
+      typeof user.profile?.optional_phone === 'string'
+        ? user.profile.optional_phone
+        : user.profile && 'optional_phone' in user.profile
+          ? undefined
+          : fallback.optionalPhone,
+    phonePublic:
+      typeof user.profile?.phone_public === 'boolean'
+        ? user.profile.phone_public
+        : fallback.phonePublic,
+    language:
+      user.profile?.language === 'ru' || user.profile?.language === 'en'
+        ? user.profile.language
+        : fallback.language,
   };
 }
 
@@ -83,7 +116,16 @@ function jsonHeaders(headers: Record<string, string> = {}): Record<string, strin
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    throw new ApiError('Request failed.', response.status);
+    let code: string | undefined;
+
+    try {
+      const payload = (await response.json()) as { code?: unknown };
+      code = typeof payload.code === 'string' ? payload.code : undefined;
+    } catch {
+      // Errors can be empty or served outside the JSON API contract.
+    }
+
+    throw new ApiError('Request failed.', response.status, code);
   }
 
   if (response.status === 204) {

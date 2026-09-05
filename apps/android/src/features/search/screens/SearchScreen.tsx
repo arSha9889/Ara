@@ -3,6 +3,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -21,6 +22,8 @@ import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
+import { ReportUserSheet } from '../../safety/components/ReportUserSheet';
+import { blockUser } from '../../safety/api/safetyApi';
 import {
   normalizeUserSearchQuery,
   searchPublicUsers,
@@ -46,6 +49,8 @@ export function SearchScreen() {
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isOpeningChat, setIsOpeningChat] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [isReportVisible, setIsReportVisible] = useState(false);
   const normalizedQuery = normalizeUserSearchQuery(query);
   const hasSearchQuery = normalizedQuery.length >= 2;
 
@@ -108,7 +113,7 @@ export function SearchScreen() {
       const chat = await createDirectChatForUser(user.id);
       const title = chat.peer?.display_name || chat.peer?.username || publicUserName(user, t('chatsDirectFallback'));
       setSelectedUser(null);
-      navigation.navigate('Chat', { chatId: chat.id, title });
+      navigation.navigate('Chat', { chatId: chat.id, title, peerUserId: user.id });
     } catch (nextError) {
       setError(t(authErrorKey(nextError)));
     } finally {
@@ -117,6 +122,41 @@ export function SearchScreen() {
   }
 
   const selectedName = selectedUser ? publicUserName(selectedUser, t('profileFallback')) : '';
+
+  function confirmBlockSelectedUser(): void {
+    if (!selectedUser || isBlocking || isOpeningChat) {
+      return;
+    }
+
+    Alert.alert(t('blockUser'), t('blockUserConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('blockUser'),
+        style: 'destructive',
+        onPress: () => {
+          blockSelectedUser().catch(() => undefined);
+        },
+      },
+    ]);
+  }
+
+  async function blockSelectedUser(): Promise<void> {
+    if (!selectedUser || isBlocking || isOpeningChat) {
+      return;
+    }
+
+    setError('');
+    setIsBlocking(true);
+    try {
+      await blockUser(selectedUser.id);
+      setResults(current => current.filter(user => user.id !== selectedUser.id));
+      setSelectedUser(null);
+    } catch (nextError) {
+      setError(t(authErrorKey(nextError)));
+    } finally {
+      setIsBlocking(false);
+    }
+  }
 
   return (
     <AppScreen>
@@ -226,15 +266,48 @@ export function SearchScreen() {
             <Text style={styles.sheetDescription}>{t('searchProfileDescription')}</Text>
             {error ? <Text accessibilityRole="alert" style={styles.sheetError}>{error}</Text> : null}
             <PrimaryButton
-              disabled={isOpeningChat}
+              disabled={isOpeningChat || isBlocking}
               label={isOpeningChat ? t('openingChat') : t('writeMessage')}
               onPress={() => {
                 openChatForUser(selectedUser).catch(() => undefined);
               }}
             />
+            <View style={styles.safetyActions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isOpeningChat || isBlocking}
+                onPress={() => setIsReportVisible(true)}
+                style={({ pressed }) => [
+                  styles.safetyButton,
+                  pressed && !isOpeningChat && !isBlocking && styles.safetyButtonPressed,
+                ]}
+              >
+                <Text style={styles.safetyButtonLabel}>{t('reportUser')}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isOpeningChat || isBlocking}
+                onPress={confirmBlockSelectedUser}
+                style={({ pressed }) => [
+                  styles.safetyButton,
+                  styles.blockButton,
+                  pressed && !isOpeningChat && !isBlocking && styles.safetyButtonPressed,
+                ]}
+              >
+                <Text style={styles.blockButtonLabel}>
+                  {isBlocking ? '…' : t('blockUser')}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
+      <ReportUserSheet
+        onClose={() => setIsReportVisible(false)}
+        onSubmitted={() => Alert.alert(t('reportSubmitted'))}
+        userId={selectedUser?.id ?? null}
+        visible={isReportVisible}
+      />
     </AppScreen>
   );
 }
@@ -421,5 +494,36 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  safetyActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    width: '100%',
+  },
+  safetyButton: {
+    alignItems: 'center',
+    borderColor: colors.glassBorder,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  safetyButtonPressed: {
+    opacity: 0.74,
+  },
+  safetyButtonLabel: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  blockButton: {
+    borderColor: 'rgba(255, 158, 175, 0.48)',
+  },
+  blockButtonLabel: {
+    color: colors.danger,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

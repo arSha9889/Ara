@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -18,6 +20,7 @@ from app.services.auth_service import AuthError, complete_registration, login_wi
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, list_branch_comments, update_branch_comment
 from app.services.branch_service import subscribe_to_branch, unsubscribe_from_branch
 from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
+from app.services.e2ee_service import E2EE_WEB_ALGORITHM, list_direct_chat_e2ee_keys, upsert_e2ee_web_key
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
 
@@ -69,6 +72,31 @@ async def _create_user(session_factory, username: str, user_marker: str):
         )
         assert completion.user and completion.access_token and completion.refresh_token
         return completion.user, completion.access_token, completion.refresh_token
+
+
+def _public_key(seed: int) -> str:
+    return base64.b64encode(bytes([4]) + bytes([seed]) * 64).decode()
+
+
+def _encrypted_envelope(sender_id, sender_device_id: str, recipient_keys) -> str:
+    recipients = {
+        f'{key.user_id}:{key.device_id}': {
+            'ciphertext': base64.b64encode(b'ciphertext-and-auth-tag').decode(),
+            'iv': base64.b64encode(b'0' * 12).decode(),
+            'salt': base64.b64encode(b'1' * 32).decode(),
+        }
+        for key in recipient_keys
+    }
+    sender_key = next(key for key in recipient_keys if key.user_id == sender_id and key.device_id == sender_device_id)
+    return json.dumps({
+        'version': 1,
+        'algorithm': E2EE_WEB_ALGORITHM,
+        'sender_device_id': sender_device_id,
+        'sender_ephemeral_public_key': _public_key(9),
+        'sender_signing_public_key': sender_key.signing_public_key,
+        'recipients': recipients,
+        'signature': base64.b64encode(b'2' * 64).decode(),
+    })
 
 
 @pytest.mark.anyio
@@ -229,6 +257,64 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             messages_with_deleted_reply_source = await list_messages(session, second_user.id, chat.id)
             assert messages_with_deleted_reply_source[1].reply_to
             assert messages_with_deleted_reply_source[1].reply_to.deleted_at
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_web_e2ee_keys_and_message_envelopes_support_multiple_devices() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        first_user, _, _ = await _create_user(session_factory, 'e2eealice', '301')
+        second_user, _, _ = await _create_user(session_factory, 'e2eebob', '302')
+        async with session_factory() as session:
+            chat = await create_or_get_direct_chat_for_user(session, first_user.id, second_user.id)
+            first_key = await upsert_e2ee_web_key(
+                session, first_user.id, 'web-device-alice-a', _public_key(1), _public_key(2), E2EE_WEB_ALGORITHM,
+            )
+            second_first_key = await upsert_e2ee_web_key(
+                session, second_user.id, 'web-device-bob-a', _public_key(3), _public_key(4), E2EE_WEB_ALGORITHM,
+            )
+            second_device_key = await upsert_e2ee_web_key(
+                session, second_user.id, 'web-device-bob-b', _public_key(5), _public_key(6), E2EE_WEB_ALGORITHM,
+            )
+
+            keys = await list_direct_chat_e2ee_keys(session, first_user.id, chat.id)
+            assert {(key.user_id, key.device_id) for key in keys} == {
+                (first_user.id, first_key.device_id),
+                (second_user.id, second_first_key.device_id),
+                (second_user.id, second_device_key.device_id),
+            }
+
+            encrypted_payload = _encrypted_envelope(first_user.id, first_key.device_id, keys)
+            encrypted_message = await create_message(
+                session,
+                first_user.id,
+                chat.id,
+                MessageCreateRequest(text=encrypted_payload, encryption_state='e2ee_web_v1'),
+            )
+            assert encrypted_message.encryption_state == 'e2ee_web_v1'
+            assert encrypted_message.payload == encrypted_payload
+
+            preview = (await get_chat(session, second_user.id, chat.id)).last_message
+            assert preview and preview.encryption_state == 'e2ee_web_v1'
+            assert preview.payload == ''
+
+            invalid_payload = json.loads(encrypted_payload)
+            invalid_payload['recipients'].pop(f'{second_user.id}:{second_device_key.device_id}')
+            with pytest.raises(AuthError, match='missing a recipient device'):
+                await create_message(
+                    session,
+                    first_user.id,
+                    chat.id,
+                    MessageCreateRequest(text=json.dumps(invalid_payload), encryption_state='e2ee_web_v1'),
+                )
     finally:
         await engine.dispose()
 

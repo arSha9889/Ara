@@ -224,7 +224,11 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
             chat_id=message.chat_id,
             message_id=message.id,
             title=title,
-            body=message_preview(recipient_languages.get(recipient_id), message.type, message.payload, message.media_name),
+            body=(
+                tr(recipient_languages.get(recipient_id), 'notification.new_message')
+                if message.encryption_state == 'e2ee_web_v1'
+                else message_preview(recipient_languages.get(recipient_id), message.type, message.payload, message.media_name)
+            ),
             url=f'/app/chats/{message.chat_id}',
         )
         for recipient_id in recipients

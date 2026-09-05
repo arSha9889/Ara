@@ -22,6 +22,9 @@ function subtitleForChat(chat, currentUserId, t) {
     return chat.peer?.username ? `@${chat.peer.username}` : t('chats.noMessages');
   }
   const prefix = chat.last_message.sender_id === currentUserId ? t('chats.youPrefix') : '';
+  if (chat.last_message.encryption_state === 'e2ee_web_v1') {
+    return `${prefix}${t('messages.encryptedMessage')}`;
+  }
   return `${prefix}${chat.last_message.payload || chat.last_message.media_name || chat.last_message.type}`;
 }
 

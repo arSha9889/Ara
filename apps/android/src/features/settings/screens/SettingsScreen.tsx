@@ -1,14 +1,22 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useSession } from '../../auth/session/useSession';
+import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
 import { LanguageSwitcher } from '../../../localization/LanguageSwitcher';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
+import { deleteAccount, updateMyProfile } from '../../account/api/accountApi';
 
 export function SettingsScreen() {
-  const { signOut } = useSession();
-  const { t } = useI18n();
+  const { session, saveSession, signOut } = useSession();
+  const { setLanguage, t } = useI18n();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [languageNotice, setLanguageNotice] = useState('');
 
   async function handleSignOut(): Promise<void> {
     try {
@@ -18,10 +26,101 @@ export function SettingsScreen() {
     }
   }
 
+  async function handleLanguageChange(nextLanguage: 'ru' | 'en'): Promise<void> {
+    setLanguageNotice('');
+    await setLanguage(nextLanguage);
+
+    if (!session) {
+      return;
+    }
+
+    try {
+      const user = await updateMyProfile({ language: nextLanguage });
+      await saveSession({ ...session, user });
+    } catch {
+      setLanguageNotice(t('languageSyncError'));
+    }
+  }
+
+  function confirmDeleteAccount(): void {
+    Alert.alert(t('deleteAccount'), t('deleteAccountConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('deleteAccount'), style: 'destructive', onPress: () => { removeAccount().catch(() => undefined); } },
+    ]);
+  }
+
+  async function removeAccount(): Promise<void> {
+    try {
+      await deleteAccount();
+      await sessionStore.clearSession();
+    } catch {
+      Alert.alert(t('deleteAccountError'));
+    }
+  }
+
   return (
     <AppScreen>
       <Text style={sharedStyles.eyebrow}>{t('appManagement')}</Text>
       <Text style={sharedStyles.title}>{t('settings')}</Text>
+
+      <View style={[sharedStyles.glassCard, styles.section]}>
+        <Text style={styles.sectionTitle}>{t('accountSettings')}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('ProfileEdit')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('profile')}</Text>
+            <Text style={styles.rowDescription}>{t('profileDetails')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('AccountCredentials')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('emailAndPassword')}</Text>
+            <Text style={styles.rowDescription}>{t('emailAndPasswordDescription')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('Devices')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('devices')}</Text>
+            <Text style={styles.rowDescription}>{t('devicesDescription')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('LoginHistory')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('loginHistory')}</Text>
+            <Text style={styles.rowDescription}>{t('loginHistoryDescription')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('PinSettings')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('pinCode')}</Text>
+            <Text style={styles.rowDescription}>{t('pinCodeDescription')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
+      </View>
 
       <View style={[sharedStyles.glassCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('privacySecurity')}</Text>
@@ -29,6 +128,28 @@ export function SettingsScreen() {
         <Text style={styles.rowDescription}>
           {t('protectedSessionDescription')}
         </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('BlockedUsers')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('blockedUsers')}</Text>
+            <Text style={styles.rowDescription}>{t('blockedUsersDescription')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('MyReports')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('myReports')}</Text>
+            <Text style={styles.rowDescription}>{t('myReportsDescription')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
       </View>
 
       <View style={[sharedStyles.glassCard, styles.section]}>
@@ -40,11 +161,27 @@ export function SettingsScreen() {
       </View>
 
       <View style={[sharedStyles.glassCard, styles.section]}>
+        <Text style={styles.sectionTitle}>{t('help')}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('SupportTickets')}
+          style={({ pressed }) => [styles.navigationRow, pressed && styles.navigationRowPressed]}
+        >
+          <View style={styles.navigationCopy}>
+            <Text style={styles.rowTitle}>{t('support')}</Text>
+            <Text style={styles.rowDescription}>{t('supportSettingsDescription')}</Text>
+          </View>
+          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+        </Pressable>
+      </View>
+
+      <View style={[sharedStyles.glassCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('language')}</Text>
         <Text style={styles.rowDescription}>{t('languageDescription')}</Text>
         <View style={styles.languageSwitcher}>
-          <LanguageSwitcher />
+          <LanguageSwitcher onLanguageChange={nextLanguage => { handleLanguageChange(nextLanguage).catch(() => undefined); }} />
         </View>
+        {languageNotice ? <Text accessibilityRole="alert" style={styles.languageNotice}>{languageNotice}</Text> : null}
       </View>
 
       <Pressable
@@ -54,6 +191,14 @@ export function SettingsScreen() {
         style={({ pressed }) => [styles.signOut, pressed && styles.signOutPressed]}
       >
         <Text style={styles.signOutLabel}>{t('signOut')}</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        onPress={confirmDeleteAccount}
+        style={({ pressed }) => [styles.deleteAccount, pressed && styles.deleteAccountPressed]}
+      >
+        <Text style={styles.deleteAccountLabel}>{t('deleteAccount')}</Text>
+        <Text style={styles.deleteAccountDescription}>{t('deleteAccountDescription')}</Text>
       </Pressable>
     </AppScreen>
   );
@@ -87,6 +232,30 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: spacing.md,
   },
+  languageNotice: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  navigationRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    minHeight: 56,
+  },
+  navigationRowPressed: {
+    opacity: 0.74,
+  },
+  navigationCopy: {
+    flex: 1,
+  },
+  chevron: {
+    color: colors.textFaint,
+    fontSize: 28,
+    lineHeight: 28,
+  },
   signOut: {
     alignItems: 'center',
     borderColor: 'rgba(255, 158, 175, 0.48)',
@@ -103,5 +272,30 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 16,
     fontWeight: '700',
+  },
+  deleteAccount: {
+    alignItems: 'center',
+    borderColor: 'rgba(255, 158, 175, 0.26)',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    minHeight: 64,
+    paddingHorizontal: spacing.md,
+  },
+  deleteAccountPressed: {
+    backgroundColor: 'rgba(255, 158, 175, 0.08)',
+  },
+  deleteAccountLabel: {
+    color: colors.danger,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  deleteAccountDescription: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 3,
+    textAlign: 'center',
   },
 });

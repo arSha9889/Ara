@@ -141,7 +141,11 @@ export function ChatsScreen() {
   }, [scheduleResync, session?.user.id, subscribeToEvents]);
 
   function openChat(chat: Chat): void {
-    navigation.navigate('Chat', { chatId: chat.id, title: chatTitle(chat, copy) });
+    navigation.navigate('Chat', {
+      chatId: chat.id,
+      title: chatTitle(chat, copy),
+      peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
+    });
   }
 
   function renderChat({ item }: { item: Chat }) {

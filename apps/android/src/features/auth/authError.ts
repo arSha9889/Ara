@@ -8,11 +8,19 @@ export function authErrorKey(error: unknown, credentials = false): TranslationKe
   }
 
   if (error instanceof ApiError) {
+    if (error.code === 'interaction_blocked') {
+      return 'interactionBlocked';
+    }
+
+    if (error.code === 'ticket_not_found') {
+      return 'supportTicketNotFound';
+    }
+
     if (error.status === 400 || error.status === 422) {
       return credentials ? 'errorCredentials' : 'errorValidation';
     }
 
-    if (error.status === 401 || error.status === 403) {
+    if (error.status === 401 || error.status === 403 || error.status === 404) {
       return credentials ? 'errorCredentials' : 'errorUnavailable';
     }
 

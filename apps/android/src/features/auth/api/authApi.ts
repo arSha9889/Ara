@@ -7,7 +7,7 @@ interface LoginResponse {
   user: ApiUser;
 }
 
-interface ApiUser {
+export interface ApiUser {
   id: string;
   nexus_id: string;
   status: string;
@@ -16,6 +16,12 @@ interface ApiUser {
     display_name?: string;
     username?: string;
     email?: string;
+    email_verified?: boolean;
+    avatar_type?: string;
+    avatar_ref?: string;
+    optional_phone?: string | null;
+    phone_public?: boolean;
+    language?: string;
   } | null;
 }
 
@@ -45,6 +51,15 @@ export function toSessionUser(user: ApiUser): SessionUser {
     displayName: user.profile?.display_name,
     username: user.profile?.username,
     email: user.profile?.email,
+    emailVerified: user.profile?.email_verified,
+    avatarType: user.profile?.avatar_type,
+    avatarRef: user.profile?.avatar_ref,
+    optionalPhone: user.profile?.optional_phone ?? undefined,
+    phonePublic: user.profile?.phone_public,
+    language:
+      user.profile?.language === 'ru' || user.profile?.language === 'en'
+        ? user.profile.language
+        : undefined,
   };
 }
 

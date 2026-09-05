@@ -1,22 +1,36 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing } from '../theme/theme';
+import type { AppLanguage } from './language';
 import { useI18n } from './I18nProvider';
 
-export function LanguageSwitcher() {
+interface LanguageSwitcherProps {
+  onLanguageChange?(language: AppLanguage): void;
+}
+
+export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
   const { language, setLanguage, t } = useI18n();
+
+  function selectLanguage(nextLanguage: AppLanguage): void {
+    if (onLanguageChange) {
+      onLanguageChange(nextLanguage);
+      return;
+    }
+
+    setLanguage(nextLanguage).catch(() => undefined);
+  }
 
   return (
     <View accessibilityLabel={t('language')} style={styles.container}>
       <LanguageOption
         active={language === 'ru'}
         label={t('languageRussian')}
-        onPress={() => setLanguage('ru')}
+        onPress={() => selectLanguage('ru')}
       />
       <LanguageOption
         active={language === 'en'}
         label={t('languageEnglish')}
-        onPress={() => setLanguage('en')}
+        onPress={() => selectLanguage('en')}
       />
     </View>
   );

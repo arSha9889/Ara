@@ -11,7 +11,7 @@ class DirectChatCreateRequest(BaseModel):
 
 
 class MessageCreateRequest(BaseModel):
-    text: str = Field(default='', max_length=4000)
+    text: str = Field(default='', max_length=524288)
     type: str = Field(default='text', max_length=32)
     reply_to_message_id: UUID | None = None
     media_url: str | None = None
@@ -19,6 +19,7 @@ class MessageCreateRequest(BaseModel):
     media_mime_type: str | None = Field(default=None, max_length=128)
     media_size_bytes: int | None = Field(default=None, ge=0)
     duration_seconds: int | None = Field(default=None, ge=0)
+    encryption_state: Literal['plain_web_core', 'e2ee_web_v1'] = 'plain_web_core'
 
 
 class MessageUpdateRequest(BaseModel):
@@ -37,6 +38,15 @@ class ChatWallpaperUpdateRequest(BaseModel):
     wallpaper_id: Literal['default', 'grid', 'waves', 'aurora', 'paper', 'night']
 
 
+class ChatE2eeKeyOut(BaseModel):
+    user_id: UUID
+    device_id: str
+    encryption_public_key: str
+    signing_public_key: str
+    algorithm: str
+    updated_at: datetime
+
+
 class MessageReactionOut(BaseModel):
     emoji: str
     count: int
@@ -49,6 +59,7 @@ class MessageReplyOut(BaseModel):
     type: str
     payload: str
     media_name: str | None
+    encryption_state: str
     deleted_at: datetime | None
 
 
@@ -78,6 +89,7 @@ class ChatPreviewMessageOut(BaseModel):
     type: str
     payload: str
     media_name: str | None
+    encryption_state: str
     created_at: datetime
 
 

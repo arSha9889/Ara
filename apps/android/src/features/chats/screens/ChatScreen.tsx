@@ -32,10 +32,13 @@ import { useRealtime } from '../../realtime/RealtimeProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
+import { ReportUserSheet } from '../../safety/components/ReportUserSheet';
+import { blockUser } from '../../safety/api/safetyApi';
 
 export interface ChatRouteParams {
   chatId: string;
   title: string;
+  peerUserId?: string;
 }
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
@@ -56,6 +59,9 @@ export function ChatScreen({ navigation, route }: Props) {
   const [editText, setEditText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [isSafetyActionsVisible, setIsSafetyActionsVisible] = useState(false);
+  const [isReportVisible, setIsReportVisible] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
 
   const loadMessages = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
@@ -303,6 +309,41 @@ export function ChatScreen({ navigation, route }: Props) {
     ]);
   }
 
+  function confirmBlockUser(): void {
+    if (!route.params.peerUserId || isBlocking) {
+      return;
+    }
+
+    setIsSafetyActionsVisible(false);
+    Alert.alert(t('blockUser'), t('blockUserConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('blockUser'),
+        style: 'destructive',
+        onPress: () => {
+          blockChatPeer().catch(() => undefined);
+        },
+      },
+    ]);
+  }
+
+  async function blockChatPeer(): Promise<void> {
+    if (!route.params.peerUserId || isBlocking) {
+      return;
+    }
+
+    setError('');
+    setIsBlocking(true);
+    try {
+      await blockUser(route.params.peerUserId);
+      navigation.goBack();
+    } catch (nextError) {
+      setError(t(authErrorKey(nextError)));
+    } finally {
+      setIsBlocking(false);
+    }
+  }
+
   function renderMessage({ item }: { item: ChatMessage }) {
     const isOwn = item.sender_id === session?.user.id;
     const messageText = item.deleted_at ? t('messageDeleted') : item.payload;
@@ -423,6 +464,20 @@ export function ChatScreen({ navigation, route }: Props) {
           >
             <Text style={styles.callLabel}>{t('call')}</Text>
           </Pressable>
+          {route.params.peerUserId ? (
+            <Pressable
+              accessibilityLabel={t('safetyActions')}
+              accessibilityRole="button"
+              disabled={isBlocking}
+              onPress={() => setIsSafetyActionsVisible(true)}
+              style={({ pressed }) => [
+                styles.safetyMenuButton,
+                pressed && !isBlocking && styles.safetyMenuButtonPressed,
+              ]}
+            >
+              <Text style={styles.safetyMenuLabel}>⋯</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {isLoading && messages.length === 0 ? (
@@ -683,6 +738,55 @@ export function ChatScreen({ navigation, route }: Props) {
           ) : null}
         </View>
       </Modal>
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setIsSafetyActionsVisible(false)}
+        transparent
+        visible={isSafetyActionsVisible}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable
+            accessibilityLabel={t('closeSafetyActions')}
+            accessibilityRole="button"
+            disabled={isBlocking}
+            onPress={() => setIsSafetyActionsVisible(false)}
+            style={styles.sheetBackdrop}
+          />
+          <View accessibilityViewIsModal style={[sharedStyles.glassCard, styles.safetySheet]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>{t('safetyActions')}</Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={isBlocking}
+              onPress={() => {
+                setIsSafetyActionsVisible(false);
+                setIsReportVisible(true);
+              }}
+              style={({ pressed }) => [styles.safetyActionButton, pressed && styles.actionButtonPressed]}
+            >
+              <Text style={styles.secondaryActionLabel}>{t('reportUser')}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={isBlocking}
+              onPress={confirmBlockUser}
+              style={({ pressed }) => [
+                styles.safetyActionButton,
+                styles.deleteActionButton,
+                pressed && styles.actionButtonPressed,
+              ]}
+            >
+              <Text style={styles.deleteActionLabel}>{isBlocking ? '…' : t('blockUser')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <ReportUserSheet
+        onClose={() => setIsReportVisible(false)}
+        onSubmitted={() => Alert.alert(t('reportSubmitted'))}
+        userId={route.params.peerUserId ?? null}
+        visible={isReportVisible}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -744,6 +848,23 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '600',
+  },
+  safetyMenuButton: {
+    alignItems: 'center',
+    borderColor: colors.glassBorder,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  safetyMenuButtonPressed: {
+    opacity: 0.74,
+  },
+  safetyMenuLabel: {
+    color: colors.text,
+    fontSize: 27,
+    lineHeight: 28,
   },
   loadingState: {
     alignItems: 'center',
@@ -924,6 +1045,14 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
+  safetySheet: {
+    backgroundColor: colors.canvasMuted,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
   sheetHandle: {
     alignSelf: 'center',
     backgroundColor: colors.textFaint,
@@ -1007,6 +1136,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     minHeight: 48,
+    paddingHorizontal: spacing.sm,
+  },
+  safetyActionButton: {
+    alignItems: 'center',
+    borderColor: colors.glassBorder,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    minHeight: 52,
     paddingHorizontal: spacing.sm,
   },
   primaryActionButton: {

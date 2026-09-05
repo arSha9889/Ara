@@ -8,13 +8,15 @@ import { useNotifications } from '../../../app/providers/NotificationsProvider.j
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { mediaUrlForBrowser } from '../../../shared/api/mediaUrl.js';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
+import { decryptE2eeMessage, encryptE2eeText, isE2eeWebSupported, registerE2eeWebIdentity } from '../../../shared/crypto/e2eeWeb.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
-import { createBranchComment, createDirectChatForUser, deleteBranchComment, deleteMessage, editMessage, getBranchComments, getChat, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch, unsubscribeFromBranch, updateBranchComment, updateChatWallpaper } from '../api/chatApi.js';
+import { createBranchComment, createDirectChatForUser, deleteBranchComment, deleteMessage, editMessage, getBranchComments, getChat, getChatE2eeKeys, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch, unsubscribeFromBranch, updateBranchComment, updateChatWallpaper } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
 import { PublicProfileSheet } from '../../profile/components/PublicProfileSheet.jsx';
+import { saveE2eeWebKey } from '../../security/api/e2eeApi.js';
 
 const REACTION_EMOJIS = [
   '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏', '😍', '🥰',
@@ -166,6 +168,9 @@ function VideoNoteMessage({ message, t }) {
 function renderMessageContent(message, t, onOpenMedia) {
   if (message.deleted_at) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
+  }
+  if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
+    return <span className="encrypted-message-unavailable">{t('messages.encryptedUnavailable')}</span>;
   }
   const displayType = displayMessageType(message);
   const mediaUrl = mediaUrlForBrowser(message.media_url);
@@ -375,6 +380,9 @@ function safeSocketSend(socket, payload) {
 
 function previewPinnedMessage(message, t) {
   if (!message) return '';
+  if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
+    return t('messages.encryptedMessage');
+  }
   const displayType = displayMessageType(message);
   if (displayType === 'photo') return t('messages.photoAlt');
   if (displayType === 'voice') return t('messages.voice');
@@ -386,6 +394,9 @@ function previewPinnedMessage(message, t) {
 
 function previewReplyMessage(message, t) {
   if (!message || message.deleted_at) return t('messages.deleted');
+  if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
+    return t('messages.encryptedMessage');
+  }
   const displayType = displayMessageType(message);
   if (displayType === 'photo') return t('messages.photoAlt');
   if (displayType === 'video') return t('messages.video');
@@ -393,6 +404,22 @@ function previewReplyMessage(message, t) {
   if (displayType === 'voice') return t('messages.voice');
   if (displayType === 'file') return message.media_name || t('messages.file');
   return message.payload;
+}
+
+function encryptedMessageStatus(message, t) {
+  if (message.encryption_state !== 'e2ee_web_v1') return null;
+  const status = message.e2ee_status;
+  if (status === 'verified') return { label: t('messages.encryptionVerified'), tone: 'verified' };
+  if (status === 'unverified') return { label: t('messages.encryptionUnverified'), tone: 'unverified' };
+  if (status === 'key_changed') return { label: t('messages.encryptionKeyChanged'), tone: 'key-changed' };
+  return { label: t('messages.encryptionUnavailable'), tone: 'unavailable' };
+}
+
+function directChatEncryptionLabel(status, t) {
+  if (status === 'ready') return { label: t('messages.encryptionTextReady'), tone: 'ready' };
+  if (status === 'unsupported') return { label: t('messages.encryptionUnsupported'), tone: 'unavailable' };
+  if (status === 'checking') return { label: t('messages.encryptionChecking'), tone: 'checking' };
+  return { label: t('messages.encryptionNotReady'), tone: 'unavailable' };
 }
 
 function draftStorageKey(userId, chatId) {
@@ -580,6 +607,9 @@ export function ChatPage() {
   const [isSubscribingToBranch, setIsSubscribingToBranch] = useState(false);
   const [commentPost, setCommentPost] = useState(null);
   const [branchCommentEvent, setBranchCommentEvent] = useState(null);
+  const [e2eeIdentity, setE2eeIdentity] = useState(null);
+  const [e2eeChatKeys, setE2eeChatKeys] = useState([]);
+  const [e2eeStatus, setE2eeStatus] = useState('inactive');
   const mediaRecorderRef = useRef(null);
   const videoRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
@@ -601,6 +631,7 @@ export function ChatPage() {
   const isInitialMessageLoadRef = useRef(true);
   const reactionEffectTimersRef = useRef(new Map());
   const reactionRequestIdsRef = useRef(new Set());
+  const e2eeCryptoRef = useRef({ identity: null, keys: [] });
   const recordHoldTimerRef = useRef(null);
   const recordHoldTriggeredRef = useRef(false);
   const recordPressActiveRef = useRef(false);
@@ -612,6 +643,7 @@ export function ChatPage() {
   const isSavedChat = chat?.type === 'saved';
   const isPublicBranch = chat?.type === 'branch';
   const isDirectChat = chat?.type === 'direct';
+  const directChatEncryption = directChatEncryptionLabel(isDirectChat ? e2eeStatus : 'inactive', t);
   const usesFocusedMobileWorkspace = isDirectChat || isSavedChat;
   const canPost = !isPublicBranch || chat?.can_post;
   const currentDraftStorageKey = draftStorageKey(session.user?.id, chatId);
@@ -622,6 +654,66 @@ export function ChatPage() {
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', chat?.peer?.last_seen_at, t, language);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || t('chats.branchTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || t('chats.publicBranchSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
+  e2eeCryptoRef.current = { identity: e2eeIdentity, keys: e2eeChatKeys };
+
+  async function decryptChatMessage(message, keys = e2eeChatKeys, identity = e2eeIdentity) {
+    async function decryptOne(item) {
+      if (item.encryption_state !== 'e2ee_web_v1') return { ...item, e2ee_status: 'plain' };
+      if (!identity || !session.user?.id) return { ...item, payload: '', e2ee_status: 'unavailable' };
+      return decryptE2eeMessage({
+        message: item,
+        chatId,
+        currentUserId: String(session.user.id),
+        identity,
+        chatKeys: keys,
+      });
+    }
+
+    const decrypted = await decryptOne(message);
+    if (!message.reply_to) return decrypted;
+    return { ...decrypted, reply_to: await decryptOne(message.reply_to) };
+  }
+
+  async function decryptChatMessages(items, keys, identity) {
+    return Promise.all(items.map((message) => decryptChatMessage(message, keys, identity)));
+  }
+
+  async function prepareDirectChatEncryption(chatDetails) {
+    if (chatDetails.type !== 'direct') {
+      setE2eeIdentity(null);
+      setE2eeChatKeys([]);
+      setE2eeStatus('inactive');
+      return { identity: null, keys: [] };
+    }
+    if (!isE2eeWebSupported()) {
+      setE2eeIdentity(null);
+      setE2eeChatKeys([]);
+      setE2eeStatus('unsupported');
+      return { identity: null, keys: [] };
+    }
+    setE2eeStatus('checking');
+    const identity = await registerE2eeWebIdentity(
+      String(session.user.id),
+      (payload) => saveE2eeWebKey(session.accessToken, payload),
+    );
+    const keys = await getChatE2eeKeys(session.accessToken, chatId);
+    const participantIds = new Set((chatDetails.participant_ids || []).map(String));
+    const keyParticipantIds = new Set(keys.map((key) => String(key.user_id)));
+    const hasCurrentDeviceKey = keys.some((key) => (
+      String(key.user_id) === String(session.user.id)
+      && key.encryption_public_key === identity.encryptionPublicKey
+      && key.signing_public_key === identity.signingPublicKey
+    ));
+    const isReady = participantIds.size === 2
+      && participantIds.size === keyParticipantIds.size
+      && [...participantIds].every((userId) => keyParticipantIds.has(userId))
+      && hasCurrentDeviceKey;
+    setE2eeIdentity(identity);
+    setE2eeChatKeys(keys);
+    setE2eeStatus(isReady ? 'ready' : 'waiting');
+    return { identity, keys };
+  }
+
   async function loadMessages({ preserveMessages = false } = {}) {
     if (!isChatIdValid) return;
     try {
@@ -631,15 +723,28 @@ export function ChatPage() {
         setChat(null);
         setMessages([]);
         setError('');
+        setE2eeIdentity(null);
+        setE2eeChatKeys([]);
+        setE2eeStatus('inactive');
       }
       const [chatDetails, items] = await Promise.all([
         getChat(session.accessToken, chatId),
         getMessages(session.accessToken, chatId),
       ]);
-      setChat(chatDetails);
+      let cryptoContext = { identity: null, keys: [] };
+      try {
+        cryptoContext = await prepareDirectChatEncryption(chatDetails);
+      } catch {
+        if (chatDetails.type === 'direct') setE2eeStatus('unavailable');
+      }
+      const decryptedItems = await decryptChatMessages(items, cryptoContext.keys, cryptoContext.identity);
+      const pinnedMessage = chatDetails.pinned_message
+        ? await decryptChatMessage(chatDetails.pinned_message, cryptoContext.keys, cryptoContext.identity)
+        : null;
+      setChat({ ...chatDetails, pinned_message: pinnedMessage });
       setMessages((current) => {
         const messagesById = new Map(current.map((message) => [message.id, message]));
-        items.forEach((message) => messagesById.set(message.id, message));
+        decryptedItems.forEach((message) => messagesById.set(message.id, message));
         return [...messagesById.values()].sort((left, right) => new Date(left.created_at) - new Date(right.created_at));
       });
     } finally {
@@ -786,16 +891,20 @@ export function ChatPage() {
           setChat((current) => current ? { ...current, wallpaper_id: payload.wallpaper_id || 'default' } : current);
         }
         if (payload.event === 'message.created' && payload.chat_id === chatId) {
-          setMessages((current) => appendUniqueMessage(current, payload.message));
+          decryptChatMessage(payload.message, e2eeCryptoRef.current.keys, e2eeCryptoRef.current.identity)
+            .then((message) => setMessages((current) => appendUniqueMessage(current, message)))
+            .catch(() => setMessages((current) => appendUniqueMessage(current, { ...payload.message, payload: '', e2ee_status: 'unavailable' })));
           if (payload.message.sender_id !== session.user?.id) {
             setActivityText('');
           }
         }
         if (payload.event === 'message.reactions_updated' && payload.chat_id === chatId) {
-          setMessages((current) => upsertMessageKeepingStatus(current, payload.message));
+          decryptChatMessage(payload.message, e2eeCryptoRef.current.keys, e2eeCryptoRef.current.identity)
+            .then((message) => setMessages((current) => upsertMessageKeepingStatus(current, message)));
         }
         if ((payload.event === 'message.updated' || payload.event === 'message.deleted') && payload.chat_id === chatId) {
-          setMessages((current) => upsertMessageKeepingStatus(current, payload.message));
+          decryptChatMessage(payload.message, e2eeCryptoRef.current.keys, e2eeCryptoRef.current.identity)
+            .then((message) => setMessages((current) => upsertMessageKeepingStatus(current, message)));
           if (payload.message.deleted_at) {
             setChat((current) => current?.pinned_message_id === payload.message.id ? { ...current, pinned_message_id: null, pinned_message: null } : current);
           }
@@ -810,7 +919,7 @@ export function ChatPage() {
             if (message.sender_id === session.user?.id && payload.reader_id !== session.user?.id) {
               return { ...message, delivery_status: 'read' };
             }
-            return payload.message;
+            return { ...message, delivery_status: payload.message.delivery_status };
           }));
         }
         if (payload.event?.startsWith('branch_comment.') && payload.chat_id === chatId) {
@@ -977,6 +1086,10 @@ export function ChatPage() {
   }
 
   async function sendMediaMessage(file, type, mediaDurationSeconds = null, { clearComposer = true, messageText = '' } = {}) {
+    if (isDirectChat && e2eeStatus === 'ready') {
+      setError(t('messages.encryptedAttachmentsUnavailable'));
+      return;
+    }
     setError('');
     setIsUploading(true);
     try {
@@ -1030,17 +1143,35 @@ export function ChatPage() {
         });
         return;
       }
-      const message = await sendMessage(session.accessToken, chatId, {
-        type: messageType,
-        text: messageType === 'emoji' ? text : text.trim(),
-        reply_to_message_id: replyingTo?.id ?? null,
-        media_url: null,
-        media_name: null,
-        media_mime_type: null,
-        media_size_bytes: null,
-        duration_seconds: null,
-      });
-      setMessages((current) => appendUniqueMessage(current, message));
+      const messageText = messageType === 'emoji' ? text : text.trim();
+      const encryptedPayload = isDirectChat && e2eeStatus === 'ready'
+        ? await encryptE2eeText({
+          text: messageText,
+          chatId,
+          senderId: String(session.user.id),
+          recipientKeys: e2eeChatKeys,
+          identity: e2eeIdentity,
+        })
+        : null;
+      const message = await sendMessage(session.accessToken, chatId, encryptedPayload
+        ? {
+          type: 'text',
+          text: encryptedPayload,
+          reply_to_message_id: replyingTo?.id ?? null,
+          encryption_state: 'e2ee_web_v1',
+        }
+        : {
+          type: messageType,
+          text: messageText,
+          reply_to_message_id: replyingTo?.id ?? null,
+          media_url: null,
+          media_name: null,
+          media_mime_type: null,
+          media_size_bytes: null,
+          duration_seconds: null,
+        });
+      const decryptedMessage = await decryptChatMessage(message);
+      setMessages((current) => appendUniqueMessage(current, decryptedMessage));
       setText('');
       clearDraft();
       setReplyingTo(null);
@@ -1057,6 +1188,7 @@ export function ChatPage() {
   }
 
   function startEditing(message) {
+    if (message.encryption_state === 'e2ee_web_v1') return;
     setEditingMessage(message);
     setEditText(message.payload || '');
   }
@@ -1064,6 +1196,7 @@ export function ChatPage() {
   async function handleEditSubmit(event) {
     event.preventDefault();
     if (!editingMessage || !editText.trim()) return;
+    if (editingMessage.encryption_state === 'e2ee_web_v1') return;
     setError('');
     try {
       const message = await editMessage(session.accessToken, chatId, editingMessage.id, editText.trim());
@@ -1122,7 +1255,10 @@ export function ChatPage() {
     setError('');
     try {
       const nextChat = await pinMessage(session.accessToken, chatId, messageId);
-      setChat(nextChat);
+      setChat({
+        ...nextChat,
+        pinned_message: messages.find((message) => message.id === nextChat.pinned_message_id) || nextChat.pinned_message,
+      });
       setMessages((current) => syncPinnedState(current, nextChat.pinned_message_id));
     } catch (err) {
       setError(err.message);
@@ -1149,7 +1285,8 @@ export function ChatPage() {
     reactionRequestIdsRef.current.add(reactionKey);
     try {
       const message = await reactToMessage(session.accessToken, chatId, messageId, emoji);
-      setMessages((current) => upsertMessage(current, message));
+      const decryptedMessage = await decryptChatMessage(message);
+      setMessages((current) => upsertMessage(current, decryptedMessage));
       const nextReaction = message.reactions?.find((reaction) => reaction.emoji === emoji);
       const addedByMe = Boolean(nextReaction?.reacted_by_me);
       showReactionEffect(messageId, emoji, {
@@ -1608,7 +1745,13 @@ export function ChatPage() {
           {!isSavedChat && !isPublicBranch ? <button className="chat-profile-title" type="button" onClick={openPeerProfile}><h1>{chatDisplayTitle}</h1></button> : <h1>{chatDisplayTitle}</h1>}
           <div className="chat-subtitle">
             <span>{isPublicBranch ? t('chats.subscribers').replace('{count}', Number(chat?.subscriber_count || 0).toLocaleString(DATE_LOCALES[language] || DATE_LOCALES.ru)) : chatDisplaySubtitle}</span>
-          {!isSavedChat && !isPublicBranch ? (
+            {isDirectChat ? (
+              <span className={`chat-e2ee-status ${directChatEncryption.tone}`} title={directChatEncryption.label}>
+                <Icon name="shield" size={13} strokeWidth={2.1} />
+                {directChatEncryption.label}
+              </span>
+            ) : null}
+           {!isSavedChat && !isPublicBranch ? (
               <PresenceStatus
                 status={isSavedChat ? false : chat?.peer?.is_online ?? 'connecting'}
                 lastSeenAt={chat?.peer?.last_seen_at}
@@ -1747,7 +1890,7 @@ export function ChatPage() {
             id={`message-${message.id}`}
             data-message-id={message.id}
             data-incoming-message={message.sender_id !== session.user?.id}
-            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
+            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${message.encryption_state === 'e2ee_web_v1' ? 'e2ee' : ''} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
             key={message.id}
             role={!message.deleted_at ? 'button' : undefined}
             tabIndex={!message.deleted_at ? 0 : undefined}
@@ -1765,7 +1908,7 @@ export function ChatPage() {
                   <span aria-hidden="true">{message.is_pinned ? '↧' : '📌'}</span>
                   <span className="action-label">{message.is_pinned ? t('messages.unpin') : t('messages.pin')}</span>
                 </button>
-                {message.sender_id === session.user?.id && message.type === 'text' ? (
+                {message.sender_id === session.user?.id && message.type === 'text' && message.encryption_state !== 'e2ee_web_v1' ? (
                   <button className="message-action-button" type="button" onClick={() => startEditing(message)} aria-label={t('messages.edit')} title={t('messages.edit')}>
                     <span aria-hidden="true">✎</span>
                     <span className="action-label">{t('messages.edit')}</span>
@@ -1825,6 +1968,12 @@ export function ChatPage() {
             <div className="message-meta">
               {message.is_pinned ? <span>{t('messages.pinnedShort')}</span> : null}
               {message.edited_at && !message.deleted_at ? <span>{t('messages.edited')}</span> : null}
+              {encryptedMessageStatus(message, t) ? (
+                <span className={`message-e2ee-status ${encryptedMessageStatus(message, t).tone}`} title={encryptedMessageStatus(message, t).label}>
+                  <Icon name="shield" size={12} strokeWidth={2.2} />
+                  {encryptedMessageStatus(message, t).label}
+                </span>
+              ) : null}
               {message.sender_id === session.user?.id ? <DeliveryStatus status={message.delivery_status} t={t} /> : null}
             </div>
             {!message.deleted_at && !isPublicBranch ? <div className="reaction-row">
@@ -1903,9 +2052,9 @@ export function ChatPage() {
           </div>
         ) : null}
         <div className="composer-input-shell">
-          <label className="composer-icon-button attachment-button" aria-label={t('messages.attachFile')} title={t('messages.attachFileTitle')}>
+          <label className="composer-icon-button attachment-button" aria-label={t('messages.attachFile')} title={e2eeStatus === 'ready' ? t('messages.encryptedAttachmentsUnavailable') : t('messages.attachFileTitle')}>
             <Icon name="paperclip" size={20} />
-            <input ref={fileInputRef} type="file" accept={acceptedFileTypes()} onChange={(event) => handleFileChange(event.target.files?.[0])} />
+            <input ref={fileInputRef} type="file" accept={acceptedFileTypes()} disabled={isDirectChat && e2eeStatus === 'ready'} onChange={(event) => handleFileChange(event.target.files?.[0])} />
           </label>
           <input className="composer-input" placeholder={t('messages.placeholder')} value={text} onChange={(event) => handleTextChange(event.target.value)} />
           <div className="composer-emoji-wrap">
@@ -1954,7 +2103,7 @@ export function ChatPage() {
               onPointerMove={handleRecordPointerMove}
               onPointerUp={handleRecordPointerUp}
               onPointerCancel={handleRecordPointerCancel}
-              disabled={isUploading}
+              disabled={isUploading || (isDirectChat && e2eeStatus === 'ready')}
               aria-pressed={recordingMode === 'video_note'}
               aria-label={isRecording || isVideoRecording ? t('messages.stopRecording') : recordingMode === 'video_note' ? t('messages.recordVideoNote') : t('messages.recordVoice')}
               title={isRecording || isVideoRecording ? t('messages.stopRecording') : `${recordingMode === 'video_note' ? t('messages.recordVideoNote') : t('messages.recordVoice')} · ${t('messages.holdToRecord')}`}

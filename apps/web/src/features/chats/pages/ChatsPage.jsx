@@ -26,6 +26,9 @@ function chatSubtitle(chat, currentUserId, t) {
     return chat.peer?.username ? `@${chat.peer.username}` : t('chats.noMessages');
   }
   const prefix = chat.last_message.sender_id === currentUserId ? t('chats.youPrefix') : '';
+  if (chat.last_message.encryption_state === 'e2ee_web_v1') {
+    return `${prefix}${t('messages.encryptedMessage')}`;
+  }
   if (chat.last_message.type === 'text' || chat.last_message.type === 'emoji') {
     return `${prefix}${chat.last_message.payload}`;
   }
