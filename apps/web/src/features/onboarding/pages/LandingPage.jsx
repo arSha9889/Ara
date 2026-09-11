@@ -9,9 +9,9 @@ import { useFlagDayCampaign } from '../../../shared/config/seasonalCampaign.js';
 
 // Insert the official channel URLs here. Empty values keep the cards safely inactive.
 const PROJECT_SOCIAL_LINKS = {
-  telegram: '',
+  telegram: 'https://t.me/aramessage',
   max: '',
-  vk: '',
+  vk: 'https://vk.ru/club241439239',
 };
 
 export function LandingPage() {
