@@ -1037,6 +1037,106 @@ p { margin-bottom: 14px; }
 
 .landing-download-note svg { flex: 0 0 auto; color: var(--primary); }
 
+.landing-community-section {
+  gap: 16px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 80%);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--primary), transparent 84%), transparent 16rem),
+    color-mix(in srgb, var(--surface-elevated), transparent 8%);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  padding: clamp(18px, 2.4vw, 26px);
+}
+
+.landing-community-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.landing-community-heading .eyebrow { margin-bottom: 9px; }
+.landing-community-heading h2 { margin-bottom: 0; }
+.landing-community-heading > p { max-width: 440px; margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+.landing-community-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.landing-community-card {
+  min-height: 118px;
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 80%);
+  border-radius: 20px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  background: color-mix(in srgb, var(--surface), transparent 4%);
+  color: var(--text);
+  padding: 16px;
+  text-decoration: none;
+}
+
+.landing-community-card.is-telegram {
+  grid-column: 1 / -1;
+  min-height: 138px;
+  background:
+    radial-gradient(circle at 92% 50%, color-mix(in srgb, var(--secondary), transparent 84%), transparent 13rem),
+    color-mix(in srgb, var(--surface), transparent 4%);
+}
+
+.landing-community-card[aria-disabled="true"] { cursor: not-allowed; opacity: 0.82; }
+
+.landing-community-card[href] {
+  transition: transform 220ms var(--ease-out-soft), border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.landing-community-card[href]:hover,
+.landing-community-card[href]:focus-visible {
+  border-color: color-mix(in srgb, var(--primary), transparent 55%);
+  box-shadow: 0 22px 38px color-mix(in srgb, var(--primary), transparent 86%);
+  outline: 0;
+  transform: translateY(-3px);
+}
+
+.landing-community-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+}
+
+.landing-community-icon img { width: 100%; height: 100%; object-fit: contain; }
+.landing-community-copy { min-width: 0; display: grid; gap: 4px; }
+.landing-community-copy strong { color: var(--text); font-size: 1rem; font-weight: 900; }
+.landing-community-copy small { color: var(--muted); font-size: 0.78rem; font-weight: 750; line-height: 1.35; }
+
+.landing-community-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: start;
+  border: 1px solid color-mix(in srgb, var(--warning), transparent 67%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning), transparent 91%);
+  color: color-mix(in srgb, var(--warning), var(--text) 42%);
+  padding: 5px 7px;
+  font-size: 0.67rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.landing-community-card[href] .landing-community-status {
+  border-color: color-mix(in srgb, var(--primary), transparent 67%);
+  background: color-mix(in srgb, var(--primary), transparent 91%);
+  color: var(--primary);
+}
+
+.landing-community-status > span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
 .legal-page {
   align-items: start;
 }
@@ -8380,6 +8480,7 @@ code {
   .flag-day-logo-card { right: 0; }
   .landing-floating-status { left: 0; }
   .landing-download-heading { align-items: start; flex-direction: column; gap: 10px; }
+  .landing-community-heading { align-items: start; flex-direction: column; gap: 10px; }
   .landing-store-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .landing-store-card:last-child { grid-column: span 2; }
   .landing-privacy-intro { grid-template-columns: minmax(0, 1fr) minmax(185px, 0.42fr); gap: 28px; }
@@ -8449,10 +8550,16 @@ code {
   .landing-final-actions { width: 100%; }
   .landing-final-actions .button { width: 100%; justify-content: center; }
   .landing-download-section { border-radius: 20px; }
+  .landing-community-section { border-radius: 20px; }
   .landing-store-grid { grid-template-columns: 1fr; }
   .landing-store-card:last-child { grid-column: auto; }
   .landing-store-card { min-height: 92px; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; padding: 12px; }
   .landing-store-mark { width: 42px; height: 42px; border-radius: 13px; }
+  .landing-community-grid { grid-template-columns: 1fr; }
+  .landing-community-card,
+  .landing-community-card.is-telegram { min-height: 96px; grid-column: auto; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; padding: 12px; }
+  .landing-community-icon { width: 42px; height: 42px; border-radius: 13px; }
+  .landing-community-copy small { font-size: 0.73rem; }
   .landing-download-note { align-items: flex-start; font-size: 0.78rem; }
 }
 

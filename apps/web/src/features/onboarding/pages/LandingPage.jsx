@@ -7,6 +7,13 @@ import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { useFlagDayCampaign } from '../../../shared/config/seasonalCampaign.js';
 
+// Insert the official channel URLs here. Empty values keep the cards safely inactive.
+const PROJECT_SOCIAL_LINKS = {
+  telegram: '',
+  max: '',
+  vk: '',
+};
+
 export function LandingPage() {
   const { t } = useI18n();
   const { session } = useSession();
@@ -30,6 +37,11 @@ export function LandingPage() {
     t('onboarding.stageRealtime'),
     t('onboarding.stageMobile'),
   ];
+  const communityCards = [
+    { key: 'telegram', logo: '/icons/social/telegram.svg', title: 'Telegram', text: t('onboarding.communityTelegramText'), href: PROJECT_SOCIAL_LINKS.telegram },
+    { key: 'max', logo: '/icons/social/max.png', title: 'MAX', text: t('onboarding.communityMaxText'), href: PROJECT_SOCIAL_LINKS.max },
+    { key: 'vk', logo: '/icons/social/vk.svg', title: 'VK', text: t('onboarding.communityVkText'), href: PROJECT_SOCIAL_LINKS.vk },
+  ];
 
   return (
     <main className="auth-page landing-page">
@@ -42,6 +54,7 @@ export function LandingPage() {
             <a href="#capabilities">{t('onboarding.navigationCapabilities')}</a>
             <a href="#privacy">{t('onboarding.navigationPrivacy')}</a>
             <a href="#devices">{t('onboarding.navigationDevices')}</a>
+            <a href="#community">{t('onboarding.navigationCommunity')}</a>
           </nav>
           <div className="landing-topbar-actions">
             <Link to="/presentation" className="landing-presentation-link">{t('onboarding.openPresentation')}</Link>
@@ -171,10 +184,40 @@ export function LandingPage() {
           <p className="landing-download-note"><Icon name="bell" size={16} />{t('onboarding.downloadNote')}</p>
         </section>
 
+        <section className="landing-section landing-community-section" id="community" aria-labelledby="community-title">
+          <div className="landing-community-heading">
+            <div>
+              <p className="eyebrow landing-section-kicker"><span>05</span>{t('onboarding.communityEyebrow')}</p>
+              <h2 id="community-title">{t('onboarding.communityTitle')}</h2>
+            </div>
+            <p>{t('onboarding.communityText')}</p>
+          </div>
+          <div className="landing-community-grid">
+            {communityCards.map(({ key, logo, title, text, href }) => {
+              const isAvailable = Boolean(href);
+              const content = <>
+                <span className="landing-community-icon"><img src={logo} alt="" /></span>
+                <span className="landing-community-copy"><strong>{title}</strong><small>{text}</small></span>
+                <span className="landing-community-status"><span aria-hidden="true" />{isAvailable ? t('onboarding.communityOpen') : t('onboarding.downloadSoon')}</span>
+              </>;
+
+              return isAvailable ? (
+                <a className={`landing-community-card is-${key}`} href={href} target="_blank" rel="noreferrer" key={key}>
+                  {content}
+                </a>
+              ) : (
+                <article className={`landing-community-card is-${key}`} aria-disabled="true" key={key}>
+                  {content}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
         <div className="landing-compact-row">
           <section className="landing-section landing-stage-card" aria-labelledby="roadmap-title">
             <div>
-              <p className="eyebrow landing-section-kicker"><span>05</span>{t('onboarding.roadmapEyebrow')}</p>
+              <p className="eyebrow landing-section-kicker"><span>06</span>{t('onboarding.roadmapEyebrow')}</p>
               <h2 id="roadmap-title">{t('onboarding.roadmapTitle')}</h2>
               <p>{t('onboarding.stageText')}</p>
             </div>
@@ -185,7 +228,7 @@ export function LandingPage() {
 
           <section className="landing-final-cta">
             <span className="landing-final-icon"><Icon name="sparkles" size={21} /></span>
-            <p className="eyebrow landing-section-kicker"><span>06</span>{t('onboarding.finalEyebrow')}</p>
+            <p className="eyebrow landing-section-kicker"><span>07</span>{t('onboarding.finalEyebrow')}</p>
             <h2>{t('onboarding.finalTitle')}</h2>
             <p>{t('onboarding.finalText')}</p>
             <div className="stack landing-final-actions">
