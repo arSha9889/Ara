@@ -15,7 +15,12 @@ from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import ensure_chat_interaction_allowed, ensure_direct_interaction_allowed
 from app.services.stored_object_service import attach_upload_to_message, schedule_message_upload_deletion
 
-MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'file'}
+MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'sticker', 'file'}
+STICKER_IDS = frozenset({
+    'ara-alt', 'ara-solidity', 'ara-school-holiday', 'ara-aksakal-approves',
+    'ara-sigma', 'ara-our-elephant', 'ara-civilization', 'ara-sakhavud',
+    'ara-salam-relatives', 'ara-rahmet', 'ara-tea',
+})
 CHAT_WALLPAPER_IDS = {'default', 'grid', 'waves', 'aurora', 'paper', 'night'}
 REACTION_EMOJIS = {
     '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏', '😍', '🥰',
@@ -469,6 +474,11 @@ def _validate_message_request(request: MessageCreateRequest) -> None:
         raise AuthError('Text message cannot be empty')
     if request.type == 'emoji' and request.text.strip() not in REACTION_EMOJIS:
         raise AuthError('Unsupported emoji message')
+    if request.type == 'sticker':
+        if request.text.strip() not in STICKER_IDS:
+            raise AuthError('Unsupported sticker')
+        if request.media_url or request.media_name or request.media_mime_type or request.media_size_bytes or request.duration_seconds:
+            raise AuthError('Sticker messages cannot contain media')
     if request.encryption_state == 'e2ee_web_v1':
         if request.type != 'text' or not request.text.strip():
             raise AuthError('End-to-end encryption is available only for text messages')

@@ -3426,7 +3426,7 @@ p { margin-bottom: 14px; }
 .composer-input-shell {
   min-height: 52px;
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 40px 40px 44px;
+  grid-template-columns: 40px minmax(0, 1fr) 40px 40px 40px 44px;
   align-items: center;
   gap: 6px;
   border: 1px solid color-mix(in srgb, var(--primary), transparent 78%);
@@ -3670,6 +3670,78 @@ p { margin-bottom: 14px; }
   animation: panelEnter 180ms var(--ease-out-soft) both;
   backdrop-filter: blur(22px) saturate(1.18);
   -webkit-backdrop-filter: blur(22px) saturate(1.18);
+}
+
+.composer-sticker-wrap { position: relative; }
+
+.composer-sticker-button.active {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--primary), transparent 74%);
+}
+
+.composer-sticker-panel {
+  position: absolute;
+  z-index: 9;
+  right: -54px;
+  bottom: calc(100% + 14px);
+  width: min(344px, calc(100vw - 28px));
+  border: 1px solid color-mix(in srgb, var(--primary), transparent 78%);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--secondary), transparent 80%), transparent 8rem),
+    color-mix(in srgb, var(--surface-elevated), transparent 4%);
+  box-shadow: 0 24px 70px rgba(20, 20, 43, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  padding: 12px;
+  animation: panelEnter 180ms var(--ease-out-soft) both;
+  backdrop-filter: blur(22px) saturate(1.18);
+  -webkit-backdrop-filter: blur(22px) saturate(1.18);
+}
+
+.sticker-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sticker-picker-button {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface), transparent 8%);
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.sticker-picker-button:hover,
+.sticker-picker-button:focus-visible {
+  border-color: color-mix(in srgb, var(--primary), transparent 58%);
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--primary), transparent 82%);
+  outline: 0;
+  transform: translateY(-1px) scale(1.03);
+}
+
+.sticker {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  user-select: none;
+}
+
+.sticker-unavailable {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--muted), transparent 78%);
+  color: var(--muted);
+  font-size: 2rem;
+  font-weight: 900;
 }
 
 .send-fab {
@@ -4107,6 +4179,28 @@ p { margin-bottom: 14px; }
 
 .message-bubble.incoming { border-bottom-left-radius: 10px; }
 
+.message-bubble.sticker-message {
+  min-width: 136px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 5px 8px 2px;
+}
+
+.message-bubble.sticker-message:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--surface-elevated), transparent 32%);
+}
+
+.message-bubble.sticker-message .sticker {
+  width: min(100%, 240px);
+}
+
+.message-bubble.sticker-message .message-meta {
+  margin-top: -8px;
+  padding-right: 8px;
+}
+
 .message-author {
   max-width: 100%;
   border: 0;
@@ -4186,6 +4280,12 @@ p { margin-bottom: 14px; }
 :root[data-theme='liquid_glass'] .message-bubble.outgoing {
   background: linear-gradient(135deg, rgba(91, 124, 255, 0.8), rgba(113, 227, 255, 0.62));
   color: white;
+}
+
+:root[data-theme='liquid_glass'] .message-bubble.sticker-message {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .message-actions {
@@ -7848,7 +7948,7 @@ code {
 
   .composer-input-shell {
     min-height: auto;
-    grid-template-columns: 36px minmax(0, 1fr) 36px 36px 40px;
+    grid-template-columns: 36px minmax(0, 1fr) 36px 36px 36px 40px;
     gap: 4px;
     padding: 4px;
   }
@@ -7869,6 +7969,7 @@ code {
   .reaction-chip { min-width: 38px; }
   .reaction-picker { width: min(320px, calc(100vw - 28px)); }
   .composer-emoji-panel { right: -44px; width: min(320px, calc(100vw - 28px)); }
+  .composer-sticker-panel { right: -44px; width: min(320px, calc(100vw - 28px)); }
   .reaction-picker-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); max-height: 220px; }
   code { width: 100%; }
 }

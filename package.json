@@ -5,8 +5,7 @@
   "description": "AraChat Web v1 Web Core monorepo",
   "type": "module",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/*"
   ],
   "scripts": {
     "dev:web": "npm --workspace apps/web run dev",

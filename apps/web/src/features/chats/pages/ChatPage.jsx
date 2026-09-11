@@ -15,6 +15,7 @@ import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { createBranchComment, createDirectChatForUser, deleteBranchComment, deleteMessage, editMessage, getBranchComments, getChat, getChatE2eeKeys, getMessages, hideChat, markMessagesRead, pinMessage, reactToMessage, sendMessage, subscribeToBranch, unsubscribeFromBranch, updateBranchComment, updateChatWallpaper } from '../api/chatApi.js';
 import { uploadMedia } from '../api/uploadApi.js';
 import { ChatWorkspaceSidebar } from '../components/ChatWorkspaceSidebar.jsx';
+import { Sticker, STICKER_PACK } from '../components/Sticker.jsx';
 import { PublicProfileSheet } from '../../profile/components/PublicProfileSheet.jsx';
 import { saveE2eeWebKey } from '../../security/api/e2eeApi.js';
 
@@ -204,6 +205,9 @@ function renderMessageContent(message, t, onOpenMedia) {
       </a>
     );
   }
+  if (displayType === 'sticker') {
+    return <Sticker id={message.payload} label={t('messages.sticker')} />;
+  }
   return message.payload;
 }
 
@@ -386,6 +390,7 @@ function previewPinnedMessage(message, t) {
   const displayType = displayMessageType(message);
   if (displayType === 'photo') return t('messages.photoAlt');
   if (displayType === 'voice') return t('messages.voice');
+  if (displayType === 'sticker') return t('messages.sticker');
   if (displayType === 'video_note') return t('messages.videoNote');
   if (displayType === 'file') return message.media_name || t('messages.file');
   if (displayType === 'video') return t('messages.video');
@@ -402,6 +407,7 @@ function previewReplyMessage(message, t) {
   if (displayType === 'video') return t('messages.video');
   if (displayType === 'video_note') return t('messages.videoNote');
   if (displayType === 'voice') return t('messages.voice');
+  if (displayType === 'sticker') return t('messages.sticker');
   if (displayType === 'file') return message.media_name || t('messages.file');
   return message.payload;
 }
@@ -593,6 +599,7 @@ export function ChatPage() {
   const [openReactionPickerMessageId, setOpenReactionPickerMessageId] = useState(null);
   const [reactionEffects, setReactionEffects] = useState({});
   const [isComposerEmojiPickerOpen, setIsComposerEmojiPickerOpen] = useState(false);
+  const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [recordingMode, setRecordingMode] = useState('voice');
   const [selectedVideoPreviewUrl, setSelectedVideoPreviewUrl] = useState('');
   const [isChatActionsOpen, setIsChatActionsOpen] = useState(false);
@@ -1118,6 +1125,37 @@ export function ChatPage() {
         setReplyingTo(null);
         clearSelectedMedia();
       }
+      safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsUploading(false);
+      safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
+    }
+  }
+
+  async function handleSendSticker(stickerId) {
+    if (isUploading || isRecording || isVideoRecording) return;
+    if (isDirectChat && e2eeStatus === 'ready') {
+      setError(t('messages.encryptedAttachmentsUnavailable'));
+      return;
+    }
+    setError('');
+    setIsUploading(true);
+    try {
+      const message = await sendMessage(session.accessToken, chatId, {
+        type: 'sticker',
+        text: stickerId,
+        reply_to_message_id: replyingTo?.id ?? null,
+        media_url: null,
+        media_name: null,
+        media_mime_type: null,
+        media_size_bytes: null,
+        duration_seconds: null,
+      });
+      setMessages((current) => appendUniqueMessage(current, message));
+      setReplyingTo(null);
+      setIsStickerPickerOpen(false);
       safeSocketSend(socket, { event: 'typing.stopped', chat_id: chatId });
     } catch (err) {
       setError(err.message);
@@ -1890,7 +1928,7 @@ export function ChatPage() {
             id={`message-${message.id}`}
             data-message-id={message.id}
             data-incoming-message={message.sender_id !== session.user?.id}
-            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${message.encryption_state === 'e2ee_web_v1' ? 'e2ee' : ''} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
+            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${message.type === 'sticker' ? 'sticker-message' : ''} ${message.encryption_state === 'e2ee_web_v1' ? 'e2ee' : ''} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
             key={message.id}
             role={!message.deleted_at ? 'button' : undefined}
             tabIndex={!message.deleted_at ? 0 : undefined}
@@ -2061,7 +2099,10 @@ export function ChatPage() {
             <button
               className={`composer-icon-button composer-emoji-button ${isComposerEmojiPickerOpen ? 'active' : ''}`}
               type="button"
-              onClick={() => setIsComposerEmojiPickerOpen((current) => !current)}
+              onClick={() => {
+                setIsComposerEmojiPickerOpen((current) => !current);
+                setIsStickerPickerOpen(false);
+              }}
               aria-expanded={isComposerEmojiPickerOpen}
               aria-label={t('messages.openEmojiPanel')}
               title={t('messages.openEmojiPanel')}
@@ -2088,6 +2129,44 @@ export function ChatPage() {
                       }}
                     >
                       {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="composer-sticker-wrap">
+            <button
+              className={`composer-icon-button composer-sticker-button ${isStickerPickerOpen ? 'active' : ''}`}
+              type="button"
+              onClick={() => {
+                setIsStickerPickerOpen((current) => !current);
+                setIsComposerEmojiPickerOpen(false);
+              }}
+              disabled={isUploading || (isDirectChat && e2eeStatus === 'ready')}
+              aria-expanded={isStickerPickerOpen}
+              aria-label={t('messages.openStickerPanel')}
+              title={isDirectChat && e2eeStatus === 'ready' ? t('messages.encryptedAttachmentsUnavailable') : t('messages.openStickerPanel')}
+            >
+              <Icon name="sticker" size={20} />
+            </button>
+            {isStickerPickerOpen ? (
+              <div className="composer-sticker-panel" role="menu" aria-label={t('messages.stickerPanel')}>
+                <div className="reaction-picker-head">
+                  <strong>{t('messages.stickerPanel')}</strong>
+                  <button type="button" onClick={() => setIsStickerPickerOpen(false)} aria-label={t('common.close')}>×</button>
+                </div>
+                <div className="sticker-picker-grid">
+                  {STICKER_PACK.map((sticker) => (
+                    <button
+                      className="sticker-picker-button"
+                      type="button"
+                      role="menuitem"
+                      key={sticker.id}
+                      onClick={() => handleSendSticker(sticker.id)}
+                      aria-label={`${t('messages.sendSticker')}: ${sticker.label}`}
+                    >
+                      <Sticker id={sticker.id} label={sticker.label} />
                     </button>
                   ))}
                 </div>

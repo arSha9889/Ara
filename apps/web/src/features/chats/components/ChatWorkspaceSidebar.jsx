@@ -25,6 +25,9 @@ function subtitleForChat(chat, currentUserId, t) {
   if (chat.last_message.encryption_state === 'e2ee_web_v1') {
     return `${prefix}${t('messages.encryptedMessage')}`;
   }
+  if (chat.last_message.type === 'sticker') {
+    return `${prefix}${t('messages.sticker')}`;
+  }
   return `${prefix}${chat.last_message.payload || chat.last_message.media_name || chat.last_message.type}`;
 }
 

@@ -34,6 +34,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         'notification.video_note': '🎥 Видеосообщение',
         'notification.voice': '🎤 Голосовое сообщение',
         'notification.file': '📎 Файл',
+        'notification.sticker': 'Стикер',
         'notification.new_message': 'Новое сообщение',
         'notification.comment': 'Комментарий: {text}',
         'notification.test': 'Проверка push-уведомлений',

@@ -14,6 +14,7 @@ const ICON_PATHS = {
   activity: <><path d="M3 12h4l2.2-6 4 12 2.2-6H21" /></>,
   paperclip: <path d="m8.5 12.8 5.85-5.85a3 3 0 1 1 4.24 4.24l-7.62 7.62a5 5 0 0 1-7.07-7.07l7.43-7.43" />,
   smile: <><circle cx="12" cy="12" r="8" /><path d="M8.5 14.5s1.1 1.5 3.5 1.5 3.5-1.5 3.5-1.5M9 9.5h.01M15 9.5h.01" /></>,
+  sticker: <><path d="M5 4.5h14v10.8a4.2 4.2 0 0 1-4.2 4.2H5Z" /><path d="M14.8 19.5V15a4.5 4.5 0 0 0 4.2 4.5" /><path d="M8.5 9.5h.01M14.5 9.5h.01M9 13.5s1 1.2 3 1.2 3-1.2 3-1.2" /></>,
   microphone: <><rect x="9" y="4" width="6" height="11" rx="3" /><path d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v3M9 20h6" /></>,
   microphoneOff: <><rect x="9" y="4" width="6" height="11" rx="3" /><path d="M6.5 11.5a5.5 5.5 0 0 0 8.2 4.8M12 17v3M9 20h6M4 4l16 16" /></>,
   video: <><rect x="3.5" y="6" width="12" height="12" rx="2" /><path d="m15.5 10 5-3v10l-5-3" /></>,

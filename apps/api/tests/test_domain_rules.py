@@ -1,9 +1,14 @@
 from uuid import uuid4
 
+import pytest
+
 from app.domain.nexus_id import format_nexus_id, generate_nexus_id, is_valid_nexus_id
 from app.domain.security_hashing import hash_secret, verify_secret
 from app.domain.validators import is_valid_password, is_valid_pin, is_valid_username
 from app.models.users import User, UserProfile
+from app.schemas.chats import MessageCreateRequest
+from app.services.auth_service import AuthError
+from app.services.chat_service import STICKER_IDS, _validate_message_request
 from app.services.user_service import to_public_user_out
 
 
@@ -43,6 +48,22 @@ def test_secret_hashing_roundtrip() -> None:
 
     assert verify_secret('Password123', secret_hash)
     assert not verify_secret('WrongPassword123', secret_hash)
+
+
+def test_sticker_message_accepts_only_known_stickers_without_media() -> None:
+    assert STICKER_IDS == {
+        'ara-alt', 'ara-solidity', 'ara-school-holiday', 'ara-aksakal-approves',
+        'ara-sigma', 'ara-our-elephant', 'ara-civilization', 'ara-sakhavud',
+        'ara-salam-relatives', 'ara-rahmet', 'ara-tea',
+    }
+    sticker_id = 'ara-rahmet'
+
+    _validate_message_request(MessageCreateRequest(type='sticker', text=sticker_id))
+
+    with pytest.raises(AuthError, match='Unsupported sticker'):
+        _validate_message_request(MessageCreateRequest(type='sticker', text='external-sticker'))
+    with pytest.raises(AuthError, match='Sticker messages cannot contain media'):
+        _validate_message_request(MessageCreateRequest(type='sticker', text=sticker_id, media_url='https://example.test/sticker.svg'))
 
 
 def test_public_user_output_exposes_only_allowed_profile_data() -> None:
