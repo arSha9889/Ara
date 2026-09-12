@@ -11,16 +11,19 @@ interface NativePushToken {
 
 interface NativePushModule {
   addListener(eventName: string): void;
+  getPendingNotificationOpen?: () => Promise<unknown>;
   getTokens?: () => Promise<Record<string, unknown>>;
   getNotificationPermissionStatus?: () => Promise<NotificationPermissionStatus>;
   removeListeners(count: number): void;
   requestNotificationPermission?: () => Promise<NotificationPermissionStatus>;
+  setNotificationOpenListenerActive?: (active: boolean) => void;
 }
 
 const PUSH_PROVIDER_BY_SDK_KEY: Record<string, MobilePushProvider> = {
   rustore: 'rustore',
   firebase: 'fcm',
 };
+const NOTIFICATION_OPEN_EVENT = 'AraChatNotificationOpen';
 
 const nativePush = NativeModules.AraChatPush as NativePushModule | undefined;
 const nativePushEvents = nativePush ? new NativeEventEmitter(nativePush) : null;
@@ -77,4 +80,25 @@ export function subscribeToMobilePushToken(listener: (token: MobilePushToken) =>
     }
   });
   return () => subscription.remove();
+}
+
+export async function getPendingMobilePushOpen(): Promise<unknown | null> {
+  if (!nativePush?.getPendingNotificationOpen) {
+    return null;
+  }
+
+  return nativePush.getPendingNotificationOpen();
+}
+
+export function subscribeToMobilePushOpen(listener: (open: unknown) => void): () => void {
+  if (!nativePushEvents) {
+    return () => undefined;
+  }
+
+  const subscription = nativePushEvents.addListener(NOTIFICATION_OPEN_EVENT, listener);
+  nativePush?.setNotificationOpenListenerActive?.(true);
+  return () => {
+    nativePush?.setNotificationOpenListenerActive?.(false);
+    subscription.remove();
+  };
 }

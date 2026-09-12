@@ -29,7 +29,7 @@ export function ProfileScreen() {
       <Pressable
         accessibilityRole="button"
         onPress={() => navigation.navigate('ProfileEdit')}
-        style={({ pressed }) => [sharedStyles.glassCard, styles.profileCard, pressed && styles.pressed]}
+        style={({ pressed }) => [sharedStyles.elevatedCard, styles.profileCard, pressed && styles.pressed]}
       >
         <View accessibilityLabel={`${t('profile')} ${name}`} style={styles.avatar}>
           <Text style={avatar ? styles.avatarEmoji : styles.avatarLetter}>{avatar ?? firstLetter(name)}</Text>
@@ -59,12 +59,12 @@ const styles = StyleSheet.create({
   profileCard: {
     alignItems: 'center',
     marginTop: spacing.lg,
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: 'rgba(169, 156, 255, 0.24)',
-    borderColor: 'rgba(169, 156, 255, 0.58)',
+    backgroundColor: 'rgba(140, 201, 255, 0.14)',
+    borderColor: 'rgba(140, 201, 255, 0.36)',
     borderRadius: 44,
     borderWidth: 1,
     height: 88,
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text,
-    fontSize: 24,
+    fontSize: 23,
     fontWeight: '700',
     marginTop: spacing.md,
   },
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   identifierCard: {
     marginTop: spacing.md,

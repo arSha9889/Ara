@@ -48,3 +48,47 @@ test('preserves presence status fields', () => {
     lastSeenAt: '2026-08-23T11:59:00Z',
   });
 });
+
+test('preserves ephemeral typing event fields without message text', () => {
+  expect(
+    parseRealtimeEvent({
+      event: 'typing.started',
+      chat_id: 'chat-1',
+      user_id: 'user-2',
+    }),
+  ).toEqual({
+    event: 'typing.started',
+    chatId: 'chat-1',
+    userId: 'user-2',
+  });
+});
+
+test('parses validated call signalling fields', () => {
+  expect(
+    parseRealtimeEvent({
+      call_id: 'call-1',
+      call_type: 'video',
+      candidate: {
+        candidate: 'candidate:1 1 udp 1 10.0.0.1 12345 typ host',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+      },
+      chat_id: 'chat-1',
+      description: { sdp: 'v=0', type: 'offer' },
+      event: 'call.offer',
+      user_id: 'user-2',
+    }),
+  ).toEqual({
+      callId: 'call-1',
+      callType: 'video',
+    candidate: {
+      candidate: 'candidate:1 1 udp 1 10.0.0.1 12345 typ host',
+      sdpMLineIndex: 0,
+      sdpMid: '0',
+    },
+    chatId: 'chat-1',
+    description: { sdp: 'v=0', type: 'offer' },
+    event: 'call.offer',
+    userId: 'user-2',
+  });
+});

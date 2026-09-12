@@ -570,7 +570,7 @@ export function ChatPage() {
   const { chatId } = useParams();
   const { lastNotification, markMessageNotificationsRead } = useNotifications();
   const { session } = useSession();
-  const { call, startCall } = useCall();
+  const { call, startCall, openVideoPreview } = useCall();
   const { effectiveMode } = useLayoutMode();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
@@ -1800,17 +1800,30 @@ export function ChatPage() {
           </div>
         </div>
         {!isSavedChat && !isPublicBranch ? (
-          <button
-            className="chat-call-button"
-            type="button"
-            onClick={() => void startCall(chat)}
-            disabled={!chat?.peer || !call.canUseCalls || !call.canSignalCall || call.callState !== 'idle'}
-            aria-label={t('calls.start')}
-            title={call.canUseCalls && call.canSignalCall ? t('calls.start') : t('calls.unavailable')}
-          >
-            <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
-            <strong>{t('calls.call')}</strong>
-          </button>
+          <div className="chat-call-actions">
+            <button
+              className="chat-call-button"
+              type="button"
+              onClick={() => void startCall(chat)}
+              disabled={!chat?.peer || !call.canUseCalls || !call.canSignalCall || call.callState !== 'idle'}
+              aria-label={t('calls.start')}
+              title={call.canUseCalls && call.canSignalCall ? t('calls.start') : t('calls.unavailable')}
+            >
+              <span className="chat-call-button-icon" aria-hidden="true"><Icon name="phone" size={18} /></span>
+              <strong>{t('calls.call')}</strong>
+            </button>
+            <button
+              className="chat-call-button chat-video-call-button"
+              type="button"
+              onClick={() => void openVideoPreview(chat)}
+              disabled={!chat?.peer || !call.canUseVideoCalls || !call.canSignalCall || call.callState !== 'idle'}
+              aria-label={t('calls.startVideo')}
+              title={call.canUseVideoCalls && call.canSignalCall ? t('calls.startVideo') : t('calls.videoUnavailable')}
+            >
+              <span className="chat-call-button-icon" aria-hidden="true"><Icon name="video" size={18} /></span>
+              <strong>{t('calls.videoCall')}</strong>
+            </button>
+          </div>
         ) : null}
         {isPublicBranch && !chat?.can_post ? (
           <button className="button button-secondary branch-header-subscribe" type="button" onClick={chat?.is_subscribed ? handleUnsubscribeFromBranch : handleSubscribeToBranch} disabled={isSubscribingToBranch}>

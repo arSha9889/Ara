@@ -92,6 +92,12 @@ services:
       NEXUS_VAPID_PRIVATE_KEY: ${NEXUS_VAPID_PRIVATE_KEY:-}
       NEXUS_VAPID_PUBLIC_KEY: ${NEXUS_VAPID_PUBLIC_KEY:-}
       NEXUS_VAPID_CLAIMS_EMAIL: ${NEXUS_VAPID_CLAIMS_EMAIL:-}
+      NEXUS_MOBILE_PUSH_ENABLED: ${NEXUS_MOBILE_PUSH_ENABLED:-false}
+      NEXUS_MOBILE_PUSH_TIMEOUT_SECONDS: ${NEXUS_MOBILE_PUSH_TIMEOUT_SECONDS:-10}
+      NEXUS_RUSTORE_PUSH_PROJECT_ID: ${NEXUS_RUSTORE_PUSH_PROJECT_ID:-}
+      NEXUS_RUSTORE_PUSH_SERVICE_TOKEN: ${NEXUS_RUSTORE_PUSH_SERVICE_TOKEN:-}
+      NEXUS_FCM_PUSH_PROJECT_ID: ${NEXUS_FCM_PUSH_PROJECT_ID:-}
+      NEXUS_FCM_SERVICE_ACCOUNT_FILE: ${NEXUS_FCM_SERVICE_ACCOUNT_FILE:-}
       NEXUS_TURN_PUBLIC_HOST: ${NEXUS_TURN_PUBLIC_HOST:-}
       NEXUS_TURN_SHARED_SECRET: ${NEXUS_TURN_SHARED_SECRET:-}
       NEXUS_TURN_PORT: ${NEXUS_TURN_PORT:-3478}
@@ -104,6 +110,7 @@ services:
       NEXUS_MAINTENANCE_STATUS_FILE: /var/lib/arachat/maintenance/storage-status.json
     volumes:
       - /var/lib/arachat/maintenance:/var/lib/arachat/maintenance:ro
+      - ${NEXUS_FCM_SERVICE_ACCOUNT_HOST_FILE:-/dev/null}:/run/secrets/arachat-fcm-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,6 +161,8 @@ services:
       - --static-auth-secret=${NEXUS_TURN_SHARED_SECRET:?Set NEXUS_TURN_SHARED_SECRET in deploy/production.env}
       - --stale-nonce=600
       - --user-quota=12
+      - --total-quota=${NEXUS_TURN_TOTAL_QUOTA:-120}
+      - --no-cli
       - --no-multicast-peers
       - --denied-peer-ip=10.0.0.0-10.255.255.255
       - --denied-peer-ip=127.0.0.0-127.255.255.255

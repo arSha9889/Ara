@@ -22,6 +22,8 @@ import { useI18n } from '../../../localization/I18nProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
+import { Icon } from '../../../ui/Icon';
+import { IconButton } from '../../../ui/IconButton';
 
 function ChatSubscription({ chatId }: { chatId: string }) {
   const { subscribeToChat } = useRealtime();
@@ -145,7 +147,13 @@ export function ChatsScreen() {
       chatId: chat.id,
       title: chatTitle(chat, copy),
       peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
+      peerIsOnline: chat.type === 'direct' ? chat.peer?.is_online : undefined,
+      peerLastSeenAt: chat.type === 'direct' ? chat.peer?.last_seen_at : undefined,
     });
+  }
+
+  function openNewChat(): void {
+    navigation.navigate('MainTabs', { screen: 'Search' });
   }
 
   function renderChat({ item }: { item: Chat }) {
@@ -189,22 +197,19 @@ export function ChatsScreen() {
   return (
     <AppScreen scroll={false} contentStyle={styles.content}>
       {chats.map(chat => <ChatSubscription chatId={chat.id} key={chat.id} />)}
-      <View style={styles.heading}>
-        <View>
-          <Text style={sharedStyles.eyebrow}>AraChat</Text>
-          <Text style={sharedStyles.title}>{t('chats')}</Text>
-        </View>
-        <Pressable
-          accessibilityLabel={t('chatsRetry')}
-          accessibilityRole="button"
-          disabled={isLoading}
-          onPress={() => {
-            loadChats().catch(() => undefined);
-          }}
-          style={({ pressed }) => [styles.refreshButton, pressed && !isLoading && styles.refreshButtonPressed]}
-        >
-          <Text style={styles.refreshLabel}>↻</Text>
-        </Pressable>
+        <View style={styles.heading}>
+          <View>
+            <Text style={sharedStyles.eyebrow}>AraChat</Text>
+            <Text style={sharedStyles.title}>{t('chats')}</Text>
+          </View>
+          <IconButton
+            accessibilityLabel={t('chatsRetry')}
+            disabled={isLoading}
+            icon="refresh"
+            onPress={() => {
+              loadChats().catch(() => undefined);
+            }}
+          />
       </View>
 
       {error ? (
@@ -232,9 +237,7 @@ export function ChatsScreen() {
           data={chats}
           keyExtractor={chat => chat.id}
           ListEmptyComponent={
-            !error ? (
-              <EmptyState description={t('chatsEmptyDescription')} title={t('chatsEmptyTitle')} />
-            ) : undefined
+            error ? undefined : <EmptyState description={t('chatsEmptyDescription')} title={t('chatsEmptyTitle')} />
           }
           refreshControl={
             <RefreshControl
@@ -250,6 +253,15 @@ export function ChatsScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+      <Pressable
+        accessibilityLabel={t('newChat')}
+        accessibilityRole="button"
+        onPress={openNewChat}
+        style={({ pressed }) => [styles.newChatButton, pressed && styles.newChatButtonPressed]}
+      >
+        <Icon color={colors.canvas} name="compose" size={20} />
+        <Text style={styles.newChatLabel}>{t('newChat')}</Text>
+      </Pressable>
     </AppScreen>
   );
 }
@@ -263,24 +275,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
-  },
-  refreshButton: {
-    alignItems: 'center',
-    borderColor: colors.glassBorder,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  refreshButtonPressed: {
-    backgroundColor: colors.glassStrong,
-  },
-  refreshLabel: {
-    color: colors.primary,
-    fontSize: 25,
-    fontWeight: '500',
-    lineHeight: 28,
   },
   loadingState: {
     alignItems: 'center',
@@ -300,19 +294,19 @@ const styles = StyleSheet.create({
   },
   chatRow: {
     alignItems: 'center',
-    borderBottomColor: colors.glassBorder,
+    borderBottomColor: colors.divider,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 76,
+    minHeight: 80,
     paddingVertical: spacing.sm,
   },
   chatRowPressed: {
-    opacity: 0.72,
+    backgroundColor: colors.surface,
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.glassStrong,
+    backgroundColor: colors.surfaceRaised,
     borderColor: colors.glassBorder,
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
@@ -369,7 +363,7 @@ const styles = StyleSheet.create({
   unreadBadge: {
     alignItems: 'center',
     backgroundColor: colors.primaryStrong,
-    borderRadius: 12,
+    borderRadius: 11,
     justifyContent: 'center',
     minWidth: 24,
     paddingHorizontal: 7,
@@ -392,12 +386,33 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     alignSelf: 'flex-start',
-    minHeight: 40,
+    minHeight: 48,
     justifyContent: 'center',
   },
   retryLabel: {
     color: colors.primary,
     fontSize: 15,
     fontWeight: '700',
+  },
+  newChatButton: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryStrong,
+    borderRadius: 24,
+    bottom: spacing.md,
+    elevation: 3,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    position: 'absolute',
+    right: spacing.md,
+  },
+  newChatButtonPressed: {
+    backgroundColor: colors.primaryPressed,
+  },
+  newChatLabel: {
+    color: colors.canvas,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

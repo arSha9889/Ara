@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
 import { colors, spacing } from '../../../theme/theme';
+import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../authError';
 import { legalDocumentUrls } from '../legalDocuments';
@@ -101,9 +102,9 @@ function ConsentCheck({
       accessibilityState={{ checked }}
       onPress={onChange}
       style={({ pressed }) => [styles.consent, pressed && styles.pressed]}
-    >
-      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked ? <Text style={styles.checkmark}>✓</Text> : null}
+      >
+        <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+        {checked ? <Icon color={colors.canvas} name="check" size={16} /> : null}
       </View>
       <Text style={styles.consentLabel}>{label}</Text>
     </Pressable>
@@ -122,6 +123,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.sm,
+    minHeight: 48,
   },
   checkbox: {
     alignItems: 'center',
@@ -136,11 +138,6 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: colors.primaryStrong,
     borderColor: colors.primaryStrong,
-  },
-  checkmark: {
-    color: colors.canvas,
-    fontSize: 15,
-    fontWeight: '800',
   },
   consentLabel: {
     color: colors.textMuted,

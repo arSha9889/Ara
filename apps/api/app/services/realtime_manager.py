@@ -53,9 +53,11 @@ class RealtimeManager:
                 went_offline = True
         return user_id, went_offline
 
-    async def broadcast_to_chat(self, chat_id: UUID, payload: dict) -> None:
+    async def broadcast_to_chat(self, chat_id: UUID, payload: dict, *, exclude_user_id: UUID | None = None) -> None:
         stale_connections: list[WebSocket] = []
         for websocket in list(self._chat_connections.get(chat_id, set())):
+            if exclude_user_id and self._connection_users.get(websocket) == exclude_user_id:
+                continue
             try:
                 await websocket.send_json(payload)
             except (RuntimeError, WebSocketDisconnect):

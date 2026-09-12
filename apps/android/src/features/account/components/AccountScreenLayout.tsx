@@ -1,10 +1,11 @@
 import type { PropsWithChildren } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useI18n } from '../../../localization/I18nProvider';
 import { colors, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
+import { IconButton } from '../../../ui/IconButton';
 
 interface AccountScreenLayoutProps extends PropsWithChildren {
   title: string;
@@ -17,15 +18,8 @@ export function AccountScreenLayout({ children, title, description }: AccountScr
 
   return (
     <AppScreen>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel={t('back')}
-          accessibilityRole="button"
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Text style={styles.backLabel}>{t('back')}</Text>
-        </Pressable>
+        <View style={styles.header}>
+        <IconButton accessibilityLabel={t('back')} icon="back" onPress={() => navigation.goBack()} />
         <Text style={styles.title}>{title}</Text>
       </View>
       {description ? <Text style={styles.description}>{description}</Text> : null}
@@ -49,7 +43,7 @@ export const accountStyles = StyleSheet.create({
   input: {
     backgroundColor: colors.input,
     borderColor: colors.glassBorder,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     color: colors.text,
     fontSize: 16,
@@ -77,7 +71,7 @@ export const accountStyles = StyleSheet.create({
   secondaryButton: {
     alignItems: 'center',
     borderColor: colors.glassBorder,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     marginTop: spacing.sm,
@@ -117,11 +111,6 @@ export const accountStyles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 3,
   },
-  chevron: {
-    color: colors.textFaint,
-    fontSize: 28,
-    lineHeight: 28,
-  },
 });
 
 const styles = StyleSheet.create({
@@ -130,19 +119,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  backButton: {
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  backLabel: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
   title: {
     color: colors.text,
     flex: 1,
-    fontSize: 24,
+    fontSize: 23,
     fontWeight: '700',
   },
   description: {

@@ -71,6 +71,16 @@ services:
       NEXUS_SMTP_USE_STARTTLS: ${NEXUS_SMTP_USE_STARTTLS:-true}
       NEXUS_SMTP_USE_SSL: ${NEXUS_SMTP_USE_SSL:-false}
       NEXUS_SMTP_TIMEOUT_SECONDS: ${NEXUS_SMTP_TIMEOUT_SECONDS:-15}
+      NEXUS_MOBILE_PUSH_ENABLED: ${NEXUS_MOBILE_PUSH_ENABLED:-false}
+      NEXUS_MOBILE_PUSH_TIMEOUT_SECONDS: ${NEXUS_MOBILE_PUSH_TIMEOUT_SECONDS:-10}
+      NEXUS_RUSTORE_PUSH_PROJECT_ID: ${NEXUS_RUSTORE_PUSH_PROJECT_ID:-}
+      NEXUS_RUSTORE_PUSH_SERVICE_TOKEN: ${NEXUS_RUSTORE_PUSH_SERVICE_TOKEN:-}
+      NEXUS_FCM_PUSH_PROJECT_ID: ${NEXUS_FCM_PUSH_PROJECT_ID:-}
+      NEXUS_FCM_SERVICE_ACCOUNT_FILE: ${NEXUS_FCM_SERVICE_ACCOUNT_FILE:-}
+      NEXUS_TURN_PUBLIC_HOST: ${NEXUS_TURN_PUBLIC_HOST:-}
+      NEXUS_TURN_SHARED_SECRET: ${NEXUS_TURN_SHARED_SECRET:-}
+      NEXUS_TURN_PORT: ${NEXUS_TURN_PORT:-3479}
+      NEXUS_TURN_CREDENTIAL_TTL_SECONDS: ${NEXUS_TURN_CREDENTIAL_TTL_SECONDS:-900}
       NEXUS_ACCESS_TOKEN_MINUTES: ${NEXUS_ACCESS_TOKEN_MINUTES:-15}
       NEXUS_REFRESH_TOKEN_DAYS: ${NEXUS_REFRESH_TOKEN_DAYS:-30}
       NEXUS_PIN_TRUSTED_DAYS: ${NEXUS_PIN_TRUSTED_DAYS:-30}
@@ -79,6 +89,7 @@ services:
       NEXUS_REDIS_MAXMEMORY: ${NEXUS_REDIS_MAXMEMORY:-128mb}
     volumes:
       - arachat_staging_uploads:/var/lib/arachat/uploads
+      - ${NEXUS_FCM_SERVICE_ACCOUNT_HOST_FILE:-/dev/null}:/run/secrets/arachat-fcm-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,6 +108,39 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  # Uses a distinct host port and relay range from production so a staging call
+  # prototype can run on the same VPS. Do not enable both environments with
+  # overlapping NEXUS_TURN_PORT or NEXUS_TURN_*_PORT values.
+  turn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    logging: *container-logging
+    profiles: ["calls"]
+    network_mode: host
+    command:
+      - --realm=${NEXUS_TURN_REALM:?Set NEXUS_TURN_REALM in deploy/staging.env}
+      - --server-name=${NEXUS_TURN_PUBLIC_HOST:?Set NEXUS_TURN_PUBLIC_HOST in deploy/staging.env}
+      - --listening-port=${NEXUS_TURN_PORT:-3479}
+      - --min-port=${NEXUS_TURN_MIN_PORT:-49201}
+      - --max-port=${NEXUS_TURN_MAX_PORT:-49240}
+      - --external-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/staging.env}
+      - --listening-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/staging.env}
+      - --relay-ip=${NEXUS_TURN_EXTERNAL_IP:?Set NEXUS_TURN_EXTERNAL_IP in deploy/staging.env}
+      - --fingerprint
+      - --use-auth-secret
+      - --static-auth-secret=${NEXUS_TURN_SHARED_SECRET:?Set NEXUS_TURN_SHARED_SECRET in deploy/staging.env}
+      - --stale-nonce=600
+      - --user-quota=12
+      - --total-quota=${NEXUS_TURN_TOTAL_QUOTA:-40}
+      - --no-cli
+      - --no-multicast-peers
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      - --no-tls
 
 volumes:
   arachat_staging_postgres_data:

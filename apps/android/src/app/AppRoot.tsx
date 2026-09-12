@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { useSession } from '../features/auth/session/useSession';
+import { CallOverlay } from '../features/calls/CallOverlay';
+import { DirectCallProvider } from '../features/calls/DirectCallProvider';
 import { AppNavigator } from '../navigation/AppNavigator';
 import { LegalAcceptanceScreen } from '../features/auth/screens/LegalAcceptanceScreen';
 import { PasswordRecoveryScreen } from '../features/auth/screens/PasswordRecoveryScreen';
@@ -24,7 +26,10 @@ export function AppRoot() {
   if (status === 'signedIn') {
     return session?.user.legalDocumentsCurrent ? (
       <RealtimeProvider accessToken={session.accessToken}>
-        <AppNavigator />
+        <DirectCallProvider>
+          <AppNavigator />
+          <CallOverlay />
+        </DirectCallProvider>
       </RealtimeProvider>
     ) : (
       <LegalAcceptanceScreen />

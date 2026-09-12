@@ -12,10 +12,14 @@ import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import ru.rustore.sdk.universalpush.RuStoreUniversalPushClient
+import java.lang.ref.WeakReference
 
 @ReactModule(name = PushModule.NAME)
 class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   init {
+    synchronized(notificationOpenLock) {
+      activeModule = WeakReference(this)
+    }
     RuStoreUniversalPushClient.setOnNewTokenListener { provider, token ->
       emitToken(provider, token)
     }
@@ -84,6 +88,26 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
   }
 
   @ReactMethod
+  fun getPendingNotificationOpen(promise: Promise) {
+    val notificationOpen = synchronized(notificationOpenLock) {
+      val pending = pendingNotificationOpen
+      pendingNotificationOpen = null
+      pending
+    }
+    promise.resolve(notificationOpen?.toWritableMap())
+  }
+
+  @ReactMethod
+  fun setNotificationOpenListenerActive(active: Boolean) {
+    synchronized(notificationOpenLock) {
+      notificationOpenListenerActive = active
+    }
+    if (active) {
+      emitPendingNotificationOpen()
+    }
+  }
+
+  @ReactMethod
   fun addListener(eventName: String) = Unit
 
   @ReactMethod
@@ -115,11 +139,49 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
       .emit(TOKEN_EVENT, payload)
   }
 
+  private fun emitPendingNotificationOpen() {
+    val notificationOpen = synchronized(notificationOpenLock) {
+      if (!notificationOpenListenerActive || !reactApplicationContext.hasActiveReactInstance()) {
+        null
+      } else {
+        val pending = pendingNotificationOpen
+        pendingNotificationOpen = null
+        pending
+      }
+    } ?: return
+
+    reactApplicationContext
+      .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      .emit(NOTIFICATION_OPEN_EVENT, notificationOpen.toWritableMap())
+  }
+
+  private fun PushNotificationHandler.NotificationOpen.toWritableMap() = Arguments.createMap().apply {
+    putString("kind", kind)
+    chatId?.let { putString("chat_id", it) }
+    messageId?.let { putString("message_id", it) }
+    notificationId?.let { putString("notification_id", it) }
+    supportTicketId?.let { putString("support_ticket_id", it) }
+  }
+
   companion object {
     const val NAME = "AraChatPush"
     const val TOKEN_EVENT = "AraChatPushToken"
+    const val NOTIFICATION_OPEN_EVENT = "AraChatNotificationOpen"
     private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 7431
     private const val PERMISSION_GRANTED = "granted"
     private const val PERMISSION_DENIED = "denied"
+    private val notificationOpenLock = Any()
+    private var activeModule: WeakReference<PushModule>? = null
+    private var pendingNotificationOpen: PushNotificationHandler.NotificationOpen? = null
+    private var notificationOpenListenerActive = false
+
+    fun handleNotificationIntent(intent: android.content.Intent?) {
+      val notificationOpen = intent?.let(PushNotificationHandler::notificationOpenFromIntent) ?: return
+      val module = synchronized(notificationOpenLock) {
+        pendingNotificationOpen = notificationOpen
+        activeModule?.get()
+      }
+      module?.emitPendingNotificationOpen()
+    }
   }
 }

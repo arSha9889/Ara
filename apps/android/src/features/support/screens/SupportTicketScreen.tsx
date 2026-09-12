@@ -20,6 +20,7 @@ import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
+import { IconButton } from '../../../ui/IconButton';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import {
   createSupportMessage,
@@ -109,14 +110,11 @@ export function SupportTicketScreen({ navigation, route }: Props) {
     >
       <AppScreen contentStyle={styles.content} scroll={false}>
         <View style={styles.header}>
-          <Pressable
+          <IconButton
             accessibilityLabel={t('back')}
-            accessibilityRole="button"
+            icon="back"
             onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Text style={styles.backLabel}>{t('back')}</Text>
-          </Pressable>
+          />
           <Text numberOfLines={1} style={styles.headerTitle}>
             {ticket ? `${t('supportTicket')} #${ticket.number}` : t('support')}
           </Text>
@@ -128,7 +126,7 @@ export function SupportTicketScreen({ navigation, route }: Props) {
           </View>
         ) : ticket ? (
           <>
-            <View style={[sharedStyles.glassCard, styles.ticketCard]}>
+            <View style={[sharedStyles.elevatedCard, styles.ticketCard]}>
               <View style={styles.ticketHeading}>
                 <Text numberOfLines={2} style={styles.subject}>{ticket.subject}</Text>
                 <Text style={styles.status}>{t(statusKeys[ticket.status])}</Text>
@@ -157,7 +155,7 @@ export function SupportTicketScreen({ navigation, route }: Props) {
               style={styles.messages}
             />
             {isReplyAvailable ? (
-              <View style={[sharedStyles.glassCard, styles.composer]}>
+              <View style={[sharedStyles.glassPanel, styles.composer]}>
                 <TextInput
                   accessibilityLabel={t('supportReply')}
                   editable={!isSending}
@@ -179,7 +177,7 @@ export function SupportTicketScreen({ navigation, route }: Props) {
                 />
               </View>
             ) : (
-              <View style={[sharedStyles.glassCard, styles.resolvedCard]}>
+              <View style={[sharedStyles.elevatedCard, styles.resolvedCard]}>
                 <Text style={styles.resolvedText}>{t('supportResolvedDescription')}</Text>
                 <PrimaryButton
                   label={t('supportOpenNewTicket')}
@@ -218,8 +216,6 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: { backgroundColor: colors.canvas, flex: 1 },
   content: { flex: 1 },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  backButton: { justifyContent: 'center', minHeight: 48 },
-  backLabel: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   headerTitle: { color: colors.text, flex: 1, fontSize: 21, fontWeight: '700' },
   loading: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   ticketCard: { marginTop: spacing.xs, padding: spacing.md },
@@ -229,13 +225,13 @@ const styles = StyleSheet.create({
   createdAt: { color: colors.textFaint, fontSize: 12, marginTop: spacing.sm },
   errorCard: { gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
-  retryButton: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center' },
+  retryButton: { alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center' },
   retryLabel: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   messages: { flex: 1, marginTop: spacing.sm },
   messagesList: { gap: spacing.sm, paddingBottom: spacing.sm },
   message: { borderRadius: 18, maxWidth: '88%', padding: spacing.sm },
-  messageMine: { alignSelf: 'flex-end', backgroundColor: 'rgba(67, 182, 255, 0.22)', borderColor: 'rgba(133, 214, 255, 0.4)', borderWidth: StyleSheet.hairlineWidth },
-  messageTeam: { alignSelf: 'flex-start', backgroundColor: colors.glassStrong, borderColor: colors.glassBorder, borderWidth: StyleSheet.hairlineWidth },
+  messageMine: { alignSelf: 'flex-end', backgroundColor: 'rgba(74, 168, 240, 0.25)', borderColor: 'rgba(140, 201, 255, 0.38)', borderWidth: StyleSheet.hairlineWidth },
+  messageTeam: { alignSelf: 'flex-start', backgroundColor: colors.surfaceRaised, borderColor: colors.glassBorder, borderWidth: StyleSheet.hairlineWidth },
   messageMeta: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
   messageAuthor: { color: colors.primary, fontSize: 12, fontWeight: '700' },
   messageDate: { color: colors.textFaint, fontSize: 11 },

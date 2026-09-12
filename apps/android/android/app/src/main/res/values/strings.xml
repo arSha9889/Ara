@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AraChat</string>
+    <string name="app_name" translatable="false">AraChat</string>
     <string name="push_messages_channel">Сообщения</string>
     <string name="push_system_channel">Системные уведомления</string>
     <string name="push_message_title">Новое уведомление AraChat</string>

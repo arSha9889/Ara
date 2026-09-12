@@ -84,7 +84,7 @@ export function PinSettingsScreen() {
 
   return (
     <AccountScreenLayout description={t('pinSettingsDescription')} title={t('pinSettings')}>
-      <View style={[sharedStyles.glassCard, accountStyles.card]}>
+      <View style={[sharedStyles.elevatedCard, accountStyles.card]}>
         <Text style={accountStyles.label}>{t('currentPassword')}</Text>
         <TextInput
           accessibilityLabel={t('currentPassword')}
@@ -163,6 +163,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   pressed: {
-    opacity: 0.76,
+    backgroundColor: 'rgba(255, 156, 173, 0.12)',
   },
 });

@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useI18n } from '../../../localization/I18nProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
@@ -12,11 +10,9 @@ import { AccountScreenLayout, accountStyles } from '../../account/components/Acc
 import { getMyProfile, updateMyProfile, updateUsername } from '../../account/api/accountApi';
 import { avatarEmoji, builtInAvatarRefs, type BuiltInAvatarRef } from '../avatar';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ProfileEdit'>;
-
 const usernamePattern = /^[A-Za-z0-9]{3,32}$/;
 
-export function ProfileEditScreen({ navigation }: Props) {
+export function ProfileEditScreen() {
   const { session, saveSession } = useSession();
   const { t } = useI18n();
   const [displayName, setDisplayName] = useState(session?.user.displayName ?? '');
@@ -87,7 +83,7 @@ export function ProfileEditScreen({ navigation }: Props) {
 
   return (
     <AccountScreenLayout description={t('profileDetails')} title={t('editProfile')}>
-      <View style={[sharedStyles.glassCard, accountStyles.card]}>
+      <View style={[sharedStyles.elevatedCard, accountStyles.card]}>
         <Text style={accountStyles.label}>{t('editAvatar')}</Text>
         <Text style={accountStyles.hint}>{t('avatarSelectionDescription')}</Text>
         <View style={styles.avatarGrid}>
@@ -178,9 +174,6 @@ export function ProfileEditScreen({ navigation }: Props) {
             onPress={saveProfile}
           />
         </View>
-        <Pressable accessibilityRole="button" onPress={() => navigation.goBack()} style={styles.backLink}>
-          <Text style={styles.backLinkLabel}>{t('back')}</Text>
-        </Pressable>
       </View>
     </AccountScreenLayout>
   );
@@ -197,14 +190,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.input,
     borderColor: colors.glassBorder,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    height: 46,
+    height: 48,
     justifyContent: 'center',
-    width: 46,
+    width: 48,
   },
   avatarOptionSelected: {
-    backgroundColor: 'rgba(133, 214, 255, 0.2)',
+    backgroundColor: 'rgba(74, 168, 240, 0.2)',
     borderColor: colors.primary,
   },
   avatarEmoji: {
@@ -215,6 +208,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.md,
+    minHeight: 48,
   },
   visibilityCopy: {
     flex: 1,
@@ -233,7 +227,7 @@ const styles = StyleSheet.create({
   switchTrack: {
     backgroundColor: colors.input,
     borderColor: colors.glassBorder,
-    borderRadius: 16,
+    borderRadius: 15,
     borderWidth: StyleSheet.hairlineWidth,
     height: 30,
     justifyContent: 'center',
@@ -256,16 +250,6 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: spacing.lg,
-  },
-  backLink: {
-    alignSelf: 'center',
-    marginTop: spacing.md,
-    minHeight: 40,
-  },
-  backLinkLabel: {
-    color: colors.primary,
-    fontSize: 15,
-    fontWeight: '600',
   },
   disabled: {
     opacity: 0.45,

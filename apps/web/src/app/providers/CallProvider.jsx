@@ -51,7 +51,14 @@ export function CallProvider({ children }) {
   const startCall = useCallback(async (chat) => {
     if (!chat?.id || !chat.peer) return;
     setActiveChat(chat);
-    await call.startCall({ chatId: chat.id, peer: chat.peer });
+    await call.startCall({ chatId: chat.id, peer: chat.peer, callType: 'audio' });
+  }, [call]);
+
+  const openVideoPreview = useCallback(async (chat) => {
+    if (!chat?.id || !chat.peer) return;
+    setActiveChat(chat);
+    const opened = await call.openVideoPreview({ chatId: chat.id, peer: chat.peer });
+    if (!opened) setActiveChat(null);
   }, [call]);
 
   useEffect(() => {
@@ -118,7 +125,7 @@ export function CallProvider({ children }) {
   }, [call.callState]);
 
   return (
-    <CallContext.Provider value={{ call: { ...call, canSignalCall: isSocketConnected && call.canSignalCall }, startCall, activeChat }}>
+    <CallContext.Provider value={{ call: { ...call, canSignalCall: isSocketConnected && call.canSignalCall }, startCall, openVideoPreview, activeChat }}>
       {children}
       <CallOverlay call={call} peer={activeChat?.peer} chatId={activeChat?.id} t={t} />
     </CallContext.Provider>

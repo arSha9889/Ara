@@ -10,6 +10,7 @@ import { useI18n } from '../../../localization/I18nProvider';
 import { LanguageSwitcher } from '../../../localization/LanguageSwitcher';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
+import { Icon } from '../../../ui/Icon';
 import { deleteAccount, updateMyProfile } from '../../account/api/accountApi';
 import { useMobilePush } from '../../notifications/MobilePushProvider';
 
@@ -75,7 +76,7 @@ export function SettingsScreen() {
       <Text style={sharedStyles.eyebrow}>{t('appManagement')}</Text>
       <Text style={sharedStyles.title}>{t('settings')}</Text>
 
-      <View style={[sharedStyles.glassCard, styles.section]}>
+      <View style={[sharedStyles.elevatedCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('accountSettings')}</Text>
         <Pressable
           accessibilityRole="button"
@@ -86,7 +87,7 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('profile')}</Text>
             <Text style={styles.rowDescription}>{t('profileDetails')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -97,7 +98,7 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('emailAndPassword')}</Text>
             <Text style={styles.rowDescription}>{t('emailAndPasswordDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -108,7 +109,7 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('devices')}</Text>
             <Text style={styles.rowDescription}>{t('devicesDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -119,7 +120,7 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('loginHistory')}</Text>
             <Text style={styles.rowDescription}>{t('loginHistoryDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -130,11 +131,11 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('pinCode')}</Text>
             <Text style={styles.rowDescription}>{t('pinCodeDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
       </View>
 
-      <View style={[sharedStyles.glassCard, styles.section]}>
+      <View style={[sharedStyles.elevatedCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('privacySecurity')}</Text>
         <Text style={styles.rowTitle}>{t('protectedSession')}</Text>
         <Text style={styles.rowDescription}>
@@ -149,7 +150,7 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('blockedUsers')}</Text>
             <Text style={styles.rowDescription}>{t('blockedUsersDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -160,11 +161,11 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('myReports')}</Text>
             <Text style={styles.rowDescription}>{t('myReportsDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
       </View>
 
-      <View style={[sharedStyles.glassCard, styles.section]}>
+      <View style={[sharedStyles.elevatedCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('notifications')}</Text>
         <Text style={styles.rowTitle}>{t(mobilePushStatus === 'enabled' ? 'notificationsEnabled' : 'notificationsUnavailable')}</Text>
         <Text style={styles.rowDescription}>
@@ -184,7 +185,7 @@ export function SettingsScreen() {
         ) : null}
       </View>
 
-      <View style={[sharedStyles.glassCard, styles.section]}>
+      <View style={[sharedStyles.elevatedCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('help')}</Text>
         <Pressable
           accessibilityRole="button"
@@ -195,11 +196,11 @@ export function SettingsScreen() {
             <Text style={styles.rowTitle}>{t('support')}</Text>
             <Text style={styles.rowDescription}>{t('supportSettingsDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
       </View>
 
-      <View style={[sharedStyles.glassCard, styles.section]}>
+      <View style={[sharedStyles.elevatedCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('language')}</Text>
         <Text style={styles.rowDescription}>{t('languageDescription')}</Text>
         <View style={styles.languageSwitcher}>
@@ -257,8 +258,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 12,
     marginTop: spacing.md,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   notificationButtonPressed: {
     opacity: 0.78,
@@ -286,15 +288,11 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   navigationRowPressed: {
-    opacity: 0.74,
+    backgroundColor: colors.surfacePressed,
+    borderRadius: 14,
   },
   navigationCopy: {
     flex: 1,
-  },
-  chevron: {
-    color: colors.textFaint,
-    fontSize: 28,
-    lineHeight: 28,
   },
   signOut: {
     alignItems: 'center',

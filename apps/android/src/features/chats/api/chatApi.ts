@@ -79,6 +79,10 @@ export async function getChats(): Promise<Chat[]> {
   return chats.filter(isSupportedMobileChat);
 }
 
+export function getChat(chatId: string): Promise<Chat> {
+  return apiClient.request<Chat>(`/api/chats/${chatId}`);
+}
+
 export function getMessages(chatId: string): Promise<ChatMessage[]> {
   return apiClient.request<ChatMessage[]>(`/api/chats/${chatId}/messages`);
 }

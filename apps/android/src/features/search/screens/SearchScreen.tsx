@@ -21,6 +21,7 @@ import { useI18n } from '../../../localization/I18nProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
+import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { ReportUserSheet } from '../../safety/components/ReportUserSheet';
 import { blockUser } from '../../safety/api/safetyApi';
@@ -113,7 +114,13 @@ export function SearchScreen() {
       const chat = await createDirectChatForUser(user.id);
       const title = chat.peer?.display_name || chat.peer?.username || publicUserName(user, t('chatsDirectFallback'));
       setSelectedUser(null);
-      navigation.navigate('Chat', { chatId: chat.id, title, peerUserId: user.id });
+      navigation.navigate('Chat', {
+        chatId: chat.id,
+        title,
+        peerUserId: user.id,
+        peerIsOnline: chat.peer?.is_online,
+        peerLastSeenAt: chat.peer?.last_seen_at,
+      });
     } catch (nextError) {
       setError(t(authErrorKey(nextError)));
     } finally {
@@ -165,7 +172,7 @@ export function SearchScreen() {
       <Text style={styles.intro}>{t('searchIntro')}</Text>
 
       <View style={styles.searchBox}>
-        <Text style={styles.searchSymbol}>⌕</Text>
+        <Icon color={colors.primary} name="search" size={22} />
         <TextInput
           accessibilityLabel={t('searchInput')}
           autoCapitalize="none"
@@ -233,7 +240,9 @@ export function SearchScreen() {
                   </View>
                   {user.profile?.username ? <Text style={styles.username}>@{user.profile.username}</Text> : null}
                 </View>
-                <Text accessibilityElementsHidden style={styles.chevron}>›</Text>
+                <View accessibilityElementsHidden style={styles.chevron}>
+                  <Icon color={colors.textFaint} name="chevronRight" size={20} />
+                </View>
               </Pressable>
             );
           })}
@@ -253,7 +262,7 @@ export function SearchScreen() {
             onPress={() => setSelectedUser(null)}
             style={styles.sheetBackdrop}
           />
-          <View accessibilityViewIsModal style={[sharedStyles.glassCard, styles.sheet]}>
+          <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.sheet]}>
             <View style={styles.sheetHandle} />
             <View accessibilityElementsHidden style={styles.sheetAvatar}>
               <Text style={styles.sheetAvatarLetter}>{firstLetter(selectedName)}</Text>
@@ -330,11 +339,6 @@ const styles = StyleSheet.create({
     minHeight: 56,
     paddingHorizontal: spacing.md,
   },
-  searchSymbol: {
-    color: colors.primary,
-    fontSize: 24,
-    marginRight: spacing.sm,
-  },
   input: {
     color: colors.text,
     flex: 1,
@@ -364,7 +368,7 @@ const styles = StyleSheet.create({
   },
   result: {
     alignItems: 'center',
-    borderBottomColor: colors.glassBorder,
+    borderBottomColor: colors.divider,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -372,11 +376,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   resultPressed: {
-    opacity: 0.72,
+    backgroundColor: colors.surface,
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.glassStrong,
+    backgroundColor: colors.surfaceRaised,
     borderColor: colors.glassBorder,
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
@@ -414,9 +418,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   chevron: {
-    color: colors.textFaint,
-    fontSize: 28,
-    lineHeight: 28,
+    alignItems: 'center',
+    height: 32,
+    justifyContent: 'center',
+    width: 24,
   },
   sheetOverlay: {
     flex: 1,
@@ -432,7 +437,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     alignItems: 'center',
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.glassStrong,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     padding: spacing.lg,

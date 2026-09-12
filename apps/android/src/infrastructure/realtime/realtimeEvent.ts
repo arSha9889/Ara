@@ -1,6 +1,21 @@
 import type { ChatMessage } from '../../features/chats/api/chatApi';
 
+export interface CallSessionDescription {
+  sdp: string;
+  type: 'answer' | 'offer';
+}
+
+export interface CallIceCandidate {
+  candidate: string;
+  sdpMLineIndex?: number;
+  sdpMid?: string;
+}
+
 export interface RealtimeEvent {
+  callId?: string;
+  callType?: 'audio' | 'video';
+  candidate?: CallIceCandidate;
+  description?: CallSessionDescription;
   event: string;
   chatId?: string;
   isOnline?: boolean;
@@ -27,6 +42,34 @@ function nullableStringValue(value: unknown): string | null | undefined {
   return undefined;
 }
 
+function callType(value: unknown): 'audio' | 'video' | undefined {
+  return value === 'audio' || value === 'video' ? value : undefined;
+}
+
+function callSessionDescription(value: unknown): CallSessionDescription | undefined {
+  if (!isRecord(value) || (value.type !== 'offer' && value.type !== 'answer') || typeof value.sdp !== 'string') {
+    return undefined;
+  }
+
+  return { sdp: value.sdp, type: value.type };
+}
+
+function callIceCandidate(value: unknown): CallIceCandidate | undefined {
+  if (!isRecord(value) || typeof value.candidate !== 'string') {
+    return undefined;
+  }
+
+  const candidate: CallIceCandidate = { candidate: value.candidate };
+  if (typeof value.sdpMid === 'string') {
+    candidate.sdpMid = value.sdpMid;
+  }
+  if (typeof value.sdpMLineIndex === 'number' && Number.isInteger(value.sdpMLineIndex)) {
+    candidate.sdpMLineIndex = value.sdpMLineIndex;
+  }
+
+  return candidate;
+}
+
 export function isChatMessage(value: unknown): value is ChatMessage {
   if (!isRecord(value)) {
     return false;
@@ -48,6 +91,10 @@ export function parseRealtimeEvent(value: unknown): RealtimeEvent | null {
   }
 
   return {
+    callId: stringValue(value.call_id),
+    callType: callType(value.call_type),
+    candidate: callIceCandidate(value.candidate),
+    description: callSessionDescription(value.description),
     event: value.event,
     chatId: stringValue(value.chat_id),
     isOnline: typeof value.is_online === 'boolean' ? value.is_online : undefined,

@@ -95,7 +95,7 @@ export function DevicesScreen() {
             const isActive = !isRevoked && !isExpired;
             const isPending = pendingDeviceId === item.device_id;
             return (
-              <View key={item.id} style={[sharedStyles.glassCard, styles.sessionCard]}>
+              <View key={item.id} style={[sharedStyles.elevatedCard, styles.sessionCard]}>
                 <View style={styles.sessionHeading}>
                   <Text style={styles.sessionTitle}>{isCurrentDevice ? t('currentDevice') : t('devices')}</Text>
                   <Text style={isActive ? styles.active : styles.revoked}>
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   loading: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl },
   errorCard: { gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
-  retryButton: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 40 },
+  retryButton: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 48 },
   retryLabel: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   list: { gap: spacing.sm, marginTop: spacing.lg },
   sessionCard: { padding: spacing.md },
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   identifierLabel: { color: colors.textFaint, fontSize: 12, fontWeight: '600', marginTop: spacing.sm, textTransform: 'uppercase' },
   identifier: { color: colors.text, fontSize: 13, marginTop: 2 },
   date: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginTop: 3 },
-  revokeButton: { alignItems: 'center', borderColor: 'rgba(255, 158, 175, 0.48)', borderRadius: 12, borderWidth: 1, justifyContent: 'center', marginTop: spacing.md, minHeight: 44 },
+  revokeButton: { alignItems: 'center', borderColor: 'rgba(255, 158, 175, 0.48)', borderRadius: 12, borderWidth: 1, justifyContent: 'center', marginTop: spacing.md, minHeight: 48 },
   revokeLabel: { color: colors.danger, fontSize: 14, fontWeight: '700' },
-  pressed: { opacity: 0.76 },
+  pressed: { backgroundColor: 'rgba(255, 156, 173, 0.12)' },
 });

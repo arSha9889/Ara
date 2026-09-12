@@ -1,8 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
+  Animated,
+  AppState,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -28,10 +32,13 @@ import {
 } from '../api/chatApi';
 import { mergeChatMessages, upsertChatMessage } from '../messageState';
 import { useI18n } from '../../../localization/I18nProvider';
+import { useDirectCall } from '../../calls/DirectCallProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
+import { Icon } from '../../../ui/Icon';
+import { IconButton } from '../../../ui/IconButton';
 import { ReportUserSheet } from '../../safety/components/ReportUserSheet';
 import { blockUser } from '../../safety/api/safetyApi';
 
@@ -39,17 +46,37 @@ export interface ChatRouteParams {
   chatId: string;
   title: string;
   peerUserId?: string;
+  peerIsOnline?: boolean;
+  peerLastSeenAt?: string | null;
 }
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
 const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '😮', '😢'] as const;
+const PEER_TYPING_EXPIRY_MS = 6_000;
+const TYPING_EVENT_REFRESH_MS = 3_000;
+
+interface PeerPresence {
+  isOnline: boolean;
+  lastSeenAt: string | null;
+}
 
 export function ChatScreen({ navigation, route }: Props) {
   const { language, t } = useI18n();
   const { session } = useSession();
-  const { subscribeToChat, subscribeToEvents } = useRealtime();
+  const { call, startCall } = useDirectCall();
+  const { send, subscribeToChat, subscribeToEvents } = useRealtime();
   const messageList = useRef<FlatList<ChatMessage>>(null);
+  const typingExpiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingRefreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasSentTypingRef = useRef(false);
+  const statusOpacity = useRef(new Animated.Value(1)).current;
+  const statusTranslateY = useRef(new Animated.Value(0)).current;
+  const typingDotValues = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -62,6 +89,180 @@ export function ChatScreen({ navigation, route }: Props) {
   const [isSafetyActionsVisible, setIsSafetyActionsVisible] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
+  const [peerPresence, setPeerPresence] = useState<PeerPresence>(() => ({
+    isOnline: Boolean(route.params.peerIsOnline),
+    lastSeenAt: route.params.peerLastSeenAt ?? null,
+  }));
+  const [isPeerTyping, setIsPeerTyping] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  const stopTyping = useCallback((): void => {
+    if (typingRefreshTimer.current) {
+      clearInterval(typingRefreshTimer.current);
+      typingRefreshTimer.current = null;
+    }
+    if (hasSentTypingRef.current && route.params.peerUserId) {
+      send({ event: 'typing.stopped', chat_id: route.params.chatId });
+    }
+    hasSentTypingRef.current = false;
+  }, [route.params.chatId, route.params.peerUserId, send]);
+
+  const startTyping = useCallback((): void => {
+    if (!route.params.peerUserId || typingRefreshTimer.current) {
+      return;
+    }
+
+    const sendStarted = (): boolean => {
+      if (send({ event: 'typing.started', chat_id: route.params.chatId })) {
+        hasSentTypingRef.current = true;
+        return true;
+      }
+      return false;
+    };
+
+    if (!sendStarted()) {
+      return;
+    }
+    typingRefreshTimer.current = setInterval(() => {
+      if (sendStarted()) {
+        return;
+      }
+      if (typingRefreshTimer.current) {
+        clearInterval(typingRefreshTimer.current);
+        typingRefreshTimer.current = null;
+      }
+      hasSentTypingRef.current = false;
+    }, TYPING_EVENT_REFRESH_MS);
+  }, [route.params.chatId, route.params.peerUserId, send]);
+
+  const updatePeerTyping = useCallback((isTyping: boolean): void => {
+    if (typingExpiryTimer.current) {
+      clearTimeout(typingExpiryTimer.current);
+      typingExpiryTimer.current = null;
+    }
+
+    setIsPeerTyping(isTyping);
+    if (isTyping) {
+      typingExpiryTimer.current = setTimeout(() => {
+        setIsPeerTyping(false);
+        typingExpiryTimer.current = null;
+      }, PEER_TYPING_EXPIRY_MS);
+    }
+  }, []);
+
+  const peerStatus = isPeerTyping
+    ? t('chatTyping')
+    : peerPresence.isOnline
+      ? t('chatOnline')
+      : t('chatLastSeenRecently');
+
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(value => {
+        if (active) {
+          setReduceMotion(value);
+        }
+      })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      statusOpacity.setValue(1);
+      statusTranslateY.setValue(0);
+      return;
+    }
+
+    statusOpacity.setValue(0);
+    statusTranslateY.setValue(-4);
+    Animated.parallel([
+      Animated.timing(statusOpacity, {
+        duration: 180,
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+      Animated.timing(statusTranslateY, {
+        duration: 180,
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [peerStatus, reduceMotion, statusOpacity, statusTranslateY]);
+
+  useEffect(() => {
+    if (!isPeerTyping || reduceMotion) {
+      typingDotValues.forEach(value => value.setValue(0));
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.stagger(
+          110,
+          typingDotValues.map(value =>
+            Animated.sequence([
+              Animated.timing(value, {
+                duration: 180,
+                toValue: 1,
+                useNativeDriver: true,
+              }),
+              Animated.timing(value, {
+                duration: 180,
+                toValue: 0,
+                useNativeDriver: true,
+              }),
+            ]),
+          ),
+        ),
+        Animated.delay(160),
+      ]),
+    );
+    animation.start();
+
+    return () => {
+      animation.stop();
+      typingDotValues.forEach(value => value.setValue(0));
+    };
+  }, [isPeerTyping, reduceMotion, typingDotValues]);
+
+  useEffect(() => {
+    setPeerPresence({
+      isOnline: Boolean(route.params.peerIsOnline),
+      lastSeenAt: route.params.peerLastSeenAt ?? null,
+    });
+    updatePeerTyping(false);
+  }, [
+    route.params.chatId,
+    route.params.peerIsOnline,
+    route.params.peerLastSeenAt,
+    updatePeerTyping,
+  ]);
+
+  useFocusEffect(
+    useCallback(() => stopTyping, [stopTyping]),
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState !== 'active') {
+        stopTyping();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [stopTyping]);
+
+  useEffect(() => () => {
+    stopTyping();
+    updatePeerTyping(false);
+  }, [stopTyping, updatePeerTyping]);
 
   const loadMessages = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
@@ -115,10 +316,47 @@ export function ChatScreen({ navigation, route }: Props) {
     return subscribeToEvents(event => {
       if (event.event === 'connection.authenticated') {
         loadMessages({ showLoading: false }).catch(() => undefined);
+        if (text.trim()) {
+          startTyping();
+        }
         return;
       }
 
-      if (event.chatId !== route.params.chatId || !event.message) {
+      if (event.chatId !== route.params.chatId) {
+        return;
+      }
+
+      if (
+        route.params.peerUserId &&
+        event.userId === route.params.peerUserId &&
+        event.event === 'presence.status'
+      ) {
+        setPeerPresence(current => ({
+          isOnline: event.isOnline ?? current.isOnline,
+          lastSeenAt: event.lastSeenAt === undefined ? current.lastSeenAt : event.lastSeenAt,
+        }));
+        return;
+      }
+
+      if (
+        route.params.peerUserId &&
+        event.userId === route.params.peerUserId &&
+        event.event === 'typing.started'
+      ) {
+        updatePeerTyping(true);
+        return;
+      }
+
+      if (
+        route.params.peerUserId &&
+        event.userId === route.params.peerUserId &&
+        event.event === 'typing.stopped'
+      ) {
+        updatePeerTyping(false);
+        return;
+      }
+
+      if (!event.message) {
         return;
       }
 
@@ -176,7 +414,16 @@ export function ChatScreen({ navigation, route }: Props) {
         );
       }
     });
-  }, [loadMessages, route.params.chatId, session?.user.id, subscribeToEvents]);
+  }, [
+    loadMessages,
+    route.params.chatId,
+    route.params.peerUserId,
+    session?.user.id,
+    startTyping,
+    subscribeToEvents,
+    text,
+    updatePeerTyping,
+  ]);
 
   async function handleSend(): Promise<void> {
     const messageText = text.trim();
@@ -187,6 +434,7 @@ export function ChatScreen({ navigation, route }: Props) {
 
     setError('');
     setIsSending(true);
+    stopTyping();
     try {
       const message = await sendTextMessage(route.params.chatId, messageText);
       setMessages(current => upsertChatMessage(current, message));
@@ -348,6 +596,7 @@ export function ChatScreen({ navigation, route }: Props) {
     const isOwn = item.sender_id === session?.user.id;
     const messageText = item.deleted_at ? t('messageDeleted') : item.payload;
     const reactions = item.reactions ?? [];
+    const delivery = isOwn ? deliveryPresentation(item.delivery_status, t) : null;
 
     return (
       <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
@@ -386,11 +635,16 @@ export function ChatScreen({ navigation, route }: Props) {
                   {t('messageEdited')}
                 </Text>
               ) : null}
-              {isOwn && item.delivery_status === 'read' ? (
+              {delivery ? (
                 <Text
-                  style={[styles.messageMetaText, styles.messageMetaTextOwn]}
+                  accessibilityLabel={delivery.label}
+                  style={[
+                    styles.messageMetaText,
+                    styles.messageMetaTextOwn,
+                    delivery.isRead && styles.messageDeliveryRead,
+                  ]}
                 >
-                  {t('messageRead')}
+                  {delivery.symbol}
                 </Text>
               ) : null}
               <Text
@@ -445,38 +699,83 @@ export function ChatScreen({ navigation, route }: Props) {
     >
       <AppScreen scroll={false} contentStyle={styles.content}>
         <View style={styles.header}>
-          <Pressable
+          <IconButton
             accessibilityLabel={t('backToChats')}
-            accessibilityRole="button"
+            icon="back"
             onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Text style={styles.backLabel}>{t('back')}</Text>
-          </Pressable>
-          <Text numberOfLines={1} style={styles.title}>
-            {route.params.title}
-          </Text>
-          <Pressable
-            accessibilityLabel={t('call')}
-            accessibilityRole="button"
-            onPress={() => Alert.alert(t('callsSoon'))}
-            style={styles.callButton}
-          >
-            <Text style={styles.callLabel}>{t('call')}</Text>
-          </Pressable>
+          />
+          <View style={styles.headerTitleBlock}>
+            <Text numberOfLines={1} style={styles.title}>
+              {route.params.title}
+            </Text>
+            {route.params.peerUserId ? (
+              <Animated.View
+                accessibilityLabel={peerStatus}
+                style={[
+                  styles.peerStatus,
+                  {
+                    opacity: statusOpacity,
+                    transform: [{ translateY: statusTranslateY }],
+                  },
+                ]}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[styles.peerStatusLabel, isPeerTyping && styles.peerStatusTyping]}
+                >
+                  {peerStatus}
+                </Text>
+                {isPeerTyping ? (
+                  <View accessibilityElementsHidden style={styles.typingDots}>
+                    {typingDotValues.map((value, index) => (
+                      <Animated.View
+                        key={index}
+                        style={[
+                          styles.typingDot,
+                          {
+                            opacity: value.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.42, 1],
+                            }),
+                            transform: [
+                              {
+                                translateY: value.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [0, -2],
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </Animated.View>
+            ) : null}
+          </View>
+          <IconButton
+            accessibilityLabel={t('callAudio')}
+            disabled={!route.params.peerUserId || Boolean(call)}
+            icon="call"
+            onPress={() => {
+              if (!route.params.peerUserId) {
+                return;
+              }
+              startCall({
+                chatId: route.params.chatId,
+                peerName: route.params.title,
+                peerUserId: route.params.peerUserId,
+              }).catch(() => undefined);
+            }}
+          />
           {route.params.peerUserId ? (
-            <Pressable
+            <IconButton
               accessibilityLabel={t('safetyActions')}
-              accessibilityRole="button"
               disabled={isBlocking}
+              icon="more"
               onPress={() => setIsSafetyActionsVisible(true)}
-              style={({ pressed }) => [
-                styles.safetyMenuButton,
-                pressed && !isBlocking && styles.safetyMenuButtonPressed,
-              ]}
-            >
-              <Text style={styles.safetyMenuLabel}>⋯</Text>
-            </Pressable>
+            />
           ) : null}
         </View>
 
@@ -526,12 +825,25 @@ export function ChatScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        <View style={[sharedStyles.glassCard, styles.composer]}>
+        <View style={[sharedStyles.glassPanel, styles.composer]}>
           <TextInput
             accessibilityLabel={t('messageInputPlaceholder')}
             editable={!isSending}
             multiline
-            onChangeText={setText}
+            onBlur={stopTyping}
+            onFocus={() => {
+              if (text.trim()) {
+                startTyping();
+              }
+            }}
+            onChangeText={nextText => {
+              setText(nextText);
+              if (nextText.trim()) {
+                startTyping();
+              } else {
+                stopTyping();
+              }
+            }}
             placeholder={t('messageInputPlaceholder')}
             placeholderTextColor={colors.textFaint}
             style={styles.composerInput}
@@ -552,7 +864,7 @@ export function ChatScreen({ navigation, route }: Props) {
               pressed && text.trim() && !isSending && styles.sendButtonPressed,
             ]}
           >
-            <Text style={styles.sendLabel}>{isSending ? '…' : '↑'}</Text>
+            {isSending ? <ActivityIndicator color={colors.canvas} size="small" /> : <Icon color={colors.canvas} name="send" size={20} />}
           </Pressable>
         </View>
       </AppScreen>
@@ -574,25 +886,19 @@ export function ChatScreen({ navigation, route }: Props) {
           {actionMessage ? (
             <View
               accessibilityViewIsModal
-              style={[sharedStyles.glassCard, styles.sheet]}
+              style={[sharedStyles.glassPanel, styles.sheet]}
             >
               <View style={styles.sheetHandle} />
               <View style={styles.sheetHeading}>
                 <Text style={styles.sheetTitle}>
                   {isEditing ? t('editMessageTitle') : t('messageActions')}
                 </Text>
-                <Pressable
+                <IconButton
                   accessibilityLabel={t('closeMessageActions')}
-                  accessibilityRole="button"
                   disabled={Boolean(pendingAction)}
+                  icon="close"
                   onPress={closeMessageActions}
-                  style={({ pressed }) => [
-                    styles.closeSheetButton,
-                    pressed && styles.actionButtonPressed,
-                  ]}
-                >
-                  <Text style={styles.closeSheetLabel}>×</Text>
-                </Pressable>
+                />
               </View>
               <Text numberOfLines={2} style={styles.sheetMessagePreview}>
                 {actionMessage.payload}
@@ -683,7 +989,7 @@ export function ChatScreen({ navigation, route }: Props) {
                           pressed &&
                             editText.trim() &&
                             !pendingAction &&
-                            styles.actionButtonPressed,
+                            styles.primaryActionButtonPressed,
                         ]}
                       >
                         <Text style={styles.primaryActionLabel}>
@@ -752,7 +1058,7 @@ export function ChatScreen({ navigation, route }: Props) {
             onPress={() => setIsSafetyActionsVisible(false)}
             style={styles.sheetBackdrop}
           />
-          <View accessibilityViewIsModal style={[sharedStyles.glassCard, styles.safetySheet]}>
+          <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.safetySheet]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('safetyActions')}</Text>
             <Pressable
@@ -804,6 +1110,19 @@ function formatMessageTime(value: string, language: 'ru' | 'en'): string {
   }).format(date);
 }
 
+function deliveryPresentation(
+  status: string,
+  t: (key: 'messageSent' | 'messageDelivered' | 'messageRead') => string,
+): { isRead: boolean; label: string; symbol: string } {
+  if (status === 'read') {
+    return { isRead: true, label: t('messageRead'), symbol: '✓✓' };
+  }
+  if (status === 'delivered') {
+    return { isRead: false, label: t('messageDelivered'), symbol: '✓✓' };
+  }
+  return { isRead: false, label: t('messageSent'), symbol: '✓' };
+}
+
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     backgroundColor: colors.canvas,
@@ -819,52 +1138,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  backButton: {
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  backLabel: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
   title: {
     color: colors.text,
-    flex: 1,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
-  callButton: {
+  headerTitleBlock: {
     alignItems: 'center',
-    borderColor: colors.glassBorder,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: spacing.sm,
+    flex: 1,
+    minWidth: 0,
   },
-  callLabel: {
-    color: colors.text,
-    fontSize: 14,
+  peerStatus: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: 2,
+    maxWidth: '100%',
+  },
+  peerStatusLabel: {
+    color: colors.textFaint,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  peerStatusTyping: {
+    color: colors.primary,
     fontWeight: '600',
   },
-  safetyMenuButton: {
+  typingDots: {
     alignItems: 'center',
-    borderColor: colors.glassBorder,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
+    flexDirection: 'row',
+    gap: 3,
+    height: 16,
   },
-  safetyMenuButtonPressed: {
-    opacity: 0.74,
-  },
-  safetyMenuLabel: {
-    color: colors.text,
-    fontSize: 27,
-    lineHeight: 28,
+  typingDot: {
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+    height: 4,
+    width: 4,
   },
   loadingState: {
     alignItems: 'center',
@@ -904,8 +1215,10 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   messageBubblePeer: {
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.surface,
+    borderColor: colors.glassBorder,
     borderBottomLeftRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   messageBubblePressed: {
     opacity: 0.76,
@@ -934,6 +1247,9 @@ const styles = StyleSheet.create({
   messageMetaTextOwn: {
     color: 'rgba(9, 18, 31, 0.68)',
   },
+  messageDeliveryRead: {
+    color: colors.canvas,
+  },
   reactionRow: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -951,7 +1267,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
-    minHeight: 28,
+    minHeight: 48,
+    minWidth: 48,
     paddingHorizontal: spacing.xs,
   },
   reactionChipSelected: {
@@ -962,7 +1279,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   reactionChipPressed: {
-    opacity: 0.74,
+    backgroundColor: colors.surfacePressed,
   },
   reactionLabel: {
     color: colors.text,
@@ -981,8 +1298,9 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     alignSelf: 'flex-start',
-    minHeight: 36,
     justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
   },
   retryLabel: {
     color: colors.primary,
@@ -1009,22 +1327,16 @@ const styles = StyleSheet.create({
   sendButton: {
     alignItems: 'center',
     backgroundColor: colors.primaryStrong,
-    borderRadius: 22,
-    height: 44,
+    borderRadius: 24,
+    height: 48,
     justifyContent: 'center',
-    width: 44,
+    width: 48,
   },
   sendButtonDisabled: {
-    backgroundColor: 'rgba(67, 182, 255, 0.28)',
+    backgroundColor: 'rgba(74, 168, 240, 0.32)',
   },
   sendButtonPressed: {
-    opacity: 0.8,
-  },
-  sendLabel: {
-    color: colors.canvas,
-    fontSize: 23,
-    fontWeight: '700',
-    lineHeight: 25,
+    backgroundColor: colors.primaryPressed,
   },
   sheetOverlay: {
     flex: 1,
@@ -1039,14 +1351,14 @@ const styles = StyleSheet.create({
     top: 0,
   },
   sheet: {
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.glassStrong,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
   safetySheet: {
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.glassStrong,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     gap: spacing.sm,
@@ -1072,18 +1384,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
-  closeSheetButton: {
-    alignItems: 'center',
-    borderRadius: 18,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  closeSheetLabel: {
-    color: colors.textMuted,
-    fontSize: 28,
-    lineHeight: 30,
-  },
   sheetMessagePreview: {
     color: colors.textMuted,
     fontSize: 14,
@@ -1105,20 +1405,20 @@ const styles = StyleSheet.create({
   },
   reactionPickerButton: {
     alignItems: 'center',
-    backgroundColor: colors.glass,
+    backgroundColor: colors.surfaceRaised,
     borderColor: colors.glassBorder,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    height: 44,
+    height: 48,
     justifyContent: 'center',
-    width: 44,
+    width: 48,
   },
   reactionPickerButtonSelected: {
     backgroundColor: 'rgba(67, 182, 255, 0.24)',
     borderColor: colors.primary,
   },
   reactionPickerButtonPressed: {
-    opacity: 0.74,
+    backgroundColor: colors.surfacePressed,
   },
   reactionPickerEmoji: {
     fontSize: 22,
@@ -1157,10 +1457,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   primaryActionButtonDisabled: {
-    backgroundColor: 'rgba(67, 182, 255, 0.28)',
+    backgroundColor: 'rgba(74, 168, 240, 0.32)',
+  },
+  primaryActionButtonPressed: {
+    backgroundColor: colors.primaryPressed,
   },
   actionButtonPressed: {
-    opacity: 0.74,
+    backgroundColor: colors.surfacePressed,
   },
   secondaryActionLabel: {
     color: colors.text,

@@ -24,6 +24,7 @@ from app.services.storage_service import check_storage, storage_root
 from app.services.user_access_service import user_can_access
 
 WEBSOCKET_AUTH_TIMEOUT_SECONDS = 10
+TYPING_EVENT_THROTTLE_SECONDS = 2
 
 
 def create_app() -> FastAPI:
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
         if was_offline:
             await _broadcast_presence_to_user_chats(user_id, True)
 
+        typing_started_at: dict[UUID, float] = {}
         try:
             while True:
                 message = await websocket.receive_json()
@@ -98,16 +100,18 @@ def create_app() -> FastAPI:
                         continue
                     await realtime_manager.subscribe(websocket, chat_id)
                     await _safe_send_json(websocket, {'event': 'chat.subscribed', 'chat_id': str(chat_id)})
-                    await realtime_manager.broadcast_to_chat(
-                        chat_id,
-                        {
-                            'event': 'presence.status',
-                            'chat_id': str(chat_id),
-                            'user_id': str(user_id),
-                            'is_online': True,
-                            'last_seen_at': None,
-                        },
-                    )
+                    if peer_presence := await _direct_peer_presence(user_id, chat_id):
+                        await _safe_send_json(websocket, peer_presence)
+                        await realtime_manager.broadcast_to_chat(
+                            chat_id,
+                            {
+                                'event': 'presence.status',
+                                'chat_id': str(chat_id),
+                                'user_id': str(user_id),
+                                'is_online': True,
+                                'last_seen_at': None,
+                            },
+                        )
                     continue
 
                 if event == 'chat.unsubscribe':
@@ -124,6 +128,29 @@ def create_app() -> FastAPI:
                         continue
                     if not await _is_chat_participant(user_id, chat_id):
                         await _safe_send_json(websocket, {'event': 'error.unauthorized', 'reason': 'chat_not_available'})
+                        continue
+                    if event in {'typing.started', 'typing.stopped'}:
+                        peer_user_id = await _get_direct_call_peer(user_id, chat_id)
+                        if not peer_user_id:
+                            await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'direct_chat_required'})
+                            continue
+                        if event == 'typing.started':
+                            now = asyncio.get_running_loop().time()
+                            last_started_at = typing_started_at.get(chat_id)
+                            if last_started_at and now - last_started_at < TYPING_EVENT_THROTTLE_SECONDS:
+                                continue
+                            typing_started_at[chat_id] = now
+                        else:
+                            typing_started_at.pop(chat_id, None)
+                        await realtime_manager.broadcast_to_chat(
+                            chat_id,
+                            {
+                                'event': event,
+                                'chat_id': str(chat_id),
+                                'user_id': str(user_id),
+                            },
+                            exclude_user_id=user_id,
+                        )
                         continue
                     await realtime_manager.broadcast_to_chat(
                         chat_id,
@@ -230,6 +257,33 @@ async def _get_direct_call_peer(user_id: UUID, chat_id: UUID) -> UUID | None:
         return peer_user_id
 
 
+async def _direct_peer_presence(user_id: UUID, chat_id: UUID) -> dict | None:
+    async with AsyncSessionLocal() as session:
+        chat = await session.get(Chat, chat_id)
+        if not chat or chat.type != 'direct':
+            return None
+        result = await session.execute(
+            select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id)
+        )
+        participant_ids = set(result.scalars())
+        if user_id not in participant_ids or len(participant_ids) != 2:
+            return None
+        peer_user_id = next(participant_id for participant_id in participant_ids if participant_id != user_id)
+        if await is_user_interaction_blocked(session, user_id, peer_user_id):
+            return None
+        peer = await session.get(User, peer_user_id)
+        if not peer:
+            return None
+        is_online = realtime_manager.is_user_online(peer_user_id)
+        return {
+            'event': 'presence.status',
+            'chat_id': str(chat_id),
+            'user_id': str(peer_user_id),
+            'is_online': is_online,
+            'last_seen_at': None if is_online or not peer.last_seen_at else peer.last_seen_at.isoformat(),
+        }
+
+
 async def _can_subscribe_to_chat(user_id: UUID, chat_id: UUID) -> bool:
     async with AsyncSessionLocal() as session:
         chat = await session.get(Chat, chat_id)
@@ -262,7 +316,7 @@ async def _broadcast_presence_to_user_chats(
         result = await session.execute(
             select(Chat)
             .join(ChatParticipant, ChatParticipant.chat_id == Chat.id)
-            .where(ChatParticipant.user_id == user_id)
+            .where(ChatParticipant.user_id == user_id, Chat.type == 'direct')
         )
         chats = list(result.scalars())
         chat_ids = [

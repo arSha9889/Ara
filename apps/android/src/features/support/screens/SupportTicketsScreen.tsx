@@ -17,6 +17,7 @@ import type { TranslationKey } from '../../../localization/messages';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
+import { IconButton } from '../../../ui/IconButton';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import {
   createSupportTicket,
@@ -133,36 +134,28 @@ export function SupportTicketsScreen() {
           <Text style={sharedStyles.title}>{t('support')}</Text>
           <Text style={styles.intro}>{t('supportDescription')}</Text>
         </View>
-        <Pressable
+        <IconButton
           accessibilityLabel={t('supportNewTicket')}
-          accessibilityRole="button"
           disabled={isSubmitting}
+          icon="compose"
           onPress={openCreateForm}
-          style={({ pressed }) => [
-            styles.newTicketButton,
-            pressed && !isSubmitting && styles.pressed,
-          ]}
-        >
-          <Text style={styles.newTicketLabel}>+</Text>
-        </Pressable>
+          tone="primary"
+        />
       </View>
 
       {isCreateFormVisible ? (
-        <View style={[sharedStyles.glassCard, styles.createForm]}>
+        <View style={[sharedStyles.elevatedCard, styles.createForm]}>
           <View style={styles.formHeading}>
             <View style={styles.formHeadingCopy}>
               <Text style={styles.formTitle}>{t('supportCreateTitle')}</Text>
               <Text style={styles.formDescription}>{t('supportCreateDescription')}</Text>
             </View>
-            <Pressable
+            <IconButton
               accessibilityLabel={t('close')}
-              accessibilityRole="button"
               disabled={isSubmitting}
+              icon="close"
               onPress={closeCreateForm}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeLabel}>×</Text>
-            </Pressable>
+            />
           </View>
           <View style={styles.notice}>
             <Text style={styles.noticeLabel}>{t('supportSecurityNotice')}</Text>
@@ -267,7 +260,7 @@ export function SupportTicketsScreen() {
               key={ticket.id}
               onPress={() => navigation.navigate('SupportTicket', { ticketId: ticket.id })}
               style={({ pressed }) => [
-                sharedStyles.glassCard,
+                sharedStyles.elevatedCard,
                 styles.ticketCard,
                 pressed && styles.pressed,
               ]}
@@ -309,21 +302,17 @@ const styles = StyleSheet.create({
   header: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },
   headerCopy: { flex: 1 },
   intro: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
-  newTicketButton: { alignItems: 'center', borderColor: colors.primary, borderRadius: 22, borderWidth: 1, height: 44, justifyContent: 'center', marginTop: 4, width: 44 },
-  newTicketLabel: { color: colors.primary, fontSize: 28, fontWeight: '400', lineHeight: 30 },
   createForm: { marginTop: spacing.lg, padding: spacing.md },
   formHeading: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },
   formHeadingCopy: { flex: 1 },
   formTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
   formDescription: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 2 },
-  closeButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
-  closeLabel: { color: colors.textMuted, fontSize: 27, lineHeight: 30 },
   notice: { backgroundColor: 'rgba(169, 156, 255, 0.12)', borderColor: 'rgba(169, 156, 255, 0.36)', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, padding: spacing.sm },
   noticeLabel: { color: colors.text, fontSize: 14, fontWeight: '700', lineHeight: 20 },
   noticeDescription: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginTop: 2 },
   fieldLabel: { color: colors.text, fontSize: 14, fontWeight: '700', marginTop: spacing.md },
   categories: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
-  category: { borderColor: colors.glassBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 38, paddingHorizontal: spacing.sm },
+  category: { borderColor: colors.glassBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.sm },
   categorySelected: { backgroundColor: 'rgba(67, 182, 255, 0.24)', borderColor: colors.primary },
   categoryLabel: { color: colors.text, fontSize: 13, fontWeight: '600' },
   input: { backgroundColor: colors.input, borderColor: colors.glassBorder, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, color: colors.text, fontSize: 16, marginTop: spacing.xs, minHeight: 48, paddingHorizontal: spacing.sm },
@@ -334,7 +323,7 @@ const styles = StyleSheet.create({
   createButton: { flex: 1 },
   errorCard: { gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
-  retryButton: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center' },
+  retryButton: { alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center' },
   retryLabel: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   loading: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl },
   emptyState: { gap: spacing.md, marginTop: spacing.lg },
@@ -346,5 +335,5 @@ const styles = StyleSheet.create({
   ticketSubject: { color: colors.text, fontSize: 17, fontWeight: '700', marginTop: spacing.xs },
   preview: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 4 },
   ticketMeta: { color: colors.textFaint, fontSize: 12, marginTop: spacing.sm },
-  pressed: { opacity: 0.74 },
+  pressed: { backgroundColor: colors.surfacePressed },
 });

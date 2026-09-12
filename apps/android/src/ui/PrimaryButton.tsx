@@ -37,16 +37,16 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: colors.primaryStrong,
-    borderRadius: 16,
+    borderRadius: 14,
     justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 20,
   },
   disabled: {
-    backgroundColor: 'rgba(67, 182, 255, 0.28)',
+    backgroundColor: 'rgba(74, 168, 240, 0.32)',
   },
   pressed: {
-    opacity: 0.82,
+    backgroundColor: colors.primaryPressed,
   },
   label: {
     color: colors.canvas,

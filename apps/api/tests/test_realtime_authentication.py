@@ -1,8 +1,12 @@
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
 
 from app import main
+from app.models.chats import Chat
+from app.models.users import User
+from app.services.realtime_manager import RealtimeManager
 
 
 class WebSocketStub:
@@ -82,3 +86,110 @@ async def test_websocket_rejects_invalid_access_token(monkeypatch: pytest.Monkey
     assert await main._authenticate_websocket(websocket) is None
     assert websocket.sent == [{'event': 'connection.rejected', 'reason': 'invalid_token'}]
     assert websocket.close_codes == [1008]
+
+
+class ScalarResultStub:
+    def __init__(self, values: list[UUID]) -> None:
+        self.values = values
+
+    def scalars(self) -> 'ScalarResultStub':
+        return self
+
+    def __iter__(self):
+        return iter(self.values)
+
+
+class PresenceSessionStub:
+    def __init__(self, chat: Chat, peer: User, participant_ids: list[UUID]) -> None:
+        self.chat = chat
+        self.peer = peer
+        self.participant_ids = participant_ids
+
+    async def __aenter__(self) -> 'PresenceSessionStub':
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+    async def get(self, model: type[object], identifier: UUID) -> object | None:
+        if model is Chat:
+            return self.chat
+        if model is User and identifier == self.peer.id:
+            return self.peer
+        return None
+
+    async def execute(self, statement: object) -> ScalarResultStub:
+        return ScalarResultStub(self.participant_ids)
+
+
+class BroadcastWebSocketStub:
+    def __init__(self) -> None:
+        self.sent: list[dict] = []
+
+    async def send_json(self, payload: dict) -> None:
+        self.sent.append(payload)
+
+
+@pytest.mark.anyio
+async def test_direct_peer_presence_snapshot_uses_online_state_and_persisted_last_seen(monkeypatch: pytest.MonkeyPatch) -> None:
+    user_id = uuid4()
+    peer_id = uuid4()
+    chat_id = uuid4()
+    last_seen_at = datetime(2026, 9, 12, 8, 0, tzinfo=timezone.utc)
+    chat = Chat(id=chat_id, type='direct')
+    peer = User(id=peer_id, nexus_id='peer', last_seen_at=last_seen_at)
+
+    monkeypatch.setattr(
+        main,
+        'AsyncSessionLocal',
+        lambda: PresenceSessionStub(chat, peer, [user_id, peer_id]),
+    )
+
+    async def interaction_not_blocked(*_: object) -> bool:
+        return False
+
+    monkeypatch.setattr(main, 'is_user_interaction_blocked', interaction_not_blocked)
+    monkeypatch.setattr(main.realtime_manager, 'is_user_online', lambda candidate: candidate == peer_id)
+
+    assert await main._direct_peer_presence(user_id, chat_id) == {
+        'event': 'presence.status',
+        'chat_id': str(chat_id),
+        'user_id': str(peer_id),
+        'is_online': True,
+        'last_seen_at': None,
+    }
+
+    monkeypatch.setattr(main.realtime_manager, 'is_user_online', lambda _: False)
+
+    assert await main._direct_peer_presence(user_id, chat_id) == {
+        'event': 'presence.status',
+        'chat_id': str(chat_id),
+        'user_id': str(peer_id),
+        'is_online': False,
+        'last_seen_at': last_seen_at.isoformat(),
+    }
+
+
+@pytest.mark.anyio
+async def test_chat_broadcast_can_exclude_all_connections_for_the_sender() -> None:
+    manager = RealtimeManager()
+    chat_id = uuid4()
+    sender_id = uuid4()
+    recipient_id = uuid4()
+    sender_socket = BroadcastWebSocketStub()
+    sender_second_socket = BroadcastWebSocketStub()
+    recipient_socket = BroadcastWebSocketStub()
+
+    await manager.connect_user(sender_socket, sender_id)
+    await manager.connect_user(sender_second_socket, sender_id)
+    await manager.connect_user(recipient_socket, recipient_id)
+    await manager.subscribe(sender_socket, chat_id)
+    await manager.subscribe(sender_second_socket, chat_id)
+    await manager.subscribe(recipient_socket, chat_id)
+
+    payload = {'event': 'typing.started', 'chat_id': str(chat_id), 'user_id': str(sender_id)}
+    await manager.broadcast_to_chat(chat_id, payload, exclude_user_id=sender_id)
+
+    assert sender_socket.sent == []
+    assert sender_second_socket.sent == []
+    assert recipient_socket.sent == [payload]

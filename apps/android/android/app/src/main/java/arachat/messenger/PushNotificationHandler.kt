@@ -12,6 +12,14 @@ import ru.rustore.sdk.universalpush.RuStoreUniversalPushClient
 import ru.rustore.sdk.universalpush.domain.model.UniversalRemoteMessage
 
 object PushNotificationHandler {
+  data class NotificationOpen(
+    val kind: String,
+    val chatId: String?,
+    val messageId: String?,
+    val notificationId: String?,
+    val supportTicketId: String?,
+  )
+
   fun install(context: Context) {
     RuStoreUniversalPushClient.setOnMessageReceiveListener { message ->
       showDataMessageNotification(context.applicationContext, message)
@@ -39,6 +47,7 @@ object PushNotificationHandler {
       data["chat_id"]?.let { putExtra(EXTRA_CHAT_ID, it) }
       data["message_id"]?.let { putExtra(EXTRA_MESSAGE_ID, it) }
       data["notification_id"]?.let { putExtra(EXTRA_NOTIFICATION_ID, it) }
+      data["support_ticket_id"]?.let { putExtra(EXTRA_SUPPORT_TICKET_ID, it) }
     }
     val openApp = PendingIntent.getActivity(
       context,
@@ -75,11 +84,30 @@ object PushNotificationHandler {
     )
   }
 
-  private const val ACTION_OPEN_NOTIFICATION = "arachat.messenger.OPEN_NOTIFICATION"
-  private const val EXTRA_NOTIFICATION_KIND = "arachat.notification.kind"
-  private const val EXTRA_CHAT_ID = "arachat.notification.chat_id"
-  private const val EXTRA_MESSAGE_ID = "arachat.notification.message_id"
-  private const val EXTRA_NOTIFICATION_ID = "arachat.notification.notification_id"
+  fun notificationOpenFromIntent(intent: Intent): NotificationOpen? {
+    if (intent.action != ACTION_OPEN_NOTIFICATION) {
+      return null
+    }
+
+    val kind = intent.getStringExtra(EXTRA_NOTIFICATION_KIND) ?: return null
+    if (kind !in SUPPORTED_NOTIFICATION_KINDS) {
+      return null
+    }
+    return NotificationOpen(
+      kind = kind,
+      chatId = intent.getStringExtra(EXTRA_CHAT_ID),
+      messageId = intent.getStringExtra(EXTRA_MESSAGE_ID),
+      notificationId = intent.getStringExtra(EXTRA_NOTIFICATION_ID),
+      supportTicketId = intent.getStringExtra(EXTRA_SUPPORT_TICKET_ID),
+    )
+  }
+
+  const val ACTION_OPEN_NOTIFICATION = "arachat.messenger.OPEN_NOTIFICATION"
+  const val EXTRA_NOTIFICATION_KIND = "arachat.notification.kind"
+  const val EXTRA_CHAT_ID = "arachat.notification.chat_id"
+  const val EXTRA_MESSAGE_ID = "arachat.notification.message_id"
+  const val EXTRA_NOTIFICATION_ID = "arachat.notification.notification_id"
+  const val EXTRA_SUPPORT_TICKET_ID = "arachat.notification.support_ticket_id"
   private const val MESSAGES_CHANNEL_ID = "arachat_messages"
   private const val SYSTEM_CHANNEL_ID = "arachat_system"
   private val SUPPORTED_NOTIFICATION_KINDS = setOf("message", "announcement", "support", "system")

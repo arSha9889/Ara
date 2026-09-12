@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     vapid_private_key: str = ''
     vapid_public_key: str = ''
     vapid_claims_email: str = ''
+    mobile_push_enabled: bool = False
+    mobile_push_timeout_seconds: int = Field(default=10, ge=1, le=60)
+    rustore_push_project_id: str = ''
+    rustore_push_service_token: str = ''
+    fcm_push_project_id: str = ''
+    fcm_service_account_file: str = ''
     turn_public_host: str = ''
     turn_shared_secret: str = ''
     turn_port: int = Field(default=3478, ge=1, le=65535)

@@ -10,6 +10,7 @@ import type { TranslationKey } from '../../../localization/messages';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
+import { IconButton } from '../../../ui/IconButton';
 import { getMyReports, type ContentReport, type ReportStatus } from '../api/safetyApi';
 
 const statusKeys: Record<ReportStatus, TranslationKey> = {
@@ -55,9 +56,7 @@ export function MyReportsScreen() {
   return (
     <AppScreen>
       <View style={styles.header}>
-        <Pressable accessibilityLabel={t('back')} accessibilityRole="button" onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backLabel}>{t('back')}</Text>
-        </Pressable>
+        <IconButton accessibilityLabel={t('back')} icon="back" onPress={() => navigation.goBack()} />
         <Text style={styles.title}>{t('myReports')}</Text>
       </View>
       <Text style={styles.intro}>{t('myReportsDescription')}</Text>
@@ -76,7 +75,7 @@ export function MyReportsScreen() {
       ) : (
         <View style={styles.list}>
           {reports.map(report => (
-            <View key={report.id} style={[sharedStyles.glassCard, styles.reportCard]}>
+            <View key={report.id} style={[sharedStyles.elevatedCard, styles.reportCard]}>
               <View style={styles.reportHeading}>
                 <Text style={styles.reason}>{t(reasonKeys[report.reason])}</Text>
                 <Text style={styles.status}>{t(statusKeys[report.status])}</Text>
@@ -98,14 +97,12 @@ function formatDate(value: string, language: 'ru' | 'en'): string {
 
 const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  backButton: { justifyContent: 'center', minHeight: 48 },
-  backLabel: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   title: { color: colors.text, flex: 1, fontSize: 24, fontWeight: '700' },
   intro: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
   loading: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl },
   errorCard: { gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
-  retryButton: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center' },
+  retryButton: { alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center' },
   retryLabel: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   list: { gap: spacing.sm, marginTop: spacing.lg },
   reportCard: { padding: spacing.md },

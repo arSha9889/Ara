@@ -5,6 +5,7 @@ import { authErrorKey } from '../../auth/authError';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { IconButton } from '../../../ui/IconButton';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { submitUserReport, type ReportReason } from '../api/safetyApi';
 
@@ -79,19 +80,17 @@ export function ReportUserSheet({ userId, visible, onClose, onSubmitted }: Repor
           onPress={close}
           style={styles.backdrop}
         />
-        <View accessibilityViewIsModal style={[sharedStyles.glassCard, styles.sheet]}>
+        <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.sheet]}>
           <View style={styles.handle} />
           <View style={styles.heading}>
             <Text style={styles.title}>{t('reportTitle')}</Text>
-            <Pressable
+            <IconButton
               accessibilityLabel={t('closeSafetyActions')}
-              accessibilityRole="button"
               disabled={isSubmitting}
+              icon="close"
               onPress={close}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeLabel}>×</Text>
-            </Pressable>
+              size={48}
+            />
           </View>
           <Text style={styles.description}>{t('reportDescription')}</Text>
           <Text style={styles.fieldLabel}>{t('reportReason')}</Text>
@@ -160,18 +159,16 @@ export function ReportUserSheet({ userId, visible, onClose, onSubmitted }: Repor
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { backgroundColor: 'rgba(0, 0, 0, 0.54)', bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  sheet: { backgroundColor: colors.canvasMuted, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: spacing.lg, paddingBottom: spacing.xl },
+  sheet: { backgroundColor: colors.glassStrong, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: spacing.lg, paddingBottom: spacing.xl },
   handle: { alignSelf: 'center', backgroundColor: colors.textFaint, borderRadius: 2, height: 4, marginBottom: spacing.md, opacity: 0.7, width: 40 },
   heading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   title: { color: colors.text, flex: 1, fontSize: 20, fontWeight: '700' },
-  closeButton: { alignItems: 'center', borderRadius: 18, height: 40, justifyContent: 'center', width: 40 },
-  closeLabel: { color: colors.textMuted, fontSize: 28, lineHeight: 30 },
   description: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: spacing.xs },
   fieldLabel: { color: colors.text, fontSize: 14, fontWeight: '700', marginTop: spacing.lg },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
-  reason: { borderColor: colors.glassBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  reasonSelected: { backgroundColor: 'rgba(67, 182, 255, 0.24)', borderColor: colors.primary },
-  reasonPressed: { opacity: 0.74 },
+  reason: { borderColor: colors.glassBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  reasonSelected: { backgroundColor: 'rgba(74, 168, 240, 0.22)', borderColor: colors.primary },
+  reasonPressed: { backgroundColor: colors.surfacePressed },
   reasonLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
   descriptionInput: { backgroundColor: colors.input, borderColor: colors.glassBorder, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, color: colors.text, fontSize: 16, lineHeight: 22, marginTop: spacing.sm, maxHeight: 140, minHeight: 100, padding: spacing.sm },
   error: { color: colors.danger, fontSize: 14, lineHeight: 20, marginTop: spacing.md },

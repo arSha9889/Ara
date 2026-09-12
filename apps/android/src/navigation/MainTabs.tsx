@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ChatsScreen } from '../features/chats/screens/ChatsScreen';
 import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
@@ -7,8 +7,9 @@ import { SearchScreen } from '../features/search/screens/SearchScreen';
 import { SettingsScreen } from '../features/settings/screens/SettingsScreen';
 import { useI18n } from '../localization/I18nProvider';
 import { colors } from '../theme/theme';
+import { Icon, type IconName } from '../ui/Icon';
 
-type MainTabParamList = {
+export type MainTabParamList = {
   Chats: undefined;
   Search: undefined;
   Profile: undefined;
@@ -17,24 +18,24 @@ type MainTabParamList = {
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-function TabIcon({ color, symbol }: { color: string; symbol: string }) {
-  return <Text style={[styles.tabIcon, { color }]}>{symbol}</Text>;
+function TabIcon({ color, name }: { color: string; name: IconName }) {
+  return <Icon color={color} name={name} size={23} />;
 }
 
 function ChatsTabIcon({ color }: { color: string }) {
-  return <TabIcon color={color} symbol="◌" />;
+  return <TabIcon color={color} name="chats" />;
 }
 
 function SearchTabIcon({ color }: { color: string }) {
-  return <TabIcon color={color} symbol="⌕" />;
+  return <TabIcon color={color} name="search" />;
 }
 
 function ProfileTabIcon({ color }: { color: string }) {
-  return <TabIcon color={color} symbol="○" />;
+  return <TabIcon color={color} name="profile" />;
 }
 
 function SettingsTabIcon({ color }: { color: string }) {
-  return <TabIcon color={color} symbol="⚙" />;
+  return <TabIcon color={color} name="settings" />;
 }
 
 export function MainTabs() {
@@ -65,21 +66,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   tabBar: {
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.glass,
     borderTopColor: colors.glassBorder,
-    height: 76,
-    paddingBottom: 8,
-    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    elevation: 0,
+    height: 72,
+    paddingBottom: 7,
+    paddingTop: 7,
   },
   tabItem: {
     minHeight: 48,
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: '600',
-  },
-  tabIcon: {
-    fontSize: 21,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginTop: 1,
   },
 });

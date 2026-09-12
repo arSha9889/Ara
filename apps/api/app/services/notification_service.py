@@ -15,6 +15,7 @@ from app.models.chats import Chat, ChatParticipant, Message, MobilePushToken, No
 from app.models.users import User, UserProfile
 from app.schemas.chats import MessageOut, MobilePushTokenRegisterRequest, NotificationOut, PushSubscriptionCreateRequest
 from app.services.localization import message_preview, tr
+from app.services.mobile_push_client import mobile_push_is_configured, send_mobile_push
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import is_user_interaction_blocked
 
@@ -406,25 +407,44 @@ async def _send_push_to_user(session: AsyncSession, user_id: UUID, notification:
             MobilePushToken.is_active.is_(True),
         )
     )).scalars())
-    for token in mobile_tokens:
-        result = await _send_mobile_push(token, notification)
-        delivered = delivered or result.delivered
-        if result.expired:
-            token.is_active = False
+    mobile_result = await send_mobile_push(
+        _mobile_tokens_by_provider(mobile_tokens),
+        _mobile_push_data(notification),
+    )
+    delivered = delivered or mobile_result.delivered
+    for provider, prefixes in mobile_result.invalid_token_prefixes.items():
+        for prefix in prefixes:
+            matching_tokens = [
+                token for token in mobile_tokens
+                if token.provider == provider and token.token.startswith(prefix)
+            ]
+            if len(matching_tokens) == 1:
+                matching_tokens[0].is_active = False
     if mobile_tokens:
         await session.commit()
     return delivered
 
 
-async def _send_mobile_push(token: MobilePushToken, notification: NotificationOut) -> PushDeliveryResult:
-    # A provider adapter is intentionally not selected before it is verified on real
-    # RuStore and direct-APK devices. Tokens remain registered for the later adapter.
-    logger.info(
-        'Mobile Push delivery skipped for token %s: provider %s is not configured',
-        token.id,
-        token.provider,
-    )
-    return PushDeliveryResult(delivered=False)
+def _mobile_tokens_by_provider(tokens: list[MobilePushToken]) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for token in tokens:
+        if token.provider in {'rustore', 'fcm'}:
+            result.setdefault(token.provider, []).append(token.token)
+    return result
+
+
+def _mobile_push_data(notification: NotificationOut) -> dict[str, str]:
+    data = {
+        'kind': notification.kind,
+        'notification_id': str(notification.notification_id),
+    }
+    if notification.chat_id:
+        data['chat_id'] = str(notification.chat_id)
+    if notification.message_id:
+        data['message_id'] = str(notification.message_id)
+    if notification.support_ticket_id:
+        data['support_ticket_id'] = str(notification.support_ticket_id)
+    return data
 
 
 def _send_push(subscription: PushSubscription, notification: NotificationOut) -> PushDeliveryResult:

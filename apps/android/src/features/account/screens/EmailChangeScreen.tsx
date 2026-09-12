@@ -78,7 +78,7 @@ export function EmailChangeScreen() {
 
   return (
     <AccountScreenLayout description={t('emailChangeDescription')} title={t('changeEmail')}>
-      <View style={[sharedStyles.glassCard, accountStyles.card]}>
+      <View style={[sharedStyles.elevatedCard, accountStyles.card]}>
         <Text style={accountStyles.label}>{t('email')}</Text>
         <TextInput
           accessibilityLabel={t('email')}

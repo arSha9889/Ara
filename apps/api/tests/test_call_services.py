@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.services.call_signaling import CallSignalingError, CallSignalingManager, normalize_call_signal
-from app.services.turn_credentials import create_turn_rest_credentials
+from app.services.turn_credentials import create_turn_rest_credentials, get_turn_ice_configuration
 
 
 def test_normalize_call_signal_keeps_only_supported_ice_fields() -> None:
@@ -41,6 +41,29 @@ def test_normalize_call_signal_rejects_invalid_sdp() -> None:
         })
 
 
+def test_normalize_call_invite_preserves_video_type_and_defaults_to_audio() -> None:
+    assert normalize_call_signal({
+        'event': 'call.invite',
+        'call_id': 'call-video-123',
+        'call_type': 'video',
+    }) == {
+        'event': 'call.invite',
+        'call_id': 'call-video-123',
+        'call_type': 'video',
+    }
+    assert normalize_call_signal({
+        'event': 'call.invite',
+        'call_id': 'call-audio-123',
+    })['call_type'] == 'audio'
+
+    with pytest.raises(CallSignalingError, match='invalid_call_type'):
+        normalize_call_signal({
+            'event': 'call.invite',
+            'call_id': 'call-unsupported-123',
+            'call_type': 'screen',
+        })
+
+
 @pytest.mark.anyio
 async def test_call_signaling_allows_only_the_direct_call_participants() -> None:
     manager = CallSignalingManager()
@@ -56,6 +79,22 @@ async def test_call_signaling_allows_only_the_direct_call_participants() -> None
 
     with pytest.raises(CallSignalingError, match='call_not_available'):
         await manager.relay_call_signal('call-123', chat_id, uuid4(), 'call.end')
+
+
+@pytest.mark.anyio
+async def test_call_signaling_allows_the_other_participant_to_renegotiate_an_active_call() -> None:
+    manager = CallSignalingManager()
+    chat_id = uuid4()
+    caller_id = uuid4()
+    callee_id = uuid4()
+
+    await manager.start_call('call-123', chat_id, caller_id, callee_id)
+    await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.accept')
+    await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.offer')
+    await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.answer')
+
+    assert await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.offer') == caller_id
+    assert await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.answer') == callee_id
 
 
 @pytest.mark.anyio
@@ -96,3 +135,30 @@ def test_turn_rest_credentials_are_deterministic_for_a_fixed_time() -> None:
     assert username == f'{int(expires_at.timestamp())}:{user_id}'
     assert credential == 'hpw2m8v8wnLIGOrGMGuLcsicBjE='
     assert expires_at == datetime(2026, 8, 19, 13, 0, tzinfo=timezone.utc)
+
+
+def test_turn_ice_configuration_uses_temporary_credentials_for_both_transports(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services import turn_credentials
+
+    user_id = UUID('12345678-1234-5678-1234-567812345678')
+    monkeypatch.setattr(turn_credentials.settings, 'turn_public_host', 'turn.example.ru')
+    monkeypatch.setattr(turn_credentials.settings, 'turn_shared_secret', 'shared-secret')
+    monkeypatch.setattr(turn_credentials.settings, 'turn_port', 3478)
+    monkeypatch.setattr(turn_credentials.settings, 'turn_credential_ttl_seconds', 900)
+
+    configuration = get_turn_ice_configuration(user_id)
+
+    assert configuration['ice_transport_policy'] == 'relay'
+    assert configuration['expires_at'] > datetime.now(timezone.utc)
+    assert configuration['ice_servers'] == [{
+        'urls': [
+            'turn:turn.example.ru:3478?transport=udp',
+            'turn:turn.example.ru:3478?transport=tcp',
+        ],
+        'username': configuration['ice_servers'][0]['username'],
+        'credential': configuration['ice_servers'][0]['credential'],
+    }]
+    assert configuration['ice_servers'][0]['username'].endswith(f':{user_id}')
+    assert configuration['ice_servers'][0]['credential']

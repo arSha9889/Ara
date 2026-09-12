@@ -80,7 +80,7 @@ export function PasswordChangeScreen() {
 
   return (
     <AccountScreenLayout description={t('passwordChangeDescription')} title={t('changePassword')}>
-      <View style={[sharedStyles.glassCard, accountStyles.card]}>
+      <View style={[sharedStyles.elevatedCard, accountStyles.card]}>
         <Text style={accountStyles.label}>{t('currentPassword')}</Text>
         <TextInput
           accessibilityLabel={t('currentPassword')}

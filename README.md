@@ -152,7 +152,7 @@
 - realtime остаётся in-memory single-process baseline;
 - delivery/read statuses базовые и будут расширяться перед production.
 
-### MVP-A — демонстрационный web MVP без звонков
+### MVP-A — демонстрационный web MVP
 
 Статус: baseline готов к smoke-проверке в локальном/стейджинг окружении.
 
@@ -168,6 +168,8 @@
 - PWA manifest и базовый mobile polish;
 - upload validation и лимит 30 МБ;
 - WebSocket reconnect на frontend.
+- личные аудиозвонки 1:1 через WebRTC, авторизованный WebSocket-сигналинг и
+  временные TURN-учётные данные;
 
 ### Веха Web Push — уведомления
 
@@ -203,8 +205,8 @@
 
 Не входит в MVP-A:
 
-- аудиозвонки;
 - демонстрация экрана;
+- видео- и групповые звонки;
 - групповые чаты и каналы;
 - production object storage с private ACL/signed links;
 - Redis pub/sub fan-out для нескольких backend-инстансов;

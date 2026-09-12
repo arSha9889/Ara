@@ -14,6 +14,7 @@ export function AppScreen({ children, scroll = true, contentStyle }: AppScreenPr
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <View pointerEvents="none" style={styles.topGlow} />
       {scroll ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView>
       ) : (
@@ -28,12 +29,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
     flex: 1,
   },
+  topGlow: {
+    backgroundColor: 'rgba(74, 168, 240, 0.06)',
+    borderRadius: 180,
+    height: 240,
+    position: 'absolute',
+    right: -100,
+    top: -150,
+    width: 240,
+  },
   scrollContent: {
     flexGrow: 1,
   },
   content: {
     flex: 1,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
   },
 });

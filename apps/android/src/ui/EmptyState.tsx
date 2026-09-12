@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, sharedStyles, spacing } from '../theme/theme';
+import { Icon } from './Icon';
 
 interface EmptyStateProps {
   title: string;
@@ -10,7 +11,9 @@ interface EmptyStateProps {
 export function EmptyState({ title, description }: EmptyStateProps) {
   return (
     <View style={[sharedStyles.glassCard, styles.card]}>
-      <View style={styles.orb} />
+      <View accessibilityElementsHidden style={styles.orb}>
+        <Icon color={colors.primary} name="chats" size={24} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
     </View>
@@ -21,17 +24,19 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 232,
+    minHeight: 216,
     padding: spacing.lg,
   },
   orb: {
-    backgroundColor: 'rgba(133, 214, 255, 0.16)',
-    borderColor: 'rgba(133, 214, 255, 0.56)',
-    borderRadius: 24,
+    alignItems: 'center',
+    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    borderColor: 'rgba(140, 201, 255, 0.32)',
+    borderRadius: 22,
     borderWidth: 1,
-    height: 48,
+    height: 44,
+    justifyContent: 'center',
     marginBottom: spacing.md,
-    width: 48,
+    width: 44,
   },
   title: {
     color: colors.text,

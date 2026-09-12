@@ -28,6 +28,7 @@ from app.services.notification_service import (
     send_test_push_notification,
     web_push_is_configured,
 )
+from app.services.mobile_push_client import mobile_push_is_configured
 
 router = APIRouter()
 
@@ -36,7 +37,7 @@ router = APIRouter()
 async def get_mobile_push_config(
     current_user: Annotated[UserOut, Depends(get_current_user)],
 ) -> MobilePushConfigOut:
-    return MobilePushConfigOut(enabled=False, package_name='arachat.messenger')
+    return MobilePushConfigOut(enabled=mobile_push_is_configured(), package_name='arachat.messenger')
 
 
 @router.put('/mobile-tokens', response_model=MobilePushTokenOut)
@@ -84,7 +85,7 @@ async def test_push_notification(
     current_user: Annotated[UserOut, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, bool]:
-    if not web_push_is_configured():
+    if not (web_push_is_configured() or mobile_push_is_configured()):
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='Push notifications are not configured')
     delivered = await send_test_push_notification(session, current_user.id)
     if not delivered:

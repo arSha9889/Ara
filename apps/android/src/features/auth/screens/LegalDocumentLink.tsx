@@ -32,7 +32,9 @@ export function LegalDocumentLink({ label, onOpenError, url }: LegalDocumentLink
 const styles = StyleSheet.create({
   link: {
     alignSelf: 'flex-start',
+    justifyContent: 'center',
     marginTop: spacing.sm,
+    minHeight: 48,
   },
   label: {
     color: colors.primary,

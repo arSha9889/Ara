@@ -48,7 +48,7 @@ export function LoginHistoryScreen() {
       ) : (
         <View style={styles.list}>
           {items.map(item => (
-            <View key={item.id} style={[sharedStyles.glassCard, styles.itemCard]}>
+            <View key={item.id} style={[sharedStyles.elevatedCard, styles.itemCard]}>
               <View style={styles.heading}>
                 <Text style={styles.method}>{methodLabel(item.method, t)}</Text>
                 <Text style={item.result === 'success' ? styles.success : styles.failed}>
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   loading: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl },
   errorCard: { gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
-  retryButton: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 40 },
+  retryButton: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 48 },
   retryLabel: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   list: { gap: spacing.sm, marginTop: spacing.lg },
   itemCard: { padding: spacing.md },

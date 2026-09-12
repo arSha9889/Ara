@@ -45,3 +45,14 @@ export async function unregisterMobilePushTokens(deviceId: string): Promise<void
     skipRefresh: true,
   });
 }
+
+export async function markMobileNotificationsRead(notificationIds: string[]): Promise<void> {
+  if (!notificationIds.length) {
+    return;
+  }
+
+  await apiClient.request<{ ok: boolean }>('/api/notifications/read', {
+    method: 'POST',
+    body: notificationIds,
+  });
+}

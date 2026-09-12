@@ -5,19 +5,22 @@ jest.mock('react-native', () => ({
   NativeModules: {
     AraChatPush: {
       addListener: jest.fn(),
+      getPendingNotificationOpen: jest.fn(),
       getNotificationPermissionStatus: jest.fn(),
       getTokens: jest.fn(),
       removeListeners: jest.fn(),
       requestNotificationPermission: jest.fn(),
+      setNotificationOpenListenerActive: jest.fn(),
     },
   },
 }));
 
 import { NativeModules } from 'react-native';
 
-import { getMobilePushTokens } from '../src/features/notifications/pushClient';
+import { getMobilePushTokens, getPendingMobilePushOpen } from '../src/features/notifications/pushClient';
 
 const nativePush = NativeModules.AraChatPush as {
+  getPendingNotificationOpen: jest.Mock;
   getTokens: jest.Mock;
 };
 
@@ -36,4 +39,11 @@ test('maps the Universal SDK firebase key to the server fcm provider', async () 
     { provider: 'fcm', token: 'f'.repeat(32) },
     { provider: 'rustore', token: 'r'.repeat(32) },
   ]);
+});
+
+test('returns the pending cold-start notification destination from the native bridge', async () => {
+  const destination = { kind: 'system', notification_id: 'a20c6930-145f-4bc0-a8a6-2a20fcc021b1' };
+  nativePush.getPendingNotificationOpen.mockResolvedValue(destination);
+
+  await expect(getPendingMobilePushOpen()).resolves.toEqual(destination);
 });

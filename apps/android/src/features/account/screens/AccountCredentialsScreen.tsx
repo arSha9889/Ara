@@ -6,6 +6,7 @@ import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import type { SessionUser } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { Icon } from '../../../ui/Icon';
 import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
 import { getMyProfile } from '../api/accountApi';
@@ -27,7 +28,7 @@ export function AccountCredentialsScreen({ navigation }: Props) {
 
   return (
     <AccountScreenLayout description={t('emailAndPasswordDescription')} title={t('accountCredentials')}>
-      <View style={[sharedStyles.glassCard, accountStyles.card]}>
+      <View style={[sharedStyles.elevatedCard, accountStyles.card]}>
         <Text style={accountStyles.sectionTitle}>{t('currentEmail')}</Text>
         <Text selectable style={styles.email}>{user?.email ?? '—'}</Text>
         <Text style={user?.emailVerified ? styles.verified : styles.unverified}>
@@ -43,7 +44,7 @@ export function AccountCredentialsScreen({ navigation }: Props) {
             <Text style={accountStyles.rowTitle}>{t('changeEmail')}</Text>
             <Text style={accountStyles.rowDescription}>{t('emailChangeDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={accountStyles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -54,7 +55,7 @@ export function AccountCredentialsScreen({ navigation }: Props) {
             <Text style={accountStyles.rowTitle}>{t('changePassword')}</Text>
             <Text style={accountStyles.rowDescription}>{t('passwordChangeDescription')}</Text>
           </View>
-          <Text accessibilityElementsHidden style={accountStyles.chevron}>›</Text>
+          <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
         {error ? <Text accessibilityRole="alert" style={accountStyles.error}>{error}</Text> : null}
       </View>

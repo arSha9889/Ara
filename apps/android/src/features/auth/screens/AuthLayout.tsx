@@ -31,7 +31,7 @@ export function AuthLayout({ eyebrow, title, description, children }: AuthLayout
           <Text style={styles.tagline}>{t('tagline')}</Text>
         </View>
 
-        <View style={[sharedStyles.glassCard, styles.card]}>
+        <View style={[sharedStyles.elevatedCard, styles.card]}>
           <Text style={sharedStyles.eyebrow}>{eyebrow}</Text>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
@@ -53,7 +53,7 @@ export const authStyles = StyleSheet.create({
   input: {
     backgroundColor: colors.input,
     borderColor: colors.glassBorder,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     color: colors.text,
     fontSize: 16,
@@ -81,7 +81,7 @@ export const authStyles = StyleSheet.create({
   secondaryAction: {
     alignItems: 'center',
     borderColor: colors.glassBorder,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     marginTop: spacing.sm,
@@ -96,7 +96,7 @@ export const authStyles = StyleSheet.create({
   link: {
     alignSelf: 'center',
     marginTop: spacing.lg,
-    minHeight: 42,
+    minHeight: 48,
     justifyContent: 'center',
   },
   linkLabel: {
@@ -125,11 +125,11 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   brand: {
     color: colors.text,
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '700',
     letterSpacing: -0.8,
     marginTop: spacing.md,
@@ -142,6 +142,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
+    backgroundColor: colors.surfaceRaised,
     padding: spacing.lg,
   },
   title: {

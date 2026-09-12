@@ -16,6 +16,7 @@ CALL_SIGNAL_EVENTS = {
     'call.ice_candidate',
 }
 CALL_ID_PATTERN = re.compile(r'^[A-Za-z0-9-]{1,200}$')
+CALL_TYPES = {'audio', 'video'}
 INVITE_TIMEOUT_SECONDS = 75
 MAX_CALL_DURATION_SECONDS = 12 * 60 * 60
 
@@ -34,6 +35,7 @@ class CallSession:
     callee_user_id: UUID
     status: str
     expires_at: float
+    pending_answer_user_id: UUID | None
 
 
 def normalize_call_signal(message: dict) -> dict:
@@ -46,6 +48,12 @@ def normalize_call_signal(message: dict) -> dict:
         raise CallSignalingError('invalid_call_id')
 
     payload = {'event': event, 'call_id': call_id}
+    if event == 'call.invite':
+        call_type = message.get('call_type', 'audio')
+        if call_type not in CALL_TYPES:
+            raise CallSignalingError('invalid_call_type')
+        payload['call_type'] = call_type
+
     if event in {'call.offer', 'call.answer'}:
         description = message.get('description')
         expected_type = event.removeprefix('call.')
@@ -87,7 +95,7 @@ def normalize_call_signal(message: dict) -> dict:
 
     if event == 'call.reject':
         reason = message.get('reason')
-        if reason in {'busy', 'media_failed'}:
+        if reason in {'busy', 'media_failed', 'unsupported_media'}:
             payload['reason'] = reason
 
     return payload
@@ -116,6 +124,7 @@ class CallSignalingManager:
                 callee_user_id=callee_user_id,
                 status='ringing',
                 expires_at=monotonic() + INVITE_TIMEOUT_SECONDS,
+                pending_answer_user_id=None,
             )
             self._calls[call_id] = session
             self._user_call_ids[caller_user_id] = call_id
@@ -145,10 +154,20 @@ class CallSignalingManager:
             elif event == 'call.end':
                 self._remove_call_locked(call_id)
             elif event == 'call.offer':
-                self._require_state(session, sender_user_id == session.caller_user_id and session.status in {'accepted', 'active'})
+                self._require_state(
+                    session,
+                    session.status in {'accepted', 'active'}
+                    and session.pending_answer_user_id is None,
+                )
                 session.status = 'active'
+                session.pending_answer_user_id = recipient_user_id
             elif event == 'call.answer':
-                self._require_state(session, sender_user_id == session.callee_user_id and session.status == 'active')
+                self._require_state(
+                    session,
+                    session.status == 'active'
+                    and sender_user_id == session.pending_answer_user_id,
+                )
+                session.pending_answer_user_id = None
             elif event == 'call.ice_candidate':
                 self._require_state(session, session.status in {'accepted', 'active'})
             else:

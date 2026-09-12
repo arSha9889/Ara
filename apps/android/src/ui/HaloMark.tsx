@@ -2,12 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
+  Image,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
-
-import { colors } from '../theme/theme';
 
 interface HaloMarkProps {
   size?: number;
@@ -61,29 +59,21 @@ export function HaloMark({ size = 92 }: HaloMarkProps) {
     <View style={[styles.container, { height: size, width: size }]}>
       <Animated.View
         style={[
-          styles.outerRing,
+          styles.logoFrame,
           {
-            borderRadius: size / 2,
+            borderRadius: size * 0.24,
             height: size,
             transform: [{ scale: pulse }],
             width: size,
           },
         ]}
-      />
-      <View
-        style={[
-          styles.innerRing,
-          {
-            borderRadius: (size * 0.68) / 2,
-            height: size * 0.68,
-            width: size * 0.68,
-          },
-        ]}
       >
-        <Text accessibilityLabel="AraChat" style={[styles.letter, { fontSize: size * 0.34 }]}>
-          A
-        </Text>
-      </View>
+        <Image
+          accessible={false}
+          source={require('../assets/arachat-parrot-icon.png')}
+          style={[styles.logo, { borderRadius: size * 0.24, height: size, width: size }]}
+        />
+      </Animated.View>
     </View>
   );
 }
@@ -93,21 +83,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  outerRing: {
-    backgroundColor: 'rgba(133, 214, 255, 0.12)',
-    borderColor: 'rgba(133, 214, 255, 0.58)',
-    borderWidth: 1,
-    position: 'absolute',
+  logoFrame: {
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
   },
-  innerRing: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(67, 182, 255, 0.22)',
-    borderColor: 'rgba(245, 248, 255, 0.36)',
-    borderWidth: 1,
-    justifyContent: 'center',
-  },
-  letter: {
-    color: colors.text,
-    fontWeight: '700',
-  },
+  logo: { resizeMode: 'cover' },
 });

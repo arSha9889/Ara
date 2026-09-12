@@ -62,19 +62,19 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: colors.input,
     borderColor: colors.glassBorder,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     padding: 3,
   },
   option: {
-    borderRadius: 10,
-    minHeight: 36,
+    borderRadius: 9,
+    minHeight: 48,
     paddingHorizontal: spacing.sm,
     justifyContent: 'center',
   },
   optionActive: {
-    backgroundColor: 'rgba(133, 214, 255, 0.18)',
+    backgroundColor: 'rgba(74, 168, 240, 0.2)',
   },
   optionLabel: {
     color: colors.textFaint,
