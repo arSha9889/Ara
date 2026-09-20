@@ -37,14 +37,16 @@ nano deploy/staging.env
 Заполните в `deploy/staging.env`:
 
 1. `NEXUS_PUBLIC_DOMAIN` — только hostname, например `staging.example.ru`;
-2. `NEXUS_ALLOWED_ORIGINS`, `NEXUS_PUBLIC_BASE_URL` и
-    `NEXUS_STORAGE_PUBLIC_BASE_URL` — тот же адрес с `https://`;
+2. `NEXUS_ALLOWED_ORIGINS` и `NEXUS_PUBLIC_BASE_URL` — тот же адрес с `https://`;
 3. `NEXUS_CADDY_PROXY_NETWORK` — имя выделенной Docker-сети Caddy. Для
    текущего production Compose AraChat это `nexus-production_caddy_proxy`;
    сначала примените migration из раздела 3, если такой сети ещё нет;
 4. отдельный пароль PostgreSQL, а также два независимых секрета. Для каждого
    значения выполните локально на VPS `openssl rand -hex 32`;
 5. SMTP-параметры и отдельный адрес отправителя.
+
+Локальный volume загрузок не публикуйте через Caddy или Nginx: вложения выдаёт
+только API по `/api/media/...` после проверки прав.
 
 Не оставляйте `replace-with-...`, `example.ru` или одинаковые секреты. Файл
 `deploy/staging.env` игнорируется Git и не должен покидать VPS.

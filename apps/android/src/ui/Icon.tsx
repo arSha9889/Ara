@@ -4,6 +4,7 @@ import { colors } from '../theme/theme';
 
 export type IconName =
   | 'back'
+  | 'bluetooth'
   | 'call'
   | 'check'
   | 'chevronRight'
@@ -18,6 +19,7 @@ export type IconName =
   | 'search'
   | 'send'
   | 'settings'
+  | 'speaker'
   | 'chats';
 
 interface IconProps {
@@ -38,6 +40,7 @@ export function Icon({ name, size = 24, color = colors.text }: IconProps) {
   return (
     <Svg accessibilityElementsHidden height={size} viewBox="0 0 24 24" width={size}>
       {name === 'back' ? <Path {...common} d="m15 18-6-6 6-6" /> : null}
+      {name === 'bluetooth' ? <><Path {...common} d="m12 3 4.5 4.5L12 12l4.5 4.5L12 21V3Z" /><Path {...common} d="m5 7 10 10M5 17 15 7" /></> : null}
       {name === 'call' ? <Path {...common} d="M7.6 3.8 5.1 5.2c-.8.5-1.2 1.5-.9 2.4 1.6 5 5.5 8.9 10.5 10.5.9.3 1.9-.1 2.4-.9l1.4-2.5-3.2-2.1-1.6 1.2a13.2 13.2 0 0 1-3.6-3.6l1.2-1.6-2.1-3.2Z" /> : null}
       {name === 'check' ? <Path {...common} d="m5 12 4.2 4L19 6.5" /> : null}
       {name === 'chevronRight' ? <Path {...common} d="m9 18 6-6-6-6" /> : null}
@@ -52,6 +55,7 @@ export function Icon({ name, size = 24, color = colors.text }: IconProps) {
       {name === 'search' ? <><Circle {...common} cx="10.7" cy="10.7" r="5.8" /><Path {...common} d="m15.1 15.1 4.2 4.2" /></> : null}
       {name === 'send' ? <Path {...common} d="m20 4-7.1 16-2.3-6.6L4 11.1 20 4Z" /> : null}
       {name === 'settings' ? <><Circle {...common} cx="12" cy="12" r="3" /><Path {...common} d="M19.4 13.3a7.9 7.9 0 0 0 .1-2.6l2-1.5-2-3.4-2.4 1a8 8 0 0 0-2.2-1.3L14.6 3h-4l-.3 2.5a8 8 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.5a7.9 7.9 0 0 0 .1 2.6l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 2.2 1.3l.3 2.5h4l.3-2.5a8 8 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.5Z" /></> : null}
+      {name === 'speaker' ? <><Path {...common} d="M4.5 9.3h3.3l4.2-3.4v12.2l-4.2-3.4H4.5V9.3Z" /><Path {...common} d="M15.2 9a4.2 4.2 0 0 1 0 6M17.8 6.5a7.6 7.6 0 0 1 0 11" /></> : null}
       {name === 'chats' ? <><Path {...common} d="M5.7 17.4 4.5 21l4.2-1.6a8.5 8.5 0 0 0 10.8-1.1 7.6 7.6 0 0 0 0-10.6 8.5 8.5 0 0 0-11 0 7.5 7.5 0 0 0-2.8 9.7Z" /><Path {...common} d="M8.5 12h7" /></> : null}
     </Svg>
   );

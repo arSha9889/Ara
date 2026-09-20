@@ -6,7 +6,7 @@ import { useCall } from '../../../app/providers/CallProvider.jsx';
 import { useLayoutMode } from '../../../app/providers/LayoutModeProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
-import { mediaUrlForBrowser } from '../../../shared/api/mediaUrl.js';
+import { useAuthenticatedMediaUrl } from '../../../shared/api/mediaUrl.js';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
 import { decryptE2eeMessage, encryptE2eeText, isE2eeWebSupported, registerE2eeWebIdentity } from '../../../shared/crypto/e2eeWeb.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
@@ -72,13 +72,13 @@ function formatVoiceTime(value) {
   return `${minutes}:${rest}`;
 }
 
-function VoiceMessage({ message, t }) {
+function VoiceMessage({ message, t, accessToken }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const duration = message.duration_seconds || audioRef.current?.duration || 0;
-  const mediaUrl = mediaUrlForBrowser(message.media_url);
+  const { url: mediaUrl } = useAuthenticatedMediaUrl(message.media_url, accessToken);
 
   function togglePlayback() {
     const audio = audioRef.current;
@@ -126,12 +126,12 @@ function VoiceMessage({ message, t }) {
   );
 }
 
-function VideoNoteMessage({ message, t }) {
+function VideoNoteMessage({ message, t, accessToken }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const duration = message.duration_seconds || videoRef.current?.duration || 0;
-  const mediaUrl = mediaUrlForBrowser(message.media_url);
+  const { url: mediaUrl } = useAuthenticatedMediaUrl(message.media_url, accessToken);
 
   function togglePlayback() {
     const video = videoRef.current;
@@ -166,15 +166,16 @@ function VideoNoteMessage({ message, t }) {
   );
 }
 
-function renderMessageContent(message, t, onOpenMedia) {
+function MessageContent({ message, t, onOpenMedia, accessToken }) {
+  const displayType = displayMessageType(message);
+  const needsMedia = !message.deleted_at && ['photo', 'video', 'file'].includes(displayType);
+  const { url: mediaUrl } = useAuthenticatedMediaUrl(needsMedia ? message.media_url : null, accessToken);
   if (message.deleted_at) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
   }
   if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
     return <span className="encrypted-message-unavailable">{t('messages.encryptedUnavailable')}</span>;
   }
-  const displayType = displayMessageType(message);
-  const mediaUrl = mediaUrlForBrowser(message.media_url);
   if (displayType === 'photo') {
     return (
       <button className="message-media-button" type="button" onClick={() => onOpenMedia(message)} aria-label={t('messages.openMedia')}>
@@ -193,10 +194,10 @@ function renderMessageContent(message, t, onOpenMedia) {
     );
   }
   if (displayType === 'video_note') {
-    return <VideoNoteMessage message={message} t={t} />;
+    return <VideoNoteMessage message={message} t={t} accessToken={accessToken} />;
   }
   if (displayType === 'voice') {
-    return <VoiceMessage message={message} t={t} />;
+    return <VoiceMessage message={message} t={t} accessToken={accessToken} />;
   }
   if (displayType === 'file') {
     return (
@@ -539,7 +540,7 @@ function BranchCommentsPanel({ branch, post, session, language, t, event, onClos
           <div><p className="eyebrow">{branch.title}</p><h2 id="branch-comments-title">{t('chats.comments')}</h2></div>
           <button type="button" onClick={onClose} aria-label={t('common.close')}>×</button>
         </header>
-        <div className="branch-comments-post">{renderMessageContent(post, t, () => undefined)}</div>
+        <div className="branch-comments-post"><MessageContent message={post} t={t} onOpenMedia={() => undefined} accessToken={session.accessToken} /></div>
         <div className="branch-comments-list">
           {isLoading ? <AraChatLoader compact title={t('chats.comments')} text={t('chats.loadingComments')} /> : null}
           {!isLoading && !comments.length ? <p className="branch-comments-empty">{t('chats.commentsEmpty')}</p> : null}
@@ -657,7 +658,7 @@ export function ChatPage() {
   const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(displayMessageType(message)) && message.media_url);
   const mediaViewerIndex = mediaViewerMessage ? mediaMessages.findIndex((message) => message.id === mediaViewerMessage.id) : -1;
   const mediaViewerType = mediaViewerMessage ? displayMessageType(mediaViewerMessage) : null;
-  const mediaViewerUrl = mediaUrlForBrowser(mediaViewerMessage?.media_url);
+  const { url: mediaViewerUrl } = useAuthenticatedMediaUrl(mediaViewerMessage?.media_url, session.accessToken);
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', chat?.peer?.last_seen_at, t, language);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || t('chats.branchTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || t('chats.publicBranchSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
@@ -2008,7 +2009,7 @@ export function ChatPage() {
                     <strong>{previewReplyMessage(message.reply_to, t)}</strong>
                   </button>
                 ) : null}
-                <div>{renderMessageContent(message, t, openMediaViewer)}</div>
+                <div><MessageContent message={message} t={t} onOpenMedia={openMediaViewer} accessToken={session.accessToken} /></div>
                 {isPublicBranch && !message.deleted_at ? (
                   <button className="branch-comments-trigger" type="button" onClick={() => setCommentPost(message)}>
                     {t('chats.comments')} · {message.comment_count || 0}

@@ -10,7 +10,7 @@ from fastapi import UploadFile
 from app.core.config import settings
 from app.services.auth_service import AuthError
 from app.services import storage_service
-from app.services.storage_service import avatar_url_for, delete_storage_object, media_url_for, save_upload_file
+from app.services.storage_service import delete_storage_object, save_upload_file
 
 
 WEBM_BYTES = b'\x1a\x45\xdf\xa3webm-data'
@@ -30,7 +30,6 @@ async def test_save_upload_file_stores_audio_with_normalized_mime_type(tmp_path,
     monkeypatch.setattr(settings, 'upload_dir', str(tmp_path))
     monkeypatch.setattr(settings, 'upload_max_size_bytes', 1024)
     monkeypatch.setattr(settings, 'storage_public_url_prefix', '/storage/uploads')
-    monkeypatch.setattr(settings, 'storage_public_base_url', '')
     user_id = uuid4()
 
     stored = await save_upload_file(_upload('../voice.webm', 'audio/webm;codecs=opus', WEBM_BYTES), user_id)
@@ -39,10 +38,8 @@ async def test_save_upload_file_stores_audio_with_normalized_mime_type(tmp_path,
     assert stored.mime_type == 'audio/webm'
     assert stored.size_bytes == len(WEBM_BYTES)
     assert stored.suggested_message_type == 'voice'
-    assert stored.public_path.startswith(f'/storage/uploads/{user_id}/')
-    assert (tmp_path / str(user_id) / stored.public_path.rsplit('/', 1)[-1]).exists()
-    assert media_url_for(stored.public_path, 'http://api.local/') == stored.public_path
-    assert avatar_url_for(stored.public_path, 'http://api.local/') == stored.public_path
+    assert stored.storage_key.startswith(f'/storage/uploads/{user_id}/')
+    assert (tmp_path / str(user_id) / stored.storage_key.rsplit('/', 1)[-1]).exists()
 
 
 @pytest.mark.anyio
@@ -83,7 +80,6 @@ async def test_save_upload_file_uploads_validated_content_to_s3(tmp_path, monkey
     monkeypatch.setattr(settings, 'storage_backend', 's3')
     monkeypatch.setattr(settings, 's3_bucket', 'arachat-media')
     monkeypatch.setattr(settings, 's3_prefix', 'production-media')
-    monkeypatch.setattr(settings, 's3_public_base_url', 'https://media.example.test')
     monkeypatch.setattr(storage_service, 'get_s3_client', lambda: S3Client())
     user_id = uuid4()
 
@@ -93,14 +89,11 @@ async def test_save_upload_file_uploads_validated_content_to_s3(tmp_path, monkey
     assert uploaded['bucket'] == 'arachat-media'
     assert uploaded['key'].startswith(f'production-media/{user_id}/')
     assert uploaded['extra_args'] == {
-        'ACL': 'public-read',
         'ContentType': 'image/png',
         'ContentDisposition': 'inline',
-        'CacheControl': 'public, max-age=31536000, immutable',
+        'CacheControl': 'private, no-store',
     }
-    assert stored.public_path == uploaded['key']
-    assert media_url_for(stored.public_path, 'http://api.local/') == f'https://media.example.test/{stored.public_path}'
-    assert avatar_url_for(stored.public_path, 'http://api.local/') == f'https://media.example.test/{stored.public_path}'
+    assert stored.storage_key == uploaded['key']
 
 
 @pytest.mark.anyio
@@ -110,11 +103,11 @@ async def test_delete_storage_object_removes_only_a_registered_local_key(tmp_pat
     monkeypatch.setattr(settings, 'storage_public_url_prefix', '/storage/uploads')
     user_id = uuid4()
     stored = await save_upload_file(_upload('photo.png', 'image/png', PNG_BYTES), user_id)
-    stored_file = tmp_path / str(user_id) / stored.public_path.rsplit('/', 1)[-1]
+    stored_file = tmp_path / str(user_id) / stored.storage_key.rsplit('/', 1)[-1]
     protected_file = tmp_path / 'protected.txt'
     protected_file.write_text('keep')
 
-    await delete_storage_object(stored.public_path)
+    await delete_storage_object(stored.storage_key)
 
     assert not stored_file.exists()
     assert protected_file.read_text() == 'keep'

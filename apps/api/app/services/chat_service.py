@@ -10,6 +10,7 @@ from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, Messa
 from app.services.branch_service import can_post_to_branch, ensure_official_branch
 from app.services.auth_service import AuthError
 from app.services.e2ee_service import validate_e2ee_message_envelope
+from app.services.media_service import media_url_for_message
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import ensure_chat_interaction_allowed, ensure_direct_interaction_allowed
@@ -601,7 +602,7 @@ async def _message_out(session: AsyncSession, message: Message, current_user_id:
         author=await _message_author_out(session, message.sender_id),
         type=message.type,
         payload=message.payload,
-        media_url=message.media_url,
+        media_url=await media_url_for_message(session, message),
         media_name=message.media_name,
         media_mime_type=message.media_mime_type,
         media_size_bytes=message.media_size_bytes,

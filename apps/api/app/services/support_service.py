@@ -19,6 +19,7 @@ from app.schemas.support import (
 )
 from app.services.admin_service import AdminError, find_configured_admin, require_admin
 from app.services.auth_service import AuthError
+from app.services.media_service import media_url_for_support_message
 from app.services.notification_service import create_support_notification
 from app.services.localization import tr
 from app.services.stored_object_service import attach_upload_to_support_message
@@ -370,7 +371,7 @@ async def _message_out(session: AsyncSession, message: SupportMessage) -> Suppor
         author_user_id=message.author_user_id,
         author=await _person_out(session, message.author_user_id),
         text=message.text,
-        attachment_url=message.attachment_url,
+        attachment_url=await media_url_for_support_message(session, message),
         attachment_name=message.attachment_name,
         attachment_mime_type=message.attachment_mime_type,
         attachment_size_bytes=message.attachment_size_bytes,

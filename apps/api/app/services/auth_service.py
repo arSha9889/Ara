@@ -514,7 +514,7 @@ def _validate_registration_request(request: RegisterCompleteRequest) -> None:
         raise AuthError('Неподдерживаемый тип аватара')
     if request.avatar_type == 'built_in' and request.avatar_ref not in {f'animal-{index:02d}' for index in range(1, 21)}:
         raise AuthError('Такой стандартный аватар недоступен')
-    if request.avatar_type == 'uploaded' and not request.avatar_ref.startswith(('http://', 'https://', '/storage/')):
+    if request.avatar_type == 'uploaded' and not request.avatar_ref.startswith(('http://', 'https://', '/storage/', '/api/media/avatars/')):
         raise AuthError('Загруженный аватар имеет неподдерживаемый формат')
     if not request.email_verification_id:
         raise AuthError('Подтвердите e-mail перед регистрацией')

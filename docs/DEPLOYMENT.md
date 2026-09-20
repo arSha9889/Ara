@@ -162,7 +162,6 @@ NEXUS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
 NEXUS_S3_BUCKET=<имя-bucket>
 NEXUS_S3_ACCESS_KEY_ID=<access-key-id>
 NEXUS_S3_SECRET_ACCESS_KEY=<secret-access-key>
-NEXUS_S3_PUBLIC_BASE_URL=https://<media-домен>
 NEXUS_REGISTRATION_PROOF_SECRET=<длинная-случайная-строка>
 NEXUS_ACCESS_TOKEN_SECRET=<длинная-случайная-строка>
 NEXUS_TELEGRAM_BOT_TOKEN=<токен-бота>
@@ -215,16 +214,23 @@ Production Compose намеренно требует S3-совместимое �
 
 1. Создайте bucket, например `arachat-media`.
 2. Создайте отдельный API token с правом **Object Read & Write** только к этому bucket.
-3. Подключите к bucket публичный custom domain, например `media.<ваш-домен>`.
-   Альтернативно на старте допустим выданный R2.dev-домен. Не передавайте URL S3 API
-   в `NEXUS_S3_PUBLIC_BASE_URL`: это именно публичный URL для браузера.
+3. Включите у провайдера блокировку публичного доступа bucket и не подключайте
+   публичный custom domain или R2.dev-домен.
 4. Заполните `NEXUS_S3_*` в `deploy/production.env` по примеру.
 
-API назначает каждому новому объекту ACL `public-read`, поэтому изображения,
-аудио и другие вложения открываются по прямой ссылке media-домена. Не открывайте
-публичное право `ListBucket`: пользователям нужен доступ к конкретному файлу, а
-не возможность получать список всех ключей bucket. Для уже загруженных объектов,
-которые по ошибке получили private ACL, выполните на VPS из каталога проекта:
+API не назначает объектам `public-read`: сообщения и support-вложения читаются
+только через `/api/media/<id>` после проверки прав. Не выдавайте bucket публичные
+права `GetObject` или `ListBucket`.
+
+Для Cloudflare R2 отключите **Public Development URL (r2.dev)** и удалите все
+custom domains в Dashboard bucket. Не выполняйте ACL-команды ниже для R2: его
+S3-совместимый API не следует использовать для управления ACL. Эти настройки
+bucket закрывают прямой доступ также к ранее загруженным объектам.
+
+Для AWS S3 или MinIO сначала включите блокировку публичного доступа и удалите
+public bucket policy, website endpoint и публичный custom domain. Если прежняя
+конфигурация назначала объектам ACL `public-read` и ваш провайдер поддерживает
+S3 ACL, затем удалите эти ACL на VPS из каталога проекта:
 
 ```bash
 docker compose --env-file deploy/production.env -f deploy/compose.production.yml \
@@ -242,22 +248,18 @@ for page in client.get_paginator('list_objects_v2').paginate(
     Prefix=prefix,
 ):
     for item in page.get('Contents', []):
-        client.put_object_acl(
-            Bucket=settings.s3_bucket,
-            Key=item['Key'],
-            ACL='public-read',
-        )
+        client.put_object_acl(Bucket=settings.s3_bucket, Key=item['Key'], ACL='private')
         updated += 1
 
-# Убирает публичное перечисление bucket, не затрагивая public-read объектов.
-client.put_bucket_acl(Bucket=settings.s3_bucket, ACL='private')
-print(f'Updated public-read ACL for {updated} object(s).')
+print(f'Removed public ACL from {updated} object(s).')
 PY
 ```
 
 Команда использует учётные данные уже работающего API-контейнера: не выводит и
-не требует вводить ключи S3. После неё проверьте конкретный URL вложения через
-браузер или `curl -I`; ожидается `200`, а не `403`.
+не требует вводить ключи S3. После изменения настроек provider-level прямой URL
+объекта не должен быть доступен без авторизации; вложение должно открываться
+только через авторизованный запрос к API. Удаление `ACL: public-read` из нового
+кода само по себе не закрывает public domain, bucket policy или старые ACL.
 
 Для Cloudflare R2 endpoint имеет вид
 `https://<account-id>.r2.cloudflarestorage.com`, регион — `auto`. Для AWS S3
@@ -265,9 +267,13 @@ PY
 frontend, `.env` клиента или Git: они нужны только API-контейнеру.
 
 Загружаемый файл сначала проходит серверную проверку размера, MIME-типа и сигнатуры;
-после этого API отправляет объект в bucket под UUID-именем. Объекты предназначены
-для публичного чтения через media-домен. Приватные вложения с подписанными ссылками
-требуют отдельной авторизационной модели и пока не реализованы.
+после этого API отправляет объект в private bucket под UUID-именем. Для браузера
+web-клиент получает private message/support-вложения авторизованным запросом и
+показывает их из временного Blob URL; Bearer-токен никогда не передаётся в URL.
+Миграция переводит только зарегистрированные uploaded-аватары. Вложения со
+старым неизвестным или внешним URL не состоят в реестре `StoredObject`, поэтому
+API не может отозвать доступ к их исходному хранилищу: их нужно перенести или
+удалить отдельно.
 
 ## 7. Первый запуск
 

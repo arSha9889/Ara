@@ -67,7 +67,7 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
             raise AuthError('Unsupported avatar type')
         if avatar_type == 'built_in' and avatar_ref not in {f'animal-{index:02d}' for index in range(1, 21)}:
             raise AuthError('Unsupported built-in avatar')
-        if avatar_type == 'uploaded' and not avatar_ref.startswith(('http://', 'https://', '/storage/')):
+        if avatar_type == 'uploaded' and not avatar_ref.startswith(('http://', 'https://', '/storage/', '/api/media/avatars/')):
             raise AuthError('Unsupported uploaded avatar')
         try:
             if avatar_type == 'uploaded':

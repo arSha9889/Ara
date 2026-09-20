@@ -11,13 +11,24 @@ import {
 
 import { useI18n } from '../../localization/I18nProvider';
 import { colors, spacing } from '../../theme/theme';
-import { Icon } from '../../ui/Icon';
+import { Icon, type IconName } from '../../ui/Icon';
+import type { CallAudioRoute } from './callAudio';
 import { callPhaseKey, formatCallDuration } from './callPresentation';
 import { useDirectCall } from './DirectCallProvider';
 
 export function CallOverlay() {
   const { t } = useI18n();
-  const { acceptCall, call, dismissCall, endCall, rejectCall, toggleMute } = useDirectCall();
+  const {
+    acceptCall,
+    audioRoutes,
+    call,
+    dismissCall,
+    endCall,
+    rejectCall,
+    selectAudioRoute,
+    selectedAudioRouteId,
+    toggleMute,
+  } = useDirectCall();
   const [reduceMotion, setReduceMotion] = useState(false);
   const [now, setNow] = useState(Date.now());
 
@@ -115,22 +126,36 @@ export function CallOverlay() {
           ) : null}
 
           {isActive ? (
-            <View style={styles.activeActions}>
-              <CallAction
-                accessibilityLabel={call.isMuted ? t('callUnmute') : t('callMute')}
-                icon={call.isMuted ? 'microphoneOff' : 'microphone'}
-                label={call.isMuted ? t('callUnmute') : t('callMute')}
-                onPress={toggleMute}
-                selected={call.isMuted}
-                tone="default"
-              />
-              <CallAction
-                accessibilityLabel={t('callEnd')}
-                icon="hangUp"
-                label={t('callEnd')}
-                onPress={endCall}
-                tone="danger"
-              />
+            <View style={styles.activeControls}>
+              {audioRoutes.length > 1 ? (
+                <View accessibilityLabel={t('callAudioRoute')} style={styles.routePicker}>
+                  {audioRoutes.map(route => (
+                    <CallRouteAction
+                      key={route.id}
+                      route={route}
+                      selected={route.id === selectedAudioRouteId}
+                      onPress={() => { selectAudioRoute(route.id).catch(() => undefined); }}
+                    />
+                  ))}
+                </View>
+              ) : null}
+              <View style={styles.activeActions}>
+                <CallAction
+                  accessibilityLabel={call.isMuted ? t('callUnmute') : t('callMute')}
+                  icon={call.isMuted ? 'microphoneOff' : 'microphone'}
+                  label={call.isMuted ? t('callUnmute') : t('callMute')}
+                  onPress={toggleMute}
+                  selected={call.isMuted}
+                  tone="default"
+                />
+                <CallAction
+                  accessibilityLabel={t('callEnd')}
+                  icon="hangUp"
+                  label={t('callEnd')}
+                  onPress={endCall}
+                  tone="danger"
+                />
+              </View>
             </View>
           ) : null}
 
@@ -160,6 +185,50 @@ export function CallOverlay() {
       </SafeAreaView>
     </Modal>
   );
+}
+
+function CallRouteAction({ onPress, route, selected }: {
+  onPress(): void;
+  route: CallAudioRoute;
+  selected: boolean;
+}) {
+  const { t } = useI18n();
+  const presentation = routePresentation(route, t);
+
+  return (
+    <Pressable
+      accessibilityLabel={presentation.label}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.routeButton,
+        selected && styles.routeButtonSelected,
+        pressed && styles.routeButtonPressed,
+      ]}
+    >
+      <Icon color={selected ? colors.canvas : colors.text} name={presentation.icon} size={20} />
+      <Text numberOfLines={1} style={[styles.routeLabel, selected && styles.routeLabelSelected]}>
+        {presentation.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function routePresentation(route: CallAudioRoute, t: ReturnType<typeof useI18n>['t']): {
+  icon: IconName;
+  label: string;
+} {
+  switch (route.kind) {
+    case 'bluetooth':
+      return { icon: 'bluetooth', label: t('callRouteBluetooth') };
+    case 'earpiece':
+      return { icon: 'call', label: t('callRouteEarpiece') };
+    case 'speaker':
+      return { icon: 'speaker', label: t('callRouteSpeaker') };
+    case 'wired':
+      return { icon: 'microphone', label: t('callRouteWired') };
+  }
 }
 
 interface CallActionProps {
@@ -295,6 +364,44 @@ const styles = StyleSheet.create({
   activeActions: {
     flexDirection: 'row',
     gap: spacing.xxl,
+  },
+  activeControls: {
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  routePicker: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    maxWidth: 440,
+  },
+  routeButton: {
+    alignItems: 'center',
+    borderColor: colors.glassBorder,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+  },
+  routeButtonSelected: {
+    backgroundColor: colors.primaryStrong,
+    borderColor: colors.primary,
+  },
+  routeButtonPressed: {
+    backgroundColor: colors.surfacePressed,
+  },
+  routeLabel: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+    maxWidth: 112,
+  },
+  routeLabelSelected: {
+    color: colors.canvas,
   },
   singleAction: {
     minHeight: 102,

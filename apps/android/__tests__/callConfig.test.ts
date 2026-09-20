@@ -33,6 +33,7 @@ test('builds relay-only RTC configuration from valid TURN servers', () => {
 });
 
 test('keeps call presentation deterministic for failure and duration states', () => {
+  expect(callFailureKeyForReason('media_failed')).toBe('callPermissionDenied');
   expect(callFailureKeyForReason('peer_busy')).toBe('callPeerBusy');
   expect(callFailureKeyForReason('peer_offline')).toBe('callPeerOffline');
   expect(callFailureKeyForReason('unknown')).toBe('callConnectionFailed');

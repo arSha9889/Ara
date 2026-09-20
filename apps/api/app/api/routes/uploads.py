@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +9,7 @@ from app.db.session import get_db_session
 from app.schemas.uploads import UploadOut
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
-from app.services.storage_service import AVATAR_MAX_SIZE_BYTES, avatar_url_for, delete_storage_object, media_url_for, save_upload_file
+from app.services.storage_service import AVATAR_MAX_SIZE_BYTES, delete_storage_object, save_upload_file
 from app.services.stored_object_service import register_pending_upload
 
 router = APIRouter()
@@ -17,7 +17,6 @@ router = APIRouter()
 
 @router.post('', response_model=UploadOut)
 async def upload_file(
-    request: Request,
     current_user: Annotated[UserOut, Depends(get_current_user)],
     file: Annotated[UploadFile, File()],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -27,10 +26,9 @@ async def upload_file(
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    media_url = media_url_for(stored.public_path, str(request.base_url))
-    await _register_upload_or_raise(session, current_user.id, stored, media_url, 'message')
+    stored_object = await _register_upload_or_raise(session, current_user.id, stored, 'message')
     return UploadOut(
-        media_url=media_url,
+        media_url=stored_object.public_url,
         media_name=stored.original_name,
         media_mime_type=stored.mime_type,
         media_size_bytes=stored.size_bytes,
@@ -40,7 +38,6 @@ async def upload_file(
 
 @router.post('/avatar', response_model=UploadOut)
 async def upload_avatar(
-    request: Request,
     current_user: Annotated[UserOut, Depends(get_current_user)],
     file: Annotated[UploadFile, File()],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -52,10 +49,9 @@ async def upload_avatar(
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    avatar_url = avatar_url_for(stored.public_path, str(request.base_url))
-    await _register_upload_or_raise(session, current_user.id, stored, avatar_url, 'avatar')
+    stored_object = await _register_upload_or_raise(session, current_user.id, stored, 'avatar')
     return UploadOut(
-        media_url=avatar_url,
+        media_url=stored_object.public_url,
         media_name=stored.original_name,
         media_mime_type=stored.mime_type,
         media_size_bytes=stored.size_bytes,
@@ -65,7 +61,6 @@ async def upload_avatar(
 
 @router.post('/support', response_model=UploadOut)
 async def upload_support_file(
-    request: Request,
     current_user: Annotated[UserOut, Depends(get_current_user)],
     file: Annotated[UploadFile, File()],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -75,10 +70,9 @@ async def upload_support_file(
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    media_url = media_url_for(stored.public_path, str(request.base_url))
-    await _register_upload_or_raise(session, current_user.id, stored, media_url, 'support')
+    stored_object = await _register_upload_or_raise(session, current_user.id, stored, 'support')
     return UploadOut(
-        media_url=media_url,
+        media_url=stored_object.public_url,
         media_name=stored.original_name,
         media_mime_type=stored.mime_type,
         media_size_bytes=stored.size_bytes,
@@ -86,14 +80,15 @@ async def upload_support_file(
     )
 
 
-async def _register_upload_or_raise(session, user_id, stored, media_url: str, purpose: str) -> None:
+async def _register_upload_or_raise(session, user_id, stored, purpose: str):
     try:
-        await register_pending_upload(session, user_id, stored, media_url, purpose)
+        stored_object = await register_pending_upload(session, user_id, stored, purpose)
         await session.commit()
+        return stored_object
     except SQLAlchemyError as exc:
         await session.rollback()
         try:
-            await delete_storage_object(stored.public_path)
+            await delete_storage_object(stored.storage_key)
         except AuthError:
             pass
         raise HTTPException(

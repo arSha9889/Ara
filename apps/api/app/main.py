@@ -20,7 +20,7 @@ from app.services.auth_service import AuthError
 from app.services.realtime_manager import realtime_manager
 from app.services.redis_client import check_redis
 from app.services.safety_service import ensure_chat_interaction_allowed, is_user_interaction_blocked
-from app.services.storage_service import check_storage, storage_root
+from app.services.storage_service import check_storage
 from app.services.user_access_service import user_can_access
 
 WEBSOCKET_AUTH_TIMEOUT_SECONDS = 10
@@ -37,14 +37,6 @@ def create_app() -> FastAPI:
         allow_headers=['*'],
     )
     app.include_router(api_router, prefix=settings.api_prefix)
-    if settings.storage_backend == 'local':
-        from fastapi.staticfiles import StaticFiles
-
-        app.mount(
-            settings.storage_public_url_prefix,
-            StaticFiles(directory=storage_root(), check_dir=False),
-            name='storage_uploads',
-        )
 
     @app.get('/health')
     async def health() -> dict[str, str]:

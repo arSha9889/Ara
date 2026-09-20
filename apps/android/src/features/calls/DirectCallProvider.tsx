@@ -24,6 +24,15 @@ import type {
 import { getChat } from '../chats/api/chatApi';
 import { useRealtime } from '../realtime/RealtimeProvider';
 import { getCallIceConfiguration } from './api/callApi';
+import {
+  getCallAudioSession,
+  selectCallAudioRoute,
+  startCallAudioSession,
+  stopCallAudioSession,
+  subscribeToCallAudioEvents,
+  type CallAudioRoute,
+  type CallAudioSession,
+} from './callAudio';
 import { getRtcConfiguration } from './callConfig';
 import {
   callFailureKeyForReason,
@@ -32,6 +41,8 @@ import {
 } from './callPresentation';
 
 const CALL_RING_TIMEOUT_MS = 70_000;
+const CALL_CONNECTION_TIMEOUT_MS = 30_000;
+const CALL_DISCONNECTED_TIMEOUT_MS = 10_000;
 
 interface StartDirectCallInput {
   chatId: string;
@@ -41,10 +52,13 @@ interface StartDirectCallInput {
 
 interface DirectCallContextValue {
   acceptCall(): Promise<void>;
+  audioRoutes: CallAudioRoute[];
   call: ActiveDirectCall | null;
   dismissCall(): void;
   endCall(): void;
   rejectCall(): void;
+  selectAudioRoute(routeId: string): Promise<void>;
+  selectedAudioRouteId: string | null;
   startCall(input: StartDirectCallInput): Promise<void>;
   toggleMute(): void;
 }
@@ -101,6 +115,10 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const disconnectedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [audioRoutes, setAudioRoutes] = useState<CallAudioRoute[]>([]);
+  const [selectedAudioRouteId, setSelectedAudioRouteId] = useState<string | null>(null);
 
   const setCall = useCallback((nextCall: ActiveDirectCall | null): void => {
     callRef.current = nextCall;
@@ -121,8 +139,24 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const clearConnectionTimeout = useCallback((): void => {
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearDisconnectedTimeout = useCallback((): void => {
+    if (disconnectedTimeoutRef.current) {
+      clearTimeout(disconnectedTimeoutRef.current);
+      disconnectedTimeoutRef.current = null;
+    }
+  }, []);
+
   const releaseResources = useCallback((): void => {
     clearRingTimeout();
+    clearConnectionTimeout();
+    clearDisconnectedTimeout();
     pendingIceCandidatesRef.current = [];
 
     const connection = peerConnectionRef.current;
@@ -134,7 +168,10 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     const stream = localStreamRef.current;
     localStreamRef.current = null;
     stopStream(stream);
-  }, [clearRingTimeout]);
+    setAudioRoutes([]);
+    setSelectedAudioRouteId(null);
+    stopCallAudioSession().catch(() => undefined);
+  }, [clearConnectionTimeout, clearDisconnectedTimeout, clearRingTimeout]);
 
   const resetCall = useCallback((): void => {
     releaseResources();
@@ -159,6 +196,30 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     [send],
   );
 
+  const applyAudioSession = useCallback((audioSession: CallAudioSession): void => {
+    setAudioRoutes(audioSession.routes);
+    setSelectedAudioRouteId(audioSession.selectedRouteId);
+  }, []);
+
+  const refreshAudioSession = useCallback(async (): Promise<void> => {
+    const audioSession = await getCallAudioSession();
+    if (callRef.current) {
+      applyAudioSession(audioSession);
+    }
+  }, [applyAudioSession]);
+
+  const startConnectionTimeout = useCallback((callId: string): void => {
+    clearConnectionTimeout();
+    connectionTimeoutRef.current = setTimeout(() => {
+      const activeCall = callRef.current;
+      if (!isCurrentCall(activeCall, callId) || activeCall.phase !== 'connecting') {
+        return;
+      }
+      sendCallSignal('call.end', activeCall.callId, activeCall.chatId);
+      finishWithFailure('callConnectionFailed');
+    }, CALL_CONNECTION_TIMEOUT_MS);
+  }, [clearConnectionTimeout, finishWithFailure, sendCallSignal]);
+
   const prepareLocalAudio = useCallback(async (callId: string): Promise<MediaStream> => {
     const current = callRef.current;
     if (!isCurrentCall(current, callId)) {
@@ -174,6 +235,17 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    try {
+      applyAudioSession(await startCallAudioSession());
+    } catch {
+      throw new CallWorkflowError('callUnavailable');
+    }
+
+    if (!isCurrentCall(callRef.current, callId)) {
+      stopCallAudioSession().catch(() => undefined);
+      throw new CallWorkflowError('callCancelled');
+    }
+
     if (localStreamRef.current) {
       return localStreamRef.current;
     }
@@ -182,12 +254,14 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     try {
       stream = await mediaDevices.getUserMedia({ audio: true, video: false });
     } catch {
+      stopCallAudioSession().catch(() => undefined);
       throw new CallWorkflowError('callPermissionDenied');
     }
 
     const activeCall = callRef.current;
     if (!isCurrentCall(activeCall, callId)) {
       stopStream(stream);
+      stopCallAudioSession().catch(() => undefined);
       throw new CallWorkflowError('callCancelled');
     }
 
@@ -196,7 +270,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     });
     localStreamRef.current = stream;
     return stream;
-  }, []);
+  }, [applyAudioSession]);
 
   const flushIceCandidates = useCallback(async (): Promise<void> => {
     const connection = peerConnectionRef.current;
@@ -258,7 +332,20 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (connection.connectionState === 'connected') {
+        clearConnectionTimeout();
+        clearDisconnectedTimeout();
         updateCall({ connectedAt: Date.now(), failure: null, phase: 'active' });
+      }
+      if (connection.connectionState === 'disconnected') {
+        clearDisconnectedTimeout();
+        disconnectedTimeoutRef.current = setTimeout(() => {
+          const current = callRef.current;
+          if (!isCurrentCall(current, callId) || connection.connectionState !== 'disconnected') {
+            return;
+          }
+          sendCallSignal('call.end', current.callId, current.chatId);
+          finishWithFailure('callConnectionFailed');
+        }, CALL_DISCONNECTED_TIMEOUT_MS);
       }
       if (connection.connectionState === 'failed') {
         sendCallSignal('call.end', callId, activeCall.chatId);
@@ -274,7 +361,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     stream.getTracks().forEach(track => connection.addTrack(track, stream));
     peerConnectionRef.current = connection;
     return connection;
-  }, [finishWithFailure, prepareLocalAudio, sendCallSignal, updateCall]);
+  }, [clearConnectionTimeout, clearDisconnectedTimeout, finishWithFailure, prepareLocalAudio, sendCallSignal, updateCall]);
 
   const startRingTimeout = useCallback((callId: string, isCaller: boolean): void => {
     clearRingTimeout();
@@ -311,7 +398,6 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      await prepareLocalAudio(callId);
       await ensurePeerConnection(callId);
       const activeCall = callRef.current;
       if (!isCurrentCall(activeCall, callId)) {
@@ -327,7 +413,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
         finishWithFailure(failureKeyFromError(error, 'callConnectionFailed'));
       }
     }
-  }, [ensurePeerConnection, finishWithFailure, prepareLocalAudio, sendCallSignal, setCall, startRingTimeout, updateCall]);
+  }, [ensurePeerConnection, finishWithFailure, sendCallSignal, setCall, startRingTimeout, updateCall]);
 
   const rejectCall = useCallback((): void => {
     const activeCall = callRef.current;
@@ -347,7 +433,6 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     const { callId } = incomingCall;
     updateCall({ phase: 'requestingMicrophone' });
     try {
-      await prepareLocalAudio(callId);
       await ensurePeerConnection(callId);
       const activeCall = callRef.current;
       if (!isCurrentCall(activeCall, callId)) {
@@ -358,6 +443,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       }
       clearRingTimeout();
       updateCall({ phase: 'connecting' });
+      startConnectionTimeout(callId);
     } catch (error) {
       const activeCall = callRef.current;
       if (isCurrentCall(activeCall, callId)) {
@@ -365,7 +451,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
         finishWithFailure(failureKeyFromError(error, 'callConnectionFailed'));
       }
     }
-  }, [clearRingTimeout, ensurePeerConnection, finishWithFailure, prepareLocalAudio, sendCallSignal, updateCall]);
+  }, [clearRingTimeout, ensurePeerConnection, finishWithFailure, sendCallSignal, startConnectionTimeout, updateCall]);
 
   const endCall = useCallback((): void => {
     const activeCall = callRef.current;
@@ -393,6 +479,15 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     });
     updateCall({ isMuted });
   }, [updateCall]);
+
+  const selectAudioRoute = useCallback(async (routeId: string): Promise<void> => {
+    const activeCall = callRef.current;
+    if (!activeCall || activeCall.phase !== 'active') {
+      return;
+    }
+
+    applyAudioSession(await selectCallAudioRoute(routeId));
+  }, [applyAudioSession]);
 
   const handleSignal = useCallback(async (event: RealtimeEvent): Promise<void> => {
     if (!isCallEvent(event)) {
@@ -456,6 +551,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     if (event.event === 'call.accept' && activeCall.isCaller) {
       clearRingTimeout();
       updateCall({ phase: 'connecting' });
+      startConnectionTimeout(activeCall.callId);
       try {
         const connection = await ensurePeerConnection(activeCall.callId);
         const offer = await connection.createOffer();
@@ -499,6 +595,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
           throw new CallWorkflowError('callConnectionFailed');
         }
         updateCall({ phase: 'connecting' });
+        startConnectionTimeout(activeCall.callId);
       } catch (error) {
         const current = callRef.current;
         if (isCurrentCall(current, activeCall.callId)) {
@@ -536,7 +633,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       }
       await connection.addIceCandidate(candidate).catch(() => undefined);
     }
-  }, [clearRingTimeout, ensurePeerConnection, finishWithFailure, flushIceCandidates, resetCall, sendCallSignal, setCall, startRingTimeout, updateCall]);
+  }, [clearRingTimeout, ensurePeerConnection, finishWithFailure, flushIceCandidates, resetCall, sendCallSignal, setCall, startConnectionTimeout, startRingTimeout, updateCall]);
 
   useEffect(() => subscribeToEvents(event => {
     handleSignal(event).catch(() => {
@@ -546,14 +643,29 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     });
   }), [finishWithFailure, handleSignal, subscribeToEvents]);
 
+  useEffect(() => subscribeToCallAudioEvents(event => {
+    if (event === 'routesChanged') {
+      refreshAudioSession().catch(() => undefined);
+      return;
+    }
+
+    const activeCall = callRef.current;
+    if (activeCall && activeCall.phase !== 'failed') {
+      sendCallSignal(signalForEndingCall(activeCall), activeCall.callId, activeCall.chatId);
+      finishWithFailure('callConnectionFailed');
+    }
+  }), [finishWithFailure, refreshAudioSession, sendCallSignal]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextState => {
-      if (!isForegroundAppState(nextState) && callRef.current?.phase !== 'failed') {
+      const activeCall = callRef.current;
+      if (!isForegroundAppState(nextState) && activeCall && activeCall.phase !== 'failed') {
+        sendCallSignal(signalForEndingCall(activeCall), activeCall.callId, activeCall.chatId);
         resetCall();
       }
     });
     return () => subscription.remove();
-  }, [resetCall]);
+  }, [resetCall, sendCallSignal]);
 
   useEffect(() => () => {
     const activeCall = callRef.current;
@@ -568,8 +680,19 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
   }, [releaseResources, sendCallSignal]);
 
   const value = useMemo(
-    () => ({ acceptCall, call, dismissCall, endCall, rejectCall, startCall, toggleMute }),
-    [acceptCall, call, dismissCall, endCall, rejectCall, startCall, toggleMute],
+    () => ({
+      acceptCall,
+      audioRoutes,
+      call,
+      dismissCall,
+      endCall,
+      rejectCall,
+      selectAudioRoute,
+      selectedAudioRouteId,
+      startCall,
+      toggleMute,
+    }),
+    [acceptCall, audioRoutes, call, dismissCall, endCall, rejectCall, selectAudioRoute, selectedAudioRouteId, startCall, toggleMute],
   );
 
   return <DirectCallContext.Provider value={value}>{children}</DirectCallContext.Provider>;

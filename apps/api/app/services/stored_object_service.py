@@ -6,25 +6,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.storage import StoredObject
-from app.services.storage_service import StoredUpload
+from app.services.storage_service import StoredUpload, private_media_url_for, public_avatar_url_for
 
 
 async def register_pending_upload(
     session: AsyncSession,
     owner_user_id: UUID,
     upload: StoredUpload,
-    public_url: str,
     purpose: str,
 ) -> StoredObject:
     stored_object = StoredObject(
         owner_user_id=owner_user_id,
-        storage_key=upload.public_path,
-        public_url=public_url,
+        storage_key=upload.storage_key,
+        public_url='',
         purpose=purpose,
         status='pending',
         size_bytes=upload.size_bytes,
     )
     session.add(stored_object)
+    await session.flush()
+    stored_object.public_url = (
+        public_avatar_url_for(stored_object.id)
+        if purpose == 'avatar'
+        else private_media_url_for(stored_object.id)
+    )
     return stored_object
 
 

@@ -10,6 +10,7 @@ class AppConfigPackage : BaseReactPackage() {
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? =
     when (name) {
       AppConfigModule.NAME -> AppConfigModule(reactContext)
+      CallAudioModule.NAME -> CallAudioModule(reactContext)
       PushModule.NAME -> PushModule(reactContext)
       else -> null
     }
@@ -21,6 +22,15 @@ class AppConfigPackage : BaseReactPackage() {
           ReactModuleInfo(
             name = AppConfigModule.NAME,
             className = AppConfigModule::class.java.name,
+            canOverrideExistingModule = false,
+            needsEagerInit = false,
+            isCxxModule = false,
+            isTurboModule = false,
+          ),
+        CallAudioModule.NAME to
+          ReactModuleInfo(
+            name = CallAudioModule.NAME,
+            className = CallAudioModule::class.java.name,
             canOverrideExistingModule = false,
             needsEagerInit = false,
             isCxxModule = false,

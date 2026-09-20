@@ -4,6 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from pathlib import PurePosixPath
 from tempfile import NamedTemporaryFile
+from typing import BinaryIO, Iterator
 from uuid import UUID, uuid4
 
 import boto3
@@ -17,6 +18,10 @@ from app.services.auth_service import AuthError
 API_ROOT = Path(__file__).resolve().parents[2]
 CHUNK_SIZE = 1024 * 1024
 AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024
+
+
+class StorageObjectNotFoundError(AuthError):
+    pass
 
 ALLOWED_MIME_TYPES = {
     'image/jpeg',
@@ -57,7 +62,7 @@ EXTENSIONS_BY_MIME_TYPE = {
 
 @dataclass(frozen=True)
 class StoredUpload:
-    public_path: str
+    storage_key: str
     original_name: str
     mime_type: str
     size_bytes: int
@@ -126,13 +131,13 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
 
     if is_s3:
         target_path.unlink(missing_ok=True)
-        public_path = object_key
+        storage_key = object_key
     else:
         public_prefix = settings.storage_public_url_prefix.rstrip('/')
-        public_path = f'{public_prefix}/{user_id}/{stored_name}'
+        storage_key = f'{public_prefix}/{user_id}/{stored_name}'
 
     return StoredUpload(
-        public_path=public_path,
+        storage_key=storage_key,
         original_name=original_name,
         mime_type=mime_type,
         size_bytes=size_bytes,
@@ -140,20 +145,12 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
     )
 
 
-def media_url_for(public_path: str, request_base_url: str) -> str:
-    if settings.storage_backend == 's3':
-        return f'{settings.s3_public_base_url.rstrip("/")}/{public_path.lstrip("/")}'
-    base_url = settings.storage_public_base_url.strip()
-    if base_url:
-        return f'{base_url.rstrip("/")}{public_path}'
-    return public_path
+def private_media_url_for(object_id: UUID) -> str:
+    return f'/api/media/{object_id}'
 
 
-def avatar_url_for(public_path: str, request_base_url: str) -> str:
-    """Return an avatar URL that remains valid when the web and API hosts differ."""
-    if settings.storage_backend == 'local':
-        return public_path
-    return media_url_for(public_path, request_base_url)
+def public_avatar_url_for(object_id: UUID) -> str:
+    return f'/api/media/avatars/{object_id}'
 
 
 async def check_storage() -> bool:
@@ -191,6 +188,41 @@ async def delete_storage_object(storage_key: str) -> None:
         raise AuthError('File storage is temporarily unavailable') from exc
 
 
+def local_storage_path_for(storage_key: str) -> Path:
+    """Return a validated local storage path for a registered object key."""
+    if settings.storage_backend != 'local':
+        raise AuthError('Local storage is not configured')
+    return _local_path_for_storage_key(storage_key)
+
+
+async def get_s3_storage_object(storage_key: str) -> dict[str, object]:
+    """Open a private S3 object after the caller has authorized access to it."""
+    if settings.storage_backend != 's3':
+        raise AuthError('S3 storage is not configured')
+    _validate_s3_object_key(storage_key)
+    try:
+        return await asyncio.to_thread(
+            get_s3_client().get_object,
+            Bucket=settings.s3_bucket,
+            Key=storage_key,
+        )
+    except ClientError as exc:
+        error_code = str(exc.response.get('Error', {}).get('Code', ''))
+        if error_code in {'404', 'NoSuchKey', 'NotFound'}:
+            raise StorageObjectNotFoundError from exc
+        raise AuthError('File storage is temporarily unavailable') from exc
+    except BotoCoreError as exc:
+        raise AuthError('File storage is temporarily unavailable') from exc
+
+
+def stream_s3_body(body: BinaryIO) -> Iterator[bytes]:
+    try:
+        while chunk := body.read(CHUNK_SIZE):
+            yield chunk
+    finally:
+        body.close()
+
+
 async def _upload_to_s3(path: Path, object_key: str, mime_type: str) -> None:
     try:
         await asyncio.to_thread(
@@ -199,10 +231,9 @@ async def _upload_to_s3(path: Path, object_key: str, mime_type: str) -> None:
             settings.s3_bucket,
             object_key,
             ExtraArgs={
-                'ACL': 'public-read',
                 'ContentType': mime_type,
                 'ContentDisposition': 'inline',
-                'CacheControl': 'public, max-age=31536000, immutable',
+                'CacheControl': 'private, no-store',
             },
         )
     except (BotoCoreError, ClientError) as exc:

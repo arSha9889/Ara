@@ -49,8 +49,8 @@ class Settings(BaseSettings):
     password_hash_parallelism: int = Field(default=4, ge=1)
     upload_dir: str = 'storage/uploads'
     upload_max_size_bytes: int = Field(default=30 * 1024 * 1024, ge=1)
+    # This prefix remains part of legacy local storage keys, not a public HTTP route.
     storage_public_url_prefix: str = '/storage/uploads'
-    storage_public_base_url: str = ''
     storage_backend: Literal['local', 's3'] = 'local'
     s3_endpoint_url: str = ''
     s3_region: str = 'auto'
@@ -58,7 +58,6 @@ class Settings(BaseSettings):
     s3_access_key_id: str = ''
     s3_secret_access_key: str = ''
     s3_prefix: str = 'uploads'
-    s3_public_base_url: str = ''
     vapid_private_key: str = ''
     vapid_public_key: str = ''
     vapid_claims_email: str = ''
@@ -97,7 +96,6 @@ class Settings(BaseSettings):
                 'NEXUS_S3_BUCKET': self.s3_bucket,
                 'NEXUS_S3_ACCESS_KEY_ID': self.s3_access_key_id,
                 'NEXUS_S3_SECRET_ACCESS_KEY': self.s3_secret_access_key,
-                'NEXUS_S3_PUBLIC_BASE_URL': self.s3_public_base_url,
             }
             missing = [name for name, value in required_settings.items() if not value.strip()]
             if missing:

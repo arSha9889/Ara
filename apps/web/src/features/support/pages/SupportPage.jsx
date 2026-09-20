@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
-import { mediaUrlForBrowser } from '../../../shared/api/mediaUrl.js';
+import { useAuthenticatedMediaUrl } from '../../../shared/api/mediaUrl.js';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { EmptyState } from '../../../shared/ui/EmptyState.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
@@ -44,10 +44,11 @@ function attachmentPayload(upload) {
   };
 }
 
-function SupportAttachment({ message, language }) {
+function SupportAttachment({ message, language, accessToken }) {
+  const { url } = useAuthenticatedMediaUrl(message.attachment_url, accessToken);
   if (!message.attachment_url) return null;
   return (
-    <a className="support-attachment" href={mediaUrlForBrowser(message.attachment_url)} target="_blank" rel="noreferrer">
+    <a className="support-attachment" href={url || undefined} download={message.attachment_name || true} target="_blank" rel="noreferrer" aria-disabled={!url}>
       <Icon name="paperclip" size={16} />
       <span>{message.attachment_name || 'attachment'}</span>
       {typeof message.attachment_size_bytes === 'number' ? <small>{formatBytes(message.attachment_size_bytes, language)}</small> : null}
@@ -204,7 +205,7 @@ export function SupportPage() {
                     <article className={`support-message ${isMine ? 'mine' : 'theirs'}`} key={message.id}>
                       <div className="support-message-meta"><strong>{isMine ? t('support.you') : message.author?.display_name || t('support.team')}</strong><time dateTime={message.created_at}>{formatDate(message.created_at, language)}</time></div>
                       <p>{message.text}</p>
-                      <SupportAttachment message={message} language={language} />
+                      <SupportAttachment message={message} language={language} accessToken={session.accessToken} />
                     </article>
                   );
                 })}

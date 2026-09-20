@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import admin, auth, calls, chats, devices, notifications, safety, security, support, uploads, users
+from app.api.routes import admin, auth, calls, chats, devices, media, notifications, safety, security, support, uploads, users
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix='/auth', tags=['auth'])
@@ -14,3 +14,4 @@ api_router.include_router(chats.router, prefix='/chats', tags=['chats'])
 api_router.include_router(notifications.router, prefix='/notifications', tags=['notifications'])
 api_router.include_router(support.router, prefix='/support', tags=['support'])
 api_router.include_router(uploads.router, prefix='/uploads', tags=['uploads'])
+api_router.include_router(media.router, prefix='/media', tags=['media'])
