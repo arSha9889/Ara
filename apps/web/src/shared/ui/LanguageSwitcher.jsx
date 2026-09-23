@@ -3,15 +3,21 @@ import { createPortal } from 'react-dom';
 
 import { useI18n } from '../../app/providers/I18nProvider.jsx';
 import { Icon } from './Icon.jsx';
-import { getLanguageOption, LanguagePickerList } from './LanguagePicker.jsx';
+import { getLanguageOption, LanguagePickerList, PUBLIC_LANGUAGE_IDS } from './LanguagePicker.jsx';
 
-export function LanguageSwitcher({ onChange }) {
+export function LanguageSwitcher({ onChange, publicOnly = false }) {
   const { language, setLanguage, t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const wasOpenRef = useRef(false);
   const triggerRef = useRef(null);
   const searchRef = useRef(null);
-  const selectedLanguage = getLanguageOption(language);
+  const selectedLanguage = getLanguageOption(publicOnly && !PUBLIC_LANGUAGE_IDS.includes(language) ? 'ru' : language);
+
+  useEffect(() => {
+    if (publicOnly && !PUBLIC_LANGUAGE_IDS.includes(language)) {
+      setLanguage('ru');
+    }
+  }, [language, publicOnly, setLanguage]);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -20,12 +26,12 @@ export function LanguageSwitcher({ onChange }) {
 
     if (!isOpen) return undefined;
     document.addEventListener('keydown', handleKeyDown);
-    const focusTimer = window.setTimeout(() => searchRef.current?.focus(), 0);
+    const focusTimer = publicOnly ? null : window.setTimeout(() => searchRef.current?.focus(), 0);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      window.clearTimeout(focusTimer);
+      if (focusTimer) window.clearTimeout(focusTimer);
     };
-  }, [isOpen]);
+  }, [isOpen, publicOnly]);
 
   useEffect(() => {
     if (!isOpen && wasOpenRef.current) triggerRef.current?.focus();
@@ -73,7 +79,12 @@ export function LanguageSwitcher({ onChange }) {
               </div>
             </div>
             <button className="language-dialog-close" type="button" onClick={() => setIsOpen(false)} aria-label={t('common.close')}><Icon name="x" size={19} /></button>
-            <LanguagePickerList selectedLanguage={language} onSelect={handleChange} inputRef={searchRef} />
+            <LanguagePickerList
+              selectedLanguage={publicOnly && !PUBLIC_LANGUAGE_IDS.includes(language) ? 'ru' : language}
+              onSelect={handleChange}
+              inputRef={searchRef}
+              publicOnly={publicOnly}
+            />
           </section>
         </div>,
         document.body,

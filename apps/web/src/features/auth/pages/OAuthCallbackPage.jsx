@@ -5,6 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { completeOAuthLink, completeOAuthLogin } from '../api/authApi.js';
+import { PublicSiteHeader } from '../../onboarding/components/PublicSiteHeader.jsx';
 
 
 export function OAuthCallbackPage() {
@@ -44,5 +45,12 @@ export function OAuthCallbackPage() {
     complete();
   }, [navigate, saveSession, session.accessToken, t]);
 
-  return <main className="auth-page"><section className="panel auth-card"><h1>AraChat</h1><p className="muted">{message}</p><Link className="auth-switch-link" to="/login">{t('common.backToLogin')}</Link></section></main>;
+  return (
+    <main className="public-page public-auth-page">
+      <div className="public-shell">
+        <PublicSiteHeader minimal publicOnly={false} />
+        <section className="auth-page"><section className="panel auth-card"><h1>AraChat</h1><p className="muted">{message}</p><Link className="auth-switch-link" to="/login">{t('common.backToLogin')}</Link></section></section>
+      </div>
+    </main>
+  );
 }

@@ -7,6 +7,8 @@ import { OAuthCallbackPage } from '../features/auth/pages/OAuthCallbackPage.jsx'
 import { PasswordRecoveryPage } from '../features/auth/pages/PasswordRecoveryPage.jsx';
 import { RegisterPage } from '../features/auth/pages/RegisterPage.jsx';
 import { LandingPage } from '../features/onboarding/pages/LandingPage.jsx';
+import { NewsPage } from '../features/onboarding/pages/NewsPage.jsx';
+import { NewsArticlePage } from '../features/onboarding/pages/NewsArticlePage.jsx';
 import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx';
 import { PresentationPage } from '../features/onboarding/pages/PresentationPage.jsx';
 import { ChatPage } from '../features/chats/pages/ChatPage.jsx';
@@ -43,6 +45,8 @@ export function App() {
     <>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/news" element={<NewsPage />} />
+        <Route path="/news/:slug" element={<NewsArticlePage />} />
         <Route path="/presentation" element={<PresentationPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/region" element={<Navigate to="/register" replace />} />

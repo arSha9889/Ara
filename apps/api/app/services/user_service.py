@@ -83,7 +83,7 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
             raise AuthError('Unsupported language')
         profile.language = request.language
     if request.design_theme is not None:
-        if request.design_theme not in {'halo', 'orbit', 'aurora', 'liquid_glass'}:
+        if request.design_theme not in {'halo', 'comet', 'liquid_glass'}:
             raise AuthError('Unsupported design theme')
         profile.design_theme = request.design_theme
     try:

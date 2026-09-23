@@ -37,6 +37,14 @@ const CELEBRATION_REACTIONS = new Set(['❤️', '🔥', '🎉']);
 const VOICE_RECORDING_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4'];
 const VIDEO_RECORDING_MIME_TYPES = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4'];
 const CHAT_WALLPAPERS = ['default', 'grid', 'waves', 'aurora', 'paper', 'night'];
+const FOCUS_CANVAS_STORAGE_KEY = 'nexus_focus_canvas';
+
+function areMessagesGrouped(previousMessage, message) {
+  if (!previousMessage || previousMessage.sender_id !== message.sender_id) return false;
+  if (previousMessage.deleted_at || message.deleted_at || previousMessage.type === 'sticker' || message.type === 'sticker') return false;
+  if (!previousMessage.created_at || !message.created_at) return false;
+  return new Date(message.created_at).getTime() - new Date(previousMessage.created_at).getTime() <= 5 * 60 * 1000;
+}
 
 function appendUniqueMessage(messages, nextMessage) {
   if (messages.some((message) => message.id === nextMessage.id)) {
@@ -608,6 +616,7 @@ export function ChatPage() {
   const [isHidingChat, setIsHidingChat] = useState(false);
   const [isWallpaperDialogOpen, setIsWallpaperDialogOpen] = useState(false);
   const [isSavingWallpaper, setIsSavingWallpaper] = useState(false);
+  const [isFocusCanvas, setIsFocusCanvas] = useState(() => localStorage.getItem(FOCUS_CANVAS_STORAGE_KEY) === 'true');
   const [profileCardAuthor, setProfileCardAuthor] = useState(null);
   const [isOpeningProfileChat, setIsOpeningProfileChat] = useState(false);
   const [profileCardError, setProfileCardError] = useState('');
@@ -662,7 +671,16 @@ export function ChatPage() {
   const peerStatus = realtimeStatusView(isSavedChat ? false : chat?.peer?.is_online ?? 'connecting', chat?.peer?.last_seen_at, t, language);
   const chatDisplayTitle = isSavedChat ? t('chats.savedTitle') : isPublicBranch ? chat?.title || t('chats.branchTitle') : chat?.peer?.display_name || chat?.peer?.username || t('chats.directChat');
   const chatDisplaySubtitle = isSavedChat ? t('chats.savedHeaderSubtitle') : isPublicBranch ? chat?.description || t('chats.publicBranchSubtitle') : chat?.peer?.username ? `@${chat.peer.username}` : t('chats.directChat');
+  const canUseFocusCanvas = effectiveMode !== 'mobile';
   e2eeCryptoRef.current = { identity: e2eeIdentity, keys: e2eeChatKeys };
+
+  function toggleFocusCanvas() {
+    setIsFocusCanvas((current) => {
+      const nextValue = !current;
+      localStorage.setItem(FOCUS_CANVAS_STORAGE_KEY, String(nextValue));
+      return nextValue;
+    });
+  }
 
   async function decryptChatMessage(message, keys = e2eeChatKeys, identity = e2eeIdentity) {
     async function decryptOne(item) {
@@ -1764,7 +1782,7 @@ export function ChatPage() {
   }
 
   return (
-    <section className="chat-workspace">
+    <section className={`chat-workspace ${isFocusCanvas && canUseFocusCanvas ? 'is-focus-canvas' : ''}`}>
       <ChatWorkspaceSidebar activeChatId={chatId} />
       <section className={`panel chat-panel ${isHidingChat ? 'is-hiding' : ''}`}>
       <header className="chat-header">
@@ -1829,6 +1847,18 @@ export function ChatPage() {
         {isPublicBranch && !chat?.can_post ? (
           <button className="button button-secondary branch-header-subscribe" type="button" onClick={chat?.is_subscribed ? handleUnsubscribeFromBranch : handleSubscribeToBranch} disabled={isSubscribingToBranch}>
             {isSubscribingToBranch ? '…' : chat?.is_subscribed ? t('chats.unsubscribe') : t('chats.subscribe')}
+          </button>
+        ) : null}
+        {canUseFocusCanvas ? (
+          <button
+            className={`chat-focus-button ${isFocusCanvas ? 'active' : ''}`}
+            type="button"
+            onClick={toggleFocusCanvas}
+            aria-pressed={isFocusCanvas}
+            aria-label={isFocusCanvas ? t('settings.exitFocusCanvas') : t('settings.focusCanvas')}
+            title={isFocusCanvas ? t('settings.exitFocusCanvas') : t('settings.focusCanvas')}
+          >
+            <Icon name="focus" size={19} />
           </button>
         ) : null}
         {chat ? (
@@ -1937,12 +1967,12 @@ export function ChatPage() {
       ) : null}
       <div className={`message-list chat-wallpaper-${chat?.wallpaper_id || 'default'}`} ref={messageListRef}>
         {isLoadingMessages ? <AraChatLoader compact title={t('messages.openingTitle')} text={t('messages.openingText')} /> : null}
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <article
             id={`message-${message.id}`}
             data-message-id={message.id}
             data-incoming-message={message.sender_id !== session.user?.id}
-            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${message.type === 'sticker' ? 'sticker-message' : ''} ${message.encryption_state === 'e2ee_web_v1' ? 'e2ee' : ''} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
+            className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${areMessagesGrouped(messages[index - 1], message) ? 'grouped-with-previous' : ''} ${areMessagesGrouped(message, messages[index + 1]) ? 'grouped-with-next' : ''} ${message.type === 'sticker' ? 'sticker-message' : ''} ${message.encryption_state === 'e2ee_web_v1' ? 'e2ee' : ''} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
             key={message.id}
             role={!message.deleted_at ? 'button' : undefined}
             tabIndex={!message.deleted_at ? 0 : undefined}

@@ -11,6 +11,7 @@ class AppConfigPackage : BaseReactPackage() {
     when (name) {
       AppConfigModule.NAME -> AppConfigModule(reactContext)
       CallAudioModule.NAME -> CallAudioModule(reactContext)
+      MediaModule.NAME -> MediaModule(reactContext)
       PushModule.NAME -> PushModule(reactContext)
       else -> null
     }
@@ -31,6 +32,15 @@ class AppConfigPackage : BaseReactPackage() {
           ReactModuleInfo(
             name = CallAudioModule.NAME,
             className = CallAudioModule::class.java.name,
+            canOverrideExistingModule = false,
+            needsEagerInit = false,
+            isCxxModule = false,
+            isTurboModule = false,
+          ),
+        MediaModule.NAME to
+          ReactModuleInfo(
+            name = MediaModule.NAME,
+            className = MediaModule::class.java.name,
             canOverrideExistingModule = false,
             needsEagerInit = false,
             isCxxModule = false,

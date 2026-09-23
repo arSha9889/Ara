@@ -25,6 +25,9 @@ const ICON_PATHS = {
   tablet: <><rect x="6.5" y="3" width="11" height="18" rx="2" /><path d="M11 18h2" /></>,
   smartphone: <><rect x="7.5" y="2.5" width="9" height="19" rx="2" /><path d="M11 18.5h2" /></>,
   layoutAuto: <><rect x="3.5" y="4" width="17" height="12.5" rx="2" /><path d="M8.5 20h7M12 16.5V20M7.5 8h9M7.5 11h5" /><path d="m16.5 7.5 1.5 1.5-1.5 1.5" /></>,
+  layoutComfortable: <><path d="M5 6h14M5 12h14M5 18h14" /><path d="M3 4h18v4H3zM3 10h18v4H3zM3 16h18v4H3z" /></>,
+  layoutCompact: <><path d="M5 8h14M5 12h14M5 16h14" /><path d="M3 6h18v3H3zM3 10.5h18v3H3zM3 15h18v3H3z" /></>,
+  focus: <><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" /><path d="M8 12h8" /></>,
   palette: <><path d="M12 3a9 9 0 1 0 0 18h1.2a1.8 1.8 0 0 0 1.6-2.63l-.25-.5a1.8 1.8 0 0 1 1.6-2.62H17A4 4 0 0 0 21 11.3C20.5 6.5 16.7 3 12 3Z" /><path d="M7.5 11h.01M9.5 7.5h.01M14.5 7.5h.01M17 11h.01" /></>,
   globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.3 2.5 3.5 5.5 3.5 9s-1.2 6.5-3.5 9c-2.3-2.5-3.5-5.5-3.5-9S9.7 5.5 12 3Z" /></>,
   shield: <><path d="M12 3.5 19 6v5.2c0 4.5-2.7 7.6-7 9.3-4.3-1.7-7-4.8-7-9.3V6l7-2.5Z" /><path d="m9 12 2 2 4-4" /></>,
@@ -40,6 +43,7 @@ const ICON_PATHS = {
   sparkles: <><path d="m12 3 .8 4.2L17 8l-4.2.8L12 13l-.8-4.2L7 8l4.2-.8L12 3ZM18.5 14l.45 2.05L21 16.5l-2.05.45L18.5 19l-.45-2.05L16 16.5l2.05-.45L18.5 14ZM5.5 14l.45 2.05L8 16.5l-2.05.45L5.5 19l-.45-2.05L3 16.5l2.05-.45L5.5 14Z" /></>,
   bookmark: <path d="M7 4.5A1.5 1.5 0 0 1 8.5 3h7A1.5 1.5 0 0 1 17 4.5V21l-5-3-5 3V4.5Z" />,
   bell: <><path d="M18 10a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 22h4" /></>,
+  youtube: <><rect x="3" y="5.5" width="18" height="13" rx="4" /><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none" /></>,
   menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
 };
 

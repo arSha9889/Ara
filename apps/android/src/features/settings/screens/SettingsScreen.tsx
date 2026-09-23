@@ -6,6 +6,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useSession } from '../../auth/session/useSession';
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
+import { clearPrivateChatMediaCache } from '../../chats/media/mediaClient';
 import { useI18n } from '../../../localization/I18nProvider';
 import { LanguageSwitcher } from '../../../localization/LanguageSwitcher';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
@@ -65,7 +66,10 @@ export function SettingsScreen() {
   async function removeAccount(): Promise<void> {
     try {
       await deleteAccount();
-      await sessionStore.clearSession();
+      await Promise.all([
+        clearPrivateChatMediaCache(),
+        sessionStore.clearSession(),
+      ]);
     } catch {
       Alert.alert(t('deleteAccountError'));
     }

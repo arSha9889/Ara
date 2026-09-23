@@ -142,13 +142,13 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
                 first_user.id,
                 ProfileUpdateRequest(
                     language='en',
-                    design_theme='aurora',
+                    design_theme='comet',
                     optional_phone='+7 (999) 000-00-01',
                     phone_public=True,
                 ),
             )
             assert updated_user.profile.language == 'en'
-            assert updated_user.profile.design_theme == 'aurora'
+            assert updated_user.profile.design_theme == 'comet'
             assert updated_user.profile.optional_phone == '+79990000001'
             assert updated_user.profile.phone_public is True
 

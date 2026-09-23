@@ -6,15 +6,13 @@ import { themes } from '../config/themes.js';
 
 const themeIcons = {
   halo: '✦',
-  orbit: '◐',
-  aurora: '✺',
+  comet: '☄',
   liquid_glass: '◇',
 };
 
 const themeCodes = {
   halo: 'HL',
-  orbit: 'OR',
-  aurora: 'AU',
+  comet: 'CM',
   liquid_glass: 'LG',
 };
 

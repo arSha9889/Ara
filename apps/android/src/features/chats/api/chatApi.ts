@@ -1,5 +1,26 @@
 import { apiClient } from '../../../infrastructure/http/apiClient';
 
+export interface ChatAttachmentUpload {
+  uri: string;
+  name: string;
+  mimeType: string;
+}
+
+export interface UploadedChatAttachment {
+  media_url: string;
+  media_name: string;
+  media_mime_type: string;
+  media_size_bytes: number;
+  suggested_message_type: string;
+}
+
+export type ChatAttachmentMessageType = 'photo' | 'video' | 'voice' | 'video_note' | 'file';
+
+export interface MediaMessageOptions {
+  durationSeconds?: number;
+  type?: 'voice' | 'video_note';
+}
+
 export interface ChatPeer {
   id: string;
   display_name: string;
@@ -103,6 +124,62 @@ export function sendTextMessage(
   return apiClient.request<ChatMessage>(`/api/chats/${chatId}/messages`, {
     method: 'POST',
     body: { text: text.trim(), type: 'text' },
+  });
+}
+
+export async function uploadChatAttachment(
+  attachment: ChatAttachmentUpload,
+): Promise<UploadedChatAttachment> {
+  const formData = new FormData();
+  formData.append(
+    'file',
+    {
+      uri: attachment.uri,
+      name: attachment.name,
+      type: attachment.mimeType,
+    } as unknown as Blob,
+  );
+
+  return apiClient.requestMultipart<UploadedChatAttachment>('/api/uploads', {
+    method: 'POST',
+    formData,
+  });
+}
+
+export function sendMediaMessage(
+  chatId: string,
+  upload: UploadedChatAttachment,
+  text = '',
+  options: MediaMessageOptions = {},
+): Promise<ChatMessage> {
+  const type: ChatAttachmentMessageType =
+    options.type ??
+    (upload.suggested_message_type === 'photo' || upload.suggested_message_type === 'video'
+      ? upload.suggested_message_type
+      : 'file');
+  const requiresDuration = type === 'voice' || type === 'video_note';
+  const durationSeconds = options.durationSeconds;
+  if (
+    (requiresDuration &&
+      (typeof durationSeconds !== 'number' ||
+        !Number.isInteger(durationSeconds) ||
+        durationSeconds <= 0)) ||
+    (!requiresDuration && durationSeconds !== undefined)
+  ) {
+    throw new Error('Для этого типа вложения указана некорректная длительность.');
+  }
+
+  return apiClient.request<ChatMessage>(`/api/chats/${chatId}/messages`, {
+    method: 'POST',
+    body: {
+      text: text.trim(),
+      type,
+      media_url: upload.media_url,
+      media_name: upload.media_name,
+      media_mime_type: upload.media_mime_type,
+      media_size_bytes: upload.media_size_bytes,
+      ...(requiresDuration ? { duration_seconds: durationSeconds } : {}),
+    },
   });
 }
 

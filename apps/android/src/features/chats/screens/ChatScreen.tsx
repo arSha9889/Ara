@@ -8,8 +8,10 @@ import {
   Animated,
   AppState,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
+  PermissionsAndroid,
   Platform,
   Pressable,
   StyleSheet,
@@ -26,12 +28,33 @@ import {
   editTextMessage,
   getMessages,
   markMessagesRead,
+  sendMediaMessage,
   sendTextMessage,
   toggleMessageReaction,
+  uploadChatAttachment,
   type ChatMessage,
 } from '../api/chatApi';
+import {
+  ChatFileAttachment,
+  ChatPhotoAttachment,
+  ChatVideoAttachment,
+  ChatVideoNoteAttachment,
+  ChatVoiceAttachment,
+} from '../components/ChatAttachmentContent';
+import {
+  cancelChatVoiceRecording,
+  discardChatAttachmentDraft,
+  pickChatDocument,
+  pickChatPhoto,
+  pickChatVideo,
+  recordChatVideoNote,
+  startChatVoiceRecording,
+  stopChatVoiceRecording,
+  type PickedChatAttachment,
+} from '../media/mediaClient';
 import { mergeChatMessages, upsertChatMessage } from '../messageState';
 import { useI18n } from '../../../localization/I18nProvider';
+import type { TranslationKey } from '../../../localization/messages';
 import { useDirectCall } from '../../calls/DirectCallProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
@@ -61,6 +84,11 @@ interface PeerPresence {
   lastSeenAt: string | null;
 }
 
+interface PhotoViewerState {
+  name: string;
+  uri: string;
+}
+
 export function ChatScreen({ navigation, route }: Props) {
   const { language, t } = useI18n();
   const { session } = useSession();
@@ -70,6 +98,10 @@ export function ChatScreen({ navigation, route }: Props) {
   const typingExpiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingRefreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasSentTypingRef = useRef(false);
+  const selectedAttachmentRef = useRef<PickedChatAttachment | null>(null);
+  const isVoiceRecordingRef = useRef(false);
+  const voiceRecordingStartedAt = useRef<number | null>(null);
+  const voiceRecordingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusOpacity = useRef(new Animated.Value(1)).current;
   const statusTranslateY = useRef(new Animated.Value(0)).current;
   const typingDotValues = useRef([
@@ -82,6 +114,15 @@ export function ChatScreen({ navigation, route }: Props) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isPickingAttachment, setIsPickingAttachment] = useState(false);
+  const [isAttachmentPickerVisible, setIsAttachmentPickerVisible] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [isStoppingVoiceRecording, setIsStoppingVoiceRecording] = useState(false);
+  const [voiceRecordingSeconds, setVoiceRecordingSeconds] = useState(0);
+  const [selectedAttachment, setSelectedAttachment] =
+    useState<PickedChatAttachment | null>(null);
+  const [attachmentError, setAttachmentError] = useState('');
+  const [photoViewer, setPhotoViewer] = useState<PhotoViewerState | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [editText, setEditText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -95,6 +136,27 @@ export function ChatScreen({ navigation, route }: Props) {
   }));
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+
+  const clearVoiceRecordingState = useCallback((): void => {
+    if (voiceRecordingTimer.current) {
+      clearInterval(voiceRecordingTimer.current);
+      voiceRecordingTimer.current = null;
+    }
+    isVoiceRecordingRef.current = false;
+    voiceRecordingStartedAt.current = null;
+    setIsVoiceRecording(false);
+    setIsStoppingVoiceRecording(false);
+    setVoiceRecordingSeconds(0);
+  }, []);
+
+  const cancelActiveVoiceRecording = useCallback(async (): Promise<void> => {
+    if (!isVoiceRecordingRef.current) {
+      return;
+    }
+
+    clearVoiceRecordingState();
+    await cancelChatVoiceRecording();
+  }, [clearVoiceRecordingState]);
 
   const stopTyping = useCallback((): void => {
     if (typingRefreshTimer.current) {
@@ -253,16 +315,41 @@ export function ChatScreen({ navigation, route }: Props) {
     const subscription = AppState.addEventListener('change', nextState => {
       if (nextState !== 'active') {
         stopTyping();
+        cancelActiveVoiceRecording().catch(() => undefined);
       }
     });
 
     return () => subscription.remove();
-  }, [stopTyping]);
+  }, [cancelActiveVoiceRecording, stopTyping]);
 
   useEffect(() => () => {
     stopTyping();
     updatePeerTyping(false);
   }, [stopTyping, updatePeerTyping]);
+
+  useEffect(
+    () => () => {
+      if (voiceRecordingTimer.current) {
+        clearInterval(voiceRecordingTimer.current);
+        voiceRecordingTimer.current = null;
+      }
+      if (isVoiceRecordingRef.current) {
+        isVoiceRecordingRef.current = false;
+        cancelChatVoiceRecording().catch(() => undefined);
+      }
+    },
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      const attachment = selectedAttachmentRef.current;
+      if (attachment) {
+        discardChatAttachmentDraft(attachment.uri).catch(() => undefined);
+      }
+    },
+    [],
+  );
 
   const loadMessages = useCallback(
     async ({ showLoading = true }: { showLoading?: boolean } = {}) => {
@@ -426,6 +513,11 @@ export function ChatScreen({ navigation, route }: Props) {
   ]);
 
   async function handleSend(): Promise<void> {
+    if (selectedAttachment) {
+      await handleAttachmentSend();
+      return;
+    }
+
     const messageText = text.trim();
 
     if (!messageText || isSending) {
@@ -444,6 +536,145 @@ export function ChatScreen({ navigation, route }: Props) {
       );
     } catch (nextError) {
       setError(t(authErrorKey(nextError)));
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  async function selectAttachment(
+    picker: () => Promise<PickedChatAttachment | null>,
+    errorKey: TranslationKey = 'attachmentPickError',
+  ): Promise<void> {
+    if (isPickingAttachment || isSending) {
+      return;
+    }
+
+    setAttachmentError('');
+    setIsPickingAttachment(true);
+    try {
+      const attachment = await picker();
+      if (!attachment) {
+        return;
+      }
+
+      saveSelectedAttachment(attachment);
+    } catch {
+      setAttachmentError(t(errorKey));
+    } finally {
+      setIsPickingAttachment(false);
+      setIsAttachmentPickerVisible(false);
+    }
+  }
+
+  function saveSelectedAttachment(attachment: PickedChatAttachment): void {
+    const previousAttachment = selectedAttachmentRef.current;
+    selectedAttachmentRef.current = attachment;
+    setSelectedAttachment(attachment);
+    if (previousAttachment) {
+      discardChatAttachmentDraft(previousAttachment.uri).catch(() => undefined);
+    }
+  }
+
+  async function startVoiceRecording(): Promise<void> {
+    if (isPickingAttachment || isSending || isVoiceRecording) {
+      return;
+    }
+
+    setAttachmentError('');
+    setIsPickingAttachment(true);
+    try {
+      if (Platform.OS === 'android') {
+        const permission = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        );
+        if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
+          setAttachmentError(t('voicePermissionDenied'));
+          return;
+        }
+      }
+
+      await startChatVoiceRecording();
+      const startedAt = Date.now();
+      voiceRecordingStartedAt.current = startedAt;
+      isVoiceRecordingRef.current = true;
+      setVoiceRecordingSeconds(0);
+      setIsVoiceRecording(true);
+      voiceRecordingTimer.current = setInterval(() => {
+        const activeStartedAt = voiceRecordingStartedAt.current;
+        if (activeStartedAt !== null) {
+          setVoiceRecordingSeconds(
+            Math.max(0, Math.round((Date.now() - activeStartedAt) / 1_000)),
+          );
+        }
+      }, 500);
+    } catch {
+      clearVoiceRecordingState();
+      setAttachmentError(t('voiceRecordStartError'));
+    } finally {
+      setIsPickingAttachment(false);
+      setIsAttachmentPickerVisible(false);
+    }
+  }
+
+  async function stopVoiceRecording(): Promise<void> {
+    if (!isVoiceRecordingRef.current || isStoppingVoiceRecording) {
+      return;
+    }
+
+    setIsStoppingVoiceRecording(true);
+    try {
+      const attachment = await stopChatVoiceRecording();
+      clearVoiceRecordingState();
+      saveSelectedAttachment(attachment);
+    } catch {
+      clearVoiceRecordingState();
+      setAttachmentError(t('voiceRecordStopError'));
+    }
+  }
+
+  function removeSelectedAttachment(): void {
+    const attachment = selectedAttachmentRef.current;
+    selectedAttachmentRef.current = null;
+    setSelectedAttachment(null);
+    setAttachmentError('');
+    if (attachment) {
+      discardChatAttachmentDraft(attachment.uri).catch(() => undefined);
+    }
+  }
+
+  async function handleAttachmentSend(): Promise<void> {
+    const attachment = selectedAttachmentRef.current;
+    if (!attachment || isSending) {
+      return;
+    }
+
+    setError('');
+    setAttachmentError('');
+    setIsSending(true);
+    stopTyping();
+    try {
+      const upload = await uploadChatAttachment(attachment);
+      const message = await sendMediaMessage(
+        route.params.chatId,
+        upload,
+        text,
+        attachment.messageType
+          ? {
+              durationSeconds: attachment.durationSeconds,
+              type: attachment.messageType,
+            }
+          : undefined,
+      );
+      setMessages(current => upsertChatMessage(current, message));
+      selectedAttachmentRef.current = null;
+      setSelectedAttachment(null);
+      setText('');
+      discardChatAttachmentDraft(attachment.uri).catch(() => undefined);
+      requestAnimationFrame(() =>
+        messageList.current?.scrollToEnd({ animated: true }),
+      );
+    } catch (nextError) {
+      setAttachmentError(t(authErrorKey(nextError)));
     } finally {
       setIsSending(false);
     }
@@ -597,6 +828,14 @@ export function ChatScreen({ navigation, route }: Props) {
     const messageText = item.deleted_at ? t('messageDeleted') : item.payload;
     const reactions = item.reactions ?? [];
     const delivery = isOwn ? deliveryPresentation(item.delivery_status, t) : null;
+    const isPhoto = !item.deleted_at && item.type === 'photo' && Boolean(item.media_url);
+    const isVideo = !item.deleted_at && item.type === 'video' && Boolean(item.media_url);
+    const isFile = !item.deleted_at && item.type === 'file' && Boolean(item.media_url);
+    const isVoice = !item.deleted_at && item.type === 'voice' && Boolean(item.media_url);
+    const isVideoNote =
+      !item.deleted_at && item.type === 'video_note' && Boolean(item.media_url);
+    const messageAccessibilityLabel =
+      messageText || (isVoice ? t('chatVoice') : isVideoNote ? t('chatVideoNote') : t('chatsAttachment'));
 
     return (
       <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
@@ -605,7 +844,7 @@ export function ChatScreen({ navigation, route }: Props) {
             accessibilityHint={
               !item.deleted_at ? t('messageActions') : undefined
             }
-            accessibilityLabel={messageText}
+            accessibilityLabel={messageAccessibilityLabel}
             accessibilityRole={!item.deleted_at ? 'button' : undefined}
             delayLongPress={350}
             disabled={Boolean(item.deleted_at)}
@@ -616,14 +855,56 @@ export function ChatScreen({ navigation, route }: Props) {
               pressed && !item.deleted_at && styles.messageBubblePressed,
             ]}
           >
-            <Text
-              style={[
-                styles.messageText,
-                item.deleted_at && styles.deletedMessageText,
-              ]}
-            >
-              {messageText}
-            </Text>
+            {isPhoto && item.media_url ? (
+              <ChatPhotoAttachment
+                mediaName={item.media_name}
+                mediaUrl={item.media_url}
+                mimeType={item.media_mime_type}
+                onOpen={(uri, name) => setPhotoViewer({ uri, name })}
+              />
+            ) : null}
+            {isFile && item.media_url ? (
+              <ChatFileAttachment
+                mediaName={item.media_name}
+                mediaSizeBytes={item.media_size_bytes}
+                mediaUrl={item.media_url}
+                mimeType={item.media_mime_type}
+              />
+            ) : null}
+            {isVideo && item.media_url ? (
+              <ChatVideoAttachment
+                mediaName={item.media_name}
+                mediaSizeBytes={item.media_size_bytes}
+                mediaUrl={item.media_url}
+                mimeType={item.media_mime_type}
+              />
+            ) : null}
+            {isVoice && item.media_url ? (
+              <ChatVoiceAttachment
+                durationSeconds={item.duration_seconds}
+                mediaUrl={item.media_url}
+                mimeType={item.media_mime_type}
+              />
+            ) : null}
+            {isVideoNote && item.media_url ? (
+              <ChatVideoNoteAttachment
+                durationSeconds={item.duration_seconds}
+                mediaUrl={item.media_url}
+                mimeType={item.media_mime_type}
+              />
+            ) : null}
+            {messageText ? (
+              <Text
+                style={[
+                  styles.messageText,
+                  (isPhoto || isVideo || isFile || isVoice || isVideoNote) &&
+                    styles.messageAttachmentCaption,
+                  item.deleted_at && styles.deletedMessageText,
+                ]}
+              >
+                {messageText}
+              </Text>
+            ) : null}
             <View style={styles.messageMeta}>
               {item.edited_at ? (
                 <Text
@@ -691,6 +972,18 @@ export function ChatScreen({ navigation, route }: Props) {
       </View>
     );
   }
+
+  const selectedAttachmentTypeLabel = selectedAttachment
+    ? selectedAttachment.messageType === 'voice'
+      ? t('chatVoice')
+      : selectedAttachment.messageType === 'video_note'
+        ? t('chatVideoNote')
+        : selectedAttachment.mimeType.startsWith('image/')
+          ? t('chatPhoto')
+          : selectedAttachment.mimeType.startsWith('video/')
+            ? t('chatVideo')
+            : t('chatFile')
+    : '';
 
   return (
     <KeyboardAvoidingView
@@ -825,7 +1118,125 @@ export function ChatScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        <View style={[sharedStyles.glassPanel, styles.composer]}>
+        {selectedAttachment ? (
+          <View style={[sharedStyles.glassCard, styles.attachmentDraft]}>
+            {selectedAttachment.mimeType.startsWith('image/') ? (
+              <Image source={{ uri: selectedAttachment.uri }} style={styles.attachmentDraftPreview} />
+            ) : (
+              <View style={styles.attachmentDraftFileIcon}>
+                <Icon
+                  color={colors.primary}
+                  name={
+                    selectedAttachment.messageType === 'voice'
+                      ? 'microphone'
+                      : selectedAttachment.mimeType.startsWith('video/')
+                        ? 'video'
+                        : 'file'
+                  }
+                  size={23}
+                />
+              </View>
+            )}
+            <View style={styles.attachmentDraftDetails}>
+              <Text numberOfLines={1} style={styles.attachmentDraftName}>
+                {selectedAttachment.name}
+              </Text>
+              <Text style={styles.attachmentDraftMeta}>
+                {selectedAttachmentTypeLabel}
+                {selectedAttachment.durationSeconds
+                  ? ` · ${formatDuration(selectedAttachment.durationSeconds)}`
+                  : ''}
+                {' · '}
+                {formatAttachmentSize(selectedAttachment.sizeBytes)}
+              </Text>
+              {isSending ? (
+                <View style={styles.attachmentUploading}>
+                  <ActivityIndicator color={colors.primary} size="small" />
+                  <Text style={styles.attachmentUploadingLabel}>
+                    {t('attachmentUploading')}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <IconButton
+              accessibilityLabel={t('removeAttachment')}
+              disabled={isSending}
+              icon="close"
+              onPress={removeSelectedAttachment}
+              size={40}
+            />
+          </View>
+        ) : null}
+
+        {attachmentError ? (
+          <View accessibilityRole="alert" style={styles.attachmentError}>
+            <Text style={styles.attachmentErrorText}>{attachmentError}</Text>
+          </View>
+        ) : null}
+
+        {isVoiceRecording ? (
+          <View style={[sharedStyles.glassPanel, styles.voiceRecordingComposer]}>
+            <Pressable
+              accessibilityLabel={t('cancelVoiceRecording')}
+              accessibilityRole="button"
+              disabled={isStoppingVoiceRecording}
+              onPress={() => {
+                cancelActiveVoiceRecording().catch(() => undefined);
+              }}
+              style={({ pressed }) => [
+                styles.voiceRecordingCancelButton,
+                pressed && !isStoppingVoiceRecording && styles.attachmentButtonPressed,
+              ]}
+            >
+              <Icon color={colors.danger} name="close" size={22} />
+            </Pressable>
+            <View style={styles.voiceRecordingDetails}>
+              <Text numberOfLines={1} style={styles.voiceRecordingTitle}>
+                {t('voiceRecording')}
+              </Text>
+              <Text style={styles.voiceRecordingDuration}>
+                {formatDuration(voiceRecordingSeconds)}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityLabel={t('stopVoiceRecording')}
+              accessibilityRole="button"
+              disabled={isStoppingVoiceRecording}
+              onPress={() => {
+                stopVoiceRecording().catch(() => undefined);
+              }}
+              style={({ pressed }) => [
+                styles.voiceRecordingStopButton,
+                isStoppingVoiceRecording && styles.voiceRecordingStopButtonDisabled,
+                pressed && !isStoppingVoiceRecording && styles.voiceRecordingStopButtonPressed,
+              ]}
+            >
+              {isStoppingVoiceRecording ? (
+                <ActivityIndicator color={colors.canvas} size="small" />
+              ) : (
+                <Icon color={colors.canvas} name="stop" size={19} />
+              )}
+            </Pressable>
+          </View>
+        ) : (
+          <View style={[sharedStyles.glassPanel, styles.composer]}>
+          <Pressable
+            accessibilityLabel={t('addAttachment')}
+            accessibilityRole="button"
+            disabled={isSending || isPickingAttachment}
+            onPress={() => setIsAttachmentPickerVisible(true)}
+            style={({ pressed }) => [
+              styles.attachmentButton,
+              (isSending || isPickingAttachment) && styles.attachmentButtonDisabled,
+              pressed && !isSending && !isPickingAttachment && styles.attachmentButtonPressed,
+            ]}
+          >
+            {isPickingAttachment ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <Icon color={colors.primary} name="compose" size={21} />
+            )}
+          </Pressable>
           <TextInput
             accessibilityLabel={t('messageInputPlaceholder')}
             editable={!isSending}
@@ -851,22 +1262,29 @@ export function ChatScreen({ navigation, route }: Props) {
           />
           <Pressable
             accessibilityLabel={
-              isSending ? t('sendingMessage') : t('sendMessage')
+              isSending
+                ? selectedAttachment
+                  ? t('attachmentUploading')
+                  : t('sendingMessage')
+                : selectedAttachment
+                  ? t('sendAttachment')
+                  : t('sendMessage')
             }
             accessibilityRole="button"
-            disabled={!text.trim() || isSending}
+            disabled={(!text.trim() && !selectedAttachment) || isSending}
             onPress={() => {
               handleSend().catch(() => undefined);
             }}
             style={({ pressed }) => [
               styles.sendButton,
-              (!text.trim() || isSending) && styles.sendButtonDisabled,
-              pressed && text.trim() && !isSending && styles.sendButtonPressed,
+              ((!text.trim() && !selectedAttachment) || isSending) && styles.sendButtonDisabled,
+              pressed && (text.trim() || selectedAttachment) && !isSending && styles.sendButtonPressed,
             ]}
           >
             {isSending ? <ActivityIndicator color={colors.canvas} size="small" /> : <Icon color={colors.canvas} name="send" size={20} />}
           </Pressable>
         </View>
+        )}
       </AppScreen>
 
       <Modal
@@ -1046,6 +1464,179 @@ export function ChatScreen({ navigation, route }: Props) {
       </Modal>
       <Modal
         animationType="slide"
+        onRequestClose={() => setIsAttachmentPickerVisible(false)}
+        transparent
+        visible={isAttachmentPickerVisible}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable
+            accessibilityLabel={t('closeAttachmentPicker')}
+            accessibilityRole="button"
+            disabled={isPickingAttachment}
+            onPress={() => setIsAttachmentPickerVisible(false)}
+            style={styles.sheetBackdrop}
+          />
+          <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.attachmentSheet]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>{t('addAttachment')}</Text>
+            <Text style={styles.attachmentSheetDescription}>
+              {t('attachmentPickerDescription')}
+            </Text>
+            <Pressable
+              accessibilityHint={t('attachmentPhotoHint')}
+              accessibilityRole="button"
+              disabled={isPickingAttachment}
+              onPress={() => {
+                selectAttachment(pickChatPhoto).catch(() => undefined);
+              }}
+              style={({ pressed }) => [
+                styles.attachmentPickerOption,
+                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
+              ]}
+            >
+              <View style={styles.attachmentPickerIcon}>
+                <Icon color={colors.primary} name="photo" size={23} />
+              </View>
+              <View style={styles.attachmentPickerCopy}>
+                <Text style={styles.attachmentPickerTitle}>{t('attachmentPhoto')}</Text>
+                <Text style={styles.attachmentPickerDescription}>
+                  {t('attachmentPhotoDescription')}
+                </Text>
+              </View>
+              <Icon color={colors.textFaint} name="chevronRight" size={21} />
+            </Pressable>
+            <Pressable
+              accessibilityHint={t('attachmentVideoHint')}
+              accessibilityRole="button"
+              disabled={isPickingAttachment}
+              onPress={() => {
+                selectAttachment(pickChatVideo).catch(() => undefined);
+              }}
+              style={({ pressed }) => [
+                styles.attachmentPickerOption,
+                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
+              ]}
+            >
+              <View style={styles.attachmentPickerIcon}>
+                <Icon color={colors.primary} name="video" size={23} />
+              </View>
+              <View style={styles.attachmentPickerCopy}>
+                <Text style={styles.attachmentPickerTitle}>{t('attachmentVideo')}</Text>
+                <Text style={styles.attachmentPickerDescription}>
+                  {t('attachmentVideoDescription')}
+                </Text>
+              </View>
+              <Icon color={colors.textFaint} name="chevronRight" size={21} />
+            </Pressable>
+            <Pressable
+              accessibilityHint={t('attachmentVoiceHint')}
+              accessibilityRole="button"
+              disabled={isPickingAttachment}
+              onPress={() => {
+                startVoiceRecording().catch(() => undefined);
+              }}
+              style={({ pressed }) => [
+                styles.attachmentPickerOption,
+                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
+              ]}
+            >
+              <View style={styles.attachmentPickerIcon}>
+                <Icon color={colors.primary} name="microphone" size={23} />
+              </View>
+              <View style={styles.attachmentPickerCopy}>
+                <Text style={styles.attachmentPickerTitle}>{t('attachmentVoice')}</Text>
+                <Text style={styles.attachmentPickerDescription}>
+                  {t('attachmentVoiceDescription')}
+                </Text>
+              </View>
+              <Icon color={colors.textFaint} name="chevronRight" size={21} />
+            </Pressable>
+            <Pressable
+              accessibilityHint={t('attachmentVideoNoteHint')}
+              accessibilityRole="button"
+              disabled={isPickingAttachment}
+              onPress={() => {
+                selectAttachment(recordChatVideoNote, 'videoNoteRecordError').catch(() => undefined);
+              }}
+              style={({ pressed }) => [
+                styles.attachmentPickerOption,
+                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
+              ]}
+            >
+              <View style={styles.attachmentPickerIcon}>
+                <Icon color={colors.primary} name="video" size={23} />
+              </View>
+              <View style={styles.attachmentPickerCopy}>
+                <Text style={styles.attachmentPickerTitle}>{t('attachmentVideoNote')}</Text>
+                <Text style={styles.attachmentPickerDescription}>
+                  {t('attachmentVideoNoteDescription')}
+                </Text>
+              </View>
+              <Icon color={colors.textFaint} name="chevronRight" size={21} />
+            </Pressable>
+            <Pressable
+              accessibilityHint={t('attachmentFileHint')}
+              accessibilityRole="button"
+              disabled={isPickingAttachment}
+              onPress={() => {
+                selectAttachment(pickChatDocument).catch(() => undefined);
+              }}
+              style={({ pressed }) => [
+                styles.attachmentPickerOption,
+                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
+              ]}
+            >
+              <View style={styles.attachmentPickerIcon}>
+                <Icon color={colors.primary} name="file" size={23} />
+              </View>
+              <View style={styles.attachmentPickerCopy}>
+                <Text style={styles.attachmentPickerTitle}>{t('attachmentFile')}</Text>
+                <Text style={styles.attachmentPickerDescription}>
+                  {t('attachmentFileDescription')}
+                </Text>
+              </View>
+              <Icon color={colors.textFaint} name="chevronRight" size={21} />
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setPhotoViewer(null)}
+        transparent
+        visible={Boolean(photoViewer)}
+      >
+        <View style={styles.photoViewer}>
+          <Pressable
+            accessibilityLabel={t('closePhotoViewer')}
+            accessibilityRole="button"
+            onPress={() => setPhotoViewer(null)}
+            style={styles.photoViewerBackdrop}
+          />
+          {photoViewer ? (
+            <View style={styles.photoViewerContent}>
+              <Image
+                accessibilityLabel={photoViewer.name}
+                resizeMode="contain"
+                source={{ uri: photoViewer.uri }}
+                style={styles.photoViewerImage}
+              />
+              <View style={styles.photoViewerHeader}>
+                <Text numberOfLines={1} style={styles.photoViewerName}>
+                  {photoViewer.name}
+                </Text>
+                <IconButton
+                  accessibilityLabel={t('closePhotoViewer')}
+                  icon="close"
+                  onPress={() => setPhotoViewer(null)}
+                />
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
         onRequestClose={() => setIsSafetyActionsVisible(false)}
         transparent
         visible={isSafetyActionsVisible}
@@ -1108,6 +1699,19 @@ function formatMessageTime(value: string, language: 'ru' | 'en'): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function formatAttachmentSize(value: number): string {
+  if (value < 1024 * 1024) {
+    return `${Math.max(1, Math.round(value / 1024))} KB`;
+  }
+  return `${(value / (1024 * 1024)).toFixed(value >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+function formatDuration(value: number): string {
+  const totalSeconds = Math.max(0, Math.round(value));
+  const minutes = Math.floor(totalSeconds / 60);
+  return `${minutes}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
 function deliveryPresentation(
@@ -1228,6 +1832,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
+  messageAttachmentCaption: {
+    marginTop: spacing.xs,
+  },
   deletedMessageText: {
     color: colors.textMuted,
     fontStyle: 'italic',
@@ -1307,12 +1914,124 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  attachmentDraft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    padding: spacing.xs,
+  },
+  attachmentDraftPreview: {
+    backgroundColor: colors.canvasMuted,
+    borderRadius: 12,
+    height: 56,
+    width: 56,
+  },
+  attachmentDraftFileIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    borderRadius: 12,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  attachmentDraftDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+  attachmentDraftName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  attachmentDraftMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 3,
+  },
+  attachmentUploading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: 5,
+  },
+  attachmentUploadingLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  attachmentError: {
+    marginBottom: spacing.sm,
+  },
+  attachmentErrorText: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   composer: {
     alignItems: 'flex-end',
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.sm,
     padding: spacing.xs,
+  },
+  voiceRecordingComposer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    minHeight: 64,
+    padding: spacing.xs,
+  },
+  voiceRecordingCancelButton: {
+    alignItems: 'center',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  voiceRecordingDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+  voiceRecordingTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  voiceRecordingDuration: {
+    color: colors.danger,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    marginTop: 2,
+  },
+  voiceRecordingStopButton: {
+    alignItems: 'center',
+    backgroundColor: colors.danger,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  voiceRecordingStopButtonDisabled: {
+    opacity: 0.65,
+  },
+  voiceRecordingStopButtonPressed: {
+    opacity: 0.82,
+  },
+  attachmentButton: {
+    alignItems: 'center',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    marginBottom: 4,
+    width: 40,
+  },
+  attachmentButtonDisabled: {
+    opacity: 0.5,
+  },
+  attachmentButtonPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   composerInput: {
     color: colors.text,
@@ -1364,6 +2083,57 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  attachmentSheet: {
+    backgroundColor: colors.glassStrong,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  attachmentSheetDescription: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: spacing.sm,
+  },
+  attachmentPickerOption: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.glassBorder,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 76,
+    padding: spacing.sm,
+  },
+  attachmentPickerOptionPressed: {
+    backgroundColor: colors.surfacePressed,
+  },
+  attachmentPickerIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    borderRadius: 12,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  attachmentPickerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  attachmentPickerTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  attachmentPickerDescription: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 3,
   },
   sheetHandle: {
     alignSelf: 'center',
@@ -1509,5 +2279,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: spacing.md,
+  },
+  photoViewer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.94)',
+    flex: 1,
+  },
+  photoViewerBackdrop: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  photoViewerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.md,
+  },
+  photoViewerImage: {
+    flex: 1,
+    width: '100%',
+  },
+  photoViewerHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    left: spacing.md,
+    position: 'absolute',
+    right: spacing.md,
+    top: spacing.xl,
+  },
+  photoViewerName: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

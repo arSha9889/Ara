@@ -3,18 +3,22 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
+import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
+import { PUBLIC_LANGUAGE_IDS } from '../../../shared/ui/LanguagePicker.jsx';
 import { RegionSelector } from '../../../shared/ui/RegionSelector.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { checkUsername } from '../../profile/api/userApi.js';
 import { completeRegistration, confirmEmailVerification, startEmailVerification } from '../api/authApi.js';
+import { PublicSiteHeader } from '../../onboarding/components/PublicSiteHeader.jsx';
 
 
 export function RegisterPage() {
   const { t, language, setLanguage } = useI18n();
   const { saveSession } = useSession();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const initialCountry = location.state?.country ?? localStorage.getItem('nexus_registration_country') ?? 'RU';
@@ -22,13 +26,15 @@ export function RegisterPage() {
   const [step, setStep] = useState('email');
   const [form, setForm] = useState({
     email: '', email_code: '', email_verification_id: null, username: '', password: '', pin: '',
-    device_id: getDeviceId(), language, registration_country: initialCountry, design_theme: 'halo',
+    device_id: getDeviceId(), language: PUBLIC_LANGUAGE_IDS.includes(language) ? language : 'ru', registration_country: initialCountry,
     avatar_type: 'built_in', avatar_ref: 'animal-01', accepted_terms: false, accepted_privacy_policy: false,
   });
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [usernameState, setUsernameState] = useState('');
+  const registrationSteps = ['email', 'profile', 'password'];
+  const currentStepIndex = registrationSteps.indexOf(step);
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -50,7 +56,7 @@ export function RegisterPage() {
     setError('');
     setIsLoading(true);
     try {
-      const result = await startEmailVerification({ email: form.email, device_id: form.device_id, language });
+      const result = await startEmailVerification({ email: form.email, device_id: form.device_id, language: form.language });
       updateField('email_verification_id', result.verification_id);
       setStatus(t('register.emailCodeSent'));
     } catch (err) {
@@ -101,7 +107,7 @@ export function RegisterPage() {
     setError('');
     setIsLoading(true);
     try {
-      const result = await completeRegistration({ ...form, pin: form.pin.trim() || null });
+      const result = await completeRegistration({ ...form, design_theme: theme, pin: form.pin.trim() || null });
       saveSession({ accessToken: result.access_token, refreshToken: result.refresh_token, user: result.user });
       navigate('/app', { replace: true });
     } catch (err) {
@@ -112,13 +118,24 @@ export function RegisterPage() {
   }
 
   return (
-    <main className="auth-page">
-      <form className="panel auth-card" onSubmit={handleSubmit}>
+    <main className="public-page public-auth-page">
+      <div className="public-shell">
+        <PublicSiteHeader minimal publicOnly={false} />
+        <section className="auth-page">
+          <form className="panel auth-card" onSubmit={handleSubmit}>
         <div className="auth-card-head">
           <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" /><span>AraChat</span></Link>
           <div><h1>{t('register.title')}</h1><p className="muted">{t('register.smtpSubtitle')}</p></div>
           <RegionSelector country={country} onChange={handleRegionChange} />
         </div>
+        <ol className="signal-trace" aria-label={t('register.progress')}>
+          {registrationSteps.map((registrationStep, index) => (
+            <li className={index < currentStepIndex ? 'complete' : index === currentStepIndex ? 'active' : ''} key={registrationStep} aria-current={index === currentStepIndex ? 'step' : undefined}>
+              <span aria-hidden="true">{index + 1}</span>
+              <strong>{t(`register.steps.${registrationStep}`)}</strong>
+            </li>
+          ))}
+        </ol>
         {step === 'email' ? (
           <div className="auth-fields">
             <TextInput label={t('register.emailLabel')} type="email" autoComplete="email" value={form.email} onChange={(event) => resetEmail(event.target.value)} required />
@@ -164,7 +181,9 @@ export function RegisterPage() {
           <Button type="submit" disabled={isLoading || (step === 'email' && (!form.email_verification_id || form.email_code.length !== 6))}>{isLoading ? t('common.loading') : step === 'password' ? t('register.createAccount') : t('common.continue')}</Button>
         </div>
         <Link to="/login" className="auth-switch-link">{t('region.alreadyRegistered')}</Link>
-      </form>
+          </form>
+        </section>
+      </div>
     </main>
   );
 }

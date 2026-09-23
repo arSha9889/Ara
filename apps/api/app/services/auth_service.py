@@ -508,7 +508,7 @@ def _validate_registration_request(request: RegisterCompleteRequest) -> None:
         raise AuthError('PIN должен содержать от 4 до 8 цифр')
     if request.language not in {'ru', 'en', 'kk', 'ky', 'uk', 'be', 'uz'}:
         raise AuthError('Неподдерживаемый язык интерфейса')
-    if request.design_theme not in {'halo', 'orbit', 'aurora', 'liquid_glass'}:
+    if request.design_theme not in {'halo', 'comet', 'liquid_glass'}:
         raise AuthError('Неподдерживаемая тема оформления')
     if request.avatar_type not in {'built_in', 'uploaded'}:
         raise AuthError('Неподдерживаемый тип аватара')

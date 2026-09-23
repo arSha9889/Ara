@@ -5,6 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { acceptCurrentLegalDocuments } from '../../auth/api/authApi.js';
+import { PublicSiteHeader } from '../../onboarding/components/PublicSiteHeader.jsx';
 
 export function LegalAcceptancePage() {
   const { t } = useI18n();
@@ -37,9 +38,11 @@ export function LegalAcceptancePage() {
   }
 
   return (
-    <main className="auth-page legal-page">
-      <form className="panel readable legal-acceptance" onSubmit={handleSubmit}>
-        <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
+    <main className="public-page public-legal-page">
+      <div className="public-shell">
+        <PublicSiteHeader minimal showAuthAction={false} showLanguage={false} />
+        <section className="auth-page legal-page">
+          <form className="panel readable legal-acceptance" onSubmit={handleSubmit}>
         <p className="eyebrow">{t('legal.updatedDocuments')}</p>
         <h1>{t('legal.acceptanceTitle')}</h1>
         <p className="muted">{t('legal.acceptanceText')}</p>
@@ -64,7 +67,9 @@ export function LegalAcceptancePage() {
           <Button type="submit" disabled={isSubmitting || !acceptedPrivacy || !acceptedTerms}>{isSubmitting ? t('legal.saving') : t('legal.acceptAndContinue')}</Button>
           <Button type="button" variant="secondary" disabled={isSubmitting} onClick={clearSession}>{t('legal.logout')}</Button>
         </div>
-      </form>
+          </form>
+        </section>
+      </div>
     </main>
   );
 }

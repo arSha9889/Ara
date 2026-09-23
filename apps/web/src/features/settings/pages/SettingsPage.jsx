@@ -9,6 +9,7 @@ import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
+import { DensitySwitcher } from '../../../shared/ui/DensitySwitcher.jsx';
 import { LayoutModeSwitcher } from '../../../shared/ui/LayoutModeSwitcher.jsx';
 import {
   confirmEmailChange,
@@ -421,12 +422,13 @@ export function SettingsPage() {
               ) : null}
               <label className="field inline-field">
                 <span>{t('settings.theme')}</span>
-                <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference('theme', designTheme, session.user?.profile?.design_theme || 'halo')} />
+                <ThemeSwitcher onChange={(designTheme) => saveAppearancePreference('theme', designTheme, session.user?.profile?.design_theme || 'comet')} />
               </label>
               <AppearanceSaveStatus
                 status={appearanceStatus.theme}
                 onRetry={() => retryAppearancePreference('theme')}
               />
+              <DensitySwitcher />
               <LayoutModeSwitcher />
             </section>
           ) : null}

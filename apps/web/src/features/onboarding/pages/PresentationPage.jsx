@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
-import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
+import { PublicSiteHeader } from '../components/PublicSiteHeader.jsx';
 
 const PRODUCT_CODE_LINES = '26 486';
 
@@ -13,19 +13,9 @@ export function PresentationPage() {
   const ctaLabel = isAuthenticated ? 'Открыть AraChat' : 'Начать регистрацию';
 
   return (
-    <main className="presentation-page" aria-labelledby="presentation-title">
-      <div className="presentation-shell">
-        <header className="presentation-topbar">
-          <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
-          <nav className="presentation-nav" aria-label="Навигация лендинга">
-            <Link to="/">Главная</Link>
-            <Link to="/presentation" aria-current="page">Презентация</Link>
-          </nav>
-          <div className="presentation-topbar-actions">
-            <ThemeSwitcher />
-            {!isAuthenticated ? <Link to="/login" className="presentation-login-link">Войти</Link> : null}
-          </div>
-        </header>
+    <main className="public-page presentation-page" aria-labelledby="presentation-title">
+      <div className="presentation-shell public-shell">
+        <PublicSiteHeader activePage="presentation" showLanguage={false} />
 
         <section className="presentation-hero">
           <div className="presentation-hero-copy">

@@ -112,6 +112,38 @@ def test_registration_empty_pin_is_treated_as_absent() -> None:
     assert registration.pin is None
 
 
+def test_registration_theme_validation_allows_only_active_themes() -> None:
+    from app.schemas.auth import RegisterCompleteRequest
+    from app.services.auth_service import AuthError, _validate_registration_request
+
+    for design_theme in ('halo', 'comet', 'liquid_glass'):
+        _validate_registration_request(
+            RegisterCompleteRequest(
+                email_verification_id=uuid4(),
+                username='themeuser',
+                password='password123',
+                device_id='device-123',
+                design_theme=design_theme,
+                accepted_terms=True,
+                accepted_privacy_policy=True,
+            )
+        )
+
+    for retired_theme in ('orbit', 'aurora'):
+        with pytest.raises(AuthError, match='Неподдерживаемая тема оформления'):
+            _validate_registration_request(
+                RegisterCompleteRequest(
+                    email_verification_id=uuid4(),
+                    username='themeuser',
+                    password='password123',
+                    device_id='device-123',
+                    design_theme=retired_theme,
+                    accepted_terms=True,
+                    accepted_privacy_policy=True,
+                )
+            )
+
+
 @pytest.mark.anyio
 async def test_deleted_account_cannot_log_in_again(anyio_backend) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

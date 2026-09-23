@@ -4,17 +4,25 @@ import { themeNames } from '../../shared/config/themes.js';
 
 const ThemeContext = createContext(null);
 
+function normalizeTheme(theme) {
+  return themeNames.includes(theme) ? theme : 'comet';
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(() => localStorage.getItem('nexus_theme') || 'halo');
+  const [theme, setThemeState] = useState(() => {
+    const normalized = normalizeTheme(localStorage.getItem('nexus_theme'));
+    localStorage.setItem('nexus_theme', normalized);
+    return normalized;
+  });
 
   function setTheme(nextTheme) {
-    const normalized = themeNames.includes(nextTheme) ? nextTheme : 'halo';
+    const normalized = normalizeTheme(nextTheme);
     localStorage.setItem('nexus_theme', normalized);
     setThemeState(normalized);
   }
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = themeNames.includes(theme) ? theme : 'halo';
+    document.documentElement.dataset.theme = normalizeTheme(theme);
   }, [theme]);
 
   const value = useMemo(() => ({ theme, setTheme }), [theme]);

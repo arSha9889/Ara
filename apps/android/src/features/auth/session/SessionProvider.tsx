@@ -5,6 +5,7 @@ import {
   sessionStore,
   type AuthSession,
 } from '../../../infrastructure/storage/sessionStore';
+import { clearPrivateChatMediaCache } from '../../chats/media/mediaClient';
 import { unregisterMobilePushTokens } from '../../notifications/api/mobilePushApi';
 
 type SessionStatus = 'loading' | 'signedOut' | 'signedIn';
@@ -28,6 +29,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const unsubscribe = sessionStore.subscribe(nextSession => {
       setSession(nextSession);
       setStatus(nextSession ? 'signedIn' : 'signedOut');
+      if (!nextSession) {
+        clearPrivateChatMediaCache().catch(() => undefined);
+      }
     });
 
     sessionStore
@@ -35,24 +39,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .then(storedSession => {
         setSession(storedSession);
         setStatus(storedSession ? 'signedIn' : 'signedOut');
+        if (!storedSession) {
+          clearPrivateChatMediaCache().catch(() => undefined);
+        }
       })
       .catch(() => {
         setSession(null);
         setStatus('signedOut');
+        clearPrivateChatMediaCache().catch(() => undefined);
       });
 
     return unsubscribe;
   }, []);
 
-  const signIn = useCallback(async (identifier: string, password: string) => {
-    const deviceId = await sessionStore.getDeviceId();
-    const nextSession = await loginWithPassword(identifier, password, deviceId);
+  const saveSession = useCallback(async (nextSession: AuthSession) => {
+    const currentSession = await sessionStore.loadSession();
+    if (currentSession?.user.id !== nextSession.user.id) {
+      await clearPrivateChatMediaCache();
+    }
     await sessionStore.saveSession(nextSession);
   }, []);
 
-  const saveSession = useCallback(async (nextSession: AuthSession) => {
-    await sessionStore.saveSession(nextSession);
-  }, []);
+  const signIn = useCallback(async (identifier: string, password: string) => {
+    const deviceId = await sessionStore.getDeviceId();
+    const nextSession = await loginWithPassword(identifier, password, deviceId);
+    await saveSession(nextSession);
+  }, [saveSession]);
 
   const acceptLegalDocuments = useCallback(async () => {
     const currentSession = await sessionStore.loadSession();
@@ -77,7 +89,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await logout(currentSession.refreshToken);
       }
     } finally {
-      await sessionStore.clearSession();
+      await Promise.all([
+        clearPrivateChatMediaCache(),
+        sessionStore.clearSession(),
+      ]);
     }
   }, []);
 

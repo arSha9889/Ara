@@ -8,6 +8,7 @@ import { RegionSelector } from '../../../shared/ui/RegionSelector.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
 import { loginWithPassword, loginWithPin, startOAuth } from '../api/authApi.js';
+import { PublicSiteHeader } from '../../onboarding/components/PublicSiteHeader.jsx';
 
 export function LoginPage() {
   const { setLanguage, t } = useI18n();
@@ -77,8 +78,11 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <form className="panel auth-card" onSubmit={handleSubmit}>
+    <main className="public-page public-auth-page">
+      <div className="public-shell">
+        <PublicSiteHeader minimal publicOnly={false} />
+        <section className="auth-page">
+          <form className="panel auth-card" onSubmit={handleSubmit}>
         <div className="auth-card-head">
           <Link to="/" className="brand compact">
             <img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" />
@@ -107,7 +111,9 @@ export function LoginPage() {
         </div>
         <Link to="/password-recovery" className="auth-switch-link">{t('auth.forgotPassword')}</Link>
         <Link to="/register" className="auth-switch-link">{t('auth.createAccount')}</Link>
-      </form>
+          </form>
+        </section>
+      </div>
     </main>
   );
 }

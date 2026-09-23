@@ -26,6 +26,15 @@ export interface ApiRequestOptions {
   signal?: AbortSignal;
 }
 
+export interface ApiMultipartRequestOptions {
+  method?: string;
+  headers?: Record<string, string>;
+  formData: FormData;
+  requiresAuth?: boolean;
+  skipRefresh?: boolean;
+  signal?: AbortSignal;
+}
+
 interface RefreshResponse {
   access_token: string;
   refresh_token: string;
@@ -165,6 +174,56 @@ export class ApiClient {
     return parseResponse<T>(response);
   }
 
+  async requestMultipart<T>(
+    path: string,
+    options: ApiMultipartRequestOptions,
+  ): Promise<T> {
+    const requiresAuth = options.requiresAuth ?? true;
+    const session = requiresAuth ? await this.store.loadSession() : null;
+
+    if (requiresAuth && !session) {
+      throw new ApiError('Authentication required.', 401);
+    }
+
+    let response = await this.sendMultipart(path, options, session?.accessToken);
+
+    if (
+      response.status === 401 &&
+      requiresAuth &&
+      !options.skipRefresh &&
+      session
+    ) {
+      const refreshed = await this.refreshSession(session);
+      if (refreshed) {
+        response = await this.sendMultipart(path, options, refreshed.accessToken);
+      }
+    }
+
+    return parseResponse<T>(response);
+  }
+
+  async withAuthRetry<T>(operation: (accessToken: string) => Promise<T>): Promise<T> {
+    const session = await this.store.loadSession();
+
+    if (!session) {
+      throw new ApiError('Authentication required.', 401);
+    }
+
+    try {
+      return await operation(session.accessToken);
+    } catch (error) {
+      if (!isUnauthorizedTransportError(error)) {
+        throw error;
+      }
+
+      const refreshed = await this.refreshSession(session);
+      if (!refreshed) {
+        throw error;
+      }
+      return operation(refreshed.accessToken);
+    }
+  }
+
   private async send(
     path: string,
     options: ApiRequestOptions,
@@ -186,6 +245,25 @@ export class ApiClient {
       method: options.method ?? 'GET',
       headers,
       body,
+      signal: options.signal,
+    });
+  }
+
+  private async sendMultipart(
+    path: string,
+    options: ApiMultipartRequestOptions,
+    accessToken?: string,
+  ): Promise<Response> {
+    const headers = jsonHeaders(options.headers);
+
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    return fetch(endpoint(path), {
+      method: options.method ?? 'POST',
+      headers,
+      body: options.formData,
       signal: options.signal,
     });
   }
@@ -239,6 +317,18 @@ export class ApiClient {
     await this.store.saveSession(nextSession);
     return nextSession;
   }
+}
+
+function isUnauthorizedTransportError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 401;
+  }
+
+  return (
+    Boolean(error) &&
+    typeof error === 'object' &&
+    (error as { code?: unknown }).code === 'MEDIA_UNAUTHORIZED'
+  );
 }
 
 export const apiClient = new ApiClient(sessionStore);

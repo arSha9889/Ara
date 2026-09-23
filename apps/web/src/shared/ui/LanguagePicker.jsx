@@ -13,6 +13,8 @@ export const LANGUAGE_OPTIONS = [
   { id: 'uz', label: 'O‘zbekcha', icon: '🇺🇿', code: 'UZ', searchTerms: ['uzbek', 'o‘zbekcha', 'узбекский'] },
 ];
 
+export const PUBLIC_LANGUAGE_IDS = ['ru', 'en'];
+
 export function getLanguageOption(language) {
   return LANGUAGE_OPTIONS.find((item) => item.id === language) ?? LANGUAGE_OPTIONS[0];
 }
@@ -24,27 +26,32 @@ function matchesSearch(item, query) {
     .some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
 }
 
-export function LanguagePickerList({ selectedLanguage, onSelect, inputRef }) {
+export function LanguagePickerList({ selectedLanguage, onSelect, inputRef, publicOnly = false }) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const visibleOptions = useMemo(
-    () => LANGUAGE_OPTIONS.filter((item) => matchesSearch(item, query)),
-    [query],
+    () => LANGUAGE_OPTIONS.filter((item) => (
+      (!publicOnly || PUBLIC_LANGUAGE_IDS.includes(item.id))
+      && matchesSearch(item, query)
+    )),
+    [publicOnly, query],
   );
 
   return (
     <div className="language-picker">
-      <label className="language-picker-search">
-        <Icon name="search" size={18} />
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t('settings.languageSearchPlaceholder')}
-          aria-label={t('settings.languageSearch')}
-        />
-      </label>
+      {!publicOnly ? (
+        <label className="language-picker-search">
+          <Icon name="search" size={18} />
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t('settings.languageSearchPlaceholder')}
+            aria-label={t('settings.languageSearch')}
+          />
+        </label>
+      ) : null}
       {visibleOptions.length ? (
         <div className="language-picker-options" role="listbox" aria-label={t('settings.language')}>
           {visibleOptions.map((item) => {
@@ -74,6 +81,7 @@ export function LanguagePickerList({ selectedLanguage, onSelect, inputRef }) {
           <p>{t('settings.languageSearchEmpty')}</p>
         </div>
       )}
+      {publicOnly ? <p className="language-picker-notice" role="note"><Icon name="settings" size={17} />{t('settings.publicLanguageNotice')}</p> : null}
     </div>
   );
 }

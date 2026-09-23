@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 
-import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher.jsx';
-import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
+import { PublicSiteHeader } from '../../onboarding/components/PublicSiteHeader.jsx';
 
 const updatedAt = '4 сентября 2026 года';
 const operatorName = 'Антонов А. Е.';
@@ -9,15 +8,11 @@ const operatorEmail = 'artenaantonov@yandex.ru';
 
 export function PrivacyPolicyPage() {
   return (
-    <main className="auth-page legal-page">
-      <article className="panel readable legal-document">
-        <header className="legal-header">
-          <Link to="/" className="brand compact"><img className="brand-mark" src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" /><span>AraChat</span></Link>
-          <div className="landing-switchers">
-            <LanguageSwitcher />
-            <ThemeSwitcher />
-          </div>
-        </header>
+    <main className="public-page public-legal-page">
+      <div className="public-shell">
+        <PublicSiteHeader minimal />
+        <section className="auth-page legal-page">
+          <article className="panel readable legal-document">
 
         <p className="eyebrow">Правовые документы</p>
         <h1>Политика конфиденциальности и обработки персональных данных AraChat</h1>
@@ -104,7 +99,9 @@ export function PrivacyPolicyPage() {
           <Link to="/terms" className="button button-secondary">Пользовательское соглашение</Link>
           <Link to="/register" className="button button-primary">К регистрации</Link>
         </div>
-      </article>
+          </article>
+        </section>
+      </div>
     </main>
   );
 }
