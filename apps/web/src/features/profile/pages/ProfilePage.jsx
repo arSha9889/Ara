@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
@@ -158,12 +159,18 @@ export function ProfilePage() {
             <p className="muted">@{user?.profile?.username ?? 'arachat'}</p>
           </div>
         </div>
-        <div className="profile-id-card">
-          <span>{t('profile.idLabel')}</span>
-          <strong>{user?.nexus_id ?? '0000000000000000'}</strong>
-          <button className={`profile-id-copy ${isIdCopied ? 'copied' : ''}`} type="button" onClick={handleCopyId} aria-label={t('profile.copyId')} title={t('profile.copyId')}>
-            <Icon name={isIdCopied ? 'check' : 'copy'} size={18} />
-          </button>
+        <div className="profile-hero-actions">
+          <div className="profile-id-card">
+            <span>{t('profile.idLabel')}</span>
+            <strong>{user?.nexus_id ?? '0000000000000000'}</strong>
+            <button className={`profile-id-copy ${isIdCopied ? 'copied' : ''}`} type="button" onClick={handleCopyId} aria-label={t('profile.copyId')} title={t('profile.copyId')}>
+              <Icon name={isIdCopied ? 'check' : 'copy'} size={18} />
+            </button>
+          </div>
+          <Link className="button button-secondary profile-settings-link" to="/app/settings">
+            <Icon name="settings" size={17} />
+            <span>{t('settings.title')}</span>
+          </Link>
         </div>
       </header>
       <section className="profile-editor-section profile-avatar-section" aria-label={t('profile.avatarTitle')}>
@@ -172,13 +179,13 @@ export function ProfilePage() {
             <h2>{t('profile.avatarTitle')}</h2>
             <p className="muted">{t('profile.avatarText')}</p>
           </div>
-          <button className="avatar-preview" type="button" onClick={() => setIsAvatarPickerOpen((current) => !current)} aria-expanded={isAvatarPickerOpen} aria-label={t('profile.avatarTitle')}>
+          <button className="avatar-preview" type="button" onClick={() => setIsAvatarPickerOpen((current) => !current)} aria-expanded={isAvatarPickerOpen} aria-controls={isAvatarPickerOpen ? 'profile-avatar-options' : undefined} aria-label={t('profile.avatarTitle')}>
             {avatarPreview ? <img src={avatarPreview} alt="" /> : <UserAvatar profile={{ avatar_type: form.avatar_type, avatar_ref: form.avatar_ref }} size="large" />}
             <span className="avatar-preview-edit" aria-hidden="true"><Icon name="pencil" size={13} /></span>
           </button>
         </div>
         {isAvatarPickerOpen ? (
-          <div className="avatar-options-panel">
+          <div className="avatar-options-panel" id="profile-avatar-options">
             <label className="avatar-upload">
               <span className="avatar-upload-icon" aria-hidden="true"><Icon name="plus" size={20} /></span>
               <span className="avatar-upload-copy">
@@ -189,7 +196,7 @@ export function ProfilePage() {
             </label>
             <div className="avatar-grid compact-avatar-grid">
               {BUILT_IN_AVATARS.map((avatarRef, index) => (
-                <button className={`avatar-choice ${form.avatar_type === 'built_in' && form.avatar_ref === avatarRef ? 'active' : ''}`} type="button" key={avatarRef} onClick={() => selectBuiltInAvatar(avatarRef)} aria-pressed={form.avatar_type === 'built_in' && form.avatar_ref === avatarRef}>
+                <button className={`avatar-choice ${form.avatar_type === 'built_in' && form.avatar_ref === avatarRef ? 'active' : ''}`} type="button" key={avatarRef} onClick={() => selectBuiltInAvatar(avatarRef)} aria-pressed={form.avatar_type === 'built_in' && form.avatar_ref === avatarRef} aria-label={`${t('profile.avatarTitle')}: ${AVATAR_EMOJIS[index]}`}>
                   <span aria-hidden="true">{AVATAR_EMOJIS[index]}</span>
                 </button>
               ))}
@@ -205,9 +212,9 @@ export function ProfilePage() {
           </div>
         </div>
         <div className="profile-fields-grid">
-          <TextInput label={t('profile.name')} value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
-          <TextInput label={t('profile.username')} value={form.username} onChange={(event) => updateField('username', event.target.value)} />
-          <TextInput label={t('profile.optionalPhone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+79991234567" value={form.optional_phone} onChange={(event) => updateField('optional_phone', event.target.value)} />
+          <TextInput label={t('profile.name')} name="display_name" autoComplete="name" value={form.display_name} onChange={(event) => updateField('display_name', event.target.value)} />
+          <TextInput label={t('profile.username')} name="username" autoComplete="username" spellCheck={false} value={form.username} onChange={(event) => updateField('username', event.target.value)} />
+          <TextInput label={t('profile.optionalPhone')} name="optional_phone" type="tel" inputMode="tel" autoComplete="tel" spellCheck={false} placeholder="+79991234567" value={form.optional_phone} onChange={(event) => updateField('optional_phone', event.target.value)} />
           <div className="field"><span>{t('profile.email')}</span><strong>{user?.profile?.email || '—'}</strong><small className="muted">{t('profile.emailManagedInSecurity')}</small></div>
         </div>
         <p className="muted">{t('profile.phoneContactHint')}</p>
@@ -216,7 +223,7 @@ export function ProfilePage() {
           <input type="checkbox" checked={form.phone_public} onChange={(event) => updateField('phone_public', event.target.checked)} />
         </label>
       </section>
-      {status ? <p className="muted">{status}</p> : null}
+      {status ? <p className="muted" role="status" aria-live="polite">{status}</p> : null}
       <Button type="submit">{t('profile.save')}</Button>
     </form>
   );

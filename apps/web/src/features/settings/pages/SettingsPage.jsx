@@ -374,6 +374,19 @@ export function SettingsPage() {
     }
   }
 
+  function handleSettingsTabKeyDown(event, currentIndex) {
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % settingsTabs.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + settingsTabs.length) % settingsTabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = settingsTabs.length - 1;
+    else return;
+
+    event.preventDefault();
+    setActiveTab(settingsTabs[nextIndex].id);
+    event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[nextIndex]?.focus();
+  }
+
   return (
     <section className="panel settings-control-center">
       <header className="settings-page-header">
@@ -384,14 +397,18 @@ export function SettingsPage() {
       </header>
       <div className="settings-layout">
         <nav className="settings-tabs" role="tablist" aria-label={t('settings.title')}>
-          {settingsTabs.map((tab) => (
+          {settingsTabs.map((tab, index) => (
             <button
               className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
               type="button"
               role="tab"
+              id={`settings-tab-${tab.id}`}
               aria-selected={activeTab === tab.id}
+              aria-controls={activeTab === tab.id ? `settings-panel-${tab.id}` : undefined}
+              tabIndex={activeTab === tab.id ? 0 : -1}
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              onKeyDown={(event) => handleSettingsTabKeyDown(event, index)}
             >
               <span className="settings-tab-icon" aria-hidden="true"><Icon name={tab.icon} size={17} /></span>
               <span>{tab.label}</span>
@@ -400,7 +417,7 @@ export function SettingsPage() {
         </nav>
         <div className="settings-content">
           {activeTab === 'appearance' ? (
-            <section className="settings-section" role="tabpanel">
+            <section className="settings-section" id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance">
               <div className="settings-section-heading">
                 <span className="settings-heading-icon"><Icon name="palette" size={20} /></span>
                 <div>
@@ -433,7 +450,7 @@ export function SettingsPage() {
             </section>
           ) : null}
           {activeTab === 'language' ? (
-            <section className="settings-section language-settings-section" role="tabpanel">
+            <section className="settings-section language-settings-section" id="settings-panel-language" role="tabpanel" aria-labelledby="settings-tab-language">
               <div className="settings-section-heading">
                 <span className="settings-heading-icon"><Icon name="globe" size={20} /></span>
                 <div>
@@ -449,7 +466,7 @@ export function SettingsPage() {
             </section>
           ) : null}
           {activeTab === 'notifications' ? (
-            <section className="settings-section" role="tabpanel">
+            <section className="settings-section" id="settings-panel-notifications" role="tabpanel" aria-labelledby="settings-tab-notifications">
               <div className="settings-section-heading">
                 <span className="settings-heading-icon"><Icon name="bell" size={20} /></span>
                 <div>
@@ -467,7 +484,7 @@ export function SettingsPage() {
             </section>
           ) : null}
           {activeTab === 'security' ? (
-            <section className="settings-section security-settings-section" role="tabpanel">
+            <section className="settings-section security-settings-section" id="settings-panel-security" role="tabpanel" aria-labelledby="settings-tab-security">
               <div className="settings-section-heading">
                 <span className="settings-heading-icon"><Icon name="shield" size={20} /></span>
                 <div>
@@ -475,7 +492,7 @@ export function SettingsPage() {
                   <p className="muted">{t('settings.activeDevices')} · {t('settings.loginHistory')}</p>
                 </div>
               </div>
-              <section className="security-overview" aria-label={t('settings.securityStatusTitle')}>
+              <section className={`security-overview ${hasVerifiedEmail ? 'verified' : 'attention'}`} aria-label={t('settings.securityStatusTitle')}>
                 <div className="security-overview-icon" aria-hidden="true"><Icon name="shield" size={25} /></div>
                 <div>
                   <p>{t('settings.securityStatusTitle')}</p>
@@ -491,53 +508,53 @@ export function SettingsPage() {
               <section className="settings-subsection security-access-section">
                 <h3>{t('settings.accountAccess')}</h3>
                 <div className="security-access-grid">
-                  <button className={`security-access-card ${securityEditor === 'email' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'email' ? null : 'email')}>
+                  <button className={`security-access-card ${securityEditor === 'email' ? 'active' : ''}`} type="button" aria-expanded={securityEditor === 'email'} aria-controls={securityEditor === 'email' ? 'security-editor-email' : undefined} onClick={() => setSecurityEditor((current) => current === 'email' ? null : 'email')}>
                     <span className="security-access-icon"><Icon name="mail" size={19} /></span>
                     <span><strong>{t('settings.emailAccess')}</strong><small>{session.user?.profile?.email || t('settings.emailNotSet')}</small></span>
-                    <span className={`security-access-status ${hasVerifiedEmail ? 'verified' : 'attention'}`}>{hasVerifiedEmail ? t('settings.verified') : t('settings.unverified')}</span>
+                    <span className={`security-access-status ${hasVerifiedEmail ? 'verified' : 'attention'}`}><Icon name={hasVerifiedEmail ? 'check' : 'activity'} size={13} strokeWidth={2.3} />{hasVerifiedEmail ? t('settings.verified') : t('settings.unverified')}</span>
                   </button>
-                  <button className={`security-access-card ${securityEditor === 'password' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'password' ? null : 'password')}>
+                  <button className={`security-access-card ${securityEditor === 'password' ? 'active' : ''}`} type="button" aria-expanded={securityEditor === 'password'} aria-controls={securityEditor === 'password' ? 'security-editor-password' : undefined} onClick={() => setSecurityEditor((current) => current === 'password' ? null : 'password')}>
                     <span className="security-access-icon"><Icon name="key" size={19} /></span>
                     <span><strong>{t('settings.changePasswordTitle')}</strong><small>{t('settings.passwordAccessText')}</small></span>
                     <Icon name="chevronRight" size={18} />
                   </button>
-                  <button className={`security-access-card ${securityEditor === 'pin' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'pin' ? null : 'pin')}>
+                  <button className={`security-access-card ${securityEditor === 'pin' ? 'active' : ''}`} type="button" aria-expanded={securityEditor === 'pin'} aria-controls={securityEditor === 'pin' ? 'security-editor-pin' : undefined} onClick={() => setSecurityEditor((current) => current === 'pin' ? null : 'pin')}>
                     <span className="security-access-icon"><Icon name="smartphone" size={19} /></span>
                     <span><strong>{t('settings.devicePinTitle')}</strong><small>{t('settings.devicePinText')}</small></span>
                     <Icon name="chevronRight" size={18} />
                   </button>
-                  <button className={`security-access-card ${securityEditor === 'accounts' ? 'active' : ''}`} type="button" onClick={() => setSecurityEditor((current) => current === 'accounts' ? null : 'accounts')}>
+                  <button className={`security-access-card ${securityEditor === 'accounts' ? 'active' : ''}`} type="button" aria-expanded={securityEditor === 'accounts'} aria-controls={securityEditor === 'accounts' ? 'security-editor-accounts' : undefined} onClick={() => setSecurityEditor((current) => current === 'accounts' ? null : 'accounts')}>
                     <span className="security-access-icon"><Icon name="user" size={19} /></span>
                     <span><strong>{t('settings.linkedAccountsTitle')}</strong><small>{t('settings.linkedAccountsText')}</small></span>
                     <Icon name="chevronRight" size={18} />
                   </button>
                 </div>
 
-                {securityEditor === 'password' ? <form className="security-editor-card" onSubmit={handleStartPasswordChange}>
-                  <h4>{t('settings.changePasswordTitle')}</h4>
+                {securityEditor === 'password' ? <form className="security-editor-card" id="security-editor-password" aria-labelledby="security-editor-password-title" onSubmit={handleStartPasswordChange}>
+                  <h4 id="security-editor-password-title">{t('settings.changePasswordTitle')}</h4>
                   <p>{t('settings.changePasswordText')}</p>
-                  <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={passwordForm.current_password} onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))} required />
-                  <input className="text-input" type="password" placeholder={t('settings.newPassword')} value={passwordForm.new_password} onChange={(event) => setPasswordForm((current) => ({ ...current, new_password: event.target.value }))} required />
+                  <label className="field security-editor-field"><span>{t('settings.currentPassword')}</span><input className="text-input" type="password" autoComplete="current-password" value={passwordForm.current_password} onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))} required /></label>
+                  <label className="field security-editor-field"><span>{t('settings.newPassword')}</span><input className="text-input" type="password" autoComplete="new-password" value={passwordForm.new_password} onChange={(event) => setPasswordForm((current) => ({ ...current, new_password: event.target.value }))} required /></label>
                   <button className="button button-secondary" type="submit">{t('settings.requestPasswordConfirmation')}</button>
-                  {passwordConfirmation ? <div className="password-confirmation-actions"><input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={passwordCode} onChange={(event) => setPasswordCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /><button className="button button-primary" type="button" onClick={handleConfirmPasswordChange} disabled={passwordCode.length !== 6}>{t('settings.completeWithEmailCode')}</button></div> : null}
+                  {passwordConfirmation ? <div className="password-confirmation-actions"><label className="field security-editor-field"><span>{t('settings.emailCode')}</span><input className="text-input" inputMode="numeric" autoComplete="one-time-code" value={passwordCode} onChange={(event) => setPasswordCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></label><button className="button button-primary" type="button" onClick={handleConfirmPasswordChange} disabled={passwordCode.length !== 6}>{t('settings.completeWithEmailCode')}</button></div> : null}
                 </form> : null}
-                {securityEditor === 'email' ? <form className="security-editor-card" onSubmit={handleStartEmailChange}>
-                  <h4>{t('settings.emailChangeTitle')}</h4>
+                {securityEditor === 'email' ? <form className="security-editor-card" id="security-editor-email" aria-labelledby="security-editor-email-title" onSubmit={handleStartEmailChange}>
+                  <h4 id="security-editor-email-title">{t('settings.emailChangeTitle')}</h4>
                   <p>{t('settings.emailChangeText')}</p>
-                  <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={emailForm.current_password} onChange={(event) => setEmailForm((current) => ({ ...current, current_password: event.target.value }))} required />
-                  <input className="text-input" type="email" placeholder="name@example.com" value={emailForm.email} onChange={(event) => setEmailForm((current) => ({ ...current, email: event.target.value }))} required />
+                  <label className="field security-editor-field"><span>{t('settings.currentPassword')}</span><input className="text-input" type="password" autoComplete="current-password" value={emailForm.current_password} onChange={(event) => setEmailForm((current) => ({ ...current, current_password: event.target.value }))} required /></label>
+                  <label className="field security-editor-field"><span>{t('settings.emailAccess')}</span><input className="text-input" type="email" autoComplete="email" placeholder="name@example.com" value={emailForm.email} onChange={(event) => setEmailForm((current) => ({ ...current, email: event.target.value }))} required /></label>
                   <button className="button button-secondary" type="submit">{t('settings.sendEmailCode')}</button>
-                  {emailVerification ? <div className="password-confirmation-actions"><input className="text-input" inputMode="numeric" placeholder={t('settings.emailCode')} value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /><button className="button button-primary" type="button" onClick={handleConfirmEmailChange} disabled={emailCode.length !== 6}>{t('settings.confirmEmailChange')}</button></div> : null}
+                  {emailVerification ? <div className="password-confirmation-actions"><label className="field security-editor-field"><span>{t('settings.emailCode')}</span><input className="text-input" inputMode="numeric" autoComplete="one-time-code" value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} /></label><button className="button button-primary" type="button" onClick={handleConfirmEmailChange} disabled={emailCode.length !== 6}>{t('settings.confirmEmailChange')}</button></div> : null}
                 </form> : null}
-                {securityEditor === 'pin' ? <form className="security-editor-card" onSubmit={handleCreatePin}>
-                  <h4>{t('settings.devicePinTitle')}</h4>
+                {securityEditor === 'pin' ? <form className="security-editor-card" id="security-editor-pin" aria-labelledby="security-editor-pin-title" onSubmit={handleCreatePin}>
+                  <h4 id="security-editor-pin-title">{t('settings.devicePinTitle')}</h4>
                   <p>{t('settings.devicePinText')}</p>
-                  <input className="text-input" type="password" placeholder={t('settings.currentPassword')} value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required />
-                  <input className="text-input" inputMode="numeric" placeholder={t('settings.newPin')} value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value.replace(/\D/g, '').slice(0, 8) }))} required />
+                  <label className="field security-editor-field"><span>{t('settings.currentPassword')}</span><input className="text-input" type="password" autoComplete="current-password" value={pinForm.current_password} onChange={(event) => setPinForm((current) => ({ ...current, current_password: event.target.value }))} required /></label>
+                  <label className="field security-editor-field"><span>{t('settings.newPin')}</span><input className="text-input" inputMode="numeric" autoComplete="new-password" value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value.replace(/\D/g, '').slice(0, 8) }))} required /></label>
                   <div className="security-editor-actions"><button className="button button-secondary" type="submit">{t('settings.savePin')}</button><button className="button button-secondary" type="button" onClick={handleRemovePin} disabled={!pinForm.current_password}>{t('settings.removePin')}</button></div>
                 </form> : null}
-                {securityEditor === 'accounts' ? <section className="security-editor-card">
-                  <h4>{t('settings.linkedAccountsTitle')}</h4>
+                {securityEditor === 'accounts' ? <section className="security-editor-card" id="security-editor-accounts" aria-labelledby="security-editor-accounts-title">
+                  <h4 id="security-editor-accounts-title">{t('settings.linkedAccountsTitle')}</h4>
                   <p>{t('settings.linkedAccountsText')}</p>
                   <div className="security-editor-actions"><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('yandex')}>{t('settings.linkYandex')}</button><button className="button button-secondary" type="button" onClick={() => handleOAuthLink('vk')}>{t('settings.linkVk')}</button></div>
                 </section> : null}
@@ -567,7 +584,7 @@ export function SettingsPage() {
               <section className="security-danger-zone">
                 <h3>{t('settings.dangerZone')}</h3>
                 <p className="muted">{t('settings.deleteAccountText')}</p>
-                <button className="button button-danger" type="button" onClick={handleDeleteAccount}>{t('settings.deleteAccount')}</button>
+                <button className="button button-danger" type="button" onClick={handleDeleteAccount}><Icon name="trash" size={16} />{t('settings.deleteAccount')}</button>
               </section>
             </section>
           ) : null}

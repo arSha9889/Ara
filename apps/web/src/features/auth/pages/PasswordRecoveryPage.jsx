@@ -65,10 +65,10 @@ export function PasswordRecoveryPage() {
         <section className="auth-page">
           <form className="panel auth-card" onSubmit={requested ? resetPassword : requestCode}>
             <h1>{t('auth.recoveryTitle')}</h1><p className="muted">{t('auth.recoverySubtitle')}</p>
-            <div className="auth-fields"><TextInput label="E-mail" type="email" value={form.email} onChange={(event) => updateField('email', event.target.value)} required />
-              {requested ? <><TextInput label={t('auth.recoveryEmailCode')} inputMode="numeric" value={form.code} onChange={(event) => updateField('code', event.target.value.replace(/\D/g, '').slice(0, 6))} required /><TextInput label={t('auth.recoveryNewPassword')} type="password" value={form.new_password} onChange={(event) => updateField('new_password', event.target.value)} required /></> : null}
+            <div className="auth-fields"><TextInput label="E-mail" name="email" type="email" autoComplete="email" spellCheck={false} value={form.email} onChange={(event) => updateField('email', event.target.value)} required />
+              {requested ? <><TextInput label={t('auth.recoveryEmailCode')} name="code" inputMode="numeric" autoComplete="one-time-code" spellCheck={false} value={form.code} onChange={(event) => updateField('code', event.target.value.replace(/\D/g, '').slice(0, 6))} required /><TextInput label={t('auth.recoveryNewPassword')} name="new_password" type="password" autoComplete="new-password" value={form.new_password} onChange={(event) => updateField('new_password', event.target.value)} required /></> : null}
             </div>
-            {message ? <p className="muted">{message}</p> : null}
+            {message ? <p className="muted" role="status" aria-live="polite">{message}</p> : null}
             <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.recoveryChecking') : requested ? t('auth.recoveryResetPassword') : t('auth.recoverySendCode')}</Button>
             <Link className="auth-switch-link" to="/login">{t('common.backToLogin')}</Link>
           </form>

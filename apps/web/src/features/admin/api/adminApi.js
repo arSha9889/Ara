@@ -32,6 +32,40 @@ export function getAdminSystemBot(accessToken) {
   return apiRequest('/api/admin/system-bot', { headers: authHeaders(accessToken) });
 }
 
+export function getAdminProjectNews(accessToken) {
+  return apiRequest('/api/news/admin/news', { headers: authHeaders(accessToken) });
+}
+
+export function createAdminProjectNews(accessToken, payload) {
+  return apiRequest('/api/news/admin/news', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function updateAdminProjectNews(accessToken, newsId, payload) {
+  return apiRequest(`/api/news/admin/news/${newsId}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function publishAdminProjectNews(accessToken, newsId) {
+  return apiRequest(`/api/news/admin/news/${newsId}/publish`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export function archiveAdminProjectNews(accessToken, newsId) {
+  return apiRequest(`/api/news/admin/news/${newsId}/archive`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export function createAdminAnnouncement(accessToken, payload) {
   return apiRequest('/api/admin/announcements', {
     method: 'POST',

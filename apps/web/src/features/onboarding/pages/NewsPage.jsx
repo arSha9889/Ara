@@ -1,15 +1,26 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { OFFICIAL_CHANNELS } from '../../../shared/config/projectLinks.js';
-import { getPublishedProjectNews } from '../../../shared/config/projectNews.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { CometSiteHeader } from '../components/CometSiteHeader.jsx';
+import { getPublishedProjectNews } from '../api/projectNewsApi.js';
 
 export function NewsPage() {
-  const { t } = useI18n();
-  const news = getPublishedProjectNews();
+  const { language, t } = useI18n();
+  const [news, setNews] = useState([]);
   const activeChannels = OFFICIAL_CHANNELS.filter((channel) => channel.href);
+
+  useEffect(() => {
+    let isCurrent = true;
+    getPublishedProjectNews(language).then((items) => {
+      if (isCurrent) setNews(items);
+    }).catch(() => {
+      if (isCurrent) setNews([]);
+    });
+    return () => { isCurrent = false; };
+  }, [language]);
 
   return (
     <main className="public-page comet-page comet-news-page" aria-labelledby="news-title">
@@ -26,7 +37,7 @@ export function NewsPage() {
           <section className="comet-news-timeline" aria-label={t('comet.newsTitle')}>
             {news.map((item) => (
               <article className="comet-news-entry" key={item.slug}>
-                <p>{item.publishedAt}</p>
+                <p>{new Date(item.published_at).toLocaleDateString(language)}</p>
                 <h2><Link to={`/news/${item.slug}`}>{item.title}</Link></h2>
                 <p>{item.excerpt}</p>
               </article>

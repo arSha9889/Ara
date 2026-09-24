@@ -103,15 +103,16 @@ async def admin_overview(session: AsyncSession, user_id: UUID) -> dict:
 
 def record_admin_audit(
     session: AsyncSession,
-    admin_user_id: UUID,
+    admin_user_id: UUID | None,
     action: str,
     target_type: str | None = None,
     target_id: str | None = None,
     metadata: dict | None = None,
+    actor_type: str = 'admin',
 ) -> None:
     session.add(AuditLog(
         actor_user_id=admin_user_id,
-        actor_type='admin',
+        actor_type=actor_type,
         action=action,
         target_type=target_type,
         target_id=target_id,

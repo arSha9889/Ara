@@ -1,14 +1,26 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { getProjectNewsBySlug } from '../../../shared/config/projectNews.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { CometSiteHeader } from '../components/CometSiteHeader.jsx';
+import { getPublishedProjectNewsArticle } from '../api/projectNewsApi.js';
 
 export function NewsArticlePage() {
   const { slug } = useParams();
-  const { t } = useI18n();
-  const article = getProjectNewsBySlug(slug);
+  const { language, t } = useI18n();
+  const [article, setArticle] = useState(undefined);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setArticle(undefined);
+    getPublishedProjectNewsArticle(slug, language).then((item) => {
+      if (isCurrent) setArticle(item);
+    }).catch(() => {
+      if (isCurrent) setArticle(null);
+    });
+    return () => { isCurrent = false; };
+  }, [language, slug]);
 
   return (
     <main className="public-page comet-page comet-news-page">
@@ -16,12 +28,12 @@ export function NewsArticlePage() {
         <CometSiteHeader activePage="news" />
         {article ? (
           <article className="comet-article">
-            <p className="comet-kicker">{article.publishedAt}</p>
+            <p className="comet-kicker">{new Date(article.published_at).toLocaleDateString(language)}</p>
             <h1>{article.title}</h1>
             <p className="comet-article-lead">{article.excerpt}</p>
             {article.content?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
           </article>
-        ) : (
+        ) : article === null ? (
           <section className="comet-news-empty comet-article-missing" aria-labelledby="article-missing-title">
             <span className="comet-news-empty-icon"><Icon name="search" size={24} /></span>
             <div>
@@ -31,7 +43,7 @@ export function NewsArticlePage() {
               <Link to="/news" className="button button-primary">{t('comet.backToNews')}<Icon name="arrowRight" size={17} /></Link>
             </div>
           </section>
-        )}
+        ) : null}
       </div>
     </main>
   );

@@ -138,7 +138,7 @@ export function AppShell() {
       </main>
       {session.user?.vpn_enabled ? <VpnWarningBanner /> : null}
       <nav className="mobile-bottom-nav" aria-label={t('common.navigation')}>
-          {mobileNavItems.slice(0, 2).map((item) => (
+          {mobileNavItems.map((item) => (
             <NavLink
               className={({ isActive }) => `mobile-bottom-nav-item ${item.to === '/app/branches' ? 'mobile-bottom-nav-branches' : ''} ${isActive || (item.to === '/app' && isChatRoute) ? 'active' : ''}`}
               to={item.to}
@@ -159,36 +159,12 @@ export function AppShell() {
                 ) : null}
               </span>
               <span>{item.label}</span>
+              {item.to === '/app' && unreadChatCount > 0 ? (
+                <span className="sr-only">{t('common.unread').replace('{count}', unreadChatCount)}</span>
+              ) : null}
             </NavLink>
           ))}
-          <NavLink className={({ isActive }) => `mobile-bottom-nav-item mobile-bottom-nav-settings ${isActive ? 'active' : ''}`} to="/app/settings" aria-label={t('settings.title')} title={t('settings.title')}>
-            <span className="mobile-bottom-nav-icon" aria-hidden="true"><Icon name="settings" size={24} /></span>
-            <span>{t('settings.title')}</span>
-          </NavLink>
-          <NavLink className={({ isActive }) => `mobile-bottom-nav-create ${isActive ? 'active' : ''}`} to="/app/new-chat" aria-label={t('chats.createChat')} title={t('chats.createChat')}>
-            <span aria-hidden="true"><Icon name="plus" size={24} strokeWidth={2.3} /></span>
-            <span>{t('chats.createChat')}</span>
-          </NavLink>
-          {mobileNavItems.slice(2).map((item) => (
-            <NavLink
-              className={({ isActive }) => `mobile-bottom-nav-item ${isActive ? 'active' : ''}`}
-              to={item.to}
-              key={item.to}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <span className="mobile-bottom-nav-icon" aria-hidden="true">
-                {item.to === '/app/profile' ? (
-                  <UserAvatar
-                    baseClass="mobile-bottom-nav-profile-avatar"
-                    profile={session.user?.profile}
-                    fallback={session.user?.profile?.display_name?.[0] || session.user?.username?.[0] || 'A'}
-                  />
-                ) : <Icon name={item.icon} size={21} />}
-              </span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-      </nav>
+        </nav>
     </div>
   );
 }

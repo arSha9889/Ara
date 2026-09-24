@@ -42,13 +42,13 @@ function attachmentPayload(upload) {
 }
 
 
-function SupportAttachment({ message, language, accessToken }) {
+function SupportAttachment({ message, language, accessToken, t }) {
   const { url } = useAuthenticatedMediaUrl(message.attachment_url, accessToken);
   if (!message.attachment_url) return null;
   return (
     <a className="support-attachment" href={url || undefined} download={message.attachment_name || true} target="_blank" rel="noreferrer" aria-disabled={!url}>
       <Icon name="paperclip" size={16} />
-      <span>{message.attachment_name || 'attachment'}</span>
+      <span>{message.attachment_name || t('support.attachment')}</span>
       {typeof message.attachment_size_bytes === 'number' ? <small>{formatBytes(message.attachment_size_bytes, language)}</small> : null}
     </a>
   );
@@ -159,7 +159,7 @@ export function SupportTicketsPanel() {
   return (
     <>
       <header className="admin-page-heading">
-        <div><p className="eyebrow">AraChat Support</p><h1>{t('admin.supportTitle')}</h1><p>{t('admin.supportText')}</p></div>
+        <div><p className="eyebrow">{t('support.eyebrow')}</p><h1>{t('admin.supportTitle')}</h1><p>{t('admin.supportText')}</p></div>
         <button className="admin-icon-button" type="button" onClick={() => void loadTickets()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><Icon name="refresh" /></button>
       </header>
       {error ? <p className="error-text">{error}</p> : null}
@@ -178,7 +178,7 @@ export function SupportTicketsPanel() {
           {selectedTicket && !isLoadingDetail ? <>
             <header className="admin-support-detail-header"><div><p className="eyebrow">{t('support.ticket')} #{selectedTicket.number}</p><h2>{selectedTicket.subject}</h2><p>{t('admin.supportRequester').replace('{name}', selectedTicket.requester?.display_name || selectedTicket.requester?.username || t('admin.unknownUser'))}</p></div><label className="admin-support-status-select"><span>{t('support.status')}</span><select className="text-input" value={selectedTicket.status} disabled={isSubmitting} onChange={(event) => void changeStatus(event.target.value)}>{SUPPORT_STATUSES.map((status) => <option value={status} key={status}>{t(`support.statuses.${status}`)}</option>)}</select></label></header>
             <div className="admin-support-message-list">
-              {selectedTicket.messages.map((message) => <article className={`admin-support-message ${message.is_internal ? 'internal' : ''}`} key={message.id}><header><strong>{message.is_internal ? t('admin.supportInternalNote') : message.author?.display_name || t('admin.unknownUser')}</strong><time dateTime={message.created_at}>{formatDate(message.created_at, language)}</time></header><p>{message.text}</p><SupportAttachment message={message} language={language} accessToken={session.accessToken} /></article>)}
+              {selectedTicket.messages.map((message) => <article className={`admin-support-message ${message.is_internal ? 'internal' : ''}`} key={message.id}><header><strong>{message.is_internal ? t('admin.supportInternalNote') : message.author?.display_name || t('admin.unknownUser')}</strong><time dateTime={message.created_at}>{formatDate(message.created_at, language)}</time></header><p>{message.text}</p><SupportAttachment message={message} language={language} accessToken={session.accessToken} t={t} /></article>)}
             </div>
             <form className={`admin-support-composer ${isInternal ? 'internal' : ''}`} onSubmit={submitMessage}><div className="admin-support-composer-head"><strong>{isInternal ? t('admin.supportInternalNote') : t('admin.supportReply')}</strong><label><input type="checkbox" checked={isInternal} onChange={(event) => setIsInternal(event.target.checked)} />{t('admin.supportMakeInternal')}</label></div><textarea className="text-input" value={messageText} maxLength="4000" required placeholder={isInternal ? t('admin.supportInternalPlaceholder') : t('admin.supportReplyPlaceholder')} onChange={(event) => setMessageText(event.target.value)} /><div className="support-composer-actions"><label className="support-file-button"><Icon name="paperclip" size={18} /><span>{selectedFile ? selectedFile.name : t('support.addAttachment')}</span><input type="file" onChange={(event) => selectAttachment(event.target.files?.[0])} /></label>{selectedFile ? <button className="support-remove-file" type="button" onClick={() => setSelectedFile(null)} aria-label={t('support.removeAttachment')}><Icon name="x" size={16} /></button> : null}<button className="button button-primary" type="submit" disabled={isSubmitting || !messageText.trim()}><Icon name="send" size={17} />{isSubmitting ? t('support.sending') : isInternal ? t('admin.supportSaveNote') : t('admin.supportSendReply')}</button></div></form>
           </> : null}

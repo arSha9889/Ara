@@ -330,12 +330,15 @@ export function ChatsPage() {
             >
               <Icon name={isSearchOpen ? 'x' : 'search'} size={20} />
             </button>
+            <button className="mobile-chat-create-trigger" type="button" onClick={() => navigate('/app/new-chat')} aria-label={t('chats.createChat')}>
+              <Icon name="plus" size={20} />
+            </button>
             <AppNavigationTrigger className="chat-list-navigation-trigger" isMenuOpen={isMenuOpen} onToggle={toggleNavigation} />
           </div>
         </header>
         {showNotificationPrompt ? (
           <div className="notification-prompt">
-            <div className="notification-icon" aria-hidden="true">🔔</div>
+            <div className="notification-icon" aria-hidden="true"><Icon name="bell" size={22} /></div>
             <div>
               <strong>{t('chats.notificationsTitle')}</strong>
               <p className="muted">{t('chats.notificationsText')}</p>
@@ -360,7 +363,7 @@ export function ChatsPage() {
             />
             {chatSearch ? (
               <button className="chat-search-clear" type="button" onClick={() => setChatSearch('')} aria-label={t('chats.clearSearch')}>
-                ×
+                <Icon name="x" size={18} />
               </button>
             ) : null}
           </label>
@@ -375,7 +378,7 @@ export function ChatsPage() {
         </div>
         <div className="chat-list-saved-slot">
           <button className="info-card saved-chat-card" type="button" onClick={handleOpenSavedChat}>
-            <div className="chat-list-avatar saved-avatar" aria-hidden="true">★</div>
+            <div className="chat-list-avatar saved-avatar" aria-hidden="true"><Icon name="bookmark" size={20} strokeWidth={2} /></div>
             <div>
               <strong>{t('chats.savedTitle')}</strong>
               <span className="muted">{savedChat ? chatSubtitle(savedChat, session.user?.id, t) : t('chats.savedSubtitle')}</span>

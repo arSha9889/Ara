@@ -1,22 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { OFFICIAL_CHANNELS, YOUTUBE_CHANNEL_URL } from '../../../shared/config/projectLinks.js';
-import { getPublishedProjectNews } from '../../../shared/config/projectNews.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { CometScene } from '../components/CometScene.jsx';
 import { CometSiteHeader } from '../components/CometSiteHeader.jsx';
+import { GeoSignalScene } from '../components/GeoSignalScene.jsx';
+import { getPublishedProjectNews } from '../api/projectNewsApi.js';
 
 export function LandingPage() {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const { session } = useSession();
   const { hash } = useLocation();
   const isAuthenticated = Boolean(session?.accessToken);
   const ctaPath = isAuthenticated ? '/app' : '/register';
   const ctaLabel = isAuthenticated ? t('onboarding.enterMessenger') : t('onboarding.openMessenger');
-  const news = getPublishedProjectNews();
+  const [news, setNews] = useState([]);
   const storyScenes = [
     { type: 'voice', kicker: t('comet.voiceKicker'), title: t('comet.voiceTitle'), text: t('comet.voiceText'), icon: 'microphone' },
     { type: 'devices', kicker: t('comet.devicesKicker'), title: t('comet.devicesTitle'), text: t('comet.devicesText'), icon: 'monitor' },
@@ -31,6 +32,16 @@ export function LandingPage() {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     section.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
   }, [hash]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    getPublishedProjectNews(language).then((items) => {
+      if (isCurrent) setNews(items);
+    }).catch(() => {
+      if (isCurrent) setNews([]);
+    });
+    return () => { isCurrent = false; };
+  }, [language]);
 
   return (
     <main className="public-page comet-page comet-landing-page" aria-labelledby="landing-title">
@@ -48,7 +59,7 @@ export function LandingPage() {
             </div>
             <p className="comet-hero-note"><Icon name="shield" size={16} />{t('comet.heroNote')}</p>
           </div>
-          <CometScene />
+          <GeoSignalScene />
         </section>
 
         <section className="comet-story" id="story" aria-labelledby="story-title">
@@ -83,7 +94,7 @@ export function LandingPage() {
           </div>
           <div className="comet-pulse-layout">
             {news.length ? (
-              <article className="comet-featured-news"><p>{news[0].publishedAt}</p><h3>{news[0].title}</h3><p>{news[0].excerpt}</p><Link to={`/news/${news[0].slug}`}>{t('comet.readNews')}<Icon name="arrowRight" size={16} /></Link></article>
+              <article className="comet-featured-news"><p>{new Date(news[0].published_at).toLocaleDateString(language)}</p><h3>{news[0].title}</h3><p>{news[0].excerpt}</p><Link to={`/news/${news[0].slug}`}>{t('comet.readNews')}<Icon name="arrowRight" size={16} /></Link></article>
             ) : (
               <article className="comet-featured-news is-empty">
                 <span className="comet-pulse-orbit" aria-hidden="true" />

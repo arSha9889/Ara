@@ -6,8 +6,10 @@ import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
+import { dictionaries } from '../../../shared/i18n/dictionaries.js';
 import { createPublicBranch } from '../../chats/api/chatApi.js';
 import { SupportTicketsPanel } from '../components/SupportTicketsPanel.jsx';
+import { ProjectNewsPanel } from '../components/ProjectNewsPanel.jsx';
 import {
   cancelAdminAnnouncement,
   createAdminAnnouncement,
@@ -31,7 +33,7 @@ import {
   updateAdminUserVpnStatus,
 } from '../api/adminApi.js';
 
-const TABS = ['overview', 'systemBot', 'support', 'users', 'branches', 'maintenance', 'audit'];
+const TABS = ['overview', 'projectNews', 'systemBot', 'support', 'users', 'branches', 'maintenance', 'audit'];
 const EMPTY_BRANCH_FORM = { title: '', slug: '', description: '', avatar_ref: '📢' };
 const EMPTY_RESTRICTION_FORM = { reason: 'spam', note: '', endsAt: '' };
 const EMPTY_ANNOUNCEMENT_FORM = { text: '', audienceType: 'all', audienceCountry: '', audienceBranchId: '', scheduledAt: '' };
@@ -43,6 +45,7 @@ function AdminIcon({ name, size = 20 }) {
     branches: <><path d="M4 20V4m0 3h9l-1 4 4 2H4" /><path d="M4 20h16" /></>,
     maintenance: <><ellipse cx="12" cy="5" rx="7" ry="3" /><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5" /><path d="M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7" /></>,
     systemBot: <><rect x="4" y="5" width="16" height="14" rx="4" /><path d="M9 5V3m6 2V3M8.5 12h.01M15.5 12h.01M9 16h6" /></>,
+    projectNews: <><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
     support: <><path d="M5 19.5V9a7 7 0 0 1 14 0v10.5" /><path d="M5 14H3.5A1.5 1.5 0 0 0 2 15.5v2A1.5 1.5 0 0 0 3.5 19H5M19 14h1.5a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1-1.5 1.5H19M19 19.5c0 1.1-.9 2-2 2h-2" /></>,
     audit: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     shield: <><path d="M12 3 4 6v5c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10V6l-8-3Z" /><path d="m8.5 12 2.2 2.2 4.8-5" /></>,
@@ -66,8 +69,11 @@ function statusLabel(status, t) {
   return t(`admin.statuses.${status}`);
 }
 
-function actionLabel(action, t) {
-  return t(`admin.auditActions.${action}`);
+function actionLabel(action, language, t) {
+  return dictionaries[language]?.admin?.auditActions?.[action]
+    ?? dictionaries.en.admin.auditActions[action]
+    ?? dictionaries.ru.admin.auditActions[action]
+    ?? t('admin.auditActionUnknown');
 }
 
 function formatDate(value, language) {
@@ -562,9 +568,9 @@ export function AdminPage() {
     <main className="admin-page">
       <section className="admin-control-room">
         <header className="admin-topbar">
-          <Link to="/app" className="admin-brand" aria-label="AraChat Control">
+          <Link to="/app" className="admin-brand" aria-label={t('admin.controlRoomAria')}>
             <span className="admin-brand-mark"><AdminIcon name="shield" /></span>
-            <span><strong>AraChat</strong><small>Control Room</small></span>
+            <span><strong>AraChat</strong><small>{t('admin.controlRoom')}</small></span>
           </Link>
           <div className="admin-topbar-actions">
             <span className="admin-secure-indicator"><span />{t('admin.secureAccess')}</span>
@@ -596,7 +602,7 @@ export function AdminPage() {
             {activeTab === 'overview' ? (
               <>
                 <header className="admin-page-heading">
-                  <div><p className="eyebrow">AraChat Control</p><h1>{t('admin.overviewTitle')}</h1><p>{t('admin.overviewText')}</p></div>
+                  <div><p className="eyebrow">{t('admin.controlRoom')}</p><h1>{t('admin.overviewTitle')}</h1><p>{t('admin.overviewText')}</p></div>
                   <button className="admin-icon-button" type="button" onClick={() => void loadOverview()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button>
                 </header>
                 <div className="admin-metric-grid">
@@ -606,7 +612,7 @@ export function AdminPage() {
                   <article><span className="admin-metric-icon sessions"><AdminIcon name="audit" /></span><p>{t('admin.activeSessions')}</p><strong>{securityMetrics?.active_sessions ?? 0}</strong></article>
                 </div>
                 <div className="admin-overview-grid">
-                  <section className="admin-surface admin-activity-card"><header><div><h2>{t('admin.recentActivity')}</h2><p>{t('admin.auditText')}</p></div><button type="button" onClick={() => switchTab('audit')}>{t('admin.viewAll')}<AdminIcon name="arrow" size={16} /></button></header>{auditLogs.length ? <ol className="admin-activity-list">{auditLogs.slice(0, 5).map((entry) => <li key={entry.id}><span className="admin-activity-dot" /><div><strong>{actionLabel(entry.action, t)}</strong><small>{formatDate(entry.created_at, language)}</small></div></li>)}</ol> : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</section>
+                  <section className="admin-surface admin-activity-card"><header><div><h2>{t('admin.recentActivity')}</h2><p>{t('admin.auditText')}</p></div><button type="button" onClick={() => switchTab('audit')}>{t('admin.viewAll')}<AdminIcon name="arrow" size={16} /></button></header>{auditLogs.length ? <ol className="admin-activity-list">{auditLogs.slice(0, 5).map((entry) => <li key={entry.id}><span className="admin-activity-dot" /><div><strong>{actionLabel(entry.action, language, t)}</strong><small>{formatDate(entry.created_at, language)}</small></div></li>)}</ol> : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</section>
                   <section className="admin-surface admin-quick-card"><h2>{t('admin.quickActions')}</h2><div className="admin-quick-actions"><button type="button" onClick={() => switchTab('systemBot')}><span><AdminIcon name="systemBot" /></span><div><strong>{t('admin.systemBotQuickAction')}</strong><small>{t('admin.systemBotQuickActionText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => { setBranchForm(EMPTY_BRANCH_FORM); setBranchStatus(''); setIsBranchDialogOpen(true); }}><span><AdminIcon name="plus" /></span><div><strong>{t('admin.createBranch')}</strong><small>{t('admin.createBranchText')}</small></div><AdminIcon name="arrow" size={16} /></button><button type="button" onClick={() => switchTab('users')}><span><AdminIcon name="search" /></span><div><strong>{t('admin.findUser')}</strong><small>{t('admin.findUserText')}</small></div><AdminIcon name="arrow" size={16} /></button></div></section>
                   <section className="admin-surface admin-security-card"><header><div><h2>{t('admin.securityTitle')}</h2><p>{t('admin.securityText')}</p></div><AdminIcon name="shield" /></header><div className="admin-security-list"><div><span>{t('admin.lockedPasswords')}</span><strong>{securityMetrics?.locked_passwords ?? 0}</strong></div><div><span>{t('admin.lockedPins')}</span><strong>{securityMetrics?.locked_pins ?? 0}</strong></div><div><span>{t('admin.archivedBranches')}</span><strong>{securityMetrics?.archived_branches ?? 0}</strong></div></div></section>
                   <section className="admin-surface admin-country-card"><header><div><h2>{t('admin.registrationCountries')}</h2><p>{t('admin.countryDistribution')}</p></div></header><div className="admin-country-bars">{countries.map((item) => <div key={item.country}><span>{countryLabel(item.country)}</span><i><b style={{ width: `${Math.max(8, ((item.count / Math.max(overview?.total_users || 1, 1)) * 100))}%` }} /></i><strong>{item.count}</strong></div>)}</div></section>
@@ -617,7 +623,7 @@ export function AdminPage() {
             {activeTab === 'systemBot' ? (
               <>
                 <header className="admin-page-heading">
-                  <div><p className="eyebrow">AraChat System</p><h1>{t('admin.systemBotTitle')}</h1><p>{t('admin.systemBotText')}</p></div>
+                  <div><p className="eyebrow">{t('admin.systemBotTitle')}</p><h1>{t('admin.systemBotTitle')}</h1><p>{t('admin.systemBotText')}</p></div>
                   <button className="admin-icon-button" type="button" onClick={() => void loadSystemBot()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button>
                 </header>
                 {isLoadingSystemBot && !systemBot ? <AraChatLoader title={t('admin.systemBotTitle')} text={t('admin.loadingSystemBot')} /> : (
@@ -659,6 +665,8 @@ export function AdminPage() {
               </>
             ) : null}
 
+            {activeTab === 'projectNews' ? <ProjectNewsPanel /> : null}
+
             {activeTab === 'support' ? <SupportTicketsPanel /> : null}
 
             {activeTab === 'users' ? (
@@ -678,7 +686,7 @@ export function AdminPage() {
 
             {activeTab === 'maintenance' ? <><header className="admin-page-heading"><div><p className="eyebrow">{t('admin.tabs.maintenance')}</p><h1>{t('admin.maintenanceTitle')}</h1><p>{t('admin.maintenanceText')}</p></div><button className="admin-icon-button" type="button" onClick={() => void loadMaintenance()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button></header>{isLoadingMaintenance && !maintenance ? <AraChatLoader compact title={t('admin.maintenanceLoading')} text={t('admin.maintenanceLoadingText')} /> : <div className="admin-maintenance-grid"><section className="admin-surface admin-maintenance-host"><header><div><h2>{t('admin.hostStorageTitle')}</h2><p>{maintenance?.host.collector_available ? t('admin.hostStorageUpdated').replace('{date}', formatDate(maintenance.host.collected_at, language)) : t('admin.hostStorageUnavailable')}</p></div><span className={`admin-storage-state ${storageLevel(maintenance?.host.disk_usage_percent)}`}>{maintenance?.host.disk_usage_percent ?? '—'}%</span></header><div className="admin-disk-meter" aria-label={t('admin.diskUsage')}><i><b style={{ width: `${Math.min(maintenance?.host.disk_usage_percent ?? 0, 100)}%` }} /></i><span>{formatBytes(maintenance?.host.disk_used_bytes)} / {formatBytes(maintenance?.host.disk_total_bytes)}</span></div><dl className="admin-storage-breakdown"><div><dt>{t('admin.dockerData')}</dt><dd>{formatBytes(maintenance?.host.docker_bytes)}</dd></div><div><dt>{t('admin.dockerLogs')}</dt><dd>{formatBytes(maintenance?.host.docker_log_bytes)}</dd></div><div><dt>{t('admin.postgresData')}</dt><dd>{formatBytes(maintenance?.host.postgres_bytes)}</dd></div><div><dt>{t('admin.redisData')}</dt><dd>{formatBytes(maintenance?.host.redis_bytes)}</dd></div><div><dt>{t('admin.localBackups')}</dt><dd>{formatBytes(maintenance?.host.local_backup_bytes)}</dd></div></dl><p className="admin-maintenance-note">{t('admin.hostStorageNote')}</p></section><section className="admin-surface admin-maintenance-retention"><header><div><h2>{t('admin.retentionTitle')}</h2><p>{t('admin.retentionText')}</p></div><Button type="button" onClick={() => void runRetention()} disabled={isRunningRetention}>{isRunningRetention ? t('admin.maintenanceRunning') : t('admin.maintenanceRun')}</Button></header><p className="admin-maintenance-safety">{t('admin.retentionSafety')}</p><div className="admin-retention-list">{maintenance?.retention.categories?.map((item) => <div key={item.key}><span>{t(`admin.retentionCategories.${item.key}`)}</span><strong>{item.count.toLocaleString(language)}{item.bytes !== null ? ` · ${formatBytes(item.bytes)}` : ''}</strong></div>)}</div>{maintenanceStatus ? <p className={maintenanceStatus === t('admin.maintenanceRunComplete') ? 'success-text' : 'error-text'}>{maintenanceStatus}</p> : null}</section></div>}</> : null}
 
-            {activeTab === 'audit' ? <><header className="admin-page-heading"><div><p className="eyebrow">{t('admin.tabs.audit')}</p><h1>{t('admin.auditTitle')}</h1><p>{t('admin.auditText')}</p></div><button className="admin-icon-button" type="button" onClick={() => void loadOverview()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button></header><section className="admin-surface admin-audit-feed">{auditLogs.length ? auditLogs.map((entry) => <article key={entry.id}><span className="admin-audit-icon"><AdminIcon name="audit" size={17} /></span><div><strong>{actionLabel(entry.action, t)}</strong><small>{entry.target_type ? `${entry.target_type} · ` : ''}{entry.target_id || t('admin.systemEvent')}</small></div><time>{formatDate(entry.created_at, language)}</time></article>) : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</section></> : null}
+            {activeTab === 'audit' ? <><header className="admin-page-heading"><div><p className="eyebrow">{t('admin.tabs.audit')}</p><h1>{t('admin.auditTitle')}</h1><p>{t('admin.auditText')}</p></div><button className="admin-icon-button" type="button" onClick={() => void loadOverview()} aria-label={t('admin.refresh')} title={t('admin.refresh')}><AdminIcon name="refresh" /></button></header><section className="admin-surface admin-audit-feed">{auditLogs.length ? auditLogs.map((entry) => <article key={entry.id}><span className="admin-audit-icon"><AdminIcon name="audit" size={17} /></span><div><strong>{actionLabel(entry.action, language, t)}</strong><small>{entry.target_type ? `${entry.target_type} · ` : ''}{entry.target_id || t('admin.systemEvent')}</small></div><time>{formatDate(entry.created_at, language)}</time></article>) : <p className="admin-empty-state">{t('admin.auditEmpty')}</p>}</section></> : null}
           </section>
         </div>
       </section>
@@ -687,7 +695,7 @@ export function AdminPage() {
 
       {pendingAction ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setPendingAction(null)}><section className="app-dialog admin-confirm-dialog" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}><p className="eyebrow">{pendingAction.status === 'deleted' ? t('admin.irreversibleAction') : t('admin.confirmAction')}</p><h2>{pendingAction.status === 'deleted' ? t('admin.deleteUserTitle') : pendingAction.status === 'blocked' ? t('admin.blockUserTitle') : t('admin.unblockUserTitle')}</h2><p>{t('admin.actionTarget').replace('{name}', pendingAction.user.display_name)}</p>{pendingAction.status === 'deleted' ? <label className="field"><span>{t('admin.deleteConfirmation').replace('{word}', t('admin.deleteConfirmWord'))}</span><input className="text-input" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoFocus /></label> : null}<div className="admin-dialog-actions"><Button variant="secondary" type="button" onClick={() => setPendingAction(null)}>{t('messages.cancel')}</Button><Button variant={pendingAction.status === 'deleted' ? 'danger' : 'primary'} type="button" disabled={isUpdatingUser || (pendingAction.status === 'deleted' && deleteConfirmation !== t('admin.deleteConfirmWord'))} onClick={confirmUserAction}>{isUpdatingUser ? '…' : pendingAction.status === 'deleted' ? t('admin.delete') : pendingAction.status === 'blocked' ? t('admin.block') : t('admin.unblock')}</Button></div></section></div> : null}
 
-      {isBranchDialogOpen ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setIsBranchDialogOpen(false)}><section className="app-dialog admin-branch-dialog" role="dialog" aria-modal="true" aria-labelledby="branch-dialog-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-dialog-close" type="button" onClick={() => setIsBranchDialogOpen(false)} aria-label={t('common.close')}>×</button><p className="eyebrow">AraChat Control</p><h2 id="branch-dialog-title">{t('admin.createBranch')}</h2><p className="muted">{t('admin.createBranchDescription')}</p><form className="admin-branch-form" onSubmit={createBranch}><TextInput label={t('admin.branchTitle')} value={branchForm.title} minLength="2" maxLength="120" required onChange={(event) => updateBranchField('title', event.target.value)} /><TextInput label={t('admin.branchAddress')} value={branchForm.slug} minLength="3" maxLength="64" required placeholder="product-news" onChange={(event) => updateBranchField('slug', event.target.value)} /><TextInput label={t('admin.branchIcon')} value={branchForm.avatar_ref} maxLength="255" onChange={(event) => updateBranchField('avatar_ref', event.target.value)} /><label className="field admin-branch-description"><span>{t('admin.branchDescription')}</span><textarea className="text-input" value={branchForm.description} maxLength="500" onChange={(event) => updateBranchField('description', event.target.value)} /></label><Button type="submit" disabled={isCreatingBranch}>{isCreatingBranch ? t('admin.creatingBranch') : t('admin.createBranch')}</Button></form>{branchStatus ? <p className="error-text">{branchStatus}</p> : null}</section></div> : null}
+      {isBranchDialogOpen ? <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setIsBranchDialogOpen(false)}><section className="app-dialog admin-branch-dialog" role="dialog" aria-modal="true" aria-labelledby="branch-dialog-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-dialog-close" type="button" onClick={() => setIsBranchDialogOpen(false)} aria-label={t('common.close')}>×</button><p className="eyebrow">{t('admin.controlRoom')}</p><h2 id="branch-dialog-title">{t('admin.createBranch')}</h2><p className="muted">{t('admin.createBranchDescription')}</p><form className="admin-branch-form" onSubmit={createBranch}><TextInput label={t('admin.branchTitle')} value={branchForm.title} minLength="2" maxLength="120" required onChange={(event) => updateBranchField('title', event.target.value)} /><TextInput label={t('admin.branchAddress')} value={branchForm.slug} minLength="3" maxLength="64" required placeholder="product-news" onChange={(event) => updateBranchField('slug', event.target.value)} /><TextInput label={t('admin.branchIcon')} value={branchForm.avatar_ref} maxLength="255" onChange={(event) => updateBranchField('avatar_ref', event.target.value)} /><label className="field admin-branch-description"><span>{t('admin.branchDescription')}</span><textarea className="text-input" value={branchForm.description} maxLength="500" onChange={(event) => updateBranchField('description', event.target.value)} /></label><Button type="submit" disabled={isCreatingBranch}>{isCreatingBranch ? t('admin.creatingBranch') : t('admin.createBranch')}</Button></form>{branchStatus ? <p className="error-text">{branchStatus}</p> : null}</section></div> : null}
 
       {editingBranch ? <div className="admin-drawer-layer" role="presentation" onMouseDown={() => setEditingBranch(null)}><aside className="admin-drawer admin-branch-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-branch-title" onMouseDown={(event) => event.stopPropagation()}><button className="admin-drawer-close" type="button" onClick={() => setEditingBranch(null)} aria-label={t('common.close')}><AdminIcon name="close" /></button><p className="eyebrow">{t('admin.branchManagement')}</p><h2 id="edit-branch-title">{editingBranch.title}</h2><form className="admin-drawer-form" onSubmit={saveBranch}><TextInput label={t('admin.branchTitle')} value={branchForm.title} minLength="2" maxLength="120" required onChange={(event) => updateBranchField('title', event.target.value)} /><TextInput label={t('admin.branchAddress')} value={branchForm.slug} minLength="3" maxLength="64" required onChange={(event) => updateBranchField('slug', event.target.value)} /><TextInput label={t('admin.branchIcon')} value={branchForm.avatar_ref} maxLength="255" onChange={(event) => updateBranchField('avatar_ref', event.target.value)} /><label className="field"><span>{t('admin.branchDescription')}</span><textarea className="text-input" value={branchForm.description} maxLength="500" onChange={(event) => updateBranchField('description', event.target.value)} /></label><Button type="submit" disabled={isSavingBranch}>{t('admin.saveBranch')}</Button></form><form className="admin-member-form" onSubmit={assignBranchMember}><h3>{t('admin.assignMember')}</h3><p>{t('admin.assignMemberText')}</p><label className="field"><span>{t('admin.userSearch')}</span><input className="text-input" value={memberUserQuery} onChange={(event) => setMemberUserQuery(event.target.value)} placeholder={t('admin.userSearchPlaceholder')} required /></label><label className="field"><span>{t('admin.memberRole')}</span><select className="text-input" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}><option value="admin">{t('admin.branchAdmin')}</option><option value="owner">{t('admin.branchOwner')}</option></select></label><Button variant="secondary" type="submit" disabled={isSavingBranch}>{t('admin.assign')}</Button></form>{!editingBranch.is_official ? <section className="admin-danger-zone"><p>{t('admin.dangerZone')}</p><strong>{editingBranch.is_archived ? t('admin.restoreBranchText') : t('admin.archiveBranchText')}</strong><Button variant={editingBranch.is_archived ? 'secondary' : 'danger'} type="button" onClick={() => void toggleBranchArchive(editingBranch)}>{editingBranch.is_archived ? t('admin.restore') : t('admin.archive')}</Button></section> : null}{branchStatus ? <p className={branchStatus === t('admin.memberAssigned') ? 'success-text' : 'error-text'}>{branchStatus}</p> : null}</aside></div> : null}
     </main>

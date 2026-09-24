@@ -95,11 +95,11 @@ export function LoginPage() {
           <RegionSelector country={selectedCountry} onChange={handleRegionChange} />
         </div>
         <div className="auth-fields">
-          <TextInput label={t('auth.identifier')} inputMode="text" autoComplete="username" value={form.identifier} onChange={(event) => updateField('identifier', event.target.value)} required />
-          <TextInput label={t('auth.password')} type="password" autoComplete="current-password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
-          <TextInput label={t('auth.pin')} inputMode="numeric" autoComplete="off" value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
+          <TextInput label={t('auth.identifier')} name="identifier" inputMode="text" autoComplete="username" spellCheck={false} value={form.identifier} onChange={(event) => updateField('identifier', event.target.value)} required />
+          <TextInput label={t('auth.password')} name="password" type="password" autoComplete="current-password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
+          <TextInput label={t('auth.pin')} name="pin" inputMode="numeric" autoComplete="off" spellCheck={false} value={form.pin} onChange={(event) => updateField('pin', event.target.value)} />
         </div>
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
         <div className="auth-actions">
           <Button type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</Button>
           <Button type="button" variant="secondary" disabled={isLoading || !form.identifier || !form.pin} onClick={handlePinLogin}>{t('auth.signInWithPin')}</Button>

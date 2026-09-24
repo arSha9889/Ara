@@ -44,13 +44,13 @@ function attachmentPayload(upload) {
   };
 }
 
-function SupportAttachment({ message, language, accessToken }) {
+function SupportAttachment({ message, language, accessToken, t }) {
   const { url } = useAuthenticatedMediaUrl(message.attachment_url, accessToken);
   if (!message.attachment_url) return null;
   return (
     <a className="support-attachment" href={url || undefined} download={message.attachment_name || true} target="_blank" rel="noreferrer" aria-disabled={!url}>
       <Icon name="paperclip" size={16} />
-      <span>{message.attachment_name || 'attachment'}</span>
+      <span>{message.attachment_name || t('support.attachment')}</span>
       {typeof message.attachment_size_bytes === 'number' ? <small>{formatBytes(message.attachment_size_bytes, language)}</small> : null}
     </a>
   );
@@ -186,7 +186,7 @@ export function SupportPage() {
       <section className="support-page">
         <header className="support-page-header">
           <Link className="support-back-button" to="/app/support" aria-label={t('support.backToTickets')}><Icon name="arrowLeft" size={20} /></Link>
-          <div><p className="eyebrow">AraChat Support</p><h1>{ticket ? `${t('support.ticket')} #${ticket.number}` : t('support.title')}</h1></div>
+          <div><p className="eyebrow">{t('support.eyebrow')}</p><h1>{ticket ? `${t('support.ticket')} #${ticket.number}` : t('support.title')}</h1></div>
         </header>
         {error ? <p className="error-text">{error}</p> : null}
         {isLoading ? <AraChatLoader title={t('support.loadingTicket')} text={t('support.loadingTicketText')} /> : null}
@@ -205,13 +205,13 @@ export function SupportPage() {
                     <article className={`support-message ${isMine ? 'mine' : 'theirs'}`} key={message.id}>
                       <div className="support-message-meta"><strong>{isMine ? t('support.you') : message.author?.display_name || t('support.team')}</strong><time dateTime={message.created_at}>{formatDate(message.created_at, language)}</time></div>
                       <p>{message.text}</p>
-                      <SupportAttachment message={message} language={language} accessToken={session.accessToken} />
+                      <SupportAttachment message={message} language={language} accessToken={session.accessToken} t={t} />
                     </article>
                   );
                 })}
               </div>
               <form className="support-composer" onSubmit={submitReply}>
-                <textarea className="text-input" value={replyText} maxLength="4000" required placeholder={t('support.replyPlaceholder')} onChange={(event) => setReplyText(event.target.value)} />
+                <textarea className="text-input" aria-label={t('support.replyPlaceholder')} value={replyText} maxLength="4000" required placeholder={t('support.replyPlaceholder')} onChange={(event) => setReplyText(event.target.value)} />
                 <div className="support-composer-actions">
                   <label className="support-file-button" title={t('support.addAttachment')}>
                     <Icon name="paperclip" size={18} />
@@ -236,7 +236,7 @@ export function SupportPage() {
   return (
     <section className="support-page">
       <header className="support-page-header support-center-header">
-        <div><p className="eyebrow">AraChat Support</p><h1>{t('support.title')}</h1><p>{t('support.description')}</p></div>
+        <div><p className="eyebrow">{t('support.eyebrow')}</p><h1>{t('support.title')}</h1><p>{t('support.description')}</p></div>
         <button className="button button-primary" type="button" onClick={() => setIsCreateFormOpen((current) => !current)}><Icon name="plus" size={18} />{t('support.newTicket')}</button>
       </header>
       {error ? <p className="error-text">{error}</p> : null}

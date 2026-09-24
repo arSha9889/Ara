@@ -10,6 +10,8 @@ import { searchUsers } from '../../profile/api/userApi.js';
 import { PublicProfileSheet } from '../../profile/components/PublicProfileSheet.jsx';
 import { createDirectChat, createDirectChatForUser } from '../api/chatApi.js';
 
+const NEW_CHAT_METHODS = ['account', 'phone'];
+
 export function NewChatPage() {
   const { t } = useI18n();
   const { session } = useSession();
@@ -75,6 +77,19 @@ export function NewChatPage() {
     }
   }
 
+  function handleMethodTabKeyDown(event, currentIndex) {
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % NEW_CHAT_METHODS.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + NEW_CHAT_METHODS.length) % NEW_CHAT_METHODS.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = NEW_CHAT_METHODS.length - 1;
+    else return;
+
+    event.preventDefault();
+    setMethod(NEW_CHAT_METHODS[nextIndex]);
+    event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[nextIndex]?.focus();
+  }
+
   const hasTypedQuery = query.trim().replace(/^@/, '').length >= 2;
   return (
     <section className="new-chat-page">
@@ -82,17 +97,17 @@ export function NewChatPage() {
         <button className="new-chat-back" type="button" onClick={() => navigate('/app')} aria-label={t('messages.backToChats')}><Icon name="arrowLeft" size={20} /></button>
         <div><p className="eyebrow">AraChat</p><h1>{t('chats.newChatTitle')}</h1><p>{t('chats.newChatText')}</p></div>
       </header>
-      <main className="new-chat-layout">
+      <div className="new-chat-layout">
         <section className="new-chat-search-panel">
           <div className="new-chat-methods" role="tablist" aria-label={t('chats.newChatTitle')}>
-            <button className={method === 'account' ? 'active' : ''} type="button" role="tab" aria-selected={method === 'account'} onClick={() => setMethod('account')}><Icon name="search" size={18} />{t('chats.searchByAccount')}</button>
-            <button className={method === 'phone' ? 'active' : ''} type="button" role="tab" aria-selected={method === 'phone'} onClick={() => setMethod('phone')}><Icon name="phone" size={18} />{t('chats.newChatFindByPhone')}</button>
+            <button className={method === 'account' ? 'active' : ''} type="button" role="tab" id="new-chat-tab-account" aria-selected={method === 'account'} aria-controls={method === 'account' ? 'new-chat-panel-account' : undefined} tabIndex={method === 'account' ? 0 : -1} onClick={() => setMethod('account')} onKeyDown={(event) => handleMethodTabKeyDown(event, 0)}><Icon name="search" size={18} />{t('chats.searchByAccount')}</button>
+            <button className={method === 'phone' ? 'active' : ''} type="button" role="tab" id="new-chat-tab-phone" aria-selected={method === 'phone'} aria-controls={method === 'phone' ? 'new-chat-panel-phone' : undefined} tabIndex={method === 'phone' ? 0 : -1} onClick={() => setMethod('phone')} onKeyDown={(event) => handleMethodTabKeyDown(event, 1)}><Icon name="phone" size={18} />{t('chats.newChatFindByPhone')}</button>
           </div>
-          {method === 'account' ? <>
+          {method === 'account' ? <div className="new-chat-account-panel" id="new-chat-panel-account" role="tabpanel" aria-labelledby="new-chat-tab-account">
             <label className="new-chat-query-field">
               <Icon name="search" size={20} />
-              <input autoFocus autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('chats.newChatSearchPlaceholder')} aria-label={t('chats.newChatSearchLabel')} />
-              {isSearching ? <span className="new-chat-search-spinner" aria-label={t('chats.newChatSearching')} /> : null}
+              <input name="account_query" autoComplete="off" spellCheck={false} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('chats.newChatSearchPlaceholder')} aria-label={t('chats.newChatSearchLabel')} />
+              {isSearching ? <span className="new-chat-search-spinner" role="status" aria-label={t('chats.newChatSearching')} /> : null}
             </label>
             <p className="new-chat-hint"><Icon name="sparkles" size={16} />{t('chats.newChatSearchHint')}</p>
             <div className="new-chat-results" aria-live="polite">
@@ -107,17 +122,19 @@ export function NewChatPage() {
                 <button className="new-chat-write-button" type="button" onClick={() => openChatForUser(user)} disabled={isOpeningChat}><Icon name="chat" size={17} />{t('chats.newChatWrite')}</button>
               </article>)}
             </div>
-          </> : <form className="new-chat-phone-form" onSubmit={findByPhone}>
-            <div className="new-chat-phone-orb"><Icon name="phone" size={28} /></div>
-            <div><h2>{t('chats.newChatFindByPhone')}</h2><p>{t('chats.newChatFindByPhoneText')}</p></div>
-            <label className="field"><span>{t('register.phoneCountry')}</span><select className="select" value={country} onChange={(event) => setCountry(event.target.value)}>{PHONE_COUNTRIES.map((item) => <option value={item.code} key={item.code}>{item.flag} {t(`register.${item.labelKey}`)} · {item.dialCode}</option>)}</select></label>
-            <label className="field"><span>{t('chats.phone')}</span><input className="text-input" inputMode="tel" autoFocus value={phone} onChange={(event) => setPhone(event.target.value)} placeholder={PHONE_COUNTRIES.find((item) => item.code === country)?.placeholder} /></label>
-            <button className="button button-primary new-chat-phone-submit" type="submit" disabled={!phone.trim() || isOpeningChat}><Icon name="arrowRight" size={18} />{isOpeningChat ? t('chats.openingChat') : t('chats.newChatFind')}</button>
-          </form>}
-          {error ? <p className="error-text">{error}</p> : null}
+          </div> : <div id="new-chat-panel-phone" role="tabpanel" aria-labelledby="new-chat-tab-phone">
+            <form className="new-chat-phone-form" onSubmit={findByPhone}>
+              <div className="new-chat-phone-orb"><Icon name="phone" size={28} /></div>
+              <div><h2>{t('chats.newChatFindByPhone')}</h2><p>{t('chats.newChatFindByPhoneText')}</p></div>
+              <label className="field"><span>{t('register.phoneCountry')}</span><select className="select" name="country" value={country} onChange={(event) => setCountry(event.target.value)}>{PHONE_COUNTRIES.map((item) => <option value={item.code} key={item.code}>{item.flag} {t(`register.${item.labelKey}`)} · {item.dialCode}</option>)}</select></label>
+              <label className="field"><span>{t('chats.phone')}</span><input className="text-input" name="phone" type="tel" inputMode="tel" autoComplete="tel" spellCheck={false} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder={PHONE_COUNTRIES.find((item) => item.code === country)?.placeholder} /></label>
+              <button className="button button-primary new-chat-phone-submit" type="submit" disabled={!phone.trim() || isOpeningChat}><Icon name="arrowRight" size={18} />{isOpeningChat ? t('chats.openingChat') : t('chats.newChatFind')}</button>
+            </form>
+          </div>}
+          {error ? <p className="error-text" role="alert">{error}</p> : null}
         </section>
         <aside className="new-chat-aside" aria-hidden="true"><div className="new-chat-aside-orbit orbit-one" /><div className="new-chat-aside-orbit orbit-two" /><div className="new-chat-aside-avatar"><Icon name="chat" size={32} /></div><strong>{t('chats.newChatAsideTitle')}</strong><p>{t('chats.newChatAsideText')}</p></aside>
-      </main>
+      </div>
       <PublicProfileSheet user={selectedUser} isOpen={Boolean(selectedUser)} onClose={() => setSelectedUser(null)} onWrite={() => openChatForUser(selectedUser)} isWriting={isOpeningChat} />
     </section>
   );

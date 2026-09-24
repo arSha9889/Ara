@@ -1,5 +1,6 @@
 from app.models.audit import AuditLog, TelegramRecoveryRequest
 from app.models.chats import BranchComment, Chat, ChatParticipant, ChatPreference, Message, MessageReaction, MessageReceipt, MobilePushToken, Notification, PushSubscription, SystemAnnouncement
+from app.models.news import ProjectNews, ProjectNewsTranslation
 from app.models.oauth import OAuthAttempt, OAuthIdentity
 from app.models.safety import ContentReport, UserBlock
 from app.models.security import E2eeWebKey, PasswordCredential, RecoveryCode, TrustedDevicePin
@@ -31,6 +32,8 @@ __all__ = [
     'PhoneVerification',
     'RecoveryCode',
     'PushSubscription',
+    'ProjectNews',
+    'ProjectNewsTranslation',
     'Session',
     'StoredObject',
     'SupportMessage',

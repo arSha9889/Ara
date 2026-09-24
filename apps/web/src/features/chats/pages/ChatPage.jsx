@@ -1967,18 +1967,27 @@ export function ChatPage() {
       ) : null}
       <div className={`message-list chat-wallpaper-${chat?.wallpaper_id || 'default'}`} ref={messageListRef}>
         {isLoadingMessages ? <AraChatLoader compact title={t('messages.openingTitle')} text={t('messages.openingText')} /> : null}
-        {messages.map((message, index) => (
-          <article
+        {messages.map((message, index) => {
+          const startsMessageDay = !areSameMessageDay(messages[index - 1]?.created_at, message.created_at);
+          const endsMessageGroup = !areMessagesGrouped(message, messages[index + 1]);
+          const messageDate = startsMessageDay ? formatMessageDate(message.created_at, language) : '';
+          const messageTime = endsMessageGroup ? formatMessageTime(message.created_at, language) : '';
+
+          return (
+          <Fragment key={message.id}>
+            {messageDate ? <div className="message-date-divider" role="separator" aria-label={messageDate}><span>{messageDate}</span></div> : null}
+            <article
             id={`message-${message.id}`}
             data-message-id={message.id}
             data-incoming-message={message.sender_id !== session.user?.id}
             className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${areMessagesGrouped(messages[index - 1], message) ? 'grouped-with-previous' : ''} ${areMessagesGrouped(message, messages[index + 1]) ? 'grouped-with-next' : ''} ${message.type === 'sticker' ? 'sticker-message' : ''} ${message.encryption_state === 'e2ee_web_v1' ? 'e2ee' : ''} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
-            key={message.id}
             role={!message.deleted_at ? 'button' : undefined}
             tabIndex={!message.deleted_at ? 0 : undefined}
             onClick={(event) => handleMessageBubbleClick(event, message)}
             onKeyDown={(event) => handleMessageBubbleKeyDown(event, message)}
             aria-label={!message.deleted_at ? t('messages.openReactions') : undefined}
+            aria-expanded={!message.deleted_at && !isPublicBranch ? openReactionPickerMessageId === message.id : undefined}
+            aria-controls={openReactionPickerMessageId === message.id ? `reaction-picker-${message.id}` : undefined}
           >
             {!message.deleted_at && !isPublicBranch ? (
               <div className="message-actions">
@@ -2006,7 +2015,7 @@ export function ChatPage() {
             ) : null}
             {editingMessage?.id === message.id ? (
               <form className="message-edit-form" onSubmit={handleEditSubmit}>
-                <input className="message-edit-input" value={editText} onChange={(event) => setEditText(event.target.value)} autoFocus />
+                <input className="message-edit-input" aria-label={t('messages.edit')} value={editText} onChange={(event) => setEditText(event.target.value)} autoFocus />
                 <div className="message-edit-actions">
                   <button className="message-edit-button save" type="submit" aria-label={t('messages.save')}>
                     <span aria-hidden="true">✓</span>
@@ -2048,6 +2057,7 @@ export function ChatPage() {
               </>
             )}
             <div className="message-meta">
+              {messageTime ? <time className="message-time" dateTime={message.created_at}>{messageTime}</time> : null}
               {message.is_pinned ? <span>{t('messages.pinnedShort')}</span> : null}
               {message.edited_at && !message.deleted_at ? <span>{t('messages.edited')}</span> : null}
               {encryptedMessageStatus(message, t) ? (
@@ -2062,7 +2072,7 @@ export function ChatPage() {
               {message.reactions?.map((reaction) => {
                 const effect = reactionEffects[`${message.id}:${reaction.emoji}`];
                 return (
-                  <button className={`reaction-chip ${reaction.reacted_by_me ? 'active' : ''} ${effect?.type === 'added' ? 'is-added' : ''} ${effect?.type === 'removed' ? 'is-removed' : ''}`} type="button" key={reaction.emoji} onClick={() => handleReaction(message.id, reaction.emoji)}>
+                  <button className={`reaction-chip ${reaction.reacted_by_me ? 'active' : ''} ${effect?.type === 'added' ? 'is-added' : ''} ${effect?.type === 'removed' ? 'is-removed' : ''}`} type="button" key={reaction.emoji} onClick={() => handleReaction(message.id, reaction.emoji)} aria-pressed={reaction.reacted_by_me} aria-label={`${reaction.emoji}: ${reaction.count}`}>
                     {reaction.emoji} {reaction.count}
                   </button>
                 );
@@ -2079,7 +2089,7 @@ export function ChatPage() {
                 );
               })}
               {openReactionPickerMessageId === message.id ? (
-                <div className="reaction-picker" role="menu" aria-label={t('messages.reactionPicker')}>
+                <div className="reaction-picker" id={`reaction-picker-${message.id}`} role="menu" aria-label={t('messages.reactionPicker')}>
                   <div className="reaction-picker-head">
                     <strong>{t('messages.reactionPicker')}</strong>
                     <button type="button" onClick={() => setOpenReactionPickerMessageId(null)} aria-label={t('messages.closeReactions')}>×</button>
@@ -2092,8 +2102,10 @@ export function ChatPage() {
                 </div>
               ) : null}
             </div> : null}
-          </article>
-        ))}
+            </article>
+          </Fragment>
+          );
+        })}
         {activityText ? (
           <div className={`chat-activity-line ${activityType || 'active'}`} aria-live="polite">
             <span className="chat-activity-icon" aria-hidden="true">
@@ -2138,7 +2150,7 @@ export function ChatPage() {
             <Icon name="paperclip" size={20} />
             <input ref={fileInputRef} type="file" accept={acceptedFileTypes()} disabled={isDirectChat && e2eeStatus === 'ready'} onChange={(event) => handleFileChange(event.target.files?.[0])} />
           </label>
-          <input className="composer-input" placeholder={t('messages.placeholder')} value={text} onChange={(event) => handleTextChange(event.target.value)} />
+          <input className="composer-input" aria-label={t('messages.placeholder')} placeholder={t('messages.placeholder')} value={text} onChange={(event) => handleTextChange(event.target.value)} />
           <div className="composer-emoji-wrap">
             <button
               className={`composer-icon-button composer-emoji-button ${isComposerEmojiPickerOpen ? 'active' : ''}`}

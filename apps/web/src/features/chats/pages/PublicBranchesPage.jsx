@@ -69,7 +69,7 @@ export function PublicBranchesPage() {
           </div>
           {isOnboarding ? <button className="button button-secondary branches-skip-button" type="button" onClick={() => navigate('/app', { replace: true })}>{t('chats.branchOnboardingSkip')}</button> : null}
         </header>
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
         {isLoading ? <AraChatLoader compact title={t('chats.publicBranches')} text={t('chats.loadingText')} /> : null}
         {!isLoading && branches.length === 0 ? <EmptyState title={t('chats.publicBranches')} text={t('chats.publicBranchesEmpty')} /> : null}
         <div className="list-stack">
@@ -87,8 +87,8 @@ export function PublicBranchesPage() {
                   {!branch.can_post ? <button className="branch-unsubscribe-button" type="button" disabled={subscribingId === branch.id} onClick={() => handleUnsubscribe(branch.id)}>{t('chats.unsubscribe')}</button> : null}
                 </div>
               ) : (
-                <button className="button button-secondary" type="button" disabled={subscribingId === branch.id} onClick={() => handleSubscribe(branch.id)}>
-                  {subscribingId === branch.id ? '…' : t('chats.subscribe')}
+                <button className="button button-secondary" type="button" disabled={subscribingId === branch.id} aria-busy={subscribingId === branch.id} onClick={() => handleSubscribe(branch.id)}>
+                  {subscribingId === branch.id ? t('common.loading') : t('chats.subscribe')}
                 </button>
               )}
             </article>

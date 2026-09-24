@@ -138,16 +138,16 @@ export function RegisterPage() {
         </ol>
         {step === 'email' ? (
           <div className="auth-fields">
-            <TextInput label={t('register.emailLabel')} type="email" autoComplete="email" value={form.email} onChange={(event) => resetEmail(event.target.value)} required />
+            <TextInput label={t('register.emailLabel')} name="email" type="email" autoComplete="email" spellCheck={false} value={form.email} onChange={(event) => resetEmail(event.target.value)} required />
             <Button type="button" variant="secondary" onClick={requestEmailCode} disabled={isLoading || !form.email}>{t('register.emailRequestCode')}</Button>
-            <TextInput label={t('register.emailCodeLabel')} inputMode="numeric" value={form.email_code} onChange={(event) => updateField('email_code', event.target.value.replace(/\D/g, '').slice(0, 6))} required />
-            {status ? <p className="success-text">{status}</p> : null}
+            <TextInput label={t('register.emailCodeLabel')} name="email_code" inputMode="numeric" autoComplete="one-time-code" spellCheck={false} value={form.email_code} onChange={(event) => updateField('email_code', event.target.value.replace(/\D/g, '').slice(0, 6))} required />
+            {status ? <p className="success-text" role="status" aria-live="polite">{status}</p> : null}
           </div>
         ) : null}
         {step === 'profile' ? (
           <div className="auth-fields">
-            <TextInput label={t('auth.username')} value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={checkUsernameAvailability} required />
-            {usernameState ? <p className="muted">{usernameState}</p> : null}
+            <TextInput label={t('auth.username')} name="username" autoComplete="username" spellCheck={false} value={form.username} onChange={(event) => updateField('username', event.target.value)} onBlur={checkUsernameAvailability} required />
+            {usernameState ? <p className="muted" role="status" aria-live="polite">{usernameState}</p> : null}
             <fieldset className="registration-avatar-picker">
               <legend>{t('register.avatarTitle')}</legend>
               <div className="registration-avatar-grid">
@@ -169,13 +169,13 @@ export function RegisterPage() {
         ) : null}
         {step === 'password' ? (
           <div className="auth-fields">
-            <TextInput label={t('register.password')} type="password" autoComplete="new-password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
-            <TextInput label={t('register.optionalPin')} inputMode="numeric" value={form.pin} onChange={(event) => updateField('pin', event.target.value.replace(/\D/g, '').slice(0, 8))} />
+            <TextInput label={t('register.password')} name="password" type="password" autoComplete="new-password" value={form.password} onChange={(event) => updateField('password', event.target.value)} required />
+            <TextInput label={t('register.optionalPin')} name="pin" inputMode="numeric" spellCheck={false} value={form.pin} onChange={(event) => updateField('pin', event.target.value.replace(/\D/g, '').slice(0, 8))} />
             <label className="legal-consent-row"><input type="checkbox" checked={form.accepted_privacy_policy} onChange={(event) => updateField('accepted_privacy_policy', event.target.checked)} required /><span>{t('register.acceptPrivacy')} <Link to="/privacy" target="_blank">{t('onboarding.privacyPolicy')}</Link></span></label>
             <label className="legal-consent-row"><input type="checkbox" checked={form.accepted_terms} onChange={(event) => updateField('accepted_terms', event.target.checked)} required /><span>{t('register.acceptTerms')} <Link to="/terms" target="_blank">{t('onboarding.terms')}</Link></span></label>
           </div>
         ) : null}
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
         <div className="auth-actions">
           {step !== 'email' ? <Button type="button" variant="secondary" onClick={() => setStep(step === 'password' ? 'profile' : 'email')}>{t('common.back')}</Button> : null}
           <Button type="submit" disabled={isLoading || (step === 'email' && (!form.email_verification_id || form.email_code.length !== 6))}>{isLoading ? t('common.loading') : step === 'password' ? t('register.createAccount') : t('common.continue')}</Button>
