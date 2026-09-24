@@ -263,6 +263,38 @@ function calendarDayStart(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
+function messageDate(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function areSameMessageDay(leftValue, rightValue) {
+  const left = messageDate(leftValue);
+  const right = messageDate(rightValue);
+  return Boolean(left && right && calendarDayStart(left) === calendarDayStart(right));
+}
+
+function formatMessageDate(value, language) {
+  const date = messageDate(value);
+  if (!date) return '';
+
+  return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.ru, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatMessageTime(value, language) {
+  const date = messageDate(value);
+  if (!date) return '';
+
+  return new Intl.DateTimeFormat(DATE_LOCALES[language] || DATE_LOCALES.ru, {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 function realtimeStatusView(status, lastSeenAt, t, language) {
   if (status === true || status === 'online') {
     return { label: t('messages.online'), tone: 'online' };
