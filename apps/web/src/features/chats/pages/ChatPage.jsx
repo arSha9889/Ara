@@ -40,7 +40,7 @@ const CHAT_WALLPAPERS = ['default', 'grid', 'waves', 'aurora', 'paper', 'night']
 const FOCUS_CANVAS_STORAGE_KEY = 'nexus_focus_canvas';
 
 function areMessagesGrouped(previousMessage, message) {
-  if (!previousMessage || previousMessage.sender_id !== message.sender_id) return false;
+  if (!previousMessage || !message || previousMessage.sender_id !== message.sender_id) return false;
   if (previousMessage.deleted_at || message.deleted_at || previousMessage.type === 'sticker' || message.type === 'sticker') return false;
   if (!previousMessage.created_at || !message.created_at) return false;
   return new Date(message.created_at).getTime() - new Date(previousMessage.created_at).getTime() <= 5 * 60 * 1000;
