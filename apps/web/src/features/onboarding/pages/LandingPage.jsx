@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { OFFICIAL_CHANNELS, YOUTUBE_CHANNEL_URL } from '../../../shared/config/projectLinks.js';
+import { DONATION_DETAILS, OFFICIAL_CHANNELS, YOUTUBE_CHANNEL_URL } from '../../../shared/config/projectLinks.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { CometScene } from '../components/CometScene.jsx';
 import { CometSiteHeader } from '../components/CometSiteHeader.jsx';
@@ -18,6 +18,12 @@ export function LandingPage() {
   const ctaPath = isAuthenticated ? '/app' : '/register';
   const ctaLabel = isAuthenticated ? t('onboarding.enterMessenger') : t('onboarding.openMessenger');
   const [news, setNews] = useState([]);
+  const [isDonationDialogOpen, setIsDonationDialogOpen] = useState(false);
+  const [donationCopyState, setDonationCopyState] = useState('idle');
+  const donationTriggerRef = useRef(null);
+  const donationDialogRef = useRef(null);
+  const donationDialogCloseRef = useRef(null);
+  const wasDonationDialogOpenRef = useRef(false);
   const storyScenes = [
     { type: 'voice', kicker: t('comet.voiceKicker'), title: t('comet.voiceTitle'), text: t('comet.voiceText'), icon: 'microphone' },
     { type: 'devices', kicker: t('comet.devicesKicker'), title: t('comet.devicesTitle'), text: t('comet.devicesText'), icon: 'monitor' },
@@ -42,6 +48,80 @@ export function LandingPage() {
     });
     return () => { isCurrent = false; };
   }, [language]);
+
+  const closeDonationDialog = useCallback(() => {
+    setIsDonationDialogOpen(false);
+    setDonationCopyState('idle');
+  }, []);
+
+  const copyDonationPhone = useCallback(async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(DONATION_DETAILS.phone);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = DONATION_DETAILS.phone;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.append(input);
+        input.select();
+        const copied = document.execCommand('copy');
+        input.remove();
+        if (!copied) throw new Error('copy failed');
+      }
+      setDonationCopyState('copied');
+    } catch {
+      setDonationCopyState('failed');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDonationDialogOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    donationDialogCloseRef.current?.focus();
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') closeDonationDialog();
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [closeDonationDialog, isDonationDialogOpen]);
+
+  useEffect(() => {
+    if (!isDonationDialogOpen && wasDonationDialogOpenRef.current) donationTriggerRef.current?.focus();
+    wasDonationDialogOpenRef.current = isDonationDialogOpen;
+  }, [isDonationDialogOpen]);
+
+  useEffect(() => {
+    if (donationCopyState === 'idle') return undefined;
+    const timeoutId = window.setTimeout(() => setDonationCopyState('idle'), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [donationCopyState]);
+
+  function trapDonationDialogFocus(event) {
+    if (event.key !== 'Tab' || !donationDialogRef.current) return;
+
+    const focusableElements = [...donationDialogRef.current.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )];
+    if (!focusableElements.length) return;
+
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
+    if (event.shiftKey && (document.activeElement === donationDialogRef.current || document.activeElement === firstFocusable)) {
+      event.preventDefault();
+      lastFocusable.focus();
+    } else if (!event.shiftKey && document.activeElement === lastFocusable) {
+      event.preventDefault();
+      firstFocusable.focus();
+    }
+  }
 
   return (
     <main className="public-page comet-page comet-landing-page" aria-labelledby="landing-title">
@@ -127,6 +207,52 @@ export function LandingPage() {
           </ol>
         </section>
 
+        <section className="comet-support" id="support" aria-labelledby="support-title">
+          <span className="comet-support-orbit comet-support-orbit-one" aria-hidden="true" />
+          <span className="comet-support-orbit comet-support-orbit-two" aria-hidden="true" />
+          <div className="comet-support-copy">
+            <p className="comet-kicker"><span />{t('comet.donationKicker')}</p>
+            <h2 id="support-title">{t('comet.donationTitle')}</h2>
+            <p>{t('comet.donationLead')}</p>
+            <ul className="comet-support-focus">
+              <li>
+                <span aria-hidden="true"><Icon name="activity" size={18} /></span>
+                <div>
+                  <strong>{t('comet.donationInfrastructureTitle')}</strong>
+                  <p>{t('comet.donationInfrastructureText')}</p>
+                </div>
+              </li>
+              <li>
+                <span aria-hidden="true"><Icon name="sparkles" size={18} /></span>
+                <div>
+                  <strong>{t('comet.donationDevelopmentTitle')}</strong>
+                  <p>{t('comet.donationDevelopmentText')}</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <aside className="comet-support-action" aria-labelledby="donation-action-title">
+            <span className="comet-support-action-icon" aria-hidden="true"><Icon name="phone" size={22} /></span>
+            <p className="comet-support-action-label">{t('comet.donationMethod')}</p>
+            <h3 id="donation-action-title">{t('comet.donationActionTitle')}</h3>
+            <p>{t('comet.donationActionText')}</p>
+            <button
+              className="button button-primary"
+              type="button"
+              ref={donationTriggerRef}
+              aria-haspopup="dialog"
+              aria-expanded={isDonationDialogOpen}
+              onClick={() => {
+                setDonationCopyState('idle');
+                setIsDonationDialogOpen(true);
+              }}
+            >
+              {t('comet.donationOpenDetails')}<Icon name="arrowRight" size={17} />
+            </button>
+            <small>{t('comet.donationAmountNote')}</small>
+          </aside>
+        </section>
+
         <section className="comet-channels" id="channels" aria-labelledby="channels-title">
           <div className="comet-channels-copy">
             <p className="comet-kicker"><span />{t('comet.channelsKicker')}</p>
@@ -151,6 +277,66 @@ export function LandingPage() {
           <nav aria-label={t('onboarding.legalLinksLabel')}><Link to="/privacy">{t('onboarding.privacyPolicy')}</Link><span aria-hidden="true">·</span><Link to="/terms">{t('onboarding.terms')}</Link><span aria-hidden="true">·</span><Link to="/presentation">{t('onboarding.openPresentation')}</Link></nav>
         </section>
       </div>
+
+      {isDonationDialogOpen ? (
+        <div className="comet-donation-dialog-layer" role="presentation" onMouseDown={closeDonationDialog}>
+          <section
+            className="comet-donation-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="donation-dialog-title"
+            aria-describedby="donation-dialog-description"
+            ref={donationDialogRef}
+            tabIndex="-1"
+            onKeyDown={trapDonationDialogFocus}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button className="comet-donation-dialog-close" type="button" ref={donationDialogCloseRef} onClick={closeDonationDialog} aria-label={t('common.close')}>
+              <Icon name="x" size={19} />
+            </button>
+            <div className="comet-donation-dialog-heading">
+              <span className="comet-donation-dialog-icon" aria-hidden="true"><Icon name="phone" size={22} /></span>
+              <div>
+                <p className="comet-kicker"><span />{t('comet.donationDialogKicker')}</p>
+                <h2 id="donation-dialog-title">{t('comet.donationDialogTitle')}</h2>
+                <p id="donation-dialog-description">{t('comet.donationDialogText')}</p>
+              </div>
+            </div>
+
+            <ol className="comet-donation-steps">
+              <li><span>1</span><p>{t('comet.donationStepOne')}</p></li>
+              <li><span>2</span><p>{t('comet.donationStepTwo')}</p></li>
+              <li><span>3</span><p>{t('comet.donationStepThree')}</p></li>
+            </ol>
+
+            <dl className="comet-donation-details">
+              <div>
+                <dt>{t('comet.donationRecipientLabel')}</dt>
+                <dd>{DONATION_DETAILS.recipient}</dd>
+              </div>
+              <div>
+                <dt>{t('comet.donationPhoneLabel')}</dt>
+                <dd className="comet-donation-phone-row">
+                  <strong>{DONATION_DETAILS.phoneDisplay}</strong>
+                  <button className="comet-donation-copy" type="button" onClick={copyDonationPhone} aria-describedby="donation-copy-status">
+                    <Icon name={donationCopyState === 'copied' ? 'check' : 'copy'} size={17} />
+                    {t(donationCopyState === 'copied' ? 'common.copied' : 'comet.donationCopyPhone')}
+                  </button>
+                  <span id="donation-copy-status" className={`comet-donation-copy-status ${donationCopyState === 'failed' ? 'is-error' : ''}`} role="status" aria-live="polite">
+                    {donationCopyState === 'failed' ? t('comet.donationCopyError') : ''}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>{t('comet.donationBankLabel')}</dt>
+                <dd>{DONATION_DETAILS.banks.join(' · ')}</dd>
+              </div>
+            </dl>
+
+            <p className="comet-donation-dialog-note"><Icon name="shield" size={16} />{t('comet.donationSafetyNote')}</p>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
