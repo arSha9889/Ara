@@ -18,6 +18,8 @@ def test_app_imports_with_auth_routes() -> None:
     assert '/api/news/admin/news' in paths
     assert '/api/chats/{branch_id}/messages/{post_id}/comments' in paths
     assert '/api/notifications/mobile-config' in paths
+    assert '/api/releases/android' in paths
     assert '/api/notifications/mobile-tokens' in paths
+    assert '/api/chats/{chat_id}/messages/{message_id}' in paths
     assert '/api/safety/blocks' in paths
     assert '/api/safety/reports' in paths

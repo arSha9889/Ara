@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import models  # noqa: F401
 from app.db.base import Base
-from app.models.chats import Chat, ChatParticipant
+from app.models.chats import Chat, ChatParticipant, Message
 from app.models.verification import EmailVerification
 from app.models.users import UserProfile
 from app.schemas.auth import RegisterCompleteRequest
@@ -19,7 +19,7 @@ from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, list_branch_comments, update_branch_comment
 from app.services.branch_service import subscribe_to_branch, unsubscribe_from_branch
-from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
+from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, get_message, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
 from app.services.e2ee_service import E2EE_WEB_ALGORITHM, list_direct_chat_e2ee_keys, upsert_e2ee_web_key
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
@@ -194,6 +194,10 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             assert message.author.display_name == 'alicenexus'
             assert 'optional_phone' not in message.author.model_dump()
             assert 'email' not in message.author.model_dump()
+            exact_message = await get_message(session, second_user.id, chat.id, message.id)
+            assert exact_message.id == message.id
+            with pytest.raises(AuthError, match='Message not found'):
+                await get_message(session, second_user.id, chat.id, foreign_message.id)
             reply = await create_message(
                 session,
                 second_user.id,
@@ -257,6 +261,35 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             messages_with_deleted_reply_source = await list_messages(session, second_user.id, chat.id)
             assert messages_with_deleted_reply_source[1].reply_to
             assert messages_with_deleted_reply_source[1].reply_to.deleted_at
+
+            history_start = datetime.now(timezone.utc) + timedelta(days=1)
+            history_messages = [
+                Message(
+                    chat_id=chat.id,
+                    sender_id=first_user.id,
+                    type='text',
+                    payload=f'История {index}',
+                    created_at=history_start + timedelta(seconds=index),
+                )
+                for index in range(101)
+            ]
+            session.add_all(history_messages)
+            await session.commit()
+            message_outside_history = history_messages[-1]
+
+            ordinary_history = await list_messages(session, second_user.id, chat.id)
+            assert len(ordinary_history) == 100
+            assert message_outside_history.id not in {
+                item.id for item in ordinary_history
+            }
+            exact_message_outside_history = await get_message(
+                session,
+                second_user.id,
+                chat.id,
+                message_outside_history.id,
+            )
+            assert exact_message_outside_history.id == message_outside_history.id
+            assert exact_message_outside_history.payload == 'История 100'
     finally:
         await engine.dispose()
 

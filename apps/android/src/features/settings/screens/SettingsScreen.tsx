@@ -1,9 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
+import { androidInstallSource, appVersionCode } from '../../../config/runtimeConfig';
 import { useSession } from '../../auth/session/useSession';
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { clearPrivateChatMediaCache } from '../../chats/media/mediaClient';
@@ -14,6 +15,7 @@ import { AppScreen } from '../../../ui/AppScreen';
 import { Icon } from '../../../ui/Icon';
 import { deleteAccount, updateMyProfile } from '../../account/api/accountApi';
 import { useMobilePush } from '../../notifications/MobilePushProvider';
+import { getAndroidRelease, type AndroidRelease } from '../updateApi';
 
 export function SettingsScreen() {
   const { session, saveSession, signOut } = useSession();
@@ -22,6 +24,42 @@ export function SettingsScreen() {
   const { enableNotifications, status: mobilePushStatus } = useMobilePush();
   const [languageNotice, setLanguageNotice] = useState('');
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+  const [androidRelease, setAndroidRelease] = useState<AndroidRelease | null>(null);
+  const [updateNotice, setUpdateNotice] = useState('');
+  const currentVersionCode = appVersionCode();
+  const updateAvailable = Boolean(
+    androidRelease &&
+      currentVersionCode !== null &&
+      androidRelease.latestVersionCode > currentVersionCode,
+  );
+  const updateSource = androidInstallSource(androidRelease?.rustoreInstallerPackage ?? null);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!session) {
+      setAndroidRelease(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    getAndroidRelease()
+      .then(release => {
+        if (active) {
+          setAndroidRelease(release);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAndroidRelease(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   async function handleSignOut(): Promise<void> {
     try {
@@ -56,6 +94,15 @@ export function SettingsScreen() {
     }
   }
 
+  async function openUpdatePage(url: string): Promise<void> {
+    setUpdateNotice('');
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setUpdateNotice(t('appUpdateOpenError'));
+    }
+  }
+
   function confirmDeleteAccount(): void {
     Alert.alert(t('deleteAccount'), t('deleteAccountConfirm'), [
       { text: t('cancel'), style: 'cancel' },
@@ -79,6 +126,50 @@ export function SettingsScreen() {
     <AppScreen>
       <Text style={sharedStyles.eyebrow}>{t('appManagement')}</Text>
       <Text style={sharedStyles.title}>{t('settings')}</Text>
+
+      {updateAvailable && androidRelease ? (
+        <View testID="app-update-card" style={[sharedStyles.elevatedCard, styles.section]}>
+          <Text style={styles.sectionTitle}>{t('appUpdateAvailable')}</Text>
+          <Text style={styles.rowDescription}>
+            {t(
+              updateSource === 'rustore' && androidRelease.rustoreAppUrl
+                ? 'appUpdateRuStoreDescription'
+                : updateSource === 'direct' && androidRelease.directDownloadUrl
+                  ? 'appUpdateDirectDescription'
+                  : 'appUpdateUnknownSourceDescription',
+            )}
+          </Text>
+          {updateSource === 'rustore' && androidRelease.rustoreAppUrl ? (
+            <Pressable
+              accessibilityHint={t('appUpdateRuStoreHint')}
+              accessibilityLabel={t('appUpdateOpenRuStore')}
+              accessibilityRole="link"
+              onPress={() => openUpdatePage(androidRelease.rustoreAppUrl!)}
+              style={({ pressed }) => [styles.updateButton, pressed && styles.updateButtonPressed]}
+              testID="app-update-action"
+            >
+              <Icon color={colors.canvas} name="download" size={20} />
+              <Text style={styles.updateButtonLabel}>{t('appUpdateOpenRuStore')}</Text>
+            </Pressable>
+          ) : null}
+          {updateSource === 'direct' && androidRelease.directDownloadUrl ? (
+            <Pressable
+              accessibilityHint={t('appUpdateDirectHint')}
+              accessibilityLabel={t('appUpdateOpenDownloadPage')}
+              accessibilityRole="link"
+              onPress={() => openUpdatePage(androidRelease.directDownloadUrl!)}
+              style={({ pressed }) => [styles.updateButton, pressed && styles.updateButtonPressed]}
+              testID="app-update-action"
+            >
+              <Icon color={colors.canvas} name="download" size={20} />
+              <Text style={styles.updateButtonLabel}>{t('appUpdateOpenDownloadPage')}</Text>
+            </Pressable>
+          ) : null}
+          {updateNotice ? (
+            <Text accessibilityRole="alert" style={styles.updateNotice}>{updateNotice}</Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={[sharedStyles.elevatedCard, styles.section]}>
         <Text style={styles.sectionTitle}>{t('accountSettings')}</Text>
@@ -273,6 +364,33 @@ const styles = StyleSheet.create({
     color: colors.canvas,
     fontSize: 14,
     fontWeight: '700',
+  },
+  updateButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primaryStrong,
+    borderRadius: 12,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  updateButtonPressed: {
+    backgroundColor: colors.primaryPressed,
+  },
+  updateButtonLabel: {
+    color: colors.canvas,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  updateNotice: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.sm,
   },
   languageSwitcher: {
     alignSelf: 'flex-start',

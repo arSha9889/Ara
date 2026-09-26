@@ -4,6 +4,7 @@ import {
   deleteMessage,
   editTextMessage,
   getChats,
+  getMessage,
   getMessages,
   markMessagesRead,
   sendMediaMessage,
@@ -57,6 +58,14 @@ test('uses the existing backend endpoints for history, sending, and read state',
     method: 'POST',
     body: { message_ids: ['message-1'] },
   });
+});
+
+test('loads one exact message through its dedicated endpoint', async () => {
+  request.mockResolvedValue({ id: 'message id' });
+
+  await getMessage('chat/id', 'message id');
+
+  expect(request).toHaveBeenCalledWith('/api/chats/chat%2Fid/messages/message%20id');
 });
 
 test('uses the existing backend endpoints for editing, deleting, and reactions', async () => {

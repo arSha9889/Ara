@@ -108,6 +108,12 @@ export function getMessages(chatId: string): Promise<ChatMessage[]> {
   return apiClient.request<ChatMessage[]>(`/api/chats/${chatId}/messages`);
 }
 
+export function getMessage(chatId: string, messageId: string): Promise<ChatMessage> {
+  return apiClient.request<ChatMessage>(
+    `/api/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}`,
+  );
+}
+
 export function createDirectChatForUser(userId: string): Promise<Chat> {
   return apiClient.request<Chat>(
     `/api/chats/direct/users/${encodeURIComponent(userId)}`,

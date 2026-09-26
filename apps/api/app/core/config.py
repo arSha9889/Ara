@@ -1,5 +1,7 @@
 from pathlib import Path
+import re
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -67,6 +69,10 @@ class Settings(BaseSettings):
     rustore_push_service_token: str = ''
     fcm_push_project_id: str = ''
     fcm_service_account_file: str = ''
+    android_latest_version_code: int | None = Field(default=None, ge=1)
+    android_direct_download_url: str = ''
+    android_rustore_app_url: str = ''
+    android_rustore_installer_package: str = ''
     turn_public_host: str = ''
     turn_shared_secret: str = ''
     turn_port: int = Field(default=3478, ge=1, le=65535)
@@ -100,10 +106,33 @@ class Settings(BaseSettings):
             missing = [name for name, value in required_settings.items() if not value.strip()]
             if missing:
                 raise ValueError(f'S3 storage requires: {", ".join(missing)}')
+        for setting_name in ('android_direct_download_url', 'android_rustore_app_url'):
+            value = getattr(self, setting_name).strip()
+            if value and not _is_https_url(value):
+                raise ValueError(f'{setting_name} must be an HTTPS URL without credentials or query parameters')
+        installer_package = self.android_rustore_installer_package.strip()
+        if installer_package and not _is_android_package_name(installer_package):
+            raise ValueError('android_rustore_installer_package must be a valid Android package name')
 
     @property
     def smtp_is_configured(self) -> bool:
         return bool(self.smtp_host.strip() and self.smtp_from_email.strip())
+
+
+def _is_https_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return (
+        parsed.scheme == 'https'
+        and bool(parsed.netloc)
+        and not parsed.username
+        and not parsed.password
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+def _is_android_package_name(value: str) -> bool:
+    return bool(re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', value))
 
 
 settings = Settings()

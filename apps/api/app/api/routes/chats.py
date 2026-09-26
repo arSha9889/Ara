@@ -17,6 +17,7 @@ from app.services.chat_service import create_message as create_chat_message
 from app.services.chat_service import create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, get_chat as get_user_chat, hide_chat, restore_chat, update_chat_wallpaper
 from app.services.chat_service import delete_message as delete_chat_message
 from app.services.chat_service import edit_message as edit_chat_message
+from app.services.chat_service import get_message as get_chat_message
 from app.services.chat_service import list_chats as list_user_chats
 from app.services.chat_service import list_messages as list_chat_messages
 from app.services.chat_service import mark_messages_read, toggle_pin_message, toggle_reaction
@@ -210,6 +211,19 @@ async def list_messages(
 ) -> list[MessageOut]:
     try:
         return await list_chat_messages(session, current_user.id, chat_id)
+    except AuthError as exc:
+        return domain_error_response(exc, status.HTTP_404_NOT_FOUND)
+
+
+@router.get('/{chat_id}/messages/{message_id}')
+async def get_message(
+    chat_id: UUID,
+    message_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MessageOut:
+    try:
+        return await get_chat_message(session, current_user.id, chat_id, message_id)
     except AuthError as exc:
         return domain_error_response(exc, status.HTTP_404_NOT_FOUND)
 

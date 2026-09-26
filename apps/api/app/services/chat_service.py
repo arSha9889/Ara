@@ -179,6 +179,17 @@ async def list_messages(session: AsyncSession, user_id: UUID, chat_id: UUID) -> 
     return [await _message_out(session, message, user_id) for message in result.scalars()]
 
 
+async def get_message(session: AsyncSession, user_id: UUID, chat_id: UUID, message_id: UUID) -> MessageOut:
+    chat = await session.get(Chat, chat_id)
+    if not chat:
+        raise AuthError('Chat not found')
+    await _ensure_can_view(session, user_id, chat)
+    message = await session.get(Message, message_id)
+    if not message or message.chat_id != chat_id:
+        raise AuthError('Message not found')
+    return await _message_out(session, message, user_id)
+
+
 async def create_message(
     session: AsyncSession,
     user_id: UUID,

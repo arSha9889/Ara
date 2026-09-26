@@ -1,5 +1,17 @@
 import { NativeModules } from 'react-native';
 
+export type AndroidInstallSource = 'direct' | 'rustore' | 'unknown';
+
+interface AppConfigModule {
+  apiBaseUrl?: unknown;
+  appVersion?: unknown;
+  appVersionCode?: unknown;
+  installSource?: {
+    installerPackageName?: unknown;
+    isFileInstall?: unknown;
+  };
+}
+
 export class ApiConfigurationError extends Error {
   constructor(message: string) {
     super(message);
@@ -27,7 +39,8 @@ export function normalizeApiBaseUrl(value: unknown): string {
   return candidate.replace(/\/+$/, '');
 }
 
-const nativeApiBaseUrl = NativeModules.AppConfig?.apiBaseUrl;
+const nativeAppConfig = NativeModules.AppConfig as AppConfigModule | undefined;
+const nativeApiBaseUrl = nativeAppConfig?.apiBaseUrl;
 
 function readRuntimeConfig() {
   try {
@@ -58,4 +71,23 @@ export function getApiBaseUrl(): string {
   }
 
   return runtimeConfig.apiBaseUrl;
+}
+
+export function appVersionCode(): number | null {
+  const value = nativeAppConfig?.appVersionCode;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+export function androidInstallSource(rustoreInstallerPackage: string | null): AndroidInstallSource {
+  const installSource = nativeAppConfig?.installSource;
+  const installerPackageName =
+    typeof installSource?.installerPackageName === 'string'
+      ? installSource.installerPackageName.trim()
+      : '';
+
+  if (rustoreInstallerPackage && installerPackageName === rustoreInstallerPackage) {
+    return 'rustore';
+  }
+
+  return installSource?.isFileInstall === true ? 'direct' : 'unknown';
 }

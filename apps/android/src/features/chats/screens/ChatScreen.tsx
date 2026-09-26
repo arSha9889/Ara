@@ -26,6 +26,7 @@ import { useSession } from '../../auth/session/useSession';
 import {
   deleteMessage,
   editTextMessage,
+  getMessage,
   getMessages,
   markMessagesRead,
   sendMediaMessage,
@@ -71,6 +72,8 @@ export interface ChatRouteParams {
   peerUserId?: string;
   peerIsOnline?: boolean;
   peerLastSeenAt?: string | null;
+  targetMessageId?: string;
+  targetMessage?: ChatMessage;
 }
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
@@ -95,6 +98,10 @@ export function ChatScreen({ navigation, route }: Props) {
   const { call, startCall } = useDirectCall();
   const { send, subscribeToChat, subscribeToEvents } = useRealtime();
   const messageList = useRef<FlatList<ChatMessage>>(null);
+  const highlightedMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const targetScrollRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const positionedTargetMessageId = useRef<string | null>(null);
+  const targetScrollAttempts = useRef(0);
   const typingExpiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingRefreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasSentTypingRef = useRef(false);
@@ -136,6 +143,48 @@ export function ChatScreen({ navigation, route }: Props) {
   }));
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [isTargetMessageUnavailable, setIsTargetMessageUnavailable] = useState(false);
+
+  const clearTargetHighlightTimer = useCallback((): void => {
+    if (highlightedMessageTimer.current) {
+      clearTimeout(highlightedMessageTimer.current);
+      highlightedMessageTimer.current = null;
+    }
+  }, []);
+
+  const clearTargetScrollRetryTimer = useCallback((): void => {
+    if (targetScrollRetryTimer.current) {
+      clearTimeout(targetScrollRetryTimer.current);
+      targetScrollRetryTimer.current = null;
+    }
+  }, []);
+
+  const scrollToTargetMessage = useCallback((): void => {
+    const targetMessageId = route.params.targetMessageId;
+    const targetIndex = targetMessageId
+      ? messages.findIndex(message => message.id === targetMessageId)
+      : -1;
+    const list = messageList.current;
+
+    if (
+      !targetMessageId ||
+      targetIndex < 0 ||
+      !list ||
+      positionedTargetMessageId.current === targetMessageId
+    ) {
+      return;
+    }
+
+    positionedTargetMessageId.current = targetMessageId;
+    requestAnimationFrame(() => {
+      messageList.current?.scrollToIndex({
+        animated: !reduceMotion,
+        index: targetIndex,
+        viewPosition: 0.5,
+      });
+    });
+  }, [messages, reduceMotion, route.params.targetMessageId]);
 
   const clearVoiceRecordingState = useCallback((): void => {
     if (voiceRecordingTimer.current) {
@@ -389,6 +438,85 @@ export function ChatScreen({ navigation, route }: Props) {
     },
     [route.params.chatId, session?.user.id, t],
   );
+
+  useEffect(() => {
+    const targetMessageId = route.params.targetMessageId;
+    const preloadedMessage = route.params.targetMessage;
+    let active = true;
+
+    positionedTargetMessageId.current = null;
+    targetScrollAttempts.current = 0;
+    clearTargetHighlightTimer();
+    clearTargetScrollRetryTimer();
+    setHighlightedMessageId(null);
+    setIsTargetMessageUnavailable(false);
+
+    if (!targetMessageId) {
+      return () => {
+        active = false;
+      };
+    }
+
+    const addTargetMessage = (message: ChatMessage): void => {
+      if (!active) {
+        return;
+      }
+
+      if (
+        message.id !== targetMessageId ||
+        message.chat_id !== route.params.chatId ||
+        message.deleted_at
+      ) {
+        setIsTargetMessageUnavailable(true);
+        return;
+      }
+
+      setMessages(current => mergeChatMessages(current, [message]));
+      setHighlightedMessageId(message.id);
+      highlightedMessageTimer.current = setTimeout(() => {
+        if (active) {
+          setHighlightedMessageId(current =>
+            current === message.id ? null : current,
+          );
+        }
+        highlightedMessageTimer.current = null;
+      }, 4_000);
+    };
+
+    const isUsablePreloadedMessage =
+      preloadedMessage &&
+      preloadedMessage.id === targetMessageId &&
+      preloadedMessage.chat_id === route.params.chatId &&
+      !preloadedMessage.deleted_at;
+
+    if (isUsablePreloadedMessage) {
+      addTargetMessage(preloadedMessage);
+    } else {
+      getMessage(route.params.chatId, targetMessageId)
+        .then(addTargetMessage)
+        .catch(() => {
+          if (active) {
+            setIsTargetMessageUnavailable(true);
+          }
+        });
+    }
+
+    return () => {
+      active = false;
+      clearTargetHighlightTimer();
+      clearTargetScrollRetryTimer();
+    };
+  }, [
+    clearTargetHighlightTimer,
+    clearTargetScrollRetryTimer,
+    route.params.chatId,
+    route.params.targetMessage,
+    route.params.targetMessageId,
+  ]);
+
+  useEffect(() => {
+    scrollToTargetMessage();
+  }, [scrollToTargetMessage]);
 
   useEffect(() => {
     loadMessages().catch(() => undefined);
@@ -852,6 +980,7 @@ export function ChatScreen({ navigation, route }: Props) {
             style={({ pressed }) => [
               styles.messageBubble,
               isOwn ? styles.messageBubbleOwn : styles.messageBubblePeer,
+              highlightedMessageId === item.id && styles.messageBubbleTarget,
               pressed && !item.deleted_at && styles.messageBubblePressed,
             ]}
           >
@@ -1072,6 +1201,12 @@ export function ChatScreen({ navigation, route }: Props) {
           ) : null}
         </View>
 
+        {isTargetMessageUnavailable ? (
+          <View accessibilityRole="alert" style={[sharedStyles.glassCard, styles.targetMessageNotice]}>
+            <Text style={styles.targetMessageNoticeText}>{t('notificationMessageUnavailable')}</Text>
+          </View>
+        ) : null}
+
         {isLoading && messages.length === 0 ? (
           <View style={styles.loadingState}>
             <ActivityIndicator color={colors.primary} />
@@ -1093,9 +1228,35 @@ export function ChatScreen({ navigation, route }: Props) {
                 />
               ) : undefined
             }
-            onContentSizeChange={() =>
-              messageList.current?.scrollToEnd({ animated: false })
-            }
+            onContentSizeChange={() => {
+              if (route.params.targetMessageId) {
+                scrollToTargetMessage();
+                return;
+              }
+              messageList.current?.scrollToEnd({ animated: false });
+            }}
+            onScrollToIndexFailed={({ averageItemLength, index }) => {
+              const targetMessageId = route.params.targetMessageId;
+              if (
+                !targetMessageId ||
+                messages[index]?.id !== targetMessageId ||
+                targetScrollAttempts.current >= 2
+              ) {
+                return;
+              }
+
+              targetScrollAttempts.current += 1;
+              positionedTargetMessageId.current = null;
+              messageList.current?.scrollToOffset({
+                animated: false,
+                offset: Math.max(0, averageItemLength * index),
+              });
+              clearTargetScrollRetryTimer();
+              targetScrollRetryTimer.current = setTimeout(() => {
+                targetScrollRetryTimer.current = null;
+                scrollToTargetMessage();
+              }, 80);
+            }}
             renderItem={renderMessage}
             showsVerticalScrollIndicator={false}
           />
@@ -1827,6 +1988,14 @@ const styles = StyleSheet.create({
   messageBubblePressed: {
     opacity: 0.76,
   },
+  messageBubbleTarget: {
+    borderColor: colors.primary,
+    borderWidth: 1,
+    elevation: 3,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.34,
+    shadowRadius: 7,
+  },
   messageText: {
     color: colors.text,
     fontSize: 16,
@@ -1897,6 +2066,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.sm,
     padding: spacing.sm,
+  },
+  targetMessageNotice: {
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+  },
+  targetMessageNoticeText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
   },
   errorText: {
     color: colors.danger,

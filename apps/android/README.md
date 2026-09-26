@@ -26,6 +26,16 @@ npm install
 
 Значение является конфигурацией, а не секретом. Не добавляйте в него токены, пароли или query-параметры. Без адреса API экран входа честно сообщит, что подключение ещё не настроено.
 
+## Обновления Android
+
+APK не содержит URL страницы загрузки или карточки RuStore. После входа клиент получает metadata обновления из защищённого `GET /api/releases/android`. Серверу передаются только подтверждённые значения окружения:
+
+- `NEXUS_ANDROID_LATEST_VERSION_CODE`;
+- `NEXUS_ANDROID_DIRECT_DOWNLOAD_URL` для официальной HTTPS-страницы загрузки;
+- `NEXUS_ANDROID_RUSTORE_APP_URL` и `NEXUS_ANDROID_RUSTORE_INSTALLER_PACKAGE` для RuStore.
+
+Можно настроить только direct APK или только RuStore. Для APK из RuStore приложение предлагает страницу RuStore, для прямой установки — официальную страницу загрузки; при неопределённом источнике ссылка не показывается. Клиент не скачивает и не устанавливает APK самостоятельно: установку всегда подтверждает Android.
+
 ## Локальная конфигурация push и release-подписи
 
 Для RuStore + FCM поместите загруженный из Firebase файл `google-services.json` в `android/app/google-services.json`. Файл исключён из Git. Service account JSON Firebase относится только к backend: не храните его в проекте или APK.

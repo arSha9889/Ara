@@ -212,6 +212,13 @@ class MobilePushConfigOut(BaseModel):
     package_name: Literal['arachat.messenger']
 
 
+class AndroidReleaseOut(BaseModel):
+    latest_version_code: int | None = None
+    direct_download_url: str | None = None
+    rustore_app_url: str | None = None
+    rustore_installer_package: str | None = None
+
+
 class NotificationOut(BaseModel):
     id: UUID
     notification_id: UUID
