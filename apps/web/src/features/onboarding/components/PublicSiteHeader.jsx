@@ -29,6 +29,7 @@ export function PublicSiteHeader({ activePage = 'home', minimal = false, publicO
         <nav className="public-site-nav comet-site-nav" aria-label={t('common.navigation')}>
           <Link to="/#story" aria-current={activePage === 'home' ? 'page' : undefined}>{t('comet.navigationStory')}</Link>
           <Link to="/news" aria-current={activePage === 'news' ? 'page' : undefined}>{t('comet.navigationNews')}</Link>
+          <Link to="/download" aria-current={activePage === 'download' ? 'page' : undefined}>{t('onboarding.downloadNavigation')}</Link>
           <Link to="/#flight">{t('comet.navigationFlight')}</Link>
           <Link to="/#channels">{t('comet.navigationChannels')}</Link>
         </nav>

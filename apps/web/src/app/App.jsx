@@ -7,6 +7,7 @@ import { OAuthCallbackPage } from '../features/auth/pages/OAuthCallbackPage.jsx'
 import { PasswordRecoveryPage } from '../features/auth/pages/PasswordRecoveryPage.jsx';
 import { RegisterPage } from '../features/auth/pages/RegisterPage.jsx';
 import { LandingPage } from '../features/onboarding/pages/LandingPage.jsx';
+import { DownloadPage } from '../features/onboarding/pages/DownloadPage.jsx';
 import { NewsPage } from '../features/onboarding/pages/NewsPage.jsx';
 import { NewsArticlePage } from '../features/onboarding/pages/NewsArticlePage.jsx';
 import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx';
@@ -45,6 +46,7 @@ export function App() {
     <>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/download" element={<DownloadPage />} />
         <Route path="/news" element={<NewsPage />} />
         <Route path="/news/:slug" element={<NewsArticlePage />} />
         <Route path="/presentation" element={<PresentationPage />} />
