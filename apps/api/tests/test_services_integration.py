@@ -65,6 +65,7 @@ async def _create_user(session_factory, username: str, user_marker: str):
                 pin='1234',
                 device_id=device_id,
                 language='ru',
+                registration_country='RU',
                 design_theme='halo',
                 accepted_terms=True,
                 accepted_privacy_policy=True,

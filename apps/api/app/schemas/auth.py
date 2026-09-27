@@ -63,7 +63,7 @@ class RegisterCompleteRequest(BaseModel):
     pin: str | None = Field(default=None, min_length=4, max_length=8)
     device_id: str = Field(min_length=8, max_length=128)
     language: str = 'ru'
-    registration_country: str = Field(default='GLOBAL', pattern=r'^(RU|KZ|KG|UA|BY|UZ|GLOBAL)$')
+    registration_country: str = Field(pattern=r'^(RU|KZ|KG|UA|BY|UZ)$')
     design_theme: str = 'halo'
     display_name: str | None = Field(default=None, max_length=80)
     avatar_type: str = Field(default='built_in', max_length=32)

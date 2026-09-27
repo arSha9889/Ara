@@ -5,6 +5,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useTheme } from '../../../app/providers/ThemeProvider.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
+import { getRegion } from '../../../shared/region/regions.js';
 import { BUILT_IN_AVATARS, AVATAR_EMOJIS } from '../../../shared/ui/Avatar.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { PUBLIC_LANGUAGE_IDS } from '../../../shared/ui/LanguagePicker.jsx';
@@ -21,7 +22,9 @@ export function RegisterPage() {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const initialCountry = location.state?.country ?? localStorage.getItem('nexus_registration_country') ?? 'RU';
+  const initialCountry = getRegion(
+    location.state?.country ?? localStorage.getItem('nexus_registration_country') ?? 'RU',
+  ).id;
   const [country, setCountry] = useState(initialCountry);
   const [step, setStep] = useState('email');
   const [form, setForm] = useState({

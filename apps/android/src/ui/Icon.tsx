@@ -7,6 +7,7 @@ export type IconName =
   | 'bluetooth'
   | 'call'
   | 'check'
+  | 'chevronDown'
   | 'chevronRight'
   | 'close'
   | 'compose'
@@ -50,6 +51,7 @@ export function Icon({ name, size = 24, color = colors.text }: IconProps) {
       {name === 'bluetooth' ? <><Path {...common} d="m12 3 4.5 4.5L12 12l4.5 4.5L12 21V3Z" /><Path {...common} d="m5 7 10 10M5 17 15 7" /></> : null}
       {name === 'call' ? <Path {...common} d="M7.6 3.8 5.1 5.2c-.8.5-1.2 1.5-.9 2.4 1.6 5 5.5 8.9 10.5 10.5.9.3 1.9-.1 2.4-.9l1.4-2.5-3.2-2.1-1.6 1.2a13.2 13.2 0 0 1-3.6-3.6l1.2-1.6-2.1-3.2Z" /> : null}
       {name === 'check' ? <Path {...common} d="m5 12 4.2 4L19 6.5" /> : null}
+      {name === 'chevronDown' ? <Path {...common} d="m6 9 6 6 6-6" /> : null}
       {name === 'chevronRight' ? <Path {...common} d="m9 18 6-6-6-6" /> : null}
       {name === 'close' ? <><Line {...common} x1="6" x2="18" y1="6" y2="18" /><Line {...common} x1="18" x2="6" y1="6" y2="18" /></> : null}
       {name === 'compose' ? <><Path {...common} d="m14.7 4.3 5 5" /><Path {...common} d="M4.5 19.5l4.2-.9L20 7.3a2.1 2.1 0 0 0-3-3L5.7 15.6l-1.2 3.9Z" /></> : null}

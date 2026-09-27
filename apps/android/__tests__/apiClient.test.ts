@@ -25,7 +25,10 @@ test('preserves a stable API error code from a failed JSON response', async () =
   const fetchMock = jest.fn().mockResolvedValue({
     ok: false,
     status: 403,
-    json: jest.fn().mockResolvedValue({ code: 'interaction_blocked' }),
+    json: jest.fn().mockResolvedValue({
+      code: 'interaction_blocked',
+      detail: 'This action is not available.',
+    }),
   } as unknown as Response);
   globalThis.fetch = fetchMock as typeof fetch;
 
@@ -42,6 +45,7 @@ test('preserves a stable API error code from a failed JSON response', async () =
   expect(receivedError).toMatchObject({
     status: 403,
     code: 'interaction_blocked',
+    detail: 'This action is not available.',
   });
 
   expect(fetchMock).toHaveBeenCalledWith('https://api.example.test/api/chats/chat-1/messages', {

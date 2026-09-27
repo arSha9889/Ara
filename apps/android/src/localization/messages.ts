@@ -26,6 +26,20 @@ const messages = {
     apiNotConfigured: 'Подключение к API ещё не настроено для этой сборки.',
     invalidApiConfiguration: 'Адрес API в этой сборке настроен некорректно.',
     registrationEyebrow: 'Новый аккаунт',
+    registrationSetupEyebrow: 'Перед регистрацией',
+    registrationSetupTitle: 'Выберите страну и язык',
+    registrationSetupDescription:
+      'Страна регистрации нужна для региональных функций и администрирования. Язык интерфейса можно изменить позже в настройках.',
+    registrationCountryLabel: 'Страна регистрации',
+    registrationCountryDescription: 'Выберите страну, с которой создаёте аккаунт.',
+    registrationCountryRequired: 'Сначала выберите страну регистрации.',
+    registrationCountryRussia: 'Россия',
+    registrationCountryKazakhstan: 'Казахстан',
+    registrationCountryKyrgyzstan: 'Кыргызстан',
+    registrationCountryBelarus: 'Беларусь',
+    registrationCountryUzbekistan: 'Узбекистан',
+    registrationCountryUkraine: 'Украина',
+    registrationLanguageLabel: 'Язык интерфейса',
     registrationEmailTitle: 'Подтвердите e-mail',
     registrationEmailDescription:
       'Мы отправим шестизначный код на указанный адрес.',
@@ -81,6 +95,18 @@ const messages = {
     validationPasswordMatch: 'Пароли не совпадают.',
     validationLegal:
       'Для продолжения примите Политику конфиденциальности и Пользовательское соглашение.',
+    registrationUsernameTaken: 'Этот username уже занят. Выберите другой.',
+    registrationEmailAlreadyRegistered: 'Этот e-mail уже зарегистрирован. Войдите в существующий аккаунт.',
+    registrationEmailVerificationNotFound:
+      'Заявка на подтверждение e-mail не найдена. Запросите новый код.',
+    registrationEmailVerificationUsed: 'Этот код уже использован. Запросите новый код.',
+    registrationEmailVerificationExpired: 'Код подтверждения истёк. Запросите новый.',
+    registrationEmailNotVerified: 'E-mail ещё не подтверждён. Введите код из письма ещё раз.',
+    registrationEmailVerificationDeviceMismatch:
+      'Подтверждение доступно только на устройстве, с которого был запрошен код.',
+    registrationEmailCodeUnavailable: 'Код подтверждения недоступен. Запросите новый.',
+    registrationEmailCodeInvalid: 'Неверный код из e-mail.',
+    registrationLimitReached: 'Регистрация пока недоступна: лимит раннего доступа исчерпан.',
     errorCredentials: 'Не удалось войти. Проверьте данные и повторите попытку.',
     errorValidation:
       'Не удалось обработать данные. Проверьте поля и повторите попытку.',
@@ -451,6 +477,20 @@ const messages = {
     invalidApiConfiguration:
       'The API address for this build is configured incorrectly.',
     registrationEyebrow: 'New account',
+    registrationSetupEyebrow: 'Before registration',
+    registrationSetupTitle: 'Choose your country and language',
+    registrationSetupDescription:
+      'Your registration country is used for regional features and administration. You can change the interface language later in settings.',
+    registrationCountryLabel: 'Registration country',
+    registrationCountryDescription: 'Choose the country where you are creating your account.',
+    registrationCountryRequired: 'Choose your registration country first.',
+    registrationCountryRussia: 'Russia',
+    registrationCountryKazakhstan: 'Kazakhstan',
+    registrationCountryKyrgyzstan: 'Kyrgyzstan',
+    registrationCountryBelarus: 'Belarus',
+    registrationCountryUzbekistan: 'Uzbekistan',
+    registrationCountryUkraine: 'Ukraine',
+    registrationLanguageLabel: 'Interface language',
     registrationEmailTitle: 'Verify your e-mail',
     registrationEmailDescription:
       'We will send a six-digit code to this address.',
@@ -506,6 +546,18 @@ const messages = {
       'Password must contain 5 to 30 Latin letters or numbers.',
     validationPasswordMatch: 'The passwords do not match.',
     validationLegal: 'Accept the Privacy Policy and Terms of Use to continue.',
+    registrationUsernameTaken: 'This username is already taken. Choose another one.',
+    registrationEmailAlreadyRegistered: 'This e-mail is already registered. Sign in to the existing account.',
+    registrationEmailVerificationNotFound:
+      'The e-mail verification request was not found. Request a new code.',
+    registrationEmailVerificationUsed: 'This code has already been used. Request a new code.',
+    registrationEmailVerificationExpired: 'The verification code has expired. Request a new one.',
+    registrationEmailNotVerified: 'The e-mail is not verified yet. Enter the code from the e-mail again.',
+    registrationEmailVerificationDeviceMismatch:
+      'Verification is available only on the device that requested the code.',
+    registrationEmailCodeUnavailable: 'The verification code is unavailable. Request a new one.',
+    registrationEmailCodeInvalid: 'The code from the e-mail is invalid.',
+    registrationLimitReached: 'Registration is unavailable because the early-access limit has been reached.',
     errorCredentials: 'Unable to sign in. Check your details and try again.',
     errorValidation:
       'Unable to process the details. Check the fields and try again.',

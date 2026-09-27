@@ -11,6 +11,7 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly code?: string,
+    public readonly detail?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -126,15 +127,17 @@ function jsonHeaders(headers: Record<string, string> = {}): Record<string, strin
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let code: string | undefined;
+    let detail: string | undefined;
 
     try {
-      const payload = (await response.json()) as { code?: unknown };
+      const payload = (await response.json()) as { code?: unknown; detail?: unknown };
       code = typeof payload.code === 'string' ? payload.code : undefined;
+      detail = typeof payload.detail === 'string' ? payload.detail : undefined;
     } catch {
       // Errors can be empty or served outside the JSON API contract.
     }
 
-    throw new ApiError('Request failed.', response.status, code);
+    throw new ApiError('Request failed.', response.status, code, detail);
   }
 
   if (response.status === 204) {

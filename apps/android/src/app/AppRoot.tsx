@@ -8,7 +8,9 @@ import { AppNavigator } from '../navigation/AppNavigator';
 import { LegalAcceptanceScreen } from '../features/auth/screens/LegalAcceptanceScreen';
 import { PasswordRecoveryScreen } from '../features/auth/screens/PasswordRecoveryScreen';
 import { RegisterScreen } from '../features/auth/screens/RegisterScreen';
+import { RegistrationSetupScreen } from '../features/auth/screens/RegistrationSetupScreen';
 import { SignInScreen } from '../features/auth/screens/SignInScreen';
+import type { RegistrationCountry } from '../features/auth/registrationCountry';
 import { RealtimeProvider } from '../features/realtime/RealtimeProvider';
 import { useI18n } from '../localization/I18nProvider';
 import { colors } from '../theme/theme';
@@ -17,7 +19,18 @@ import { HaloMark } from '../ui/HaloMark';
 export function AppRoot() {
   const { session, status } = useSession();
   const { isLoading: isI18nLoading } = useI18n();
-  const [screen, setScreen] = useState<'signIn' | 'register' | 'recovery'>('signIn');
+  const [screen, setScreen] = useState<'signIn' | 'registrationSetup' | 'register' | 'recovery'>('signIn');
+  const [registrationCountry, setRegistrationCountry] = useState<RegistrationCountry | null>(null);
+
+  function returnToSignIn(): void {
+    setRegistrationCountry(null);
+    setScreen('signIn');
+  }
+
+  function startRegistration(): void {
+    setRegistrationCountry(null);
+    setScreen('registrationSetup');
+  }
 
   if (status === 'loading' || isI18nLoading) {
     return <BootScreen />;
@@ -37,7 +50,36 @@ export function AppRoot() {
   }
 
   if (screen === 'register') {
-    return <RegisterScreen onBack={() => setScreen('signIn')} />;
+    if (!registrationCountry) {
+      return (
+        <RegistrationSetupScreen
+          onBack={returnToSignIn}
+          onContinue={country => {
+            setRegistrationCountry(country);
+            setScreen('register');
+          }}
+        />
+      );
+    }
+
+    return (
+      <RegisterScreen
+        country={registrationCountry}
+        onBack={returnToSignIn}
+      />
+    );
+  }
+
+  if (screen === 'registrationSetup') {
+    return (
+      <RegistrationSetupScreen
+        onBack={returnToSignIn}
+        onContinue={country => {
+          setRegistrationCountry(country);
+          setScreen('register');
+        }}
+      />
+    );
   }
 
   if (screen === 'recovery') {
@@ -46,7 +88,7 @@ export function AppRoot() {
 
   return (
     <SignInScreen
-      onCreateAccount={() => setScreen('register')}
+      onCreateAccount={startRegistration}
       onRecoverPassword={() => setScreen('recovery')}
     />
   );

@@ -1,5 +1,6 @@
 import { apiClient } from '../../../infrastructure/http/apiClient';
 import type { AuthSession, SessionUser } from '../../../infrastructure/storage/sessionStore';
+import type { RegistrationCountry } from '../registrationCountry';
 
 interface LoginResponse {
   access_token: string;
@@ -40,6 +41,7 @@ export interface RegistrationInput {
   displayName: string;
   deviceId: string;
   language: 'ru' | 'en';
+  country: RegistrationCountry;
 }
 
 export function toSessionUser(user: ApiUser): SessionUser {
@@ -118,7 +120,7 @@ export async function completeRegistration(input: RegistrationInput): Promise<Au
       password: input.password,
       device_id: input.deviceId,
       language: input.language,
-      registration_country: 'GLOBAL',
+      registration_country: input.country,
       design_theme: 'halo',
       display_name: input.displayName.trim() || undefined,
       avatar_type: 'built_in',

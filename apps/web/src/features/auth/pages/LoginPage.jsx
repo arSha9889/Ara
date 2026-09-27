@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
+import { getRegion } from '../../../shared/region/regions.js';
 import { RegionSelector } from '../../../shared/ui/RegionSelector.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { getDeviceId } from '../../../shared/device/deviceId.js';
@@ -16,7 +17,9 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState({ identifier: '', password: '', pin: '', device_id: getDeviceId() });
-  const [selectedCountry, setSelectedCountry] = useState(() => localStorage.getItem('nexus_registration_country') ?? 'RU');
+  const [selectedCountry, setSelectedCountry] = useState(() => (
+    getRegion(localStorage.getItem('nexus_registration_country') ?? 'RU').id
+  ));
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 

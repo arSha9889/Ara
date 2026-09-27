@@ -100,6 +100,24 @@ def test_phone_country_api_contracts_include_belarus_and_uzbekistan() -> None:
     assert registration.language == 'be'
 
 
+def test_registration_country_is_required_and_cannot_be_global() -> None:
+    request = {
+        'email_verification_id': uuid4(),
+        'username': 'countryuser',
+        'password': 'password123',
+        'device_id': 'device-123',
+    }
+
+    for country in ('RU', 'KZ', 'KG', 'UA', 'BY', 'UZ'):
+        assert RegisterCompleteRequest(**request, registration_country=country).registration_country == country
+
+    with pytest.raises(ValueError):
+        RegisterCompleteRequest(**request)
+
+    with pytest.raises(ValueError):
+        RegisterCompleteRequest(**request, registration_country='GLOBAL')
+
+
 def test_registration_empty_pin_is_treated_as_absent() -> None:
     registration = RegisterCompleteRequest(
         email_verification_id=uuid4(),
@@ -107,6 +125,7 @@ def test_registration_empty_pin_is_treated_as_absent() -> None:
         password='password123',
         pin='',
         device_id='device-123',
+        registration_country='RU',
     )
 
     assert registration.pin is None
@@ -123,6 +142,7 @@ def test_registration_theme_validation_allows_only_active_themes() -> None:
                 username='themeuser',
                 password='password123',
                 device_id='device-123',
+                registration_country='RU',
                 design_theme=design_theme,
                 accepted_terms=True,
                 accepted_privacy_policy=True,
@@ -137,6 +157,7 @@ def test_registration_theme_validation_allows_only_active_themes() -> None:
                     username='themeuser',
                     password='password123',
                     device_id='device-123',
+                    registration_country='RU',
                     design_theme=retired_theme,
                     accepted_terms=True,
                     accepted_privacy_policy=True,
@@ -221,6 +242,7 @@ async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
                         username='overlimit',
                         password='password123',
                         device_id='device-over-limit',
+                        registration_country='RU',
                         accepted_terms=True,
                         accepted_privacy_policy=True,
                     ),
@@ -267,6 +289,7 @@ async def test_smtp_verified_registration_creates_active_email_account(anyio_bac
                     username='devconfirm',
                     password='password123',
                     device_id='device-dev-confirmation',
+                    registration_country='RU',
                     accepted_terms=True,
                     accepted_privacy_policy=True,
                 ),

@@ -5,7 +5,6 @@ export const REGIONS = [
   { id: 'UA', flag: '🇺🇦', languages: ['uk', 'ru'] },
   { id: 'BY', flag: '🇧🇾', languages: ['be', 'ru'] },
   { id: 'UZ', flag: '🇺🇿', languages: ['uz', 'ru'] },
-  { id: 'GLOBAL', flag: '🌍', languages: ['en'] },
 ];
 
 export function getRegion(regionId) {

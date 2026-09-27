@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   languageSwitcher: {
-    marginBottom: spacing.md,
+    alignSelf: 'flex-end',
   },
   hero: {
     alignItems: 'center',

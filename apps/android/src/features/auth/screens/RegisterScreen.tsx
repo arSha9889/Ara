@@ -7,8 +7,9 @@ import { useI18n } from '../../../localization/I18nProvider';
 import { colors, spacing } from '../../../theme/theme';
 import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
-import { authErrorKey } from '../authError';
 import { legalDocumentUrls } from '../legalDocuments';
+import type { RegistrationCountry } from '../registrationCountry';
+import { registrationErrorKey } from '../registrationError';
 import {
   completeRegistration,
   confirmEmailVerification,
@@ -21,6 +22,7 @@ import { LegalDocumentLink } from './LegalDocumentLink';
 type RegisterStep = 'email' | 'details';
 
 interface RegisterScreenProps {
+  country: RegistrationCountry;
   onBack(): void;
 }
 
@@ -28,7 +30,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const usernamePattern = /^[A-Za-z0-9]{3,32}$/;
 const passwordPattern = /^[A-Za-z0-9]{5,30}$/;
 
-export function RegisterScreen({ onBack }: RegisterScreenProps) {
+export function RegisterScreen({ country, onBack }: RegisterScreenProps) {
   const { language, t } = useI18n();
   const { saveSession } = useSession();
   const [step, setStep] = useState<RegisterStep>('email');
@@ -72,7 +74,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
       setVerificationId(response.verification_id);
       setStatus(t('codeSent'));
     } catch (nextError) {
-      setError(t(authErrorKey(nextError)));
+      setError(t(registrationErrorKey(nextError)));
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +97,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
       setStatus('');
       setStep('details');
     } catch (nextError) {
-      setError(t(authErrorKey(nextError)));
+      setError(t(registrationErrorKey(nextError)));
     } finally {
       setIsSubmitting(false);
     }
@@ -121,6 +123,11 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
       return;
     }
 
+    if (displayName.trim().length > 80) {
+      setError(t('validationDisplayName'));
+      return;
+    }
+
     if (!acceptedPrivacy || !acceptedTerms) {
       setError(t('validationLegal'));
       return;
@@ -137,10 +144,11 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         displayName,
         deviceId,
         language,
+        country,
       });
       await saveSession(session);
     } catch (nextError) {
-      setError(t(authErrorKey(nextError)));
+      setError(t(registrationErrorKey(nextError)));
     } finally {
       setIsSubmitting(false);
     }
@@ -155,6 +163,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
+          maxLength={255}
           onChangeText={updateEmail}
           placeholder={t('emailPlaceholder')}
           placeholderTextColor={colors.textFaint}
@@ -205,6 +214,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         <TextInput
           accessibilityLabel={t('displayName')}
           autoCapitalize="words"
+          maxLength={80}
           onChangeText={setDisplayName}
           placeholder={t('displayNamePlaceholder')}
           placeholderTextColor={colors.textFaint}
