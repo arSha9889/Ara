@@ -211,6 +211,84 @@ async def test_deleted_account_cannot_log_in_again(anyio_backend) -> None:
 
 
 @pytest.mark.anyio
+async def test_deleting_account_releases_email_for_new_registration(anyio_backend) -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app import models  # noqa: F401
+    from app.db.base import Base
+    from app.models.users import User, UserProfile
+    from app.schemas.auth import RegisterCompleteRequest
+    from app.services.auth_service import complete_registration, delete_account
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            email = 'reusable@example.test'
+            deleted_user = User(
+                id=uuid4(),
+                nexus_id='1234567890123456',
+                telegram_id='deleted-email-user',
+                status='active',
+            )
+            deleted_profile = UserProfile(
+                user_id=deleted_user.id,
+                display_name='Deleted user',
+                username='deletedemailuser',
+                email=email,
+                email_verified_at=datetime.now(timezone.utc),
+            )
+            session.add_all([deleted_user, deleted_profile])
+            await session.commit()
+
+            await delete_account(session, deleted_user.id)
+            await session.refresh(deleted_user)
+            await session.refresh(deleted_profile)
+
+            assert deleted_user.status == 'deleted'
+            assert deleted_user.deleted_at is not None
+            assert deleted_profile.email is None
+            assert deleted_profile.email_verified_at is None
+
+            verification = EmailVerification(
+                public_token='reusable-email-registration-token',
+                email=email,
+                device_id='new-account-device',
+                purpose='registration',
+                status='verified',
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                verified_at=datetime.now(timezone.utc),
+            )
+            session.add(verification)
+            await session.commit()
+
+            completion = await complete_registration(
+                session,
+                RegisterCompleteRequest(
+                    email_verification_id=verification.id,
+                    username='replacementuser',
+                    password='password123',
+                    device_id='new-account-device',
+                    registration_country='RU',
+                    accepted_terms=True,
+                    accepted_privacy_policy=True,
+                ),
+            )
+
+            assert completion.user.id != deleted_user.id
+            assert completion.user.profile and completion.user.profile.email == email
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
 async def test_registration_limit_blocks_new_accounts(anyio_backend) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 

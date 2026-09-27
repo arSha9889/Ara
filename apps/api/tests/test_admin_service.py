@@ -108,7 +108,14 @@ async def test_administrator_can_delete_another_user_and_revoke_access(anyio_bac
                 admin,
                 target,
                 UserProfile(user_id=admin.id, display_name='Administrator', username='admin', optional_phone='+79990000001'),
-                UserProfile(user_id=target.id, display_name='Target user', username='target', optional_phone='+79990000002'),
+                UserProfile(
+                    user_id=target.id,
+                    display_name='Target user',
+                    username='target',
+                    optional_phone='+79990000002',
+                    email='target@example.test',
+                    email_verified_at=datetime.now(timezone.utc),
+                ),
                 Session(
                     user_id=target.id,
                     device_id='target-device',
@@ -140,8 +147,11 @@ async def test_administrator_can_delete_another_user_and_revoke_access(anyio_bac
             target_session = (await session.execute(select(Session).where(Session.user_id == target.id))).scalar_one()
             target_pin = (await session.execute(select(TrustedDevicePin).where(TrustedDevicePin.user_id == target.id))).scalar_one()
             push_subscription = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == target.id))).scalar_one_or_none()
+            target_profile = await session.get(UserProfile, target.id)
             assert target_session.revoked_at is not None
             assert target_pin.revoked_at is not None
             assert push_subscription is None
+            assert target_profile and target_profile.email is None
+            assert target_profile and target_profile.email_verified_at is None
     finally:
         await engine.dispose()

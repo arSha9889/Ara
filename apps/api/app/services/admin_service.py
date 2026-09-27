@@ -301,6 +301,11 @@ async def change_user_status(session: AsyncSession, admin_user_id: UUID, target_
         await session.execute(update(Session).where(Session.user_id == user.id, Session.revoked_at.is_(None)).values(revoked_at=now))
         await session.execute(update(TrustedDevicePin).where(TrustedDevicePin.user_id == user.id, TrustedDevicePin.revoked_at.is_(None)).values(revoked_at=now))
     if next_status == 'deleted':
+        await session.execute(
+            update(UserProfile)
+            .where(UserProfile.user_id == user.id)
+            .values(email=None, email_verified_at=None)
+        )
         await session.execute(delete(PushSubscription).where(PushSubscription.user_id == user.id))
         await session.execute(delete(MobilePushToken).where(MobilePushToken.user_id == user.id))
     record_admin_audit(

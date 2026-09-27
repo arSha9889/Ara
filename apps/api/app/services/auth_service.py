@@ -422,6 +422,11 @@ async def delete_account(session: AsyncSession, user_id: UUID) -> None:
         .where(TrustedDevicePin.user_id == user_id, TrustedDevicePin.revoked_at.is_(None))
         .values(revoked_at=now)
     )
+    await session.execute(
+        update(UserProfile)
+        .where(UserProfile.user_id == user_id)
+        .values(email=None, email_verified_at=None)
+    )
     await session.execute(delete(PushSubscription).where(PushSubscription.user_id == user_id))
     await session.execute(delete(MobilePushToken).where(MobilePushToken.user_id == user_id))
     await session.commit()
