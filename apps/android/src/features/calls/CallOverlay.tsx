@@ -11,6 +11,7 @@ import {
 
 import { useI18n } from '../../localization/I18nProvider';
 import { colors, spacing } from '../../theme/theme';
+import { ConnectionStatusStrip } from '../../ui/ConnectionStatusStrip';
 import { Icon, type IconName } from '../../ui/Icon';
 import type { CallAudioRoute } from './callAudio';
 import { callPhaseKey, formatCallDuration } from './callPresentation';
@@ -89,6 +90,7 @@ export function CallOverlay() {
       <SafeAreaView style={styles.safeArea}>
         <View pointerEvents="none" style={styles.primaryGlow} />
         <View pointerEvents="none" style={styles.secondaryGlow} />
+        <ConnectionStatusStrip />
         <View style={styles.content}>
           <View accessibilityElementsHidden style={styles.avatar}>
             <Text style={styles.avatarLabel}>{peerName.slice(0, 1).toUpperCase()}</Text>

@@ -111,6 +111,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const voiceRecordingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusOpacity = useRef(new Animated.Value(1)).current;
   const statusTranslateY = useRef(new Animated.Value(0)).current;
+  const composerActionScale = useRef(new Animated.Value(1)).current;
   const typingDotValues = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
@@ -145,6 +146,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [isTargetMessageUnavailable, setIsTargetMessageUnavailable] = useState(false);
+  const composerShowsSend = Boolean(text.trim() || selectedAttachment);
 
   const clearTargetHighlightTimer = useCallback((): void => {
     if (highlightedMessageTimer.current) {
@@ -283,6 +285,21 @@ export function ChatScreen({ navigation, route }: Props) {
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    composerActionScale.stopAnimation();
+    if (reduceMotion) {
+      composerActionScale.setValue(1);
+      return;
+    }
+
+    composerActionScale.setValue(0.92);
+    Animated.timing(composerActionScale, {
+      duration: 160,
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [composerActionScale, composerShowsSend, reduceMotion]);
 
   useEffect(() => {
     if (reduceMotion) {
@@ -1116,10 +1133,10 @@ export function ChatScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.select({ ios: 'padding', default: undefined })}
+      behavior={Platform.select({ android: 'height', ios: 'padding' })}
       style={styles.keyboardAvoidingView}
     >
-      <AppScreen scroll={false} contentStyle={styles.content}>
+      <AppScreen bottomSafeArea scroll={false} contentStyle={styles.content}>
         <View style={styles.header}>
           <IconButton
             accessibilityLabel={t('backToChats')}
@@ -1219,6 +1236,8 @@ export function ChatScreen({ navigation, route }: Props) {
               messages.length === 0 ? styles.emptyMessages : styles.messagesList
             }
             data={messages}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
             keyExtractor={message => message.id}
             ListEmptyComponent={
               !error ? (
@@ -1290,6 +1309,8 @@ export function ChatScreen({ navigation, route }: Props) {
                   name={
                     selectedAttachment.messageType === 'voice'
                       ? 'microphone'
+                      : selectedAttachment.messageType === 'video_note'
+                        ? 'videoNote'
                       : selectedAttachment.mimeType.startsWith('video/')
                         ? 'video'
                         : 'file'
@@ -1381,70 +1402,128 @@ export function ChatScreen({ navigation, route }: Props) {
           </View>
         ) : (
           <View style={[sharedStyles.glassPanel, styles.composer]}>
-          <Pressable
-            accessibilityLabel={t('addAttachment')}
-            accessibilityRole="button"
-            disabled={isSending || isPickingAttachment}
-            onPress={() => setIsAttachmentPickerVisible(true)}
-            style={({ pressed }) => [
-              styles.attachmentButton,
-              (isSending || isPickingAttachment) && styles.attachmentButtonDisabled,
-              pressed && !isSending && !isPickingAttachment && styles.attachmentButtonPressed,
-            ]}
-          >
-            {isPickingAttachment ? (
-              <ActivityIndicator color={colors.primary} size="small" />
-            ) : (
-              <Icon color={colors.primary} name="compose" size={21} />
-            )}
-          </Pressable>
-          <TextInput
-            accessibilityLabel={t('messageInputPlaceholder')}
-            editable={!isSending}
-            multiline
-            onBlur={stopTyping}
-            onFocus={() => {
-              if (text.trim()) {
-                startTyping();
-              }
-            }}
-            onChangeText={nextText => {
-              setText(nextText);
-              if (nextText.trim()) {
-                startTyping();
-              } else {
-                stopTyping();
-              }
-            }}
-            placeholder={t('messageInputPlaceholder')}
-            placeholderTextColor={colors.textFaint}
-            style={styles.composerInput}
-            value={text}
-          />
-          <Pressable
-            accessibilityLabel={
-              isSending
-                ? selectedAttachment
-                  ? t('attachmentUploading')
-                  : t('sendingMessage')
-                : selectedAttachment
-                  ? t('sendAttachment')
-                  : t('sendMessage')
-            }
-            accessibilityRole="button"
-            disabled={(!text.trim() && !selectedAttachment) || isSending}
-            onPress={() => {
-              handleSend().catch(() => undefined);
-            }}
-            style={({ pressed }) => [
-              styles.sendButton,
-              ((!text.trim() && !selectedAttachment) || isSending) && styles.sendButtonDisabled,
-              pressed && (text.trim() || selectedAttachment) && !isSending && styles.sendButtonPressed,
-            ]}
-          >
-            {isSending ? <ActivityIndicator color={colors.canvas} size="small" /> : <Icon color={colors.canvas} name="send" size={20} />}
-          </Pressable>
-        </View>
+            <Pressable
+              accessibilityLabel={t('addAttachment')}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSending || isPickingAttachment }}
+              disabled={isSending || isPickingAttachment}
+              hitSlop={4}
+              onPress={() => setIsAttachmentPickerVisible(true)}
+              style={({ pressed }) => [
+                styles.attachmentButton,
+                (isSending || isPickingAttachment) && styles.attachmentButtonDisabled,
+                pressed && !isSending && !isPickingAttachment && styles.attachmentButtonPressed,
+              ]}
+            >
+              {isPickingAttachment ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <Icon color={colors.primary} name="plus" size={22} />
+              )}
+            </Pressable>
+            <TextInput
+              accessibilityLabel={t('messageInputPlaceholder')}
+              editable={!isSending}
+              multiline
+              onContentSizeChange={() => {
+                requestAnimationFrame(() =>
+                  messageList.current?.scrollToEnd({ animated: false }),
+                );
+              }}
+              onBlur={stopTyping}
+              onFocus={() => {
+                requestAnimationFrame(() =>
+                  messageList.current?.scrollToEnd({ animated: false }),
+                );
+                if (text.trim()) {
+                  startTyping();
+                }
+              }}
+              onChangeText={nextText => {
+                setText(nextText);
+                if (nextText.trim()) {
+                  startTyping();
+                } else {
+                  stopTyping();
+                }
+              }}
+              placeholder={t('messageInputPlaceholder')}
+              placeholderTextColor={colors.textFaint}
+              style={styles.composerInput}
+              textAlignVertical="top"
+              value={text}
+            />
+            <View style={styles.composerQuickActions}>
+              <Pressable
+                accessibilityHint={t('attachmentVideoNoteHint')}
+                accessibilityLabel={t('attachmentVideoNote')}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isSending || isPickingAttachment }}
+                disabled={isSending || isPickingAttachment}
+                hitSlop={4}
+                onPress={() => {
+                  selectAttachment(recordChatVideoNote, 'videoNoteRecordError').catch(() => undefined);
+                }}
+                style={({ pressed }) => [
+                  styles.composerVideoNoteButton,
+                  (isSending || isPickingAttachment) && styles.composerVideoNoteButtonDisabled,
+                  pressed &&
+                    !isSending &&
+                    !isPickingAttachment &&
+                    styles.composerVideoNoteButtonPressed,
+                ]}
+              >
+                <Icon color={colors.primary} name="videoNote" size={21} />
+              </Pressable>
+              <Animated.View
+                style={{ transform: [{ scale: composerActionScale }] }}
+              >
+                <Pressable
+                  accessibilityHint={composerShowsSend ? undefined : t('attachmentVoiceHint')}
+                  accessibilityLabel={
+                    isSending
+                      ? selectedAttachment
+                        ? t('attachmentUploading')
+                        : t('sendingMessage')
+                      : composerShowsSend
+                        ? selectedAttachment
+                          ? t('sendAttachment')
+                          : t('sendMessage')
+                        : t('attachmentVoice')
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSending || isPickingAttachment }}
+                  disabled={isSending || isPickingAttachment}
+                  hitSlop={4}
+                  onPress={() => {
+                    if (composerShowsSend) {
+                      handleSend().catch(() => undefined);
+                      return;
+                    }
+                    startVoiceRecording().catch(() => undefined);
+                  }}
+                  style={({ pressed }) => [
+                    styles.composerPrimaryButton,
+                    (isSending || isPickingAttachment) && styles.composerPrimaryButtonDisabled,
+                    pressed &&
+                      !isSending &&
+                      !isPickingAttachment &&
+                      styles.composerPrimaryButtonPressed,
+                  ]}
+                >
+                  {isSending ? (
+                    <ActivityIndicator color={colors.canvas} size="small" />
+                  ) : (
+                    <Icon
+                      color={colors.canvas}
+                      name={composerShowsSend ? 'send' : 'microphone'}
+                      size={20}
+                    />
+                  )}
+                </Pressable>
+              </Animated.View>
+            </View>
+          </View>
         )}
       </AppScreen>
 
@@ -1637,127 +1716,104 @@ export function ChatScreen({ navigation, route }: Props) {
             onPress={() => setIsAttachmentPickerVisible(false)}
             style={styles.sheetBackdrop}
           />
-          <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.attachmentSheet]}>
+          <View
+            accessibilityLabel={t('addAttachment')}
+            accessibilityRole="dialog"
+            accessibilityViewIsModal
+            style={[sharedStyles.glassPanel, styles.attachmentSheet]}
+          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('addAttachment')}</Text>
             <Text style={styles.attachmentSheetDescription}>
               {t('attachmentPickerDescription')}
             </Text>
-            <Pressable
-              accessibilityHint={t('attachmentPhotoHint')}
-              accessibilityRole="button"
-              disabled={isPickingAttachment}
-              onPress={() => {
-                selectAttachment(pickChatPhoto).catch(() => undefined);
-              }}
-              style={({ pressed }) => [
-                styles.attachmentPickerOption,
-                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
-              ]}
-            >
-              <View style={styles.attachmentPickerIcon}>
-                <Icon color={colors.primary} name="photo" size={23} />
+            <View style={styles.attachmentPickerGrid}>
+              <View style={styles.attachmentPickerMediaRow}>
+                <Pressable
+                  accessibilityHint={t('attachmentPhotoHint')}
+                  accessibilityLabel={t('attachmentPhoto')}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isPickingAttachment }}
+                  disabled={isPickingAttachment}
+                  onPress={() => {
+                    selectAttachment(pickChatPhoto).catch(() => undefined);
+                  }}
+                  style={({ pressed }) => [
+                    styles.attachmentPickerTile,
+                    styles.attachmentPickerMediaTile,
+                    isPickingAttachment && styles.attachmentPickerTileDisabled,
+                    pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
+                  ]}
+                >
+                  <View style={styles.attachmentPickerTileIcon}>
+                    <Icon color={colors.primary} name="photo" size={23} />
+                  </View>
+                  <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
+                    {t('attachmentPhoto')}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.attachmentPickerTileDescription}>
+                    {t('attachmentPhotoDescription')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityHint={t('attachmentVideoHint')}
+                  accessibilityLabel={t('attachmentVideo')}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isPickingAttachment }}
+                  disabled={isPickingAttachment}
+                  onPress={() => {
+                    selectAttachment(pickChatVideo).catch(() => undefined);
+                  }}
+                  style={({ pressed }) => [
+                    styles.attachmentPickerTile,
+                    styles.attachmentPickerMediaTile,
+                    isPickingAttachment && styles.attachmentPickerTileDisabled,
+                    pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
+                  ]}
+                >
+                  <View style={styles.attachmentPickerTileIcon}>
+                    <Icon color={colors.primary} name="video" size={23} />
+                  </View>
+                  <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
+                    {t('attachmentVideo')}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.attachmentPickerTileDescription}>
+                    {t('attachmentVideoDescription')}
+                  </Text>
+                </Pressable>
               </View>
-              <View style={styles.attachmentPickerCopy}>
-                <Text style={styles.attachmentPickerTitle}>{t('attachmentPhoto')}</Text>
-                <Text style={styles.attachmentPickerDescription}>
-                  {t('attachmentPhotoDescription')}
-                </Text>
-              </View>
-              <Icon color={colors.textFaint} name="chevronRight" size={21} />
-            </Pressable>
-            <Pressable
-              accessibilityHint={t('attachmentVideoHint')}
-              accessibilityRole="button"
-              disabled={isPickingAttachment}
-              onPress={() => {
-                selectAttachment(pickChatVideo).catch(() => undefined);
-              }}
-              style={({ pressed }) => [
-                styles.attachmentPickerOption,
-                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
-              ]}
-            >
-              <View style={styles.attachmentPickerIcon}>
-                <Icon color={colors.primary} name="video" size={23} />
-              </View>
-              <View style={styles.attachmentPickerCopy}>
-                <Text style={styles.attachmentPickerTitle}>{t('attachmentVideo')}</Text>
-                <Text style={styles.attachmentPickerDescription}>
-                  {t('attachmentVideoDescription')}
-                </Text>
-              </View>
-              <Icon color={colors.textFaint} name="chevronRight" size={21} />
-            </Pressable>
-            <Pressable
-              accessibilityHint={t('attachmentVoiceHint')}
-              accessibilityRole="button"
-              disabled={isPickingAttachment}
-              onPress={() => {
-                startVoiceRecording().catch(() => undefined);
-              }}
-              style={({ pressed }) => [
-                styles.attachmentPickerOption,
-                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
-              ]}
-            >
-              <View style={styles.attachmentPickerIcon}>
-                <Icon color={colors.primary} name="microphone" size={23} />
-              </View>
-              <View style={styles.attachmentPickerCopy}>
-                <Text style={styles.attachmentPickerTitle}>{t('attachmentVoice')}</Text>
-                <Text style={styles.attachmentPickerDescription}>
-                  {t('attachmentVoiceDescription')}
-                </Text>
-              </View>
-              <Icon color={colors.textFaint} name="chevronRight" size={21} />
-            </Pressable>
-            <Pressable
-              accessibilityHint={t('attachmentVideoNoteHint')}
-              accessibilityRole="button"
-              disabled={isPickingAttachment}
-              onPress={() => {
-                selectAttachment(recordChatVideoNote, 'videoNoteRecordError').catch(() => undefined);
-              }}
-              style={({ pressed }) => [
-                styles.attachmentPickerOption,
-                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
-              ]}
-            >
-              <View style={styles.attachmentPickerIcon}>
-                <Icon color={colors.primary} name="video" size={23} />
-              </View>
-              <View style={styles.attachmentPickerCopy}>
-                <Text style={styles.attachmentPickerTitle}>{t('attachmentVideoNote')}</Text>
-                <Text style={styles.attachmentPickerDescription}>
-                  {t('attachmentVideoNoteDescription')}
-                </Text>
-              </View>
-              <Icon color={colors.textFaint} name="chevronRight" size={21} />
-            </Pressable>
-            <Pressable
-              accessibilityHint={t('attachmentFileHint')}
-              accessibilityRole="button"
-              disabled={isPickingAttachment}
-              onPress={() => {
-                selectAttachment(pickChatDocument).catch(() => undefined);
-              }}
-              style={({ pressed }) => [
-                styles.attachmentPickerOption,
-                pressed && !isPickingAttachment && styles.attachmentPickerOptionPressed,
-              ]}
-            >
-              <View style={styles.attachmentPickerIcon}>
-                <Icon color={colors.primary} name="file" size={23} />
-              </View>
-              <View style={styles.attachmentPickerCopy}>
-                <Text style={styles.attachmentPickerTitle}>{t('attachmentFile')}</Text>
-                <Text style={styles.attachmentPickerDescription}>
-                  {t('attachmentFileDescription')}
-                </Text>
-              </View>
-              <Icon color={colors.textFaint} name="chevronRight" size={21} />
-            </Pressable>
+              <Pressable
+                accessibilityHint={t('attachmentFileHint')}
+                accessibilityLabel={t('attachmentFile')}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isPickingAttachment }}
+                disabled={isPickingAttachment}
+                onPress={() => {
+                  selectAttachment(pickChatDocument).catch(() => undefined);
+                }}
+                style={({ pressed }) => [
+                  styles.attachmentPickerTile,
+                  styles.attachmentPickerFileTile,
+                  isPickingAttachment && styles.attachmentPickerTileDisabled,
+                  pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
+                ]}
+              >
+                <View style={styles.attachmentPickerTileIcon}>
+                  <Icon color={colors.primary} name="file" size={23} />
+                </View>
+                <View style={styles.attachmentPickerFileCopy}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.attachmentPickerTileTitle, styles.attachmentPickerFileTitle]}
+                  >
+                    {t('attachmentFile')}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.attachmentPickerFileDescription}>
+                    {t('attachmentFileDescription')}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -2149,7 +2205,7 @@ const styles = StyleSheet.create({
   composer: {
     alignItems: 'flex-end',
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginTop: spacing.sm,
     padding: spacing.xs,
   },
@@ -2199,11 +2255,14 @@ const styles = StyleSheet.create({
   },
   attachmentButton: {
     alignItems: 'center',
-    borderRadius: 20,
-    height: 40,
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.glassBorder,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexShrink: 0,
+    height: 48,
     justifyContent: 'center',
-    marginBottom: 4,
-    width: 40,
+    width: 48,
   },
   attachmentButtonDisabled: {
     opacity: 0.5,
@@ -2218,10 +2277,33 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxHeight: 120,
     minHeight: 48,
+    minWidth: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
-  sendButton: {
+  composerQuickActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: spacing.xs,
+  },
+  composerVideoNoteButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(140, 201, 255, 0.1)',
+    borderColor: colors.glassBorder,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  composerVideoNoteButtonDisabled: {
+    opacity: 0.45,
+  },
+  composerVideoNoteButtonPressed: {
+    backgroundColor: colors.surfacePressed,
+  },
+  composerPrimaryButton: {
     alignItems: 'center',
     backgroundColor: colors.primaryStrong,
     borderRadius: 24,
@@ -2229,10 +2311,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
   },
-  sendButtonDisabled: {
-    backgroundColor: 'rgba(74, 168, 240, 0.32)',
+  composerPrimaryButtonDisabled: {
+    opacity: 0.45,
   },
-  sendButtonPressed: {
+  composerPrimaryButtonPressed: {
     backgroundColor: colors.primaryPressed,
   },
   sheetOverlay: {
@@ -2276,21 +2358,39 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: spacing.sm,
   },
-  attachmentPickerOption: {
+  attachmentPickerGrid: {
+    gap: spacing.sm,
+  },
+  attachmentPickerMediaRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  attachmentPickerTile: {
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
     borderColor: colors.glassBorder,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 76,
+    gap: spacing.xs,
+    justifyContent: 'center',
     padding: spacing.sm,
   },
-  attachmentPickerOptionPressed: {
+  attachmentPickerMediaTile: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 152,
+  },
+  attachmentPickerFileTile: {
+    flexDirection: 'row',
+    minHeight: 76,
+  },
+  attachmentPickerTilePressed: {
     backgroundColor: colors.surfacePressed,
   },
-  attachmentPickerIcon: {
+  attachmentPickerTileDisabled: {
+    opacity: 0.45,
+  },
+  attachmentPickerTileIcon: {
     alignItems: 'center',
     backgroundColor: 'rgba(140, 201, 255, 0.12)',
     borderRadius: 12,
@@ -2298,20 +2398,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
   },
-  attachmentPickerCopy: {
+  attachmentPickerFileCopy: {
     flex: 1,
     minWidth: 0,
   },
-  attachmentPickerTitle: {
+  attachmentPickerTileTitle: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
+    textAlign: 'center',
   },
-  attachmentPickerDescription: {
+  attachmentPickerFileTitle: {
+    textAlign: 'left',
+  },
+  attachmentPickerTileDescription: {
     color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  attachmentPickerFileDescription: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
   },
   sheetHandle: {
     alignSelf: 'center',

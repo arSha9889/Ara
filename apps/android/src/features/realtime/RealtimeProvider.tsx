@@ -50,7 +50,7 @@ function sendPayload(socket: WebSocket, payload: RealtimeOutboundEvent): boolean
 }
 
 export function RealtimeProvider({ accessToken, children }: { accessToken: string; children: ReactNode }) {
-  const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<RealtimeConnectionStatus>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
   const authenticatedSocketRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef(new Set<RealtimeEventListener>());
@@ -309,4 +309,8 @@ export function useRealtime(): RealtimeContextValue {
   }
 
   return context;
+}
+
+export function useRealtimeConnectionStatus(): RealtimeConnectionStatus | null {
+  return useContext(RealtimeContext)?.connectionStatus ?? null;
 }

@@ -105,10 +105,10 @@ export function SupportTicketScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.select({ ios: 'padding', default: undefined })}
+      behavior={Platform.select({ android: 'height', ios: 'padding' })}
       style={styles.keyboardAvoidingView}
     >
-      <AppScreen contentStyle={styles.content} scroll={false}>
+      <AppScreen bottomSafeArea contentStyle={styles.content} scroll={false}>
         <View style={styles.header}>
           <IconButton
             accessibilityLabel={t('back')}
@@ -150,6 +150,8 @@ export function SupportTicketScreen({ navigation, route }: Props) {
             <FlatList
               contentContainerStyle={styles.messagesList}
               data={ticket.messages}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
               keyExtractor={message => message.id}
               renderItem={renderMessage}
               style={styles.messages}

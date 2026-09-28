@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 from app.schemas.chats import NotificationOut
 from app.services import mobile_push_client
 from app.services.notification_service import _mobile_push_data
@@ -32,6 +32,12 @@ def _configure_rustore(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, 'rustore_push_service_token', 'rustore-service-token')
     monkeypatch.setattr(settings, 'fcm_push_project_id', '')
     monkeypatch.setattr(settings, 'fcm_service_account_file', '')
+
+
+def test_mobile_push_is_enabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv('NEXUS_MOBILE_PUSH_ENABLED', raising=False)
+
+    assert Settings(_env_file=None).mobile_push_enabled
 
 
 @pytest.mark.anyio
@@ -81,7 +87,7 @@ async def test_mobile_push_sends_only_neutral_data_to_rustore(monkeypatch: pytes
 
 
 @pytest.mark.anyio
-async def test_mobile_push_is_not_sent_without_explicit_enablement(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_mobile_push_is_not_sent_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     _configure_rustore(monkeypatch)
     monkeypatch.setattr(settings, 'mobile_push_enabled', False)
     monkeypatch.setattr(mobile_push_client, 'urlopen', lambda *_args, **_kwargs: pytest.fail('must not send'))

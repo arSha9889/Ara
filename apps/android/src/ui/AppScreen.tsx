@@ -1,20 +1,26 @@
 import type { PropsWithChildren } from 'react';
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { colors, spacing } from '../theme/theme';
+import { ConnectionStatusStrip } from './ConnectionStatusStrip';
 
 interface AppScreenProps extends PropsWithChildren {
+  bottomSafeArea?: boolean;
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
 }
 
-export function AppScreen({ children, scroll = true, contentStyle }: AppScreenProps) {
+const screenEdges: Edge[] = ['top', 'left', 'right'];
+const screenEdgesWithBottom: Edge[] = ['top', 'bottom', 'left', 'right'];
+
+export function AppScreen({ children, bottomSafeArea = false, scroll = true, contentStyle }: AppScreenProps) {
   const content = <View style={[styles.content, contentStyle]}>{children}</View>;
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+    <SafeAreaView edges={bottomSafeArea ? screenEdgesWithBottom : screenEdges} style={styles.safeArea}>
       <View pointerEvents="none" style={styles.topGlow} />
+      <ConnectionStatusStrip />
       {scroll ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView>
       ) : (

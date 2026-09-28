@@ -48,7 +48,6 @@ export function MainTabs() {
         sceneStyle: styles.scene,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textFaint,
-        tabBarItemStyle: styles.tabItem,
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
       }}
@@ -70,12 +69,6 @@ const styles = StyleSheet.create({
     borderTopColor: colors.glassBorder,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 0,
-    height: 72,
-    paddingBottom: 7,
-    paddingTop: 7,
-  },
-  tabItem: {
-    minHeight: 48,
   },
   tabLabel: {
     fontSize: 11,

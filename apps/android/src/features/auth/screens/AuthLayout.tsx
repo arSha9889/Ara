@@ -18,10 +18,10 @@ export function AuthLayout({ eyebrow, title, description, children }: AuthLayout
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.select({ ios: 'padding', default: undefined })}
+      behavior={Platform.select({ android: 'height', ios: 'padding' })}
       style={styles.keyboardAvoidingView}
     >
-      <AppScreen contentStyle={styles.content}>
+      <AppScreen bottomSafeArea contentStyle={styles.content}>
         <View style={styles.languageSwitcher}>
           <LanguageSwitcher />
         </View>

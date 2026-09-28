@@ -639,7 +639,7 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   }
 
   private fun copySelectedAttachment(source: Uri, attachmentKind: AttachmentKind) = Arguments.createMap().apply {
-    val mimeType = normalizedMimeType(reactApplicationContext.contentResolver.getType(source))
+    val mimeType = resolvedMimeType(source, attachmentKind)
     if (mimeType !in attachmentKind.supportedMimeTypes) {
       throw MediaModuleException("UNSUPPORTED_ATTACHMENT_TYPE", "Этот формат вложения пока не поддерживается.")
     }
@@ -908,6 +908,20 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     ?.lowercase()
     .orEmpty()
     .ifBlank { "application/octet-stream" }
+
+  private fun resolvedMimeType(source: Uri, attachmentKind: AttachmentKind): String {
+    val declaredMimeType = normalizedMimeType(reactApplicationContext.contentResolver.getType(source))
+    if (declaredMimeType in attachmentKind.supportedMimeTypes) {
+      return declaredMimeType
+    }
+
+    val name = displayName(source).lowercase()
+    return when {
+      attachmentKind == AttachmentKind.DOCUMENT && name.endsWith(".pdf") -> "application/pdf"
+      attachmentKind == AttachmentKind.DOCUMENT && name.endsWith(".txt") -> "text/plain"
+      else -> declaredMimeType
+    }
+  }
 
   private fun extensionForMime(mimeType: String): String = EXTENSIONS_BY_MIME_TYPE[normalizedMimeType(mimeType)] ?: ""
 

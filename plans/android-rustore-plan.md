@@ -92,9 +92,9 @@ HTTPS API и WebSocket, но не копирует вебовый способ �
 настроек, пользовательских жалоб и блокировок, а также встроенной поддержки.
 Он поддерживает защищённый WebSocket с reconnect, RU/EN и адаптивную
 двухпанельную компоновку чатов на широком экране. Это не означает готовность к
-публичному выпуску: mobile push delivery, переход по нажатию уведомления,
-production-инфраструктура и проверки на физических устройствах остаются
-отдельными обязательными работами.
+публичному выпуску: проверка mobile push delivery и перехода по нажатию
+уведомления, production-инфраструктура и проверки на физических устройствах
+остаются отдельными обязательными работами.
 
 | Область | Что можно использовать сейчас | Планируемая работа |
 | --- | --- | --- |
@@ -102,7 +102,7 @@ production-инфраструктура и проверки на физичес�
 | Профиль и устройства | `/api/users`, `/api/devices`, `/api/login-history`; Android-экраны профиля, устройств и истории входов | Проверить все сценарии завершения сессии и синхронизации профиля на реальном устройстве. |
 | Чаты и медиа | REST-маршруты чатов, сообщений, реакций, read state, upload; Android personal chat и текстовые сценарии | Довести нативный транспорт файлов, запись/воспроизведение каждого заявленного типа медиа и понятные состояния ошибок; не заявлять непроверенный тип в релизе. |
 | Realtime | `/ws`, затем первое JSON-сообщение `connection.authenticate` с access token; Android reconnect и повторная подписка | Проверить потерю сети, фон/возврат и корректность состояний; не отправлять `call.*`. |
-| Уведомления | `Notification`, Web Push/VAPID и отдельная модель mobile token; Android Kotlin bridge, разрешение и каналы RuStore/FCM | Реализовать server delivery adapter, передачу native Intent в RN-навигацию и физический signed-device prototype. |
+| Уведомления | `Notification`, Web Push/VAPID и отдельная модель mobile token; Android Kotlin bridge, разрешение, каналы RuStore/FCM, server delivery adapter и передача native Intent в RN-навигацию | Настроить server-side secrets и подтвердить доставку на подписанном физическом устройстве. |
 | Модерация и поддержка | Пользовательские report/block и встроенная поддержка с серверными ограничениями и Android-экранами | Проверить серверное применение блокировки, rate limit, права доступа и retention в end-to-end сценариях. |
 
 Серверные схемы допускают и другие языки, однако Android всегда отправляет
@@ -247,10 +247,11 @@ VAPID Web Push. Эти поля не являются Android mobile push token,
 
 Для Android существует отдельная сущность `mobile_push_tokens` и маршруты
 `/api/notifications/mobile-tokens`. Они идемпотентно сохраняют и деактивируют
-токены конкретных провайдеров. Server adapter RuStore Universal Push уже
-реализован для `rustore` и `fcm`, но delivery по умолчанию выключена:
-`/api/notifications/mobile-config` возвращает `enabled=false`, пока не заданы
-server-side secrets и не пройден signed-device prototype.
+токены конкретных провайдеров. Server adapter RuStore Universal Push для
+`rustore` и `fcm` включён по умолчанию. `/api/notifications/mobile-config`
+возвращает `enabled=true`, только когда включён аварийный флаг доставки и на
+сервере настроен хотя бы один провайдер; без server-side secrets доставка не
+выполняется.
 
 ### 6.2. Целевая схема
 
@@ -303,13 +304,13 @@ HMS не подключён к Android-клиенту, API-контракту и
 и signed-device prototype на Huawei-устройстве. До этого его нельзя обещать в
 карточке RuStore или как гарантированный канал direct APK.
 
-До включения delivery в production нужен технический прототип на подписанном
-тестовом приложении: получение и обновление token, регистрация и деактивация
-через API, push в foreground/background/terminated, переход в чат, отказ и
-выдача `POST_NOTIFICATIONS`, установка из RuStore и прямого APK, устройства с
-RuStore и без него, а также RuStore и FCM пути. До получения server-side
-учётных данных и успешного прототипа `/notifications/mobile-config` остаётся с
-`enabled=false`.
+До публичного заявления о delivery в production нужен технический прототип на
+подписанном тестовом приложении: получение и обновление token, регистрация и
+деактивация через API, push в foreground/background/terminated, переход в чат,
+отказ и выдача `POST_NOTIFICATIONS`, установка из RuStore и прямого APK,
+устройства с RuStore и без него, а также RuStore и FCM пути. Без server-side
+учётных данных `/notifications/mobile-config` корректно остаётся с
+`enabled=false`, хотя сам механизм доставки включён.
 
 ## 7. Недостающие backend- и продуктовые возможности
 
@@ -494,8 +495,9 @@ Production signing key создаётся один раз, хранится вн
 
 ### Этап 1. Backend и production readiness
 
-1. Server delivery adapter mobile push для `rustore` и `fcm` реализован и
-   покрыт unit-тестами; не включать delivery до signed-device prototype.
+1. Server delivery adapter mobile push для `rustore` и `fcm` включён и покрыт
+   unit-тестами; настроить изолированные server-side secrets и пройти
+   signed-device prototype до публичного выпуска.
 2. End-to-end проверить уже реализованные report/block/moderation и применение
    ограничений во всех клиентских путях.
 3. End-to-end проверить реализованные обращения в поддержку, очередь и ответы
@@ -551,7 +553,8 @@ Production signing key создаётся один раз, хранится вн
 2. Настроить изолированные server-side secrets RuStore/FCM в staging и провести
    signed-device prototype с готовым adapter: группировка токенов,
    краткоживущие FCM credentials, timeout без небезопасного retry и unit-тесты
-   уже реализованы. Только после успешной проверки включать delivery.
+   уже реализованы. До успешной проверки не заявлять фоновую delivery как
+   подтверждённую функцию публичного выпуска.
 3. Pending navigation из native Intent в RN реализована. На подписанном
    устройстве проверить permission flow, token lifecycle, foreground,
    background, выгруженное из памяти приложение и отсутствие RuStore на direct
@@ -644,7 +647,7 @@ Production signing key создаётся один раз, хранится вн
 | --- | --- | --- |
 | Android package name | `arachat.messenger` | Значение станет неизменяемым идентификатором для RuStore, прямого APK и обновлений. |
 | Прямой APK | Официальный universal signed APK с того же package/signing key, что и RuStore | Пользователь получит отдельный канал без распада обновлений. |
-| Push для RuStore и прямого APK | Universal Push SDK через Kotlin bridge: RuStore + FCM; отдельные `provider: "rustore" | "fcm"` | SDK выбирает доступный транспорт, но сервер хранит конкретный provider. Delivery включается лишь после signed-device prototype, учётных данных и server adapter. |
+| Push для RuStore и прямого APK | Universal Push SDK через Kotlin bridge: RuStore + FCM; отдельные `provider: "rustore" | "fcm"` | SDK выбирает доступный транспорт, но сервер хранит конкретный provider. Delivery включена при настроенных server-side учётных данных; signed-device prototype обязателен до публичного обещания функции. |
 | HMS | Не включать в Android v1 без отдельной технической вехи | В текущем клиенте, API и server adapter нет HMS. Его нельзя обещать, пока не подтверждены SDK, credentials и Huawei physical-device prototype. |
 | Public branches/comments | Не включать в Android v1; рассмотреть после стабильного private messaging | Снижает риск и объём первого релиза. |
 | Звонки в Android v1 | Только личные аудиозвонки 1:1: Android WebRTC-клиент поверх существующих `call.*`, API ICE endpoint и coturn | Не расширяет v1 до видео, групповых звонков или демонстрации экрана; требуются проверки Android-to-Web и Android-to-Android на физических устройствах. |

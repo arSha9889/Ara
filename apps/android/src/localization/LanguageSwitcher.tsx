@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, sharedStyles, spacing } from '../theme/theme';
 import { Icon } from '../ui/Icon';
@@ -22,6 +22,24 @@ const languageOptions: readonly {
 export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
   const { language, setLanguage, t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(value => {
+        if (active) {
+          setReduceMotion(value);
+        }
+      })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
 
   function selectLanguage(nextLanguage: AppLanguage): void {
     setIsOpen(false);
@@ -53,7 +71,13 @@ export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
         <Icon color={colors.primary} name="chevronDown" size={18} />
       </Pressable>
 
-      <Modal animationType="slide" onRequestClose={() => setIsOpen(false)} transparent visible={isOpen}>
+      <Modal
+        animationType={reduceMotion ? 'none' : 'fade'}
+        onRequestClose={() => setIsOpen(false)}
+        statusBarTranslucent
+        transparent
+        visible={isOpen}
+      >
         <View style={styles.overlay}>
           <Pressable
             accessibilityLabel={t('close')}
@@ -61,8 +85,12 @@ export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
             onPress={() => setIsOpen(false)}
             style={styles.backdrop}
           />
-          <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.sheet]}>
-            <View style={styles.handle} />
+          <View
+            accessibilityViewIsModal
+            accessibilityLabel={t('language')}
+            accessibilityRole="dialog"
+            style={[sharedStyles.glassPanel, styles.dialog]}
+          >
             <View style={styles.heading}>
               <View style={styles.headingCopy}>
                 <Text style={styles.title}>{t('language')}</Text>
@@ -131,32 +159,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   overlay: {
+    alignItems: 'center',
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
   },
   backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.54)',
+    backgroundColor: 'rgba(4, 10, 18, 0.34)',
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
-  sheet: {
+  dialog: {
     backgroundColor: colors.glassStrong,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    maxWidth: 420,
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  handle: {
-    alignSelf: 'center',
-    backgroundColor: colors.textFaint,
-    borderRadius: 2,
-    height: 4,
-    marginBottom: spacing.md,
-    opacity: 0.7,
-    width: 40,
+    width: '100%',
   },
   heading: {
     alignItems: 'center',
