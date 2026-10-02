@@ -11,6 +11,7 @@ from app.models.security import PasswordCredential, TrustedDevicePin
 from app.models.sessions import Session
 from app.models.users import User, UserProfile, UserRestriction
 from app.services.email_verification_service import EmailVerificationError, normalize_email
+from app.services.mobile_push_token_service import deactivate_mobile_push_tokens
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 
 
@@ -300,6 +301,7 @@ async def change_user_status(session: AsyncSession, admin_user_id: UUID, target_
     if next_status in {'blocked', 'deleted'}:
         await session.execute(update(Session).where(Session.user_id == user.id, Session.revoked_at.is_(None)).values(revoked_at=now))
         await session.execute(update(TrustedDevicePin).where(TrustedDevicePin.user_id == user.id, TrustedDevicePin.revoked_at.is_(None)).values(revoked_at=now))
+        await deactivate_mobile_push_tokens(session, user.id, commit=False)
     if next_status == 'deleted':
         await session.execute(
             update(UserProfile)
@@ -359,6 +361,7 @@ async def create_user_restriction(
     user.status = 'blocked'
     await session.execute(update(Session).where(Session.user_id == user.id, Session.revoked_at.is_(None)).values(revoked_at=now))
     await session.execute(update(TrustedDevicePin).where(TrustedDevicePin.user_id == user.id, TrustedDevicePin.revoked_at.is_(None)).values(revoked_at=now))
+    await deactivate_mobile_push_tokens(session, user.id, commit=False)
     record_admin_audit(
         session,
         admin_user_id,

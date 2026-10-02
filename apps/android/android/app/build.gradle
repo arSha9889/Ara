@@ -127,8 +127,8 @@ android {
         applicationId = "arachat.messenger"
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
         buildConfigField "String", "API_BASE_URL", "\"${escapedApiBaseUrl}\""
         buildConfigField "String", "RUSTORE_PUSH_PROJECT_ID", "\"${escapedRustorePushProjectId}\""
     }
@@ -173,4 +173,6 @@ dependencies {
     implementation("ru.rustore.sdk:universalpush:7.4.1")
     implementation("ru.rustore.sdk:universalrustore:7.4.1")
     implementation("ru.rustore.sdk:universalfcm:7.4.1")
+
+    testImplementation("junit:junit:4.13.2")
 }

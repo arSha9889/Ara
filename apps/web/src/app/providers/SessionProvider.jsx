@@ -24,6 +24,19 @@ function accessTokenExpiresAt(accessToken) {
   }
 }
 
+function accessTokenSessionId(accessToken) {
+  if (!accessToken) return null;
+  try {
+    const [, payload] = accessToken.split('.');
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(window.atob(normalized));
+    return typeof decoded.sid === 'string' ? decoded.sid : null;
+  } catch {
+    return null;
+  }
+}
+
 function shouldRefreshAccessToken(accessToken) {
   const expiresAt = accessTokenExpiresAt(accessToken);
   return !expiresAt || expiresAt - Date.now() <= ACCESS_REFRESH_SKEW_MS;
@@ -64,6 +77,14 @@ export function SessionProvider({ children }) {
     localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
     localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     setSession({ accessToken: null, refreshToken: null, user: null });
+  }
+
+  function clearSessionIfCurrent(expectedAccessToken) {
+    const expectedSessionId = accessTokenSessionId(expectedAccessToken);
+    const currentSessionId = accessTokenSessionId(localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY));
+    if (!expectedSessionId || expectedSessionId !== currentSessionId) return false;
+    clearSession();
+    return true;
   }
 
   useEffect(() => {
@@ -177,7 +198,13 @@ export function SessionProvider({ children }) {
     };
   }, [isSessionLoading, session.accessToken, session.user?.id]);
 
-  const value = useMemo(() => ({ session, saveSession, clearSession, isSessionLoading }), [session, isSessionLoading]);
+  const value = useMemo(() => ({
+    session,
+    saveSession,
+    clearSession,
+    clearSessionIfCurrent,
+    isSessionLoading,
+  }), [session, isSessionLoading]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

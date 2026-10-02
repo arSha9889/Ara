@@ -1,5 +1,14 @@
 import { toSessionUser, type ApiUser } from '../src/features/auth/api/authApi';
-import { avatarEmoji } from '../src/features/profile/avatar';
+
+jest.mock('react-native', () => ({
+  NativeModules: {
+    AppConfig: {
+      apiBaseUrl: 'https://api.example.test',
+    },
+  },
+}));
+
+import { avatarEmoji, uploadedAvatarUrl } from '../src/features/profile/avatar';
 
 test('preserves the complete server-supported profile in the session user', () => {
   const user: ApiUser = {
@@ -40,4 +49,11 @@ test('preserves the complete server-supported profile in the session user', () =
 test('renders known built-in avatars and keeps unknown values neutral', () => {
   expect(avatarEmoji('animal-01')).toBe('🦊');
   expect(avatarEmoji('unknown-avatar')).toBeNull();
+});
+
+test('builds a public uploaded-avatar URL from the configured API base URL', () => {
+  expect(uploadedAvatarUrl('uploaded', '/api/media/avatars/0af4a983-2a87-42cb-afeb-8bbd1ba770c7')).toBe(
+    'https://api.example.test/api/media/avatars/0af4a983-2a87-42cb-afeb-8bbd1ba770c7',
+  );
+  expect(uploadedAvatarUrl('uploaded', '/api/media/42')).toBeNull();
 });

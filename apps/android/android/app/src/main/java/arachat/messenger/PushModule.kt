@@ -156,11 +156,10 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
   }
 
   private fun PushNotificationHandler.NotificationOpen.toWritableMap() = Arguments.createMap().apply {
-    putString("kind", kind)
+    putString("kind", "message")
     chatId?.let { putString("chat_id", it) }
     messageId?.let { putString("message_id", it) }
     notificationId?.let { putString("notification_id", it) }
-    supportTicketId?.let { putString("support_ticket_id", it) }
   }
 
   companion object {

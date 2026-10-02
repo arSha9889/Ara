@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.legal import PRIVACY_POLICY_VERSION, TERMS_VERSION
 from app.domain.nexus_id import generate_nexus_id
 from app.domain.security_hashing import hash_secret, verify_secret
-from app.domain.tokens import create_access_token
+from app.domain.tokens import AccessTokenClaims, create_access_token
 from app.domain.validators import is_valid_password, is_valid_pin, is_valid_username
 from app.models.audit import AuditLog
 from app.models.chats import MobilePushToken, PushSubscription
@@ -31,6 +31,7 @@ from app.services.email_verification_service import (
     verify_email_code,
 )
 from app.services.smtp_mailer import SmtpDeliveryError
+from app.services.mobile_push_token_service import deactivate_mobile_push_tokens
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.user_access_service import user_can_access
 
@@ -117,14 +118,16 @@ async def complete_registration(session: AsyncSession, request: RegisterComplete
         session.add(_create_trusted_pin(user.id, request.device_id, request.pin))
 
     refresh_token = _generate_refresh_token()
-    session.add(_create_session(user.id, request.device_id, refresh_token))
+    auth_session = _create_session(user.id, request.device_id, refresh_token)
+    session.add(auth_session)
     session.add(_login_history(user.id, request.device_id, 'email_register', 'success'))
 
+    await session.flush()
     await session.commit()
     await _load_profile(session, user)
     return RegistrationCompletion(
         user=to_user_out(user),
-        access_token=create_access_token(user.id),
+        access_token=create_access_token(user.id, auth_session.id),
         refresh_token=refresh_token,
     )
 
@@ -221,7 +224,7 @@ async def finish_password_reset(
     code: str,
     new_password: str,
     device_id: str,
-) -> None:
+) -> UUID:
     if not is_valid_password(new_password):
         raise AuthError('Password must contain only Latin letters and digits and be 5–30 characters long')
     try:
@@ -263,8 +266,10 @@ async def finish_password_reset(
         .where(TrustedDevicePin.user_id == user.id, TrustedDevicePin.revoked_at.is_(None))
         .values(revoked_at=now)
     )
+    await deactivate_mobile_push_tokens(session, user.id, commit=False)
     session.add(_audit(user.id, 'password_reset', device_id))
     await session.commit()
+    return user.id
 
 
 async def start_email_change(
@@ -347,11 +352,13 @@ async def login_with_password(session: AsyncSession, identifier: str, password: 
         raise AuthError('Invalid login identifier or password')
 
     refresh_token = _generate_refresh_token()
-    session.add(_create_session(user.id, device_id, refresh_token))
+    auth_session = _create_session(user.id, device_id, refresh_token)
+    session.add(auth_session)
     session.add(_login_history(user.id, device_id, 'password', 'success'))
+    await session.flush()
     await session.commit()
     await _load_profile(session, user)
-    return to_user_out(user), create_access_token(user.id), refresh_token
+    return to_user_out(user), create_access_token(user.id, auth_session.id), refresh_token
 
 
 async def issue_session_for_user(session: AsyncSession, user: User, device_id: str, method: str) -> tuple[UserOut, str, str]:
@@ -360,11 +367,13 @@ async def issue_session_for_user(session: AsyncSession, user: User, device_id: s
     if not await user_can_access(session, user):
         raise AuthError('Invalid login identifier or password')
     refresh_token = _generate_refresh_token()
-    session.add(_create_session(user.id, device_id, refresh_token))
+    auth_session = _create_session(user.id, device_id, refresh_token)
+    session.add(auth_session)
     session.add(_login_history(user.id, device_id, method, 'success'))
+    await session.flush()
     await session.commit()
     await _load_profile(session, user)
-    return to_user_out(user), create_access_token(user.id), refresh_token
+    return to_user_out(user), create_access_token(user.id, auth_session.id), refresh_token
 
 
 async def refresh_access_token(session: AsyncSession, refresh_token: str) -> tuple[UserOut, str, str]:
@@ -385,13 +394,13 @@ async def refresh_access_token(session: AsyncSession, refresh_token: str) -> tup
         item.expires_at = now + timedelta(days=settings.refresh_token_days)
         await session.commit()
         await _load_profile(session, user)
-        return to_user_out(user), create_access_token(user.id), refresh_token
+        return to_user_out(user), create_access_token(user.id, item.id), refresh_token
     raise AuthError('Invalid refresh token')
 
 
-async def logout_by_refresh_token(session: AsyncSession, refresh_token: str | None) -> None:
+async def logout_by_refresh_token(session: AsyncSession, refresh_token: str | None) -> UUID | None:
     if not refresh_token:
-        return
+        return None
     result = await session.execute(
         select(Session).where(
             Session.refresh_token_lookup_hash == _refresh_token_lookup_hash(refresh_token),
@@ -401,7 +410,23 @@ async def logout_by_refresh_token(session: AsyncSession, refresh_token: str | No
     item = result.scalar_one_or_none()
     if item and verify_secret(refresh_token, item.refresh_token_hash):
         item.revoked_at = datetime.now(timezone.utc)
+        await deactivate_mobile_push_tokens(session, item.user_id, item.device_id, commit=False)
         await session.commit()
+        return item.id
+    return None
+
+
+async def is_access_token_session_active(session: AsyncSession, claims: AccessTokenClaims) -> bool:
+    now = datetime.now(timezone.utc)
+    result = await session.execute(
+        select(Session.id).where(
+            Session.id == claims.session_id,
+            Session.user_id == claims.user_id,
+            Session.revoked_at.is_(None),
+            Session.expires_at > now,
+        )
+    )
+    return result.scalar_one_or_none() is not None
 
 
 async def delete_account(session: AsyncSession, user_id: UUID) -> None:

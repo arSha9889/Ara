@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useNetwork } from '../features/network/NetworkProvider';
 import {
   connectionStatusPresentation,
+  type ConnectionStatusPresentation,
   type ConnectionStatusTone,
 } from '../features/network/connectionStatusPresentation';
 import { useRealtimeConnectionStatus } from '../features/realtime/RealtimeProvider';
@@ -15,13 +17,46 @@ export function ConnectionStatusStrip() {
   const realtimeConnectionStatus = useRealtimeConnectionStatus();
   const { t } = useI18n();
   const presentation = connectionStatusPresentation(connection, realtimeConnectionStatus);
+  const [visiblePresentation, setVisiblePresentation] =
+    useState<ConnectionStatusPresentation | null>(null);
+  const presentationIcon = presentation?.icon;
+  const presentationKey = presentation?.key;
+  const presentationTone = presentation?.tone;
 
-  if (!presentation) {
+  useEffect(() => {
+    if (!presentationIcon || !presentationKey || !presentationTone) {
+      setVisiblePresentation(null);
+      return undefined;
+    }
+
+    const nextPresentation: ConnectionStatusPresentation = {
+      icon: presentationIcon,
+      key: presentationKey,
+      tone: presentationTone,
+    };
+    if (presentationTone === 'danger') {
+      setVisiblePresentation(nextPresentation);
+      return undefined;
+    }
+
+    if (visiblePresentation?.tone === 'primary') {
+      setVisiblePresentation(nextPresentation);
+      return undefined;
+    }
+
+    setVisiblePresentation(null);
+    const timer = setTimeout(() => {
+      setVisiblePresentation(nextPresentation);
+    }, TRANSIENT_STATUS_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [presentationIcon, presentationKey, presentationTone, visiblePresentation?.tone]);
+
+  if (!visiblePresentation) {
     return null;
   }
 
-  const label = t(presentation.key);
-  const isOffline = presentation.tone === 'danger';
+  const label = t(visiblePresentation.key);
+  const isOffline = visiblePresentation.tone === 'danger';
 
   return (
     <View
@@ -31,13 +66,13 @@ export function ConnectionStatusStrip() {
       accessibilityRole={isOffline ? 'alert' : undefined}
       style={[
         styles.container,
-        presentation.tone === 'danger' && styles.containerDanger,
-        presentation.tone === 'primary' && styles.containerPrimary,
+        visiblePresentation.tone === 'danger' && styles.containerDanger,
+        visiblePresentation.tone === 'primary' && styles.containerPrimary,
       ]}
       testID="network-status-strip"
     >
-      <Icon color={toneColor(presentation.tone)} name={presentation.icon} size={18} />
-      <Text style={[styles.label, { color: toneColor(presentation.tone) }]}>{label}</Text>
+      <Icon color={toneColor(visiblePresentation.tone)} name={visiblePresentation.icon} size={18} />
+      <Text style={[styles.label, { color: toneColor(visiblePresentation.tone) }]}>{label}</Text>
     </View>
   );
 }
@@ -48,10 +83,10 @@ function toneColor(tone: ConnectionStatusTone): string {
       return colors.danger;
     case 'primary':
       return colors.primary;
-    case 'success':
-      return colors.success;
   }
 }
+
+const TRANSIENT_STATUS_DELAY_MS = 1_500;
 
 const styles = StyleSheet.create({
   container: {

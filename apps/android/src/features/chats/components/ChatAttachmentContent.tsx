@@ -295,7 +295,11 @@ export function ChatVoiceAttachment({
     positionSeconds: 0,
   });
   const duration = Math.max(0, durationSeconds ?? playback.durationSeconds);
-  const progress = duration > 0 ? Math.min(1, playback.positionSeconds / duration) : 0;
+  const playbackPosition = Math.min(duration, Math.max(0, playback.positionSeconds));
+  const progress = duration > 0 ? Math.min(1, playbackPosition / duration) : 0;
+  const timeLabel = playback.isPlaying
+    ? `${formatDuration(playbackPosition)} / ${formatDuration(duration)}`
+    : formatDuration(duration);
 
   useEffect(() => {
     let active = true;
@@ -393,7 +397,7 @@ export function ChatVoiceAttachment({
         <View style={styles.voiceHeading}>
           <Text style={styles.voiceTitle}>{t('chatVoice')}</Text>
           <Text style={styles.voiceTime}>
-            {formatDuration(playback.isPlaying ? playback.positionSeconds : duration)}
+            {timeLabel}
           </Text>
         </View>
         <View accessibilityElementsHidden style={styles.voiceProgressTrack}>

@@ -73,7 +73,7 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   @ReactMethod
   fun pickPhoto(promise: Promise) {
     launchPicker(
-      Intent(MediaStore.ACTION_PICK_IMAGES),
+      Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*"),
       PHOTO_PICKER_REQUEST_CODE,
       attachmentKind = AttachmentKind.PHOTO,
       promise = promise,
@@ -196,6 +196,11 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
       return
     }
 
+    if (ContextCompat.checkSelfPermission(reactApplicationContext, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+      promise.reject("CAMERA_PERMISSION_DENIED", "Для записи видеосообщения нужен доступ к камере.")
+      return
+    }
+
     val activity = reactApplicationContext.currentActivity
     if (activity == null) {
       promise.reject("ACTIVITY_UNAVAILABLE", "Невозможно открыть камеру без активного экрана.")
@@ -203,26 +208,30 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     val target = File(draftsDirectory(), "video-note-${UUID.randomUUID()}.mp4")
-    val outputUri = FileProvider.getUriForFile(
-      reactApplicationContext,
-      "${reactApplicationContext.packageName}.media",
-      target,
-    )
-    val captureIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
-      setType("video/mp4")
-      putExtra(MediaStore.EXTRA_OUTPUT, outputUri)
-      putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0)
-      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-      clipData = ClipData.newRawUri("video-note", outputUri)
-    }
-
-    pendingVideoNote = PendingVideoNote(promise = promise, target = target, outputUri = outputUri)
     try {
+      val outputUri = FileProvider.getUriForFile(
+        reactApplicationContext,
+        "${reactApplicationContext.packageName}.media",
+        target,
+      )
+      val captureIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
+        setType("video/mp4")
+        putExtra(MediaStore.EXTRA_OUTPUT, outputUri)
+        putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        clipData = ClipData.newRawUri("video-note", outputUri)
+      }
+
+      pendingVideoNote = PendingVideoNote(promise = promise, target = target, outputUri = outputUri)
       activity.startActivityForResult(captureIntent, VIDEO_NOTE_RECORDING_REQUEST_CODE)
     } catch (_: ActivityNotFoundException) {
       pendingVideoNote = null
       target.delete()
       promise.reject("VIDEO_NOTE_UNAVAILABLE", "Системная камера недоступна на этом устройстве.")
+    } catch (_: Exception) {
+      pendingVideoNote = null
+      target.delete()
+      promise.reject("VIDEO_NOTE_UNAVAILABLE", "Не удалось открыть системную камеру.")
     }
   }
 
@@ -536,11 +545,12 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
       Thread {
         try {
+          val target = videoNoteAttachmentTarget(pending, data?.data)
           pending.promise.resolve(recordedAttachment(
-            pending.target,
+            target,
             "video-note-${System.currentTimeMillis()}.mp4",
             "video/mp4",
-            recordedDurationSeconds(pending.target),
+            recordedDurationSeconds(target),
           ))
         } catch (error: MediaModuleException) {
           pending.target.delete()
@@ -566,12 +576,13 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
     pendingPicker = null
 
-    if (resultCode != Activity.RESULT_OK || data?.data == null) {
+    val selectedUri = data?.data
+      ?: data?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+    if (resultCode != Activity.RESULT_OK || selectedUri == null) {
       pending.promise.resolve(null)
       return
     }
 
-    val selectedUri = data.data ?: return
     Thread {
       try {
         pending.promise.resolve(copySelectedAttachment(selectedUri, pending.attachmentKind))
@@ -635,6 +646,9 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     } catch (_: ActivityNotFoundException) {
       pendingPicker = null
       promise.reject("PICKER_UNAVAILABLE", "Системный выбор файлов недоступен на этом устройстве.")
+    } catch (_: Exception) {
+      pendingPicker = null
+      promise.reject("PICKER_UNAVAILABLE", "Не удалось открыть системный выбор файлов.")
     }
   }
 
@@ -646,6 +660,35 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     val name = displayName(source)
     val target = File(draftsDirectory(), "${UUID.randomUUID()}${extensionForMime(mimeType)}")
+    val sizeBytes = copyUriToDraft(source, target)
+
+    putString("uri", Uri.fromFile(target).toString())
+    putString("name", name)
+    putString("mimeType", mimeType)
+    putDouble("sizeBytes", sizeBytes.toDouble())
+  }
+
+  private fun videoNoteAttachmentTarget(pending: PendingVideoNote, fallbackUri: Uri?): File {
+    if (pending.target.isFile && pending.target.length() > 0L) {
+      return pending.target
+    }
+
+    if (
+      fallbackUri == null ||
+      fallbackUri == pending.outputUri ||
+      (fallbackUri.scheme == "file" && fallbackUri.path == pending.target.absolutePath)
+    ) {
+      throw MediaModuleException(
+        "VIDEO_NOTE_RECORDING_FAILED",
+        "Системная камера не вернула записанное видеосообщение.",
+      )
+    }
+
+    copyUriToDraft(fallbackUri, pending.target)
+    return pending.target
+  }
+
+  private fun copyUriToDraft(source: Uri, target: File): Long {
     var sizeBytes = 0L
     try {
       reactApplicationContext.contentResolver.openInputStream(source)?.use { input ->
@@ -653,8 +696,11 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
           val buffer = ByteArray(BUFFER_SIZE)
           while (true) {
             val read = input.read(buffer)
-            if (read <= 0) {
+            if (read < 0) {
               break
+            }
+            if (read == 0) {
+              throw MediaModuleException("ATTACHMENT_READ_FAILED", "Не удалось прочитать выбранный файл.")
             }
             sizeBytes += read
             if (sizeBytes > MAX_ATTACHMENT_BYTES) {
@@ -664,20 +710,15 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
           }
         }
       } ?: throw MediaModuleException("ATTACHMENT_READ_FAILED", "Не удалось прочитать выбранный файл.")
+
+      if (sizeBytes == 0L) {
+        throw MediaModuleException("ATTACHMENT_EMPTY", "Нельзя отправить пустой файл.")
+      }
+      return sizeBytes
     } catch (error: Exception) {
       target.delete()
       throw error
     }
-
-    if (sizeBytes == 0L) {
-      target.delete()
-      throw MediaModuleException("ATTACHMENT_EMPTY", "Нельзя отправить пустой файл.")
-    }
-
-    putString("uri", Uri.fromFile(target).toString())
-    putString("name", name)
-    putString("mimeType", mimeType)
-    putDouble("sizeBytes", sizeBytes.toDouble())
   }
 
   private fun recordedAttachment(
@@ -797,7 +838,7 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   }
 
   private fun handleAudioFocusChange(focusChange: Int) {
-    if (focusChange <= AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+    if (pausesVoicePlaybackForAudioFocusChange(focusChange)) {
       pauseAudioPlayback()
     }
   }
@@ -890,16 +931,29 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   }
 
   private fun displayName(uri: Uri): String {
+    val fallback = uri.lastPathSegment
+      ?.substringAfterLast('/')
+      ?.let(Uri::decode)
+      ?.let { File(it).name }
+      ?.takeIf { it.isNotBlank() }
+      ?.take(MAX_FILENAME_LENGTH)
+      ?: "attachment"
     val resolver = reactApplicationContext.contentResolver
-    resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-      if (cursor.moveToFirst()) {
-        val name = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
-        if (!name.isNullOrBlank()) {
-          return File(name).name.take(MAX_FILENAME_LENGTH)
+    return try {
+      resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        val columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (columnIndex >= 0 && cursor.moveToFirst()) {
+          cursor.getString(columnIndex)
+            ?.let { File(it).name }
+            ?.takeIf { it.isNotBlank() }
+            ?.take(MAX_FILENAME_LENGTH)
+        } else {
+          null
         }
-      }
+      } ?: fallback
+    } catch (_: Exception) {
+      fallback
     }
-    return "attachment"
   }
 
   private fun normalizedMimeType(value: String?): String = value
@@ -917,8 +971,15 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     val name = displayName(source).lowercase()
     return when {
+      attachmentKind == AttachmentKind.PHOTO && (name.endsWith(".jpg") || name.endsWith(".jpeg")) -> "image/jpeg"
+      attachmentKind == AttachmentKind.PHOTO && name.endsWith(".png") -> "image/png"
+      attachmentKind == AttachmentKind.PHOTO && name.endsWith(".gif") -> "image/gif"
+      attachmentKind == AttachmentKind.PHOTO && name.endsWith(".webp") -> "image/webp"
       attachmentKind == AttachmentKind.DOCUMENT && name.endsWith(".pdf") -> "application/pdf"
       attachmentKind == AttachmentKind.DOCUMENT && name.endsWith(".txt") -> "text/plain"
+      attachmentKind == AttachmentKind.VIDEO && name.endsWith(".mp4") -> "video/mp4"
+      attachmentKind == AttachmentKind.VIDEO && name.endsWith(".webm") -> "video/webm"
+      attachmentKind == AttachmentKind.VIDEO && (name.endsWith(".mov") || name.endsWith(".qt")) -> "video/quicktime"
       else -> declaredMimeType
     }
   }

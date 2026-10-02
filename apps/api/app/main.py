@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -11,13 +13,14 @@ from starlette.websockets import WebSocketDisconnect
 from app.api.router import api_router
 from app.core.config import settings
 from app.db.session import AsyncSessionLocal
-from app.domain.tokens import decode_access_token
+from app.domain.tokens import AccessTokenClaims, decode_access_token
 from app.models.chats import Chat, ChatParticipant
 from app.models.users import User
 from app.db.health import check_database
 from app.services.call_signaling import CallSignalingError, call_signaling_manager, normalize_call_signal
-from app.services.auth_service import AuthError
+from app.services.auth_service import AuthError, is_access_token_session_active
 from app.services.realtime_manager import realtime_manager
+from app.services.realtime_revocation_service import realtime_revocation_service
 from app.services.redis_client import check_redis
 from app.services.safety_service import ensure_chat_interaction_allowed, is_user_interaction_blocked
 from app.services.storage_service import check_storage
@@ -25,10 +28,20 @@ from app.services.user_access_service import user_can_access
 
 WEBSOCKET_AUTH_TIMEOUT_SECONDS = 10
 TYPING_EVENT_THROTTLE_SECONDS = 2
+ACCESS_TOKEN_EXPIRED_CLOSE_CODE = 4001
+
+
+@asynccontextmanager
+async def _app_lifespan(_: FastAPI) -> AsyncIterator[None]:
+    await realtime_revocation_service.start()
+    try:
+        yield
+    finally:
+        await realtime_revocation_service.stop()
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.app_name)
+    app = FastAPI(title=settings.app_name, lifespan=_app_lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -65,17 +78,26 @@ def create_app() -> FastAPI:
     @app.websocket('/ws')
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
-        user_id = await _authenticate_websocket(websocket)
-        if not user_id:
+        authentication = await _authenticate_websocket(websocket)
+        if not authentication:
             return
-        was_offline = await realtime_manager.connect_user(websocket, user_id)
+        user_id = authentication.user_id
+        was_offline = await realtime_manager.connect_user(websocket, user_id, authentication.session_id)
         if was_offline:
             await _broadcast_presence_to_user_chats(user_id, True)
 
         typing_started_at: dict[UUID, float] = {}
         try:
             while True:
-                message = await websocket.receive_json()
+                remaining_token_lifetime = (authentication.expires_at - datetime.now(timezone.utc)).total_seconds()
+                if remaining_token_lifetime <= 0:
+                    await _safe_close_websocket(websocket, code=ACCESS_TOKEN_EXPIRED_CLOSE_CODE)
+                    raise WebSocketDisconnect
+                try:
+                    message = await asyncio.wait_for(websocket.receive_json(), timeout=remaining_token_lifetime)
+                except asyncio.TimeoutError:
+                    await _safe_close_websocket(websocket, code=ACCESS_TOKEN_EXPIRED_CLOSE_CODE)
+                    raise WebSocketDisconnect from None
                 event = message.get('event')
 
                 if event == 'ping':
@@ -170,7 +192,7 @@ def create_app() -> FastAPI:
     return app
 
 
-async def _authenticate_websocket(websocket: WebSocket) -> UUID | None:
+async def _authenticate_websocket(websocket: WebSocket) -> AccessTokenClaims | None:
     try:
         message = await asyncio.wait_for(websocket.receive_json(), timeout=WEBSOCKET_AUTH_TIMEOUT_SECONDS)
     except asyncio.TimeoutError:
@@ -192,18 +214,18 @@ async def _authenticate_websocket(websocket: WebSocket) -> UUID | None:
         return None
 
     try:
-        user_id = decode_access_token(token)
+        claims = decode_access_token(token)
     except Exception:
         await _reject_websocket_connection(websocket, 'invalid_token')
         return None
 
-    if not await _is_active_user(user_id):
-        await _reject_websocket_connection(websocket, 'user_not_available')
+    if not await _is_active_access_token_session(claims):
+        await _reject_websocket_connection(websocket, 'session_not_available')
         return None
 
-    if not await _safe_send_json(websocket, {'event': 'connection.authenticated', 'user_id': str(user_id)}):
+    if not await _safe_send_json(websocket, {'event': 'connection.authenticated', 'user_id': str(claims.user_id)}):
         return None
-    return user_id
+    return claims
 
 
 async def _reject_websocket_connection(websocket: WebSocket, reason: str) -> None:
@@ -296,6 +318,14 @@ async def _can_interact_with_chat(session: AsyncSession, user_id: UUID, chat: Ch
 async def _is_active_user(user_id: UUID) -> bool:
     async with AsyncSessionLocal() as session:
         user = await session.get(User, user_id)
+        return await user_can_access(session, user)
+
+
+async def _is_active_access_token_session(claims: AccessTokenClaims) -> bool:
+    async with AsyncSessionLocal() as session:
+        if not await is_access_token_session_active(session, claims):
+            return False
+        user = await session.get(User, claims.user_id)
         return await user_can_access(session, user)
 
 

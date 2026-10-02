@@ -63,6 +63,34 @@ test('preserves ephemeral typing event fields without message text', () => {
   });
 });
 
+test('parses a pin update with the refreshed chat state', () => {
+  const chat = {
+    id: 'chat-1',
+    type: 'direct',
+    pinned_message_id: 'message-1',
+    pinned_message: {
+      id: 'message-1',
+      sender_id: 'user-1',
+      type: 'text',
+      payload: 'Закреплённое сообщение',
+      media_name: null,
+      created_at: '2026-08-23T12:00:00Z',
+    },
+  };
+
+  expect(
+    parseRealtimeEvent({
+      event: 'message.pin_updated',
+      chat_id: 'chat-1',
+      chat,
+    }),
+  ).toEqual({
+    event: 'message.pin_updated',
+    chatId: 'chat-1',
+    chat,
+  });
+});
+
 test('parses validated call signalling fields', () => {
   expect(
     parseRealtimeEvent({

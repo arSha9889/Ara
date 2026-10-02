@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useI18n } from '../../../localization/I18nProvider';
@@ -17,14 +17,19 @@ export function AccountScreenLayout({ children, title, description }: AccountScr
   const { t } = useI18n();
 
   return (
-    <AppScreen>
+    <KeyboardAvoidingView
+      behavior={Platform.select({ android: 'height', ios: 'padding' })}
+      style={styles.keyboardAvoidingView}
+    >
+      <AppScreen bottomSafeArea>
         <View style={styles.header}>
-        <IconButton accessibilityLabel={t('back')} icon="back" onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>{title}</Text>
-      </View>
-      {description ? <Text style={styles.description}>{description}</Text> : null}
-      {children}
-    </AppScreen>
+          <IconButton accessibilityLabel={t('back')} icon="back" onPress={() => navigation.goBack()} />
+          <Text style={styles.title}>{title}</Text>
+        </View>
+        {description ? <Text style={styles.description}>{description}</Text> : null}
+        {children}
+      </AppScreen>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -114,6 +119,10 @@ export const accountStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    backgroundColor: colors.canvas,
+    flex: 1,
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',

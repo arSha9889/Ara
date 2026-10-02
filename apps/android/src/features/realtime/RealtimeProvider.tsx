@@ -10,12 +10,15 @@ import {
 } from 'react';
 import { AppState } from 'react-native';
 
+import { apiClient } from '../../infrastructure/http/apiClient';
 import { getWebSocketUrl } from '../../infrastructure/realtime/realtimeConfig';
 import { parseRealtimeEvent, type RealtimeEvent } from '../../infrastructure/realtime/realtimeEvent';
 
 const HEARTBEAT_INTERVAL_MS = 25_000;
 const HEARTBEAT_TIMEOUT_MS = 10_000;
 const MAX_RECONNECT_DELAY_MS = 5_000;
+const ACCESS_TOKEN_EXPIRED_CLOSE_CODE = 4001;
+const SESSION_REVOKED_CLOSE_CODE = 4003;
 const SOCKET_OPEN = 1;
 
 export type RealtimeConnectionStatus = 'connecting' | 'connected' | 'disconnected';
@@ -112,6 +115,7 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     let heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
+    let authenticationRefresh: Promise<void> | null = null;
 
     function clearHeartbeat(): void {
       if (heartbeatTimer) {
@@ -191,6 +195,26 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
       }, delay);
     }
 
+    function refreshAuthentication(): Promise<void> {
+      if (authenticationRefresh) {
+        return authenticationRefresh;
+      }
+
+      authenticationRefresh = apiClient
+        .refreshCurrentSession()
+        .catch(() => null)
+        .then(refreshedSession => {
+          if (!refreshedSession) {
+            shouldConnect = false;
+            clearReconnectTimer();
+          }
+        })
+        .finally(() => {
+          authenticationRefresh = null;
+        });
+      return authenticationRefresh;
+    }
+
     function connect(): void {
       if (isDisposed || !shouldConnect || socketRef.current) {
         return;
@@ -243,6 +267,12 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
           replayChatSubscriptions(socket);
         }
 
+        if (event.event === 'connection.rejected') {
+          socket.close();
+          refreshAuthentication();
+          return;
+        }
+
         if (event.event === 'pong' && heartbeatTimeout) {
           clearTimeout(heartbeatTimeout);
           heartbeatTimeout = null;
@@ -257,7 +287,7 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = closeEvent => {
         if (authenticatedSocketRef.current === socket) {
           authenticatedSocketRef.current = null;
         }
@@ -265,6 +295,14 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
           socketRef.current = null;
           clearHeartbeat();
           setConnectionStatus('disconnected');
+          if (
+            closeEvent.code === ACCESS_TOKEN_EXPIRED_CLOSE_CODE ||
+            closeEvent.code === SESSION_REVOKED_CLOSE_CODE ||
+            closeEvent.code === 1008
+          ) {
+            refreshAuthentication();
+            return;
+          }
           scheduleReconnect();
         }
       };

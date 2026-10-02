@@ -291,23 +291,3 @@ test('does not mark an unavailable message notification as read or expose server
     component?.unmount();
   });
 });
-
-test('opens a support ticket or settings without a notification body', async () => {
-  const navigation = { navigate: jest.fn() };
-
-  await navigateFromMobilePush(
-    navigation as never,
-    {
-      kind: 'support',
-      notificationId,
-      supportTicketId: 'd1731abc-dc57-4bb8-a9d6-640a3d89ea2d',
-    },
-    chatCopy,
-  );
-  await navigateFromMobilePush(navigation as never, { kind: 'system', notificationId }, chatCopy);
-
-  expect(navigation.navigate).toHaveBeenNthCalledWith(1, 'SupportTicket', {
-    ticketId: 'd1731abc-dc57-4bb8-a9d6-640a3d89ea2d',
-  });
-  expect(navigation.navigate).toHaveBeenNthCalledWith(2, 'MainTabs', { screen: 'Settings' });
-});

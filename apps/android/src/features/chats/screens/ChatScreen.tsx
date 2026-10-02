@@ -26,14 +26,17 @@ import { useSession } from '../../auth/session/useSession';
 import {
   deleteMessage,
   editTextMessage,
+  getChat,
   getMessage,
   getMessages,
   markMessagesRead,
   sendMediaMessage,
   sendTextMessage,
+  togglePinMessage,
   toggleMessageReaction,
   uploadChatAttachment,
   type ChatMessage,
+  type ChatPreviewMessage,
 } from '../api/chatApi';
 import {
   ChatFileAttachment,
@@ -60,6 +63,7 @@ import { useDirectCall } from '../../calls/DirectCallProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
+import { ChatAvatar } from '../components/ChatAvatar';
 import { EmptyState } from '../../../ui/EmptyState';
 import { Icon } from '../../../ui/Icon';
 import { IconButton } from '../../../ui/IconButton';
@@ -132,6 +136,8 @@ export function ChatScreen({ navigation, route }: Props) {
   const [attachmentError, setAttachmentError] = useState('');
   const [photoViewer, setPhotoViewer] = useState<PhotoViewerState | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null);
+  const [pinnedMessage, setPinnedMessage] = useState<ChatPreviewMessage | null>(null);
   const [editText, setEditText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -539,6 +545,23 @@ export function ChatScreen({ navigation, route }: Props) {
     loadMessages().catch(() => undefined);
   }, [loadMessages]);
 
+  useEffect(() => {
+    let active = true;
+    setPinnedMessage(null);
+
+    getChat(route.params.chatId)
+      .then(chat => {
+        if (active) {
+          setPinnedMessage(chat.pinned_message ?? null);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [route.params.chatId]);
+
   useEffect(
     () => subscribeToChat(route.params.chatId),
     [route.params.chatId, subscribeToChat],
@@ -588,6 +611,23 @@ export function ChatScreen({ navigation, route }: Props) {
         return;
       }
 
+      if (event.event === 'message.pin_updated' && event.chat) {
+        const pinnedMessageId = event.chat.pinned_message_id;
+        setPinnedMessage(event.chat.pinned_message ?? null);
+        setMessages(current =>
+          current.map(currentMessage => ({
+            ...currentMessage,
+            is_pinned: currentMessage.id === pinnedMessageId,
+          })),
+        );
+        setActionMessage(current =>
+          current
+            ? { ...current, is_pinned: current.id === pinnedMessageId }
+            : current,
+        );
+        return;
+      }
+
       if (!event.message) {
         return;
       }
@@ -613,6 +653,14 @@ export function ChatScreen({ navigation, route }: Props) {
               : message
             : current,
         );
+        if (event.event === 'message.deleted') {
+          setReplyToMessage(current =>
+            current?.id === message.id ? null : current,
+          );
+          setPinnedMessage(current =>
+            current?.id === message.id ? null : current,
+          );
+        }
 
         if (
           event.event === 'message.created' &&
@@ -673,9 +721,15 @@ export function ChatScreen({ navigation, route }: Props) {
     setIsSending(true);
     stopTyping();
     try {
-      const message = await sendTextMessage(route.params.chatId, messageText);
+      const replyToMessageId = replyToMessage?.id;
+      const message = await sendTextMessage(route.params.chatId, messageText, {
+        replyToMessageId,
+      });
       setMessages(current => upsertChatMessage(current, message));
       setText('');
+      setReplyToMessage(current =>
+        current?.id === replyToMessageId ? null : current,
+      );
       requestAnimationFrame(() =>
         messageList.current?.scrollToEnd({ animated: true }),
       );
@@ -761,6 +815,26 @@ export function ChatScreen({ navigation, route }: Props) {
     }
   }
 
+  async function startVideoNoteRecording(): Promise<void> {
+    if (isPickingAttachment || isSending) {
+      return;
+    }
+
+    setAttachmentError('');
+    if (Platform.OS === 'android') {
+      const permission = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      );
+      if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
+        setAttachmentError(t('videoNotePermissionDenied'));
+        setIsAttachmentPickerVisible(false);
+        return;
+      }
+    }
+
+    await selectAttachment(recordChatVideoNote, 'videoNoteRecordError');
+  }
+
   async function stopVoiceRecording(): Promise<void> {
     if (!isVoiceRecordingRef.current || isStoppingVoiceRecording) {
       return;
@@ -799,21 +873,28 @@ export function ChatScreen({ navigation, route }: Props) {
     stopTyping();
     try {
       const upload = await uploadChatAttachment(attachment);
+      const replyToMessageId = replyToMessage?.id;
       const message = await sendMediaMessage(
         route.params.chatId,
         upload,
         text,
-        attachment.messageType
-          ? {
-              durationSeconds: attachment.durationSeconds,
-              type: attachment.messageType,
-            }
-          : undefined,
+        {
+          ...(attachment.messageType
+            ? {
+                durationSeconds: attachment.durationSeconds,
+                type: attachment.messageType,
+              }
+            : {}),
+          replyToMessageId,
+        },
       );
       setMessages(current => upsertChatMessage(current, message));
       selectedAttachmentRef.current = null;
       setSelectedAttachment(null);
       setText('');
+      setReplyToMessage(current =>
+        current?.id === replyToMessageId ? null : current,
+      );
       discardChatAttachmentDraft(attachment.uri).catch(() => undefined);
       requestAnimationFrame(() =>
         messageList.current?.scrollToEnd({ animated: true }),
@@ -844,6 +925,70 @@ export function ChatScreen({ navigation, route }: Props) {
     setActionMessage(null);
     setEditText('');
     setIsEditing(false);
+  }
+
+  function startReply(message: ChatMessage): void {
+    if (message.deleted_at || pendingAction) {
+      return;
+    }
+
+    setReplyToMessage(message);
+    setActionMessage(null);
+    setEditText('');
+    setIsEditing(false);
+  }
+
+  function openMessageTarget(messageId: string): void {
+    const targetMessage = messages.find(message => message.id === messageId);
+    navigation.setParams({
+      targetMessage,
+      targetMessageId: messageId,
+    });
+  }
+
+  async function handlePin(message: ChatMessage): Promise<void> {
+    const actionId = `pin:${message.id}`;
+    if (pendingAction) {
+      return;
+    }
+
+    setError('');
+    setPendingAction(actionId);
+    try {
+      const chat = await togglePinMessage(route.params.chatId, message.id);
+      const pinnedMessageId = chat.pinned_message_id;
+      setPinnedMessage(chat.pinned_message ?? null);
+      setMessages(current =>
+        current.map(currentMessage => ({
+          ...currentMessage,
+          is_pinned: currentMessage.id === pinnedMessageId,
+        })),
+      );
+      setActionMessage(null);
+      setEditText('');
+      setIsEditing(false);
+    } catch (nextError) {
+      setError(t(authErrorKey(nextError)));
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  function confirmPin(message: ChatMessage): void {
+    if (pinnedMessage && pinnedMessage.id !== message.id) {
+      Alert.alert(t('replacePinnedMessage'), t('replacePinnedMessageDescription'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('pinMessage'),
+          onPress: () => {
+            handlePin(message).catch(() => undefined);
+          },
+        },
+      ]);
+      return;
+    }
+
+    handlePin(message).catch(() => undefined);
   }
 
   async function handleReaction(
@@ -970,7 +1115,13 @@ export function ChatScreen({ navigation, route }: Props) {
 
   function renderMessage({ item }: { item: ChatMessage }) {
     const isOwn = item.sender_id === session?.user.id;
+    const authorName = item.author?.display_name || item.author?.username || route.params.title;
     const messageText = item.deleted_at ? t('messageDeleted') : item.payload;
+    const replyTo = item.reply_to;
+    const replyAuthor = replyTo?.sender_id === session?.user.id ? t('youPrefix') : route.params.title;
+    const replyText = replyTo?.deleted_at
+      ? t('messageDeleted')
+      : replyTo?.payload || replyTo?.media_name || t('chatsAttachment');
     const reactions = item.reactions ?? [];
     const delivery = isOwn ? deliveryPresentation(item.delivery_status, t) : null;
     const isPhoto = !item.deleted_at && item.type === 'photo' && Boolean(item.media_url);
@@ -984,6 +1135,14 @@ export function ChatScreen({ navigation, route }: Props) {
 
     return (
       <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
+        {!isOwn ? (
+          <ChatAvatar
+            avatarRef={item.author?.avatar_ref}
+            avatarType={item.author?.avatar_type}
+            label={authorName}
+            size="small"
+          />
+        ) : null}
         <View style={styles.messageContent}>
           <Pressable
             accessibilityHint={
@@ -1001,6 +1160,34 @@ export function ChatScreen({ navigation, route }: Props) {
               pressed && !item.deleted_at && styles.messageBubblePressed,
             ]}
           >
+            {replyTo ? (
+              <Pressable
+                accessibilityHint={t('openReplyTarget')}
+                accessibilityLabel={`${t('replyingTo')} ${replyAuthor}: ${replyText}`}
+                accessibilityRole="button"
+                onPress={() => openMessageTarget(replyTo.id)}
+                style={({ pressed }) => [
+                  styles.replyPreview,
+                  pressed && styles.replyPreviewPressed,
+                ]}
+              >
+                <Icon color={isOwn ? colors.canvas : colors.primary} name="reply" size={16} />
+                <View style={styles.replyPreviewCopy}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.replyPreviewAuthor, isOwn && styles.replyPreviewAuthorOwn]}
+                  >
+                    {replyAuthor}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.replyPreviewText, isOwn && styles.replyPreviewTextOwn]}
+                  >
+                    {replyText}
+                  </Text>
+                </View>
+              </Pressable>
+            ) : null}
             {isPhoto && item.media_url ? (
               <ChatPhotoAttachment
                 mediaName={item.media_name}
@@ -1193,21 +1380,20 @@ export function ChatScreen({ navigation, route }: Props) {
               </Animated.View>
             ) : null}
           </View>
-          <IconButton
-            accessibilityLabel={t('callAudio')}
-            disabled={!route.params.peerUserId || Boolean(call)}
-            icon="call"
-            onPress={() => {
-              if (!route.params.peerUserId) {
-                return;
-              }
-              startCall({
-                chatId: route.params.chatId,
-                peerName: route.params.title,
-                peerUserId: route.params.peerUserId,
-              }).catch(() => undefined);
-            }}
-          />
+          {route.params.peerUserId ? (
+            <IconButton
+              accessibilityLabel={t('callAudio')}
+              disabled={Boolean(call)}
+              icon="call"
+              onPress={() => {
+                startCall({
+                  chatId: route.params.chatId,
+                  peerName: route.params.title,
+                  peerUserId: route.params.peerUserId!,
+                }).catch(() => undefined);
+              }}
+            />
+          ) : null}
           {route.params.peerUserId ? (
             <IconButton
               accessibilityLabel={t('safetyActions')}
@@ -1217,6 +1403,34 @@ export function ChatScreen({ navigation, route }: Props) {
             />
           ) : null}
         </View>
+
+        {pinnedMessage ? (
+          <Pressable
+            accessibilityHint={t('openPinnedMessage')}
+            accessibilityLabel={`${t('pinnedMessage')}: ${
+              pinnedMessage.sender_id === session?.user.id ? t('youPrefix') : route.params.title
+            }. ${pinnedMessage.payload || pinnedMessage.media_name || t('chatsAttachment')}`}
+            accessibilityRole="button"
+            onPress={() => openMessageTarget(pinnedMessage.id)}
+            style={({ pressed }) => [
+              sharedStyles.glassCard,
+              styles.pinnedMessage,
+              pressed && styles.pinnedMessagePressed,
+            ]}
+          >
+            <View style={styles.pinnedMessageIcon}>
+              <Icon color={colors.primary} name="pin" size={20} />
+            </View>
+            <View style={styles.pinnedMessageCopy}>
+              <Text numberOfLines={1} style={styles.pinnedMessageTitle}>
+                {t('pinnedMessage')}
+              </Text>
+              <Text numberOfLines={1} style={styles.pinnedMessageText}>
+                {pinnedMessage.payload || pinnedMessage.media_name || t('chatsAttachment')}
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         {isTargetMessageUnavailable ? (
           <View accessibilityRole="alert" style={[sharedStyles.glassCard, styles.targetMessageNotice]}>
@@ -1356,6 +1570,38 @@ export function ChatScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
+        {replyToMessage ? (
+          <View
+            accessibilityLabel={`${t('replyingTo')} ${
+              replyToMessage.author?.display_name ||
+              replyToMessage.author?.username ||
+              (replyToMessage.sender_id === session?.user.id ? t('youPrefix') : route.params.title)
+            }`}
+            style={[sharedStyles.glassCard, styles.replyComposer]}
+          >
+            <Icon color={colors.primary} name="reply" size={20} />
+            <View style={styles.replyComposerCopy}>
+              <Text numberOfLines={1} style={styles.replyComposerTitle}>
+                {t('replyingTo')}{' '}
+                {replyToMessage.author?.display_name ||
+                  replyToMessage.author?.username ||
+                  (replyToMessage.sender_id === session?.user.id
+                    ? t('youPrefix')
+                    : route.params.title)}
+              </Text>
+              <Text numberOfLines={1} style={styles.replyComposerText}>
+                {replyToMessage.payload || replyToMessage.media_name || t('chatsAttachment')}
+              </Text>
+            </View>
+            <IconButton
+              accessibilityLabel={t('cancelReply')}
+              icon="close"
+              onPress={() => setReplyToMessage(null)}
+              size={48}
+            />
+          </View>
+        ) : null}
+
         {isVoiceRecording ? (
           <View style={[sharedStyles.glassPanel, styles.voiceRecordingComposer]}>
             <Pressable
@@ -1462,7 +1708,7 @@ export function ChatScreen({ navigation, route }: Props) {
                 disabled={isSending || isPickingAttachment}
                 hitSlop={4}
                 onPress={() => {
-                  selectAttachment(recordChatVideoNote, 'videoNoteRecordError').catch(() => undefined);
+                  startVideoNoteRecording().catch(() => undefined);
                 }}
                 style={({ pressed }) => [
                   styles.composerVideoNoteButton,
@@ -1533,19 +1779,23 @@ export function ChatScreen({ navigation, route }: Props) {
         transparent
         visible={Boolean(actionMessage)}
       >
-        <View style={styles.sheetOverlay}>
-          <Pressable
-            accessibilityLabel={t('closeMessageActions')}
-            accessibilityRole="button"
-            disabled={Boolean(pendingAction)}
-            onPress={closeMessageActions}
-            style={styles.sheetBackdrop}
-          />
-          {actionMessage ? (
-            <View
-              accessibilityViewIsModal
-              style={[sharedStyles.glassPanel, styles.sheet]}
-            >
+        <KeyboardAvoidingView
+          behavior={Platform.select({ android: 'height', ios: 'padding' })}
+          style={styles.sheetKeyboardAvoidingView}
+        >
+          <View style={styles.sheetOverlay}>
+            <Pressable
+              accessibilityLabel={t('closeMessageActions')}
+              accessibilityRole="button"
+              disabled={Boolean(pendingAction)}
+              onPress={closeMessageActions}
+              style={styles.sheetBackdrop}
+            />
+            {actionMessage ? (
+              <View
+                accessibilityViewIsModal
+                style={[sharedStyles.glassPanel, styles.sheet]}
+              >
               <View style={styles.sheetHandle} />
               <View style={styles.sheetHeading}>
                 <Text style={styles.sheetTitle}>
@@ -1561,6 +1811,51 @@ export function ChatScreen({ navigation, route }: Props) {
               <Text numberOfLines={2} style={styles.sheetMessagePreview}>
                 {actionMessage.payload}
               </Text>
+
+              {!isEditing ? (
+                <View style={styles.messageActionStack}>
+                  <View style={styles.messageActions}>
+                    <Pressable
+                      accessibilityLabel={t('replyMessage')}
+                      accessibilityRole="button"
+                      disabled={Boolean(pendingAction)}
+                      onPress={() => startReply(actionMessage)}
+                      style={({ pressed }) => [
+                        styles.secondaryActionButton,
+                        pressed && !pendingAction && styles.actionButtonPressed,
+                      ]}
+                    >
+                      <View style={styles.messageActionButtonContent}>
+                        <Icon color={colors.text} name="reply" size={18} />
+                        <Text style={styles.secondaryActionLabel}>{t('replyMessage')}</Text>
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel={
+                        pinnedMessage?.id === actionMessage.id
+                          ? t('unpinMessage')
+                          : t('pinMessage')
+                      }
+                      accessibilityRole="button"
+                      disabled={Boolean(pendingAction)}
+                      onPress={() => confirmPin(actionMessage)}
+                      style={({ pressed }) => [
+                        styles.secondaryActionButton,
+                        pressed && !pendingAction && styles.actionButtonPressed,
+                      ]}
+                    >
+                      <View style={styles.messageActionButtonContent}>
+                        <Icon color={colors.text} name="pin" size={18} />
+                        <Text style={styles.secondaryActionLabel}>
+                          {pinnedMessage?.id === actionMessage.id
+                            ? t('unpinMessage')
+                            : t('pinMessage')}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
 
               <Text style={styles.reactionPickerTitle}>
                 {t('messageReactions')}
@@ -1698,9 +1993,10 @@ export function ChatScreen({ navigation, route }: Props) {
                   {error}
                 </Text>
               ) : null}
-            </View>
-          ) : null}
-        </View>
+              </View>
+            ) : null}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
       <Modal
         animationType="slide"
@@ -1718,7 +2014,6 @@ export function ChatScreen({ navigation, route }: Props) {
           />
           <View
             accessibilityLabel={t('addAttachment')}
-            accessibilityRole="dialog"
             accessibilityViewIsModal
             style={[sharedStyles.glassPanel, styles.attachmentSheet]}
           >
@@ -2018,6 +2313,7 @@ const styles = StyleSheet.create({
   messageRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
+    gap: spacing.xs,
   },
   messageRowOwn: {
     justifyContent: 'flex-end',
@@ -2052,6 +2348,45 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.34,
     shadowRadius: 7,
   },
+  replyPreview: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(140, 201, 255, 0.1)',
+    borderLeftColor: colors.primary,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  replyPreviewOwn: {
+    backgroundColor: 'rgba(140, 201, 255, 0.22)',
+  },
+  replyPreviewPressed: {
+    backgroundColor: 'rgba(140, 201, 255, 0.18)',
+  },
+  replyPreviewCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  replyPreviewAuthor: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  replyPreviewAuthorOwn: {
+    color: colors.canvas,
+  },
+  replyPreviewText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  replyPreviewTextOwn: {
+    color: 'rgba(9, 18, 31, 0.74)',
+  },
   messageText: {
     color: colors.text,
     fontSize: 16,
@@ -2080,7 +2415,7 @@ const styles = StyleSheet.create({
     color: 'rgba(9, 18, 31, 0.68)',
   },
   messageDeliveryRead: {
-    color: colors.canvas,
+    color: colors.deliveryRead,
   },
   reactionRow: {
     alignSelf: 'flex-start',
@@ -2126,6 +2461,40 @@ const styles = StyleSheet.create({
   targetMessageNotice: {
     marginBottom: spacing.sm,
     padding: spacing.sm,
+  },
+  pinnedMessage: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    minHeight: 64,
+    padding: spacing.xs,
+  },
+  pinnedMessagePressed: {
+    backgroundColor: colors.surfacePressed,
+  },
+  pinnedMessageIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    borderRadius: 12,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  pinnedMessageCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  pinnedMessageTitle: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pinnedMessageText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   targetMessageNoticeText: {
     color: colors.textMuted,
@@ -2202,6 +2571,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  replyComposer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    minHeight: 64,
+    paddingLeft: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  replyComposerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  replyComposerTitle: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  replyComposerText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
   composer: {
     alignItems: 'flex-end',
     flexDirection: 'row',
@@ -2275,8 +2668,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     lineHeight: 22,
-    maxHeight: 120,
-    minHeight: 48,
+    maxHeight: 180,
+    minHeight: 96,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
@@ -2321,6 +2714,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
+  sheetKeyboardAvoidingView: {
+    flex: 1,
+  },
   sheetBackdrop: {
     backgroundColor: 'rgba(0, 0, 0, 0.54)',
     bottom: 0,
@@ -2333,6 +2729,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.glassStrong,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+    overflow: 'hidden',
     padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
@@ -2485,6 +2883,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.lg,
+  },
+  messageActionStack: {
+    marginTop: spacing.lg,
+  },
+  messageActionButtonContent: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
   secondaryActionButton: {
     alignItems: 'center',

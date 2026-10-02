@@ -3,6 +3,8 @@ import { NativeModules } from 'react-native';
 
 const SESSION_SERVICE = 'arachat.messenger.session';
 const DEVICE_ID_SERVICE = 'arachat.messenger.device-id';
+const NOTIFICATION_PERMISSION_REQUEST_SERVICE_PREFIX =
+  'arachat.messenger.notification-permission-request';
 
 export interface SessionUser {
   id: string;
@@ -66,8 +68,13 @@ async function createDeviceId(): Promise<string> {
   return deviceId;
 }
 
+function notificationPermissionRequestService(userId: string): string {
+  return `${NOTIFICATION_PERMISSION_REQUEST_SERVICE_PREFIX}.${encodeURIComponent(userId)}`;
+}
+
 export class SecureSessionStore {
   private readonly listeners = new Set<SessionListener>();
+  private sessionMutation: Promise<void> = Promise.resolve();
 
   subscribe(listener: SessionListener): () => void {
     this.listeners.add(listener);
@@ -75,6 +82,85 @@ export class SecureSessionStore {
   }
 
   async loadSession(): Promise<AuthSession | null> {
+    await this.sessionMutation;
+    return this.readSession();
+  }
+
+  async saveSession(session: AuthSession): Promise<void> {
+    await this.enqueueSessionMutation(async () => {
+      await this.persistSession(session);
+      this.notify(session);
+    });
+  }
+
+  async saveSessionIfCurrent(expected: AuthSession, nextSession: AuthSession): Promise<boolean> {
+    return this.enqueueSessionMutation(async () => {
+      const currentSession = await this.readSession();
+      if (!isSameAuthenticationSession(currentSession, expected)) {
+        return false;
+      }
+
+      await this.persistSession(nextSession);
+      this.notify(nextSession);
+      return true;
+    });
+  }
+
+  async clearSession(): Promise<void> {
+    await this.enqueueSessionMutation(async () => {
+      await Keychain.resetGenericPassword({ service: SESSION_SERVICE });
+      this.notify(null);
+    });
+  }
+
+  async clearSessionIfCurrent(expected: AuthSession): Promise<boolean> {
+    return this.enqueueSessionMutation(async () => {
+      const currentSession = await this.readSession();
+      if (!isSameAuthenticationSession(currentSession, expected)) {
+        return false;
+      }
+
+      await Keychain.resetGenericPassword({ service: SESSION_SERVICE });
+      this.notify(null);
+      return true;
+    });
+  }
+
+  async markNotificationPermissionRequest(userId: string): Promise<void> {
+    await Keychain.setGenericPassword('notification-permission-request', 'pending', {
+      service: notificationPermissionRequestService(userId),
+      accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    });
+  }
+
+  async consumeNotificationPermissionRequest(userId: string): Promise<boolean> {
+    const service = notificationPermissionRequestService(userId);
+    const credentials = await Keychain.getGenericPassword({ service });
+
+    if (!credentials) {
+      return false;
+    }
+
+    await Keychain.resetGenericPassword({ service });
+    return true;
+  }
+
+  async getDeviceId(): Promise<string> {
+    const credentials = await Keychain.getGenericPassword({ service: DEVICE_ID_SERVICE });
+
+    if (credentials && credentials.password.length >= 8) {
+      return credentials.password;
+    }
+
+    const deviceId = await createDeviceId();
+    await Keychain.setGenericPassword('device-id', deviceId, {
+      service: DEVICE_ID_SERVICE,
+      accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    });
+    return deviceId;
+  }
+
+  private async readSession(): Promise<AuthSession | null> {
     const credentials = await Keychain.getGenericPassword({ service: SESSION_SERVICE });
 
     if (!credentials) {
@@ -94,37 +180,33 @@ export class SecureSessionStore {
     return null;
   }
 
-  async saveSession(session: AuthSession): Promise<void> {
+  private async persistSession(session: AuthSession): Promise<void> {
     await Keychain.setGenericPassword('session', JSON.stringify(session), {
       service: SESSION_SERVICE,
       accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
-    this.notify(session);
   }
 
-  async clearSession(): Promise<void> {
-    await Keychain.resetGenericPassword({ service: SESSION_SERVICE });
-    this.notify(null);
-  }
-
-  async getDeviceId(): Promise<string> {
-    const credentials = await Keychain.getGenericPassword({ service: DEVICE_ID_SERVICE });
-
-    if (credentials && credentials.password.length >= 8) {
-      return credentials.password;
-    }
-
-    const deviceId = await createDeviceId();
-    await Keychain.setGenericPassword('device-id', deviceId, {
-      service: DEVICE_ID_SERVICE,
-      accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-    return deviceId;
+  private async enqueueSessionMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.sessionMutation.then(operation, operation);
+    this.sessionMutation = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 
   private notify(session: AuthSession | null): void {
     this.listeners.forEach(listener => listener(session));
   }
+}
+
+function isSameAuthenticationSession(current: AuthSession | null, expected: AuthSession): boolean {
+  return Boolean(
+    current &&
+      current.user.id === expected.user.id &&
+      current.refreshToken === expected.refreshToken,
+  );
 }
 
 export const sessionStore = new SecureSessionStore();

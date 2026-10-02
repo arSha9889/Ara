@@ -1,25 +1,32 @@
 import { act, create } from 'react-test-renderer';
-import { Linking } from 'react-native';
 
-import { getAndroidRelease } from '../src/features/settings/updateApi';
 import { SettingsScreen } from '../src/features/settings/screens/SettingsScreen';
 
-const mockAndroidInstallSource = jest.fn();
-const mockAppVersionCode = jest.fn();
-const mockGetAndroidRelease = getAndroidRelease as jest.Mock;
-const mockOpenUrl = Linking.openURL as jest.MockedFunction<typeof Linking.openURL>;
+const mockSaveSession = jest.fn();
+const mockSetLanguage = jest.fn();
+const mockUpdateMyProfile = jest.fn();
+const mockUpdateSessionUser = jest.fn();
+const mockNavigate = jest.fn();
+const mockAppUpdate = {
+  isUpdateAvailable: false,
+  release: null as {
+    latestVersionCode: number;
+    latestVersionName: string;
+    releaseNotes: string[];
+    directDownloadUrl: string | null;
+    rustoreAppUrl: string | null;
+    rustoreInstallerPackage: string | null;
+  } | null,
+};
 
 const translations: Record<string, string> = {
   appUpdateAvailable: 'Доступно обновление',
-  appUpdateDirectDescription: 'Откройте официальный сайт AraChat, чтобы скачать новую версию.',
-  appUpdateDirectHint: 'Открывает официальную страницу загрузки AraChat',
-  appUpdateOpenDownloadPage: 'Открыть страницу загрузки',
-  appUpdateUnknownSourceDescription: 'Безопасную ссылку на обновление мы не можем предложить.',
+  appUpdateOpenCenterDescription: 'Посмотрите изменения и безопасный способ обновления.',
+  appUpdateOpenCenterHint: 'Открывает подробности обновления AraChat',
 };
 
 jest.mock('react-native', () => ({
   Alert: { alert: jest.fn() },
-  Linking: { openURL: jest.fn() },
   Pressable: 'Pressable',
   StyleSheet: { create: (styles: object) => styles, hairlineWidth: 1 },
   Text: 'Text',
@@ -27,17 +34,13 @@ jest.mock('react-native', () => ({
 }));
 
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn() }),
-}));
-
-jest.mock('../src/config/runtimeConfig', () => ({
-  androidInstallSource: (...args: unknown[]) => mockAndroidInstallSource(...args),
-  appVersionCode: () => mockAppVersionCode(),
+  useNavigation: () => ({ navigate: (...args: unknown[]) => mockNavigate(...args) }),
 }));
 
 jest.mock('../src/features/auth/session/useSession', () => ({
   useSession: () => ({
-    saveSession: jest.fn(),
+    saveSession: (...args: unknown[]) => mockSaveSession(...args),
+    updateSessionUser: (...args: unknown[]) => mockUpdateSessionUser(...args),
     session: { user: { id: '0af0a8bd-9381-4778-95a8-82bf59b1ef2f' } },
     signOut: jest.fn(),
   }),
@@ -53,7 +56,7 @@ jest.mock('../src/features/chats/media/mediaClient', () => ({
 
 jest.mock('../src/localization/I18nProvider', () => ({
   useI18n: () => ({
-    setLanguage: jest.fn(),
+    setLanguage: (...args: unknown[]) => mockSetLanguage(...args),
     t: (key: string) => translations[key] ?? key,
   }),
 }));
@@ -72,18 +75,19 @@ jest.mock('../src/ui/Icon', () => ({
 
 jest.mock('../src/features/account/api/accountApi', () => ({
   deleteAccount: jest.fn(),
-  updateMyProfile: jest.fn(),
+  updateMyProfile: (...args: unknown[]) => mockUpdateMyProfile(...args),
 }));
 
 jest.mock('../src/features/notifications/MobilePushProvider', () => ({
-  useMobilePush: () => ({
-    enableNotifications: jest.fn(),
-    status: 'unsupported',
-  }),
+  useMobilePush: () => ({ status: 'unsupported' }),
 }));
 
 jest.mock('../src/features/settings/updateApi', () => ({
   getAndroidRelease: jest.fn(),
+}));
+
+jest.mock('../src/features/settings/AppUpdateProvider', () => ({
+  useAppUpdate: () => mockAppUpdate,
 }));
 
 function settleAsyncWork(): Promise<void> {
@@ -102,60 +106,74 @@ async function renderSettingsScreen() {
 }
 
 beforeEach(() => {
-  mockAndroidInstallSource.mockReset();
-  mockAppVersionCode.mockReset();
-  mockGetAndroidRelease.mockReset();
-  mockOpenUrl.mockReset();
-  mockAppVersionCode.mockReturnValue(41);
-  mockOpenUrl.mockResolvedValue(undefined);
+  mockNavigate.mockReset();
+  mockSaveSession.mockReset();
+  mockSetLanguage.mockReset();
+  mockUpdateMyProfile.mockReset();
+  mockUpdateSessionUser.mockReset();
+  mockSetLanguage.mockResolvedValue(undefined);
+  mockUpdateSessionUser.mockResolvedValue(undefined);
+  mockAppUpdate.isUpdateAvailable = false;
+  mockAppUpdate.release = null;
 });
 
-it('opens only the server-configured official direct-download page for a direct APK', async () => {
-  const directDownloadUrl = 'https://downloads.example.test/android';
-  mockAndroidInstallSource.mockReturnValue('direct');
-  mockGetAndroidRelease.mockResolvedValue({
+it('opens the shared update center when a server-advertised update is available', async () => {
+  mockAppUpdate.isUpdateAvailable = true;
+  mockAppUpdate.release = {
     latestVersionCode: 42,
-    directDownloadUrl,
+    latestVersionName: '1.4.0',
+    releaseNotes: ['Ответы на сообщения'],
+    directDownloadUrl: 'https://downloads.example.test/android',
     rustoreAppUrl: 'https://store.example.test/arachat',
     rustoreInstallerPackage: 'ru.vk.store',
-  });
+  };
 
   const component = await renderSettingsScreen();
-  const action = component.root.findByProps({ testID: 'app-update-action' });
+  const card = component.root.findByProps({ testID: 'app-update-card' });
 
-  expect(action.props.accessibilityRole).toBe('link');
-  expect(action.props.accessibilityLabel).toBe(translations.appUpdateOpenDownloadPage);
-  expect(action.props.accessibilityHint).toBe(translations.appUpdateDirectHint);
+  expect(card.props.accessibilityRole).toBe('button');
+  expect(card.props.accessibilityLabel).toBe(translations.appUpdateAvailable);
+  expect(card.props.accessibilityHint).toBe(translations.appUpdateOpenCenterHint);
 
-  await act(async () => {
-    action.props.onPress();
-    await settleAsyncWork();
+  act(() => {
+    card.props.onPress();
   });
 
-  expect(mockOpenUrl).toHaveBeenCalledWith(directDownloadUrl);
+  expect(mockNavigate).toHaveBeenCalledWith('AppUpdate');
 
   await act(async () => {
     component.unmount();
   });
 });
 
-it('shows a neutral notice without an update action for an unknown installation source', async () => {
-  mockAndroidInstallSource.mockReturnValue('unknown');
-  mockGetAndroidRelease.mockResolvedValue({
-    latestVersionCode: 42,
-    directDownloadUrl: 'https://downloads.example.test/android',
-    rustoreAppUrl: 'https://store.example.test/arachat',
-    rustoreInstallerPackage: 'ru.vk.store',
-  });
-
+it('does not render an update entry when no update is available', async () => {
   const component = await renderSettingsScreen();
 
-  expect(component.root.findByProps({ testID: 'app-update-card' })).toBeDefined();
-  expect(component.root.findAllByProps({ testID: 'app-update-action' })).toHaveLength(0);
-  expect(JSON.stringify(component.toJSON())).toContain(
-    translations.appUpdateUnknownSourceDescription,
-  );
-  expect(mockOpenUrl).not.toHaveBeenCalled();
+  expect(component.root.findAllByProps({ testID: 'app-update-card' })).toHaveLength(0);
+
+  await act(async () => {
+    component.unmount();
+  });
+});
+
+it('updates only the profile part of the active session after changing language', async () => {
+  const updatedUser = {
+    id: '0af0a8bd-9381-4778-95a8-82bf59b1ef2f',
+    language: 'en',
+  };
+  mockUpdateMyProfile.mockResolvedValue(updatedUser);
+
+  const component = await renderSettingsScreen();
+  const languageSwitcher = component.root.findByType('LanguageSwitcher' as never);
+
+  await act(async () => {
+    await languageSwitcher.props.onLanguageChange('en');
+  });
+
+  expect(mockSetLanguage).toHaveBeenCalledWith('en');
+  expect(mockUpdateMyProfile).toHaveBeenCalledWith({ language: 'en' });
+  expect(mockUpdateSessionUser).toHaveBeenCalledWith(updatedUser);
+  expect(mockSaveSession).not.toHaveBeenCalled();
 
   await act(async () => {
     component.unmount();

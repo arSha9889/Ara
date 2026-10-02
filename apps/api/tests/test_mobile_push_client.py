@@ -41,7 +41,7 @@ def test_mobile_push_is_enabled_by_default(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.anyio
-async def test_mobile_push_sends_only_neutral_data_to_rustore(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_mobile_push_sends_sender_and_message_text_to_rustore(monkeypatch: pytest.MonkeyPatch) -> None:
     _configure_rustore(monkeypatch)
     captured = {}
 
@@ -60,6 +60,8 @@ async def test_mobile_push_sends_only_neutral_data_to_rustore(monkeypatch: pytes
             'notification_id': 'notification-1',
             'chat_id': 'chat-1',
             'message_id': 'message-1',
+            'title': 'Ирина',
+            'body': 'Встречаемся в семь?',
         },
     )
 
@@ -80,6 +82,8 @@ async def test_mobile_push_sends_only_neutral_data_to_rustore(monkeypatch: pytes
                 'notification_id': 'notification-1',
                 'chat_id': 'chat-1',
                 'message_id': 'message-1',
+                'title': 'Ирина',
+                'body': 'Встречаемся в семь?',
             },
         },
     }
@@ -94,7 +98,13 @@ async def test_mobile_push_is_not_sent_when_disabled(monkeypatch: pytest.MonkeyP
 
     result = await mobile_push_client.send_mobile_push(
         {'rustore': ['rustore-token-123456789']},
-        {'kind': 'system', 'notification_id': 'notification-1'},
+        {
+            'kind': 'message',
+            'notification_id': 'notification-1',
+            'chat_id': 'chat-1',
+            'title': 'Ирина',
+            'body': 'Встречаемся в семь?',
+        },
     )
 
     assert not result.delivered
@@ -125,7 +135,13 @@ async def test_mobile_push_groups_rustore_and_fcm_tokens(monkeypatch: pytest.Mon
             'rustore': ['rustore-token-123456789'],
             'fcm': ['fcm-token-123456789'],
         },
-        {'kind': 'system', 'notification_id': 'notification-1'},
+        {
+            'kind': 'message',
+            'notification_id': 'notification-1',
+            'chat_id': 'chat-1',
+            'title': 'Ирина',
+            'body': 'Встречаемся в семь?',
+        },
     )
 
     assert result.delivered
@@ -156,14 +172,20 @@ async def test_mobile_push_returns_only_confirmed_invalid_token_prefixes(monkeyp
 
     result = await mobile_push_client.send_mobile_push(
         {'rustore': ['abcdef-token-123456789', 'other-token-123456789']},
-        {'kind': 'system', 'notification_id': 'notification-1'},
+        {
+            'kind': 'message',
+            'notification_id': 'notification-1',
+            'chat_id': 'chat-1',
+            'title': 'Ирина',
+            'body': 'Встречаемся в семь?',
+        },
     )
 
     assert not result.delivered
     assert result.invalid_token_prefixes == {'rustore': frozenset({'abcdef'})}
 
 
-def test_mobile_push_data_excludes_notification_text_and_url() -> None:
+def test_mobile_push_data_includes_sanitized_sender_and_message_text_without_url() -> None:
     notification_id = uuid4()
     chat_id = uuid4()
     message_id = uuid4()
@@ -173,8 +195,8 @@ def test_mobile_push_data_excludes_notification_text_and_url() -> None:
         kind='message',
         chat_id=chat_id,
         message_id=message_id,
-        title='Private sender name',
-        body='Private message text must not leave the server',
+        title='  Private\n sender name  ',
+        body=' Private\tmessage\ntext ',
         url=f'/app/chats/{chat_id}',
         created_at=datetime.now(timezone.utc),
         read_at=None,
@@ -185,4 +207,40 @@ def test_mobile_push_data_excludes_notification_text_and_url() -> None:
         'notification_id': str(notification_id),
         'chat_id': str(chat_id),
         'message_id': str(message_id),
+        'title': 'Private sender name',
+        'body': 'Private message text',
     }
+
+
+def test_mobile_push_data_skips_non_message_notifications() -> None:
+    notification = NotificationOut(
+        id=uuid4(),
+        notification_id=uuid4(),
+        kind='system',
+        chat_id=None,
+        message_id=None,
+        title='AraChat',
+        body='Test push',
+        url='/app/settings',
+        created_at=datetime.now(timezone.utc),
+        read_at=None,
+    )
+
+    assert _mobile_push_data(notification) is None
+
+
+def test_mobile_push_data_skips_messages_without_a_safe_preview() -> None:
+    notification = NotificationOut(
+        id=uuid4(),
+        notification_id=uuid4(),
+        kind='message',
+        chat_id=uuid4(),
+        message_id=uuid4(),
+        title='AraChat',
+        body='New message',
+        url='/app/chats/example',
+        created_at=datetime.now(timezone.utc),
+        read_at=None,
+    )
+
+    assert _mobile_push_data(notification, preview_available=False) is None

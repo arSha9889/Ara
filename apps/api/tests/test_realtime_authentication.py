@@ -4,9 +4,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from app import main
+from app.domain.tokens import AccessTokenClaims
 from app.models.chats import Chat
 from app.models.users import User
 from app.services.realtime_manager import RealtimeManager
+from app.services.realtime_revocation_service import RealtimeRevocationService, SESSION_REVOKED_CLOSE_CODE
 
 
 class WebSocketStub:
@@ -33,16 +35,18 @@ class InvalidJsonWebSocketStub(WebSocketStub):
 @pytest.mark.anyio
 async def test_websocket_authenticates_only_with_the_first_authentication_message(monkeypatch: pytest.MonkeyPatch) -> None:
     user_id = uuid4()
+    session_id = uuid4()
+    claims = AccessTokenClaims(user_id, session_id, datetime.now(timezone.utc))
     websocket = WebSocketStub({'event': 'connection.authenticate', 'token': 'access-token'})
 
-    monkeypatch.setattr(main, 'decode_access_token', lambda token: user_id if token == 'access-token' else UUID(int=0))
+    monkeypatch.setattr(main, 'decode_access_token', lambda token: claims if token == 'access-token' else None)
 
-    async def active_user(candidate: UUID) -> bool:
-        return candidate == user_id
+    async def active_session(candidate: AccessTokenClaims) -> bool:
+        return candidate == claims
 
-    monkeypatch.setattr(main, '_is_active_user', active_user)
+    monkeypatch.setattr(main, '_is_active_access_token_session', active_session)
 
-    assert await main._authenticate_websocket(websocket) == user_id
+    assert await main._authenticate_websocket(websocket) == claims
     assert websocket.sent == [{'event': 'connection.authenticated', 'user_id': str(user_id)}]
     assert websocket.close_codes == []
 
@@ -78,7 +82,7 @@ async def test_websocket_rejects_missing_access_token() -> None:
 async def test_websocket_rejects_invalid_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
     websocket = WebSocketStub({'event': 'connection.authenticate', 'token': 'invalid-token'})
 
-    def reject_token(_: str) -> UUID:
+    def reject_token(_: str) -> AccessTokenClaims:
         raise ValueError('Invalid access token')
 
     monkeypatch.setattr(main, 'decode_access_token', reject_token)
@@ -128,6 +132,15 @@ class BroadcastWebSocketStub:
 
     async def send_json(self, payload: dict) -> None:
         self.sent.append(payload)
+
+
+class RevocableWebSocketStub(BroadcastWebSocketStub):
+    def __init__(self) -> None:
+        super().__init__()
+        self.close_codes: list[int] = []
+
+    async def close(self, code: int = 1000) -> None:
+        self.close_codes.append(code)
 
 
 @pytest.mark.anyio
@@ -180,9 +193,9 @@ async def test_chat_broadcast_can_exclude_all_connections_for_the_sender() -> No
     sender_second_socket = BroadcastWebSocketStub()
     recipient_socket = BroadcastWebSocketStub()
 
-    await manager.connect_user(sender_socket, sender_id)
-    await manager.connect_user(sender_second_socket, sender_id)
-    await manager.connect_user(recipient_socket, recipient_id)
+    await manager.connect_user(sender_socket, sender_id, uuid4())
+    await manager.connect_user(sender_second_socket, sender_id, uuid4())
+    await manager.connect_user(recipient_socket, recipient_id, uuid4())
     await manager.subscribe(sender_socket, chat_id)
     await manager.subscribe(sender_second_socket, chat_id)
     await manager.subscribe(recipient_socket, chat_id)
@@ -193,3 +206,36 @@ async def test_chat_broadcast_can_exclude_all_connections_for_the_sender() -> No
     assert sender_socket.sent == []
     assert sender_second_socket.sent == []
     assert recipient_socket.sent == [payload]
+
+
+@pytest.mark.anyio
+async def test_session_revocation_closes_only_connections_for_that_session() -> None:
+    manager = RealtimeManager()
+    user_id = uuid4()
+    revoked_session_id = uuid4()
+    active_session_id = uuid4()
+    revoked_socket = RevocableWebSocketStub()
+    active_socket = RevocableWebSocketStub()
+
+    await manager.connect_user(revoked_socket, user_id, revoked_session_id)
+    await manager.connect_user(active_socket, user_id, active_session_id)
+
+    await manager.disconnect_session(revoked_session_id, code=SESSION_REVOKED_CLOSE_CODE)
+
+    assert revoked_socket.close_codes == [SESSION_REVOKED_CLOSE_CODE]
+    assert active_socket.close_codes == []
+
+
+@pytest.mark.anyio
+async def test_remote_session_revocation_closes_the_local_session_connection() -> None:
+    manager = RealtimeManager()
+    local_session_id = uuid4()
+    socket = RevocableWebSocketStub()
+    await manager.connect_user(socket, uuid4(), local_session_id)
+    service = RealtimeRevocationService(manager, redis=None, instance_id='instance-a')
+
+    await service._handle_message(
+        f'{{"source":"instance-b","scope":"session","id":"{local_session_id}"}}',
+    )
+
+    assert socket.close_codes == [SESSION_REVOKED_CLOSE_CODE]

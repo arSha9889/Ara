@@ -23,9 +23,13 @@ def test_registration_proof_roundtrip() -> None:
 
 def test_access_token_roundtrip() -> None:
     user_id = uuid4()
-    token = create_access_token(user_id)
+    session_id = uuid4()
+    token = create_access_token(user_id, session_id)
 
-    assert decode_access_token(token) == user_id
+    claims = decode_access_token(token)
+    assert claims.user_id == user_id
+    assert claims.session_id == session_id
+    assert claims.expires_at > datetime.now(timezone.utc)
 
 
 def test_legal_documents_current_only_for_the_latest_accepted_versions() -> None:

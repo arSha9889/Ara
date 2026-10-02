@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../../features/chats/api/chatApi';
+import type { Chat, ChatMessage } from '../../features/chats/api/chatApi';
 
 export interface CallSessionDescription {
   sdp: string;
@@ -15,6 +15,7 @@ export interface RealtimeEvent {
   callId?: string;
   callType?: 'audio' | 'video';
   candidate?: CallIceCandidate;
+  chat?: Chat;
   description?: CallSessionDescription;
   event: string;
   chatId?: string;
@@ -85,6 +86,18 @@ export function isChatMessage(value: unknown): value is ChatMessage {
   );
 }
 
+function isChat(value: unknown): value is Chat {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.type === 'string' &&
+    (value.pinned_message_id === null || typeof value.pinned_message_id === 'string')
+  );
+}
+
 export function parseRealtimeEvent(value: unknown): RealtimeEvent | null {
   if (!isRecord(value) || typeof value.event !== 'string') {
     return null;
@@ -94,6 +107,7 @@ export function parseRealtimeEvent(value: unknown): RealtimeEvent | null {
     callId: stringValue(value.call_id),
     callType: callType(value.call_type),
     candidate: callIceCandidate(value.candidate),
+    chat: isChat(value.chat) ? value.chat : undefined,
     description: callSessionDescription(value.description),
     event: value.event,
     chatId: stringValue(value.chat_id),

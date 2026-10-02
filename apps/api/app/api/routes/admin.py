@@ -49,6 +49,7 @@ from app.services.branch_service import list_admin_branches, set_admin_branch_ar
 from app.models.chats import ChatParticipant
 from app.services.notification_service import create_message_notifications
 from app.services.realtime_manager import realtime_manager
+from app.services.realtime_revocation_service import realtime_revocation_service
 from app.services.retention_service import RetentionError, preview_retention, read_host_storage_status, run_retention
 from app.services.safety_service import SafetyError, list_admin_reports, moderate_content_report
 from app.services.system_bot_service import (
@@ -372,7 +373,7 @@ async def create_user_restriction_route(
             request.note,
             request.ends_at,
         )
-        await realtime_manager.disconnect_user(user_id)
+        await realtime_revocation_service.disconnect_user(user_id)
         return AdminUserOut.model_validate(await get_admin_user(session, current_user.id, user_id))
     except AdminError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -469,4 +470,6 @@ async def update_user_status(
         await change_user_status(session, current_user.id, user_id, request.status)
     except AdminError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if request.status in {'blocked', 'deleted'}:
+        await realtime_revocation_service.disconnect_user(user_id)
     return {'status': 'ok'}

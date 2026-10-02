@@ -21,9 +21,11 @@ import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { useI18n } from '../../../localization/I18nProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
+import { ChatAvatar } from '../components/ChatAvatar';
 import { EmptyState } from '../../../ui/EmptyState';
 import { Icon } from '../../../ui/Icon';
 import { IconButton } from '../../../ui/IconButton';
+import { useAppUpdate } from '../../settings/AppUpdateProvider';
 
 function ChatSubscription({ chatId }: { chatId: string }) {
   const { subscribeToChat } = useRealtime();
@@ -38,6 +40,7 @@ export function ChatsScreen() {
   const { session } = useSession();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { subscribeToEvents } = useRealtime();
+  const { dismissBanner, isBannerDismissed, isUpdateAvailable, release } = useAppUpdate();
   const [chats, setChats] = useState<Chat[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -159,6 +162,8 @@ export function ChatsScreen() {
   function renderChat({ item }: { item: Chat }) {
     const title = chatTitle(item, copy);
     const preview = chatPreview(item.last_message, session?.user.id, copy);
+    const avatarType = item.type === 'saved' ? session?.user.avatarType : item.peer?.avatar_type;
+    const avatarRef = item.type === 'saved' ? session?.user.avatarRef : item.peer?.avatar_ref;
 
     return (
       <Pressable
@@ -167,11 +172,14 @@ export function ChatsScreen() {
         accessibilityRole="button"
         onPress={() => openChat(item)}
         style={({ pressed }) => [styles.chatRow, pressed && styles.chatRowPressed]}
-      >
-        <View accessibilityElementsHidden style={styles.avatar}>
-          <Text style={styles.avatarLabel}>{title.slice(0, 1).toUpperCase()}</Text>
-          {item.peer?.is_online ? <View style={styles.onlineDot} /> : null}
-        </View>
+        >
+        <ChatAvatar
+          avatarRef={avatarRef}
+          avatarType={avatarType}
+          isOnline={item.type === 'direct' && item.peer?.is_online}
+          label={title}
+          size="regular"
+        />
         <View style={styles.chatCopy}>
           <View style={styles.chatHeading}>
             <Text numberOfLines={1} style={styles.chatTitle}>{title}</Text>
@@ -197,7 +205,7 @@ export function ChatsScreen() {
   return (
     <AppScreen scroll={false} contentStyle={styles.content}>
       {chats.map(chat => <ChatSubscription chatId={chat.id} key={chat.id} />)}
-        <View style={styles.heading}>
+      <View style={styles.heading}>
           <View>
             <Text style={sharedStyles.eyebrow}>AraChat</Text>
             <Text style={sharedStyles.title}>{t('chats')}</Text>
@@ -211,6 +219,34 @@ export function ChatsScreen() {
             }}
           />
       </View>
+
+      {isUpdateAvailable && release && !isBannerDismissed ? (
+        <Pressable
+          accessibilityHint={t('appUpdateOpenCenterHint')}
+          accessibilityLabel={`${t('appUpdateAvailable')}: ${release.latestVersionName}`}
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('AppUpdate')}
+          style={({ pressed }) => [sharedStyles.elevatedCard, styles.updateBanner, pressed && styles.updateBannerPressed]}
+          testID="app-update-banner"
+        >
+          <Icon color={colors.primary} name="download" size={22} />
+          <View style={styles.updateBannerCopy}>
+            <Text numberOfLines={1} style={styles.updateBannerTitle}>{t('appUpdateAvailable')}</Text>
+            <Text numberOfLines={1} style={styles.updateBannerDescription}>
+              {t('appUpdateBannerDescription')} {release.latestVersionName}
+            </Text>
+          </View>
+          <IconButton
+            accessibilityLabel={t('appUpdateDismissBanner')}
+            icon="close"
+            onPress={event => {
+              event.stopPropagation();
+              dismissBanner();
+            }}
+            size={48}
+          />
+        </Pressable>
+      ) : null}
 
       {error ? (
         <View accessibilityRole="alert" style={[sharedStyles.glassCard, styles.errorCard]}>
@@ -276,6 +312,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
   },
+  updateBanner: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    paddingLeft: spacing.md,
+  },
+  updateBannerPressed: {
+    backgroundColor: colors.surfacePressed,
+  },
+  updateBannerCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  updateBannerTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  updateBannerDescription: {
+    color: colors.textMuted,
+    fontSize: 13,
+  },
   loadingState: {
     alignItems: 'center',
     flex: 1,
@@ -303,33 +362,6 @@ const styles = StyleSheet.create({
   },
   chatRowPressed: {
     backgroundColor: colors.surface,
-  },
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceRaised,
-    borderColor: colors.glassBorder,
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 48,
-    justifyContent: 'center',
-    position: 'relative',
-    width: 48,
-  },
-  avatarLabel: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  onlineDot: {
-    backgroundColor: colors.success,
-    borderColor: colors.canvas,
-    borderRadius: 6,
-    borderWidth: 2,
-    bottom: -1,
-    height: 12,
-    position: 'absolute',
-    right: -1,
-    width: 12,
   },
   chatCopy: {
     flex: 1,

@@ -10,10 +10,11 @@ import { useNotifications } from './NotificationsProvider.jsx';
 import { useSession } from './SessionProvider.jsx';
 
 const CallContext = createContext(null);
+const SESSION_REVOKED_CLOSE_CODE = 4003;
 
 export function CallProvider({ children }) {
   const { t } = useI18n();
-  const { session } = useSession();
+  const { session, clearSessionIfCurrent } = useSession();
   const { incomingCall, consumeIncomingCall } = useNotifications();
   const { notify } = useAppFeedback();
   const [socket, setSocket] = useState(null);
@@ -21,6 +22,8 @@ export function CallProvider({ children }) {
   const [activeChat, setActiveChat] = useState(null);
   const reconnectTimerRef = useRef(null);
   const callSignalHandlerRef = useRef(null);
+  const callEndCallRef = useRef(null);
+  const clearSessionIfCurrentRef = useRef(null);
   const activeChatRequestRef = useRef(0);
 
   const reportError = useCallback((message) => {
@@ -35,6 +38,8 @@ export function CallProvider({ children }) {
     onError: reportError,
   });
   callSignalHandlerRef.current = call.handleSignal;
+  callEndCallRef.current = call.endCall;
+  clearSessionIfCurrentRef.current = clearSessionIfCurrent;
 
   const loadActiveChat = useCallback(async (chatId) => {
     if (!chatId || !session.accessToken) return;
@@ -94,9 +99,17 @@ export function CallProvider({ children }) {
           // An invalid realtime payload must not break the call signaling channel.
         }
       });
-      currentSocket.addEventListener('close', () => {
+      currentSocket.addEventListener('close', (event) => {
         setIsSocketConnected(false);
         if (!isActive) return;
+        if (event.code === SESSION_REVOKED_CLOSE_CODE) {
+          isActive = false;
+          if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
+          if (clearSessionIfCurrentRef.current?.(session.accessToken)) {
+            callEndCallRef.current?.();
+          }
+          return;
+        }
         reconnectAttempts += 1;
         reconnectTimerRef.current = window.setTimeout(connect, Math.min(1000 * reconnectAttempts, 5000));
       });

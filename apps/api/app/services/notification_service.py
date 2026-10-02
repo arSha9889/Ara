@@ -15,7 +15,8 @@ from app.models.chats import Chat, ChatParticipant, Message, MobilePushToken, No
 from app.models.users import User, UserProfile
 from app.schemas.chats import MessageOut, MobilePushTokenRegisterRequest, NotificationOut, PushSubscriptionCreateRequest
 from app.services.localization import message_preview, tr
-from app.services.mobile_push_client import mobile_push_is_configured, send_mobile_push
+from app.services.mobile_push_client import send_mobile_push
+from app.services.mobile_push_token_service import deactivate_mobile_push_tokens
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import is_user_interaction_blocked
 
@@ -152,28 +153,6 @@ async def save_mobile_push_token(
     return token
 
 
-async def deactivate_mobile_push_tokens(
-    session: AsyncSession,
-    user_id: UUID,
-    device_id: str,
-    provider: str | None = None,
-) -> None:
-    statement = select(MobilePushToken).where(
-        MobilePushToken.user_id == user_id,
-        MobilePushToken.device_id == device_id,
-        MobilePushToken.is_active.is_(True),
-    )
-    if provider:
-        statement = statement.where(MobilePushToken.provider == provider)
-    tokens = (await session.execute(statement)).scalars()
-    changed = False
-    for token in tokens:
-        token.is_active = False
-        changed = True
-    if changed:
-        await session.commit()
-
-
 async def list_notifications(session: AsyncSession, user_id: UUID, limit: int = 40) -> list[NotificationOut]:
     result = await session.execute(
         select(Notification)
@@ -215,7 +194,11 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
         return
 
     sender = await session.get(UserProfile, message.sender_id)
-    title = sender.display_name if sender else 'AraChat'
+    sender_name = sender.display_name.strip() if sender else ''
+    if not sender_name:
+        logger.warning('Skipping Android mobile push without a sender name: %s', message.id)
+    title = sender_name or 'AraChat'
+    mobile_push_preview_available = bool(sender_name) and message.encryption_state != 'e2ee_web_v1'
     recipient_languages = dict((await session.execute(
         select(UserProfile.user_id, UserProfile.language).where(UserProfile.user_id.in_(recipients))
     )).all())
@@ -243,7 +226,12 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
             notification.recipient_user_id,
             {'event': 'notification.created', 'notification': payload.model_dump(mode='json')},
         )
-        await _send_push_to_user(session, notification.recipient_user_id, payload)
+        await _send_push_to_user(
+            session,
+            notification.recipient_user_id,
+            payload,
+            mobile_push_preview_available=mobile_push_preview_available,
+        )
 
 
 async def create_announcement_notifications(
@@ -373,6 +361,7 @@ async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> b
     notification = NotificationOut(
         id=uuid4(),
         notification_id=uuid4(),
+        kind='system',
         chat_id=None,
         message_id=None,
         title='AraChat',
@@ -384,7 +373,13 @@ async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> b
     return await _send_push_to_user(session, user_id, notification)
 
 
-async def _send_push_to_user(session: AsyncSession, user_id: UUID, notification: NotificationOut) -> bool:
+async def _send_push_to_user(
+    session: AsyncSession,
+    user_id: UUID,
+    notification: NotificationOut,
+    *,
+    mobile_push_preview_available: bool = True,
+) -> bool:
     delivered = False
     subscriptions: list[PushSubscription] = []
     if web_push_is_configured():
@@ -401,27 +396,32 @@ async def _send_push_to_user(session: AsyncSession, user_id: UUID, notification:
                 await session.delete(subscription)
     if subscriptions:
         await session.commit()
-    mobile_tokens = list((await session.execute(
-        select(MobilePushToken).where(
-            MobilePushToken.user_id == user_id,
-            MobilePushToken.is_active.is_(True),
-        )
-    )).scalars())
-    mobile_result = await send_mobile_push(
-        _mobile_tokens_by_provider(mobile_tokens),
-        _mobile_push_data(notification),
+    mobile_data = _mobile_push_data(
+        notification,
+        preview_available=mobile_push_preview_available,
     )
-    delivered = delivered or mobile_result.delivered
-    for provider, prefixes in mobile_result.invalid_token_prefixes.items():
-        for prefix in prefixes:
-            matching_tokens = [
-                token for token in mobile_tokens
-                if token.provider == provider and token.token.startswith(prefix)
-            ]
-            if len(matching_tokens) == 1:
-                matching_tokens[0].is_active = False
-    if mobile_tokens:
-        await session.commit()
+    if mobile_data:
+        mobile_tokens = list((await session.execute(
+            select(MobilePushToken).where(
+                MobilePushToken.user_id == user_id,
+                MobilePushToken.is_active.is_(True),
+            )
+        )).scalars())
+        if mobile_tokens:
+            mobile_result = await send_mobile_push(
+                _mobile_tokens_by_provider(mobile_tokens),
+                mobile_data,
+            )
+            delivered = delivered or mobile_result.delivered
+            for provider, prefixes in mobile_result.invalid_token_prefixes.items():
+                for prefix in prefixes:
+                    matching_tokens = [
+                        token for token in mobile_tokens
+                        if token.provider == provider and token.token.startswith(prefix)
+                    ]
+                    if len(matching_tokens) == 1:
+                        matching_tokens[0].is_active = False
+            await session.commit()
     return delivered
 
 
@@ -433,18 +433,33 @@ def _mobile_tokens_by_provider(tokens: list[MobilePushToken]) -> dict[str, list[
     return result
 
 
-def _mobile_push_data(notification: NotificationOut) -> dict[str, str]:
+def _mobile_push_data(
+    notification: NotificationOut,
+    *,
+    preview_available: bool = True,
+) -> dict[str, str] | None:
+    if not preview_available or notification.kind != 'message' or not notification.chat_id:
+        return None
+
+    title = _mobile_push_text(notification.title, maximum_length=120)
+    body = _mobile_push_text(notification.body, maximum_length=240)
+    if not title or not body:
+        return None
+
     data = {
-        'kind': notification.kind,
+        'kind': 'message',
         'notification_id': str(notification.notification_id),
+        'chat_id': str(notification.chat_id),
+        'title': title,
+        'body': body,
     }
-    if notification.chat_id:
-        data['chat_id'] = str(notification.chat_id)
     if notification.message_id:
         data['message_id'] = str(notification.message_id)
-    if notification.support_ticket_id:
-        data['support_ticket_id'] = str(notification.support_ticket_id)
     return data
+
+
+def _mobile_push_text(value: str, maximum_length: int) -> str:
+    return ' '.join(value.split())[:maximum_length]
 
 
 def _send_push(subscription: PushSubscription, notification: NotificationOut) -> PushDeliveryResult:

@@ -13,7 +13,7 @@ import { AccountScreenLayout, accountStyles } from '../components/AccountScreenL
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function EmailChangeScreen() {
-  const { session, saveSession } = useSession();
+  const { session, updateSessionUser } = useSession();
   const { language, t } = useI18n();
   const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -66,7 +66,7 @@ export function EmailChangeScreen() {
     try {
       const deviceId = await sessionStore.getDeviceId();
       const user = await confirmEmailChange(verificationId, code, deviceId);
-      await saveSession({ ...session, user });
+      await updateSessionUser(user);
       setIsCompleted(true);
       setStatus(t('emailChanged'));
     } catch (nextError) {

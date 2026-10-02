@@ -2,6 +2,7 @@ jest.mock('react-native', () => ({
   NativeModules: {
     AraChatMedia: {
       downloadPrivateMedia: jest.fn(),
+      pickPhoto: jest.fn(),
       pickVideo: jest.fn(),
       playCachedVideo: jest.fn(),
       playCachedVideoNote: jest.fn(),
@@ -26,6 +27,7 @@ import { NativeModules } from 'react-native';
 import { apiClient } from '../src/infrastructure/http/apiClient';
 import {
   downloadPrivateChatMedia,
+  pickChatPhoto,
   pickChatVideo,
   playCachedChatVideoNote,
   playCachedChatVideo,
@@ -37,6 +39,7 @@ import {
 
 const nativeMedia = NativeModules.AraChatMedia as {
   downloadPrivateMedia: jest.Mock;
+  pickPhoto: jest.Mock;
   pickVideo: jest.Mock;
   playCachedVideo: jest.Mock;
   playCachedVideoNote: jest.Mock;
@@ -49,6 +52,7 @@ const withAuthRetry = apiClient.withAuthRetry as jest.Mock;
 
 beforeEach(() => {
   nativeMedia.downloadPrivateMedia.mockReset();
+  nativeMedia.pickPhoto.mockReset();
   nativeMedia.pickVideo.mockReset();
   nativeMedia.playCachedVideo.mockReset();
   nativeMedia.playCachedVideoNote.mockReset();
@@ -72,6 +76,22 @@ test('reads a selected video from the native picker draft', async () => {
     name: 'video.mp4',
     mimeType: 'video/mp4',
     sizeBytes: 4_096,
+  });
+});
+
+test('reads a selected photo from the native photo picker draft', async () => {
+  nativeMedia.pickPhoto.mockResolvedValue({
+    uri: 'file:///cache/arachat-media/drafts/photo.jpg',
+    name: 'photo.jpg',
+    mimeType: 'image/jpeg',
+    sizeBytes: 2_048,
+  });
+
+  await expect(pickChatPhoto()).resolves.toEqual({
+    uri: 'file:///cache/arachat-media/drafts/photo.jpg',
+    name: 'photo.jpg',
+    mimeType: 'image/jpeg',
+    sizeBytes: 2_048,
   });
 });
 

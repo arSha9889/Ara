@@ -148,7 +148,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export class ApiClient {
-  private refreshPromise: Promise<AuthSession | null> | null = null;
+  private readonly refreshPromises = new Map<string, Promise<AuthSession | null>>();
 
   constructor(private readonly store: SecureSessionStore) {}
 
@@ -169,7 +169,7 @@ export class ApiClient {
       session
     ) {
       const refreshed = await this.refreshSession(session);
-      if (refreshed) {
+      if (refreshed && (await this.isCurrentSession(refreshed))) {
         response = await this.send(path, options, refreshed.accessToken);
       }
     }
@@ -197,7 +197,7 @@ export class ApiClient {
       session
     ) {
       const refreshed = await this.refreshSession(session);
-      if (refreshed) {
+      if (refreshed && (await this.isCurrentSession(refreshed))) {
         response = await this.sendMultipart(path, options, refreshed.accessToken);
       }
     }
@@ -220,11 +220,16 @@ export class ApiClient {
       }
 
       const refreshed = await this.refreshSession(session);
-      if (!refreshed) {
+      if (!refreshed || !(await this.isCurrentSession(refreshed))) {
         throw error;
       }
       return operation(refreshed.accessToken);
     }
+  }
+
+  async refreshCurrentSession(): Promise<AuthSession | null> {
+    const session = await this.store.loadSession();
+    return session ? this.refreshSession(session) : null;
   }
 
   private async send(
@@ -272,13 +277,16 @@ export class ApiClient {
   }
 
   private async refreshSession(session: AuthSession): Promise<AuthSession | null> {
-    if (!this.refreshPromise) {
-      this.refreshPromise = this.performRefresh(session).finally(() => {
-        this.refreshPromise = null;
-      });
+    const activeRefresh = this.refreshPromises.get(session.refreshToken);
+    if (activeRefresh) {
+      return activeRefresh;
     }
 
-    return this.refreshPromise;
+    const refreshPromise = this.performRefresh(session).finally(() => {
+      this.refreshPromises.delete(session.refreshToken);
+    });
+    this.refreshPromises.set(session.refreshToken, refreshPromise);
+    return refreshPromise;
   }
 
   private async performRefresh(session: AuthSession): Promise<AuthSession | null> {
@@ -295,7 +303,7 @@ export class ApiClient {
     }
 
     if (response.status === 401 || response.status === 403) {
-      await this.store.clearSession();
+      await this.store.clearSessionIfCurrent(session);
       return null;
     }
 
@@ -308,18 +316,37 @@ export class ApiClient {
       typeof refreshed.access_token !== 'string' ||
       typeof refreshed.refresh_token !== 'string'
     ) {
-      await this.store.clearSession();
+      await this.store.clearSessionIfCurrent(session);
+      return null;
+    }
+
+    const currentSession = await this.store.loadSession();
+    if (!isSameAuthenticationSession(currentSession, session)) {
       return null;
     }
 
     const nextSession: AuthSession = {
       accessToken: refreshed.access_token,
       refreshToken: refreshed.refresh_token,
-      user: sessionUser(refreshed.user, session.user),
+      user: sessionUser(refreshed.user, currentSession.user),
     };
-    await this.store.saveSession(nextSession);
-    return nextSession;
+    return (await this.store.saveSessionIfCurrent(session, nextSession)) ? nextSession : null;
   }
+
+  private async isCurrentSession(expected: AuthSession): Promise<boolean> {
+    return isSameAuthenticationSession(await this.store.loadSession(), expected);
+  }
+}
+
+function isSameAuthenticationSession(
+  current: AuthSession | null,
+  expected: AuthSession,
+): current is AuthSession {
+  return Boolean(
+    current &&
+      current.user.id === expected.user.id &&
+      current.refreshToken === expected.refreshToken,
+  );
 }
 
 function isUnauthorizedTransportError(error: unknown): boolean {

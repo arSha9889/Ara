@@ -9,13 +9,22 @@ test('prioritizes a missing internet connection over realtime state', () => {
   ).toEqual({ icon: 'close', key: 'networkOffline', tone: 'danger' });
 });
 
-test('names Wi-Fi and mobile internet without claiming a mobile generation', () => {
+test('does not show a persistent confirmation for a healthy connection', () => {
   expect(
     connectionStatusPresentation(
       { state: 'connected', transport: 'wifi' },
       null,
     ),
-  ).toEqual({ icon: 'check', key: 'networkConnectedWifi', tone: 'success' });
+  ).toBeNull();
+  expect(
+    connectionStatusPresentation(
+      { state: 'connected', transport: 'cellular' },
+      'connected',
+    ),
+  ).toBeNull();
+});
+
+test('names connecting Wi-Fi and mobile internet without claiming a mobile generation', () => {
   expect(
     connectionStatusPresentation(
       { state: 'checking', transport: 'cellular' },

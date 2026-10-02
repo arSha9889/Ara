@@ -16,6 +16,7 @@ export const colors = {
   primary: '#8CC9FF',
   primaryStrong: '#4AA8F0',
   primaryPressed: '#318FD6',
+  deliveryRead: '#00396A',
   purple: '#B2A9FF',
   success: '#74D6A4',
   danger: '#FF9CAD',

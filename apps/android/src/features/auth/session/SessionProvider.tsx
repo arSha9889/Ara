@@ -4,6 +4,7 @@ import { acceptCurrentLegalDocuments, logout, loginWithPassword } from '../api/a
 import {
   sessionStore,
   type AuthSession,
+  type SessionUser,
 } from '../../../infrastructure/storage/sessionStore';
 import { clearPrivateChatMediaCache } from '../../chats/media/mediaClient';
 import { unregisterMobilePushTokens } from '../../notifications/api/mobilePushApi';
@@ -15,6 +16,7 @@ interface SessionContextValue {
   status: SessionStatus;
   signIn(identifier: string, password: string): Promise<void>;
   saveSession(session: AuthSession): Promise<void>;
+  updateSessionUser(user: SessionUser): Promise<void>;
   acceptLegalDocuments(): Promise<void>;
   signOut(): Promise<void>;
 }
@@ -60,6 +62,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await sessionStore.saveSession(nextSession);
   }, []);
 
+  const updateSessionUser = useCallback(async (user: SessionUser) => {
+    const currentSession = await sessionStore.loadSession();
+
+    if (!currentSession || currentSession.user.id !== user.id) {
+      throw new Error('Активная сессия больше не соответствует обновлённому профилю.');
+    }
+
+    await sessionStore.saveSession({ ...currentSession, user });
+  }, []);
+
   const signIn = useCallback(async (identifier: string, password: string) => {
     const deviceId = await sessionStore.getDeviceId();
     const nextSession = await loginWithPassword(identifier, password, deviceId);
@@ -74,8 +86,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     const user = await acceptCurrentLegalDocuments();
-    await sessionStore.saveSession({ ...currentSession, user });
-  }, []);
+    await updateSessionUser(user);
+  }, [updateSessionUser]);
 
   const signOut = useCallback(async () => {
     const currentSession = await sessionStore.loadSession();
@@ -89,16 +101,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await logout(currentSession.refreshToken);
       }
     } finally {
-      await Promise.all([
-        clearPrivateChatMediaCache(),
-        sessionStore.clearSession(),
-      ]);
+      if (currentSession) {
+        await sessionStore.clearSessionIfCurrent(currentSession);
+      }
     }
   }, []);
 
   const value = useMemo(
-    () => ({ session, status, signIn, saveSession, acceptLegalDocuments, signOut }),
-    [session, status, signIn, saveSession, acceptLegalDocuments, signOut],
+    () => ({
+      session,
+      status,
+      signIn,
+      saveSession,
+      updateSessionUser,
+      acceptLegalDocuments,
+      signOut,
+    }),
+    [
+      session,
+      status,
+      signIn,
+      saveSession,
+      updateSessionUser,
+      acceptLegalDocuments,
+      signOut,
+    ],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -13,7 +13,7 @@ jest.mock('react-native-keychain', () => ({
 }));
 
 import { ApiClient, ApiError } from '../src/infrastructure/http/apiClient';
-import { SecureSessionStore } from '../src/infrastructure/storage/sessionStore';
+import { SecureSessionStore, type AuthSession } from '../src/infrastructure/storage/sessionStore';
 
 const originalFetch = globalThis.fetch;
 
@@ -106,9 +106,13 @@ test('retries a private-media operation once after native authorization failure'
     refreshToken: 'refresh-token',
     user: { id: 'user-1', nexusId: '1', status: 'active', legalDocumentsCurrent: true },
   };
+  let currentSession: AuthSession | null = initialSession;
   const store = {
-    loadSession: jest.fn().mockResolvedValue(initialSession),
-    saveSession: jest.fn().mockResolvedValue(undefined),
+    loadSession: jest.fn().mockImplementation(async () => currentSession),
+    saveSessionIfCurrent: jest.fn().mockImplementation(async (_expected: AuthSession, refreshed: AuthSession) => {
+      currentSession = refreshed;
+      return true;
+    }),
   } as unknown as SecureSessionStore;
   const operation = jest
     .fn()
@@ -127,4 +131,117 @@ test('retries a private-media operation once after native authorization failure'
     body: JSON.stringify({ refresh_token: 'refresh-token' }),
     signal: undefined,
   });
+});
+
+test('does not restore an old account when its refresh completes late', async () => {
+  const initialSession: AuthSession = {
+    accessToken: 'expired-access-token-a',
+    refreshToken: 'refresh-token-a',
+    user: { id: 'user-a', nexusId: '1', status: 'active', legalDocumentsCurrent: true },
+  };
+  const nextSession: AuthSession = {
+    accessToken: 'access-token-b',
+    refreshToken: 'refresh-token-b',
+    user: { id: 'user-b', nexusId: '2', status: 'active', legalDocumentsCurrent: true },
+  };
+  let currentSession: AuthSession | null = initialSession;
+  let resolveRefresh!: (response: Response) => void;
+  const refreshResponse = new Promise<Response>(resolve => {
+    resolveRefresh = resolve;
+  });
+  let signalRefreshStarted!: () => void;
+  const refreshStarted = new Promise<void>(resolve => {
+    signalRefreshStarted = resolve;
+  });
+  const fetchMock = jest
+    .fn()
+    .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn() } as unknown as Response)
+    .mockImplementationOnce(() => {
+      signalRefreshStarted();
+      return refreshResponse;
+    });
+  globalThis.fetch = fetchMock as typeof fetch;
+  const store = {
+    loadSession: jest.fn().mockImplementation(async () => currentSession),
+    clearSessionIfCurrent: jest.fn().mockImplementation(async (expected: AuthSession) => {
+      if (!currentSession || currentSession.user.id !== expected.user.id || currentSession.refreshToken !== expected.refreshToken) {
+        return false;
+      }
+      currentSession = null;
+      return true;
+    }),
+    saveSessionIfCurrent: jest.fn().mockImplementation(async (expected: AuthSession, refreshed: AuthSession) => {
+      if (!currentSession || currentSession.user.id !== expected.user.id || currentSession.refreshToken !== expected.refreshToken) {
+        return false;
+      }
+      currentSession = refreshed;
+      return true;
+    }),
+  } as unknown as SecureSessionStore;
+
+  const request = new ApiClient(store).request('/api/chats');
+  await refreshStarted;
+  currentSession = nextSession;
+  resolveRefresh({
+    ok: true,
+    status: 200,
+    json: jest.fn().mockResolvedValue({
+      access_token: 'renewed-access-token-a',
+      refresh_token: 'refresh-token-a',
+    }),
+  } as unknown as Response);
+
+  await expect(request).rejects.toMatchObject({ status: 401 });
+  expect(currentSession).toBe(nextSession);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+test('does not clear a newer account when an old refresh is rejected', async () => {
+  const initialSession: AuthSession = {
+    accessToken: 'expired-access-token-a',
+    refreshToken: 'refresh-token-a',
+    user: { id: 'user-a', nexusId: '1', status: 'active', legalDocumentsCurrent: true },
+  };
+  const nextSession: AuthSession = {
+    accessToken: 'access-token-b',
+    refreshToken: 'refresh-token-b',
+    user: { id: 'user-b', nexusId: '2', status: 'active', legalDocumentsCurrent: true },
+  };
+  let currentSession: AuthSession | null = initialSession;
+  let resolveRefresh!: (response: Response) => void;
+  const refreshResponse = new Promise<Response>(resolve => {
+    resolveRefresh = resolve;
+  });
+  let signalRefreshStarted!: () => void;
+  const refreshStarted = new Promise<void>(resolve => {
+    signalRefreshStarted = resolve;
+  });
+  const fetchMock = jest
+    .fn()
+    .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn() } as unknown as Response)
+    .mockImplementationOnce(() => {
+      signalRefreshStarted();
+      return refreshResponse;
+    });
+  globalThis.fetch = fetchMock as typeof fetch;
+  const store = {
+    loadSession: jest.fn().mockImplementation(async () => currentSession),
+    clearSessionIfCurrent: jest.fn().mockImplementation(async (expected: AuthSession) => {
+      if (!currentSession || currentSession.user.id !== expected.user.id || currentSession.refreshToken !== expected.refreshToken) {
+        return false;
+      }
+      currentSession = null;
+      return true;
+    }),
+    saveSessionIfCurrent: jest.fn(),
+  } as unknown as SecureSessionStore;
+
+  const request = new ApiClient(store).request('/api/chats');
+  await refreshStarted;
+  currentSession = nextSession;
+  resolveRefresh({ ok: false, status: 401, json: jest.fn() } as unknown as Response);
+
+  await expect(request).rejects.toMatchObject({ status: 401 });
+  expect(currentSession).toBe(nextSession);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
 });

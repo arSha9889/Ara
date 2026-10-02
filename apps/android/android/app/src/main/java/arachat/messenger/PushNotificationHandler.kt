@@ -13,11 +13,9 @@ import ru.rustore.sdk.universalpush.domain.model.UniversalRemoteMessage
 
 object PushNotificationHandler {
   data class NotificationOpen(
-    val kind: String,
     val chatId: String?,
     val messageId: String?,
     val notificationId: String?,
-    val supportTicketId: String?,
   )
 
   fun install(context: Context) {
@@ -32,22 +30,23 @@ object PushNotificationHandler {
     }
 
     val data = message.data
-    val kind = data["kind"] ?: return
-    if (kind !in SUPPORTED_NOTIFICATION_KINDS) {
+    if (data["kind"] != MESSAGE_KIND) {
       return
     }
+    val title = data["title"]?.trim()?.takeIf { it.isNotEmpty() } ?: return
+    val body = data["body"]?.trim()?.takeIf { it.isNotEmpty() } ?: return
+    val notificationIdValue = data["notification_id"] ?: return
+    val chatId = data["chat_id"] ?: return
 
-    val channelId = if (kind == "message") MESSAGES_CHANNEL_ID else SYSTEM_CHANNEL_ID
-    createNotificationChannel(context, channelId)
-    val notificationId = data["notification_id"]?.hashCode() ?: message.messageId?.hashCode() ?: 0
+    createMessagesNotificationChannel(context)
+    val notificationId = notificationIdValue.hashCode()
     val openAppIntent = Intent(context, MainActivity::class.java).apply {
       action = ACTION_OPEN_NOTIFICATION
       flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-      putExtra(EXTRA_NOTIFICATION_KIND, kind)
-      data["chat_id"]?.let { putExtra(EXTRA_CHAT_ID, it) }
+      putExtra(EXTRA_NOTIFICATION_KIND, MESSAGE_KIND)
+      putExtra(EXTRA_CHAT_ID, chatId)
       data["message_id"]?.let { putExtra(EXTRA_MESSAGE_ID, it) }
-      data["notification_id"]?.let { putExtra(EXTRA_NOTIFICATION_ID, it) }
-      data["support_ticket_id"]?.let { putExtra(EXTRA_SUPPORT_TICKET_ID, it) }
+      putExtra(EXTRA_NOTIFICATION_ID, notificationIdValue)
     }
     val openApp = PendingIntent.getActivity(
       context,
@@ -56,31 +55,32 @@ object PushNotificationHandler {
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    val isMessage = kind == "message"
     NotificationManagerCompat.from(context).notify(
       notificationId,
-      NotificationCompat.Builder(context, channelId)
+      NotificationCompat.Builder(context, MESSAGES_CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_stat_arachat)
         .setContentIntent(openApp)
-        .setContentTitle(context.getString(if (isMessage) R.string.push_message_title else R.string.app_name))
-        .setContentText(context.getString(if (isMessage) R.string.push_message_body else R.string.push_system_body))
+        .setContentTitle(title)
+        .setContentText(body)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(body))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setAutoCancel(true)
         .build(),
     )
   }
 
-  private fun createNotificationChannel(context: Context, channelId: String) {
+  private fun createMessagesNotificationChannel(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
       return
     }
 
-    val channelName = context.getString(
-      if (channelId == MESSAGES_CHANNEL_ID) R.string.push_messages_channel else R.string.push_system_channel,
-    )
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     manager.createNotificationChannel(
-      NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT),
+      NotificationChannel(
+        MESSAGES_CHANNEL_ID,
+        context.getString(R.string.push_messages_channel),
+        NotificationManager.IMPORTANCE_DEFAULT,
+      ),
     )
   }
 
@@ -89,16 +89,13 @@ object PushNotificationHandler {
       return null
     }
 
-    val kind = intent.getStringExtra(EXTRA_NOTIFICATION_KIND) ?: return null
-    if (kind !in SUPPORTED_NOTIFICATION_KINDS) {
+    if (intent.getStringExtra(EXTRA_NOTIFICATION_KIND) != MESSAGE_KIND) {
       return null
     }
     return NotificationOpen(
-      kind = kind,
       chatId = intent.getStringExtra(EXTRA_CHAT_ID),
       messageId = intent.getStringExtra(EXTRA_MESSAGE_ID),
       notificationId = intent.getStringExtra(EXTRA_NOTIFICATION_ID),
-      supportTicketId = intent.getStringExtra(EXTRA_SUPPORT_TICKET_ID),
     )
   }
 
@@ -107,8 +104,6 @@ object PushNotificationHandler {
   const val EXTRA_CHAT_ID = "arachat.notification.chat_id"
   const val EXTRA_MESSAGE_ID = "arachat.notification.message_id"
   const val EXTRA_NOTIFICATION_ID = "arachat.notification.notification_id"
-  const val EXTRA_SUPPORT_TICKET_ID = "arachat.notification.support_ticket_id"
   private const val MESSAGES_CHANNEL_ID = "arachat_messages"
-  private const val SYSTEM_CHANNEL_ID = "arachat_system"
-  private val SUPPORTED_NOTIFICATION_KINDS = setOf("message", "announcement", "support", "system")
+  private const val MESSAGE_KIND = "message"
 }

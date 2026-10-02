@@ -1,12 +1,9 @@
-interface MobilePushOpenBase {
+export interface MobilePushOpen {
+  kind: 'message';
   notificationId: string;
+  chatId: string;
   messageId?: string;
 }
-
-export type MobilePushOpen =
-  | (MobilePushOpenBase & { kind: 'message'; chatId: string })
-  | (MobilePushOpenBase & { kind: 'support'; supportTicketId: string })
-  | (MobilePushOpenBase & { kind: 'announcement' | 'system' });
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -30,12 +27,9 @@ export function parseMobilePushOpen(value: unknown): MobilePushOpen | null {
     return null;
   }
 
-  const kind = value.kind;
   const notificationId = uuid(value.notification_id);
-  if (
-    (kind !== 'message' && kind !== 'announcement' && kind !== 'support' && kind !== 'system') ||
-    !notificationId
-  ) {
+  const chatId = uuid(value.chat_id);
+  if (value.kind !== 'message' || !notificationId || !chatId) {
     return null;
   }
 
@@ -44,15 +38,5 @@ export function parseMobilePushOpen(value: unknown): MobilePushOpen | null {
     return null;
   }
 
-  if (kind === 'message') {
-    const chatId = uuid(value.chat_id);
-    return chatId ? { kind, notificationId, chatId, messageId } : null;
-  }
-
-  if (kind === 'support') {
-    const supportTicketId = uuid(value.support_ticket_id);
-    return supportTicketId ? { kind, notificationId, messageId, supportTicketId } : null;
-  }
-
-  return { kind, notificationId, messageId };
+  return { kind: 'message', notificationId, chatId, messageId };
 }

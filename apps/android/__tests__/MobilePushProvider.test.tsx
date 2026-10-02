@@ -12,13 +12,17 @@ const mockSubscribeToMobilePushToken = jest.fn();
 jest.mock('../src/features/auth/session/useSession', () => ({
   useSession: () => ({
     session: {
-      user: { legalDocumentsCurrent: true },
+      user: {
+        id: '2ed67eb4-9f7b-4880-b4c1-fabc6d32a541',
+        legalDocumentsCurrent: true,
+      },
     },
   }),
 }));
 
 jest.mock('../src/infrastructure/storage/sessionStore', () => ({
   sessionStore: {
+    consumeNotificationPermissionRequest: jest.fn(),
     getDeviceId: jest.fn().mockResolvedValue('test-device-id'),
   },
 }));
@@ -38,9 +42,16 @@ jest.mock('../src/features/notifications/pushClient', () => ({
 let mobilePush:
   | {
       status: string;
-      enableNotifications(): Promise<void>;
     }
   | undefined;
+
+const mockConsumeNotificationPermissionRequest =
+  jest.requireMock('../src/infrastructure/storage/sessionStore').sessionStore
+    .consumeNotificationPermissionRequest as jest.Mock;
+
+function settleAsyncWork(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
 
 function PushStatusProbe() {
   mobilePush = useMobilePush();
@@ -54,12 +65,33 @@ describe('MobilePushProvider', () => {
     mockGetNotificationPermissionStatus.mockResolvedValue('denied');
     mockPushClientIsAvailable.mockReturnValue(true);
     mockSubscribeToMobilePushToken.mockReturnValue(() => undefined);
+    mockConsumeNotificationPermissionRequest.mockResolvedValue(false);
   });
 
-  it('keeps notification permission enabled when token synchronization fails', async () => {
+  it('does not open a system permission dialog for an existing user', async () => {
+    let component: ReturnType<typeof create> | undefined;
+    await act(async () => {
+      component = create(
+        <MobilePushProvider>
+          <PushStatusProbe />
+        </MobilePushProvider>,
+      );
+      await settleAsyncWork();
+    });
+
+    expect(mobilePush?.status).toBe('disabled');
+    expect(mockRequestNotificationPermission).not.toHaveBeenCalled();
+
+    await act(async () => {
+      component?.unmount();
+    });
+  });
+
+  it('requests permission once for a newly registered user and keeps it enabled when token synchronization fails', async () => {
     mockRequestNotificationPermission.mockResolvedValue('granted');
     mockGetMobilePushTokens.mockResolvedValue([{ provider: 'fcm', token: 'f'.repeat(32) }]);
     mockRegisterMobilePushToken.mockRejectedValue(new Error('Mobile token endpoint is unavailable'));
+    mockConsumeNotificationPermissionRequest.mockResolvedValue(true);
 
     let component: ReturnType<typeof create> | undefined;
     await act(async () => {
@@ -68,24 +100,15 @@ describe('MobilePushProvider', () => {
           <PushStatusProbe />
         </MobilePushProvider>,
       );
-    });
-
-    const currentMobilePush = mobilePush;
-    if (!currentMobilePush) {
-      throw new Error('Push context was not rendered.');
-    }
-
-    await act(async () => {
-      await currentMobilePush.enableNotifications();
+      await settleAsyncWork();
     });
 
     expect(mobilePush?.status).toBe('enabled');
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(mobilePush?.status).toBe('enabled');
+    expect(mockRequestNotificationPermission).toHaveBeenCalledTimes(1);
+    expect(mockRegisterMobilePushToken).toHaveBeenCalledWith(
+      'test-device-id',
+      { provider: 'fcm', token: 'f'.repeat(32) },
+    );
 
     await act(async () => {
       component?.unmount();

@@ -21,8 +21,10 @@ export type IconName =
   | 'photo'
   | 'play'
   | 'plus'
+  | 'pin'
   | 'profile'
   | 'refresh'
+  | 'reply'
   | 'search'
   | 'send'
   | 'settings'
@@ -67,8 +69,10 @@ export function Icon({ name, size = 24, color = colors.text }: IconProps) {
       {name === 'photo' ? <><Path {...common} d="M4 5.5h16v13H4z" /><Circle {...common} cx="9" cy="10" r="1.5" /><Path {...common} d="m4 16 4.5-4.5 3 3L14 12l6 6" /></> : null}
       {name === 'play' ? <Path fill={color} stroke="none" d="m9 6 9 6-9 6V6Z" /> : null}
       {name === 'plus' ? <Path {...common} d="M12 5v14M5 12h14" /> : null}
+      {name === 'pin' ? <><Path {...common} d="M8.5 4.5h7M9.5 4.5v4l-2.5 3h10l-2.5-3v-4M12 11.5V20" /><Path {...common} d="M9.5 4.5h5" /></> : null}
       {name === 'profile' ? <><Circle {...common} cx="12" cy="8" r="3.6" /><Path {...common} d="M4.8 20c.7-3.1 3.4-5.1 7.2-5.1s6.5 2 7.2 5.1" /></> : null}
       {name === 'refresh' ? <><Path {...common} d="M20 8.5A8.2 8.2 0 1 0 20.1 15" /><Path {...common} d="M20 4.8v3.9h-3.9" /></> : null}
+      {name === 'reply' ? <><Path {...common} d="m9 7-5 5 5 5v-3h4.2a5.8 5.8 0 0 1 5.8 5.8V19a8 8 0 0 0-8-8H9V7Z" /></> : null}
       {name === 'search' ? <><Circle {...common} cx="10.7" cy="10.7" r="5.8" /><Path {...common} d="m15.1 15.1 4.2 4.2" /></> : null}
       {name === 'send' ? <Path {...common} d="m20 4-7.1 16-2.3-6.6L4 11.1 20 4Z" /> : null}
       {name === 'settings' ? <><Circle {...common} cx="12" cy="12" r="3" /><Path {...common} d="M19.4 13.3a7.9 7.9 0 0 0 .1-2.6l2-1.5-2-3.4-2.4 1a8 8 0 0 0-2.2-1.3L14.6 3h-4l-.3 2.5a8 8 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.5a7.9 7.9 0 0 0 .1 2.6l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 2.2 1.3l.3 2.5h4l.3-2.5a8 8 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.5Z" /></> : null}

@@ -2,6 +2,8 @@ import { apiClient } from '../../infrastructure/http/apiClient';
 
 export interface AndroidRelease {
   latestVersionCode: number;
+  latestVersionName: string;
+  releaseNotes: string[];
   directDownloadUrl: string | null;
   rustoreAppUrl: string | null;
   rustoreInstallerPackage: string | null;
@@ -9,6 +11,8 @@ export interface AndroidRelease {
 
 interface AndroidReleaseResponse {
   latest_version_code?: unknown;
+  latest_version_name?: unknown;
+  release_notes?: unknown;
   direct_download_url?: unknown;
   rustore_app_url?: unknown;
   rustore_installer_package?: unknown;
@@ -49,16 +53,32 @@ function rustoreInstallerPackage(value: unknown): string | null {
     : null;
 }
 
+function releaseNotes(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+
+  const notes = value.map(note => (typeof note === 'string' ? note.trim() : ''));
+  return notes.every(Boolean) ? notes : null;
+}
+
 export async function getAndroidRelease(): Promise<AndroidRelease | null> {
   const response = await apiClient.request<AndroidReleaseResponse>('/api/releases/android');
   const directDownloadUrl = optionalHttpsUrl(response.direct_download_url);
   const rustoreAppUrl = optionalHttpsUrl(response.rustore_app_url);
   const latestVersionCode = response.latest_version_code;
+  const latestVersionName =
+    typeof response.latest_version_name === 'string'
+      ? response.latest_version_name.trim()
+      : '';
+  const notes = releaseNotes(response.release_notes);
 
   if (
     typeof latestVersionCode !== 'number' ||
     !Number.isSafeInteger(latestVersionCode) ||
     latestVersionCode < 1 ||
+    !latestVersionName ||
+    !notes ||
     !directDownloadUrl.isValid ||
     !rustoreAppUrl.isValid ||
     (!directDownloadUrl.value && !rustoreAppUrl.value)
@@ -68,6 +88,8 @@ export async function getAndroidRelease(): Promise<AndroidRelease | null> {
 
   return {
     latestVersionCode,
+    latestVersionName,
+    releaseNotes: notes,
     directDownloadUrl: directDownloadUrl.value,
     rustoreAppUrl: rustoreAppUrl.value,
     rustoreInstallerPackage: rustoreInstallerPackage(response.rustore_installer_package),

@@ -92,41 +92,28 @@ export async function navigateFromMobilePush(
   open: MobilePushOpen,
   chatCopy: Parameters<typeof chatTitle>[1],
 ): Promise<void> {
-  if (open.kind === 'message') {
-    const chat = (await getChats()).find(item => item.id === open.chatId);
-    if (!chat) {
-      if (open.messageId) {
-        throw new MessageDestinationUnavailableError();
-      }
-      throw new Error('Chat is unavailable.');
+  const chat = (await getChats()).find(item => item.id === open.chatId);
+  if (!chat) {
+    if (open.messageId) {
+      throw new MessageDestinationUnavailableError();
+    }
+    throw new Error('Chat is unavailable.');
+  }
+
+  if (open.messageId) {
+    let message;
+    try {
+      message = await getMessage(chat.id, open.messageId);
+    } catch {
+      throw new MessageDestinationUnavailableError();
     }
 
-    if (open.messageId) {
-      let message;
-      try {
-        message = await getMessage(chat.id, open.messageId);
-      } catch {
-        throw new MessageDestinationUnavailableError();
-      }
-
-      if (
-        message.id !== open.messageId ||
-        message.chat_id !== chat.id ||
-        message.deleted_at
-      ) {
-        throw new MessageDestinationUnavailableError();
-      }
-
-      navigation.navigate('Chat', {
-        chatId: chat.id,
-        title: chatTitle(chat, chatCopy),
-        peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
-        peerIsOnline: chat.type === 'direct' ? chat.peer?.is_online : undefined,
-        peerLastSeenAt: chat.type === 'direct' ? chat.peer?.last_seen_at : undefined,
-        targetMessageId: message.id,
-        targetMessage: message,
-      });
-      return;
+    if (
+      message.id !== open.messageId ||
+      message.chat_id !== chat.id ||
+      message.deleted_at
+    ) {
+      throw new MessageDestinationUnavailableError();
     }
 
     navigation.navigate('Chat', {
@@ -135,14 +122,17 @@ export async function navigateFromMobilePush(
       peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
       peerIsOnline: chat.type === 'direct' ? chat.peer?.is_online : undefined,
       peerLastSeenAt: chat.type === 'direct' ? chat.peer?.last_seen_at : undefined,
+      targetMessageId: message.id,
+      targetMessage: message,
     });
     return;
   }
 
-  if (open.kind === 'support') {
-    navigation.navigate('SupportTicket', { ticketId: open.supportTicketId });
-    return;
-  }
-
-  navigation.navigate('MainTabs', { screen: 'Settings' });
+  navigation.navigate('Chat', {
+    chatId: chat.id,
+    title: chatTitle(chat, chatCopy),
+    peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
+    peerIsOnline: chat.type === 'direct' ? chat.peer?.is_online : undefined,
+    peerLastSeenAt: chat.type === 'direct' ? chat.peer?.last_seen_at : undefined,
+  });
 }

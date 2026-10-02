@@ -9,6 +9,7 @@ import {
   markMessagesRead,
   sendMediaMessage,
   sendTextMessage,
+  togglePinMessage,
   toggleMessageReaction,
   uploadChatAttachment,
 } from '../src/features/chats/api/chatApi';
@@ -73,6 +74,7 @@ test('uses the existing backend endpoints for editing, deleting, and reactions',
 
   await editTextMessage('chat-1', 'message-1', '  Обновлённый текст  ');
   await toggleMessageReaction('chat-1', 'message-1', '👍');
+  await togglePinMessage('chat/id', 'message id');
   await deleteMessage('chat-1', 'message-1');
 
   expect(request).toHaveBeenNthCalledWith(
@@ -93,11 +95,49 @@ test('uses the existing backend endpoints for editing, deleting, and reactions',
   );
   expect(request).toHaveBeenNthCalledWith(
     3,
+    '/api/chats/chat%2Fid/messages/message%20id/pin',
+    {
+      method: 'POST',
+    },
+  );
+  expect(request).toHaveBeenNthCalledWith(
+    4,
     '/api/chats/chat-1/messages/message-1',
     {
       method: 'DELETE',
     },
   );
+});
+
+test('sends reply target IDs for text and media messages', async () => {
+  request.mockResolvedValue({ id: 'message-1' });
+  const upload = {
+    media_url: '/api/media/receipt',
+    media_name: 'receipt.pdf',
+    media_mime_type: 'application/pdf',
+    media_size_bytes: 2048,
+    suggested_message_type: 'file',
+  };
+
+  await sendTextMessage('chat-1', '  Ответ  ', { replyToMessageId: 'source-1' });
+  await sendMediaMessage('chat-1', upload, '', { replyToMessageId: 'source-1' });
+
+  expect(request).toHaveBeenNthCalledWith(1, '/api/chats/chat-1/messages', {
+    method: 'POST',
+    body: { text: 'Ответ', type: 'text', reply_to_message_id: 'source-1' },
+  });
+  expect(request).toHaveBeenNthCalledWith(2, '/api/chats/chat-1/messages', {
+    method: 'POST',
+    body: {
+      text: '',
+      type: 'file',
+      media_url: upload.media_url,
+      media_name: upload.media_name,
+      media_mime_type: upload.media_mime_type,
+      media_size_bytes: upload.media_size_bytes,
+      reply_to_message_id: 'source-1',
+    },
+  });
 });
 
 test('opens or creates a direct chat with a selected user', async () => {

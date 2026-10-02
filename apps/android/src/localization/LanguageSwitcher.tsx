@@ -88,7 +88,6 @@ export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
           <View
             accessibilityViewIsModal
             accessibilityLabel={t('language')}
-            accessibilityRole="dialog"
             style={[sharedStyles.glassPanel, styles.dialog]}
           >
             <View style={styles.heading}>

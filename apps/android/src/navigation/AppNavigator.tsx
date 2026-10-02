@@ -19,6 +19,7 @@ import { BlockedUsersScreen } from '../features/safety/screens/BlockedUsersScree
 import { MyReportsScreen } from '../features/safety/screens/MyReportsScreen';
 import { SupportTicketScreen } from '../features/support/screens/SupportTicketScreen';
 import { SupportTicketsScreen } from '../features/support/screens/SupportTicketsScreen';
+import { AppUpdateScreen } from '../features/settings/screens/AppUpdateScreen';
 import { MobilePushNavigationHandler } from '../features/notifications/MobilePushNavigationHandler';
 import { colors } from '../theme/theme';
 import { MainTabs, type MainTabParamList } from './MainTabs';
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   PinSettings: undefined;
   Devices: undefined;
   LoginHistory: undefined;
+  AppUpdate: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -78,6 +80,7 @@ export function AppNavigator() {
           <Stack.Screen component={PinSettingsScreen} name="PinSettings" />
           <Stack.Screen component={DevicesScreen} name="Devices" />
           <Stack.Screen component={LoginHistoryScreen} name="LoginHistory" />
+          <Stack.Screen component={AppUpdateScreen} name="AppUpdate" />
         </Stack.Navigator>
       </NavigationContainer>
       {isNavigationReady ? <MobilePushNavigationHandler navigation={navigationRef} /> : null}

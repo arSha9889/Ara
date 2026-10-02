@@ -18,7 +18,12 @@ export type ChatAttachmentMessageType = 'photo' | 'video' | 'voice' | 'video_not
 
 export interface MediaMessageOptions {
   durationSeconds?: number;
+  replyToMessageId?: string;
   type?: 'voice' | 'video_note';
+}
+
+export interface TextMessageOptions {
+  replyToMessageId?: string;
 }
 
 export interface ChatPeer {
@@ -51,6 +56,7 @@ export interface Chat {
   participant_ids: string[];
   peer: ChatPeer | null;
   last_message: ChatPreviewMessage | null;
+  pinned_message?: ChatPreviewMessage | null;
   unread_count: number;
   title: string | null;
   can_post: boolean;
@@ -71,6 +77,16 @@ export interface ChatMessageReaction {
   reacted_by_me: boolean;
 }
 
+export interface ChatMessageReply {
+  id: string;
+  sender_id: string;
+  type: string;
+  payload: string;
+  media_name: string | null;
+  encryption_state: string;
+  deleted_at: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   chat_id: string;
@@ -89,6 +105,8 @@ export interface ChatMessage {
   edited_at: string | null;
   deleted_at: string | null;
   reactions: ChatMessageReaction[];
+  reply_to?: ChatMessageReply | null;
+  is_pinned?: boolean;
 }
 
 function isSupportedMobileChat(chat: Chat): boolean {
@@ -126,10 +144,15 @@ export function createDirectChatForUser(userId: string): Promise<Chat> {
 export function sendTextMessage(
   chatId: string,
   text: string,
+  options: TextMessageOptions = {},
 ): Promise<ChatMessage> {
   return apiClient.request<ChatMessage>(`/api/chats/${chatId}/messages`, {
     method: 'POST',
-    body: { text: text.trim(), type: 'text' },
+    body: {
+      text: text.trim(),
+      type: 'text',
+      ...(options.replyToMessageId ? { reply_to_message_id: options.replyToMessageId } : {}),
+    },
   });
 }
 
@@ -185,6 +208,7 @@ export function sendMediaMessage(
       media_mime_type: upload.media_mime_type,
       media_size_bytes: upload.media_size_bytes,
       ...(requiresDuration ? { duration_seconds: durationSeconds } : {}),
+      ...(options.replyToMessageId ? { reply_to_message_id: options.replyToMessageId } : {}),
     },
   });
 }
@@ -225,6 +249,15 @@ export function toggleMessageReaction(
     {
       method: 'POST',
       body: { emoji },
+    },
+  );
+}
+
+export function togglePinMessage(chatId: string, messageId: string): Promise<Chat> {
+  return apiClient.request<Chat>(
+    `/api/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/pin`,
+    {
+      method: 'POST',
     },
   );
 }

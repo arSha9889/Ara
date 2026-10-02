@@ -214,6 +214,8 @@ class MobilePushConfigOut(BaseModel):
 
 class AndroidReleaseOut(BaseModel):
     latest_version_code: int | None = None
+    latest_version_name: str | None = None
+    release_notes: list[str] = Field(default_factory=list)
     direct_download_url: str | None = None
     rustore_app_url: str | None = None
     rustore_installer_package: str | None = None

@@ -11,11 +11,15 @@ class RealtimeManager:
         self._connection_chats: dict[WebSocket, set[UUID]] = defaultdict(set)
         self._user_connections: dict[UUID, set[WebSocket]] = defaultdict(set)
         self._connection_users: dict[WebSocket, UUID] = {}
+        self._session_connections: dict[UUID, set[WebSocket]] = defaultdict(set)
+        self._connection_sessions: dict[WebSocket, UUID] = {}
 
-    async def connect_user(self, websocket: WebSocket, user_id: UUID) -> bool:
+    async def connect_user(self, websocket: WebSocket, user_id: UUID, session_id: UUID) -> bool:
         was_offline = not self._user_connections.get(user_id)
         self._user_connections[user_id].add(websocket)
         self._connection_users[websocket] = user_id
+        self._session_connections[session_id].add(websocket)
+        self._connection_sessions[websocket] = session_id
         return was_offline
 
     def is_user_online(self, user_id: UUID) -> bool:
@@ -45,6 +49,11 @@ class RealtimeManager:
             await self.unsubscribe(websocket, chat_id)
         self._connection_chats.pop(websocket, None)
         user_id = self._connection_users.pop(websocket, None)
+        session_id = self._connection_sessions.pop(websocket, None)
+        if session_id:
+            self._session_connections[session_id].discard(websocket)
+            if not self._session_connections[session_id]:
+                self._session_connections.pop(session_id, None)
         went_offline = False
         if user_id:
             self._user_connections[user_id].discard(websocket)
@@ -82,8 +91,18 @@ class RealtimeManager:
             try:
                 await websocket.close(code=code)
             except (RuntimeError, WebSocketDisconnect):
-                pass
-            await self.disconnect(websocket)
+                await self.disconnect(websocket)
+            else:
+                await self.disconnect(websocket)
+
+    async def disconnect_session(self, session_id: UUID, code: int = 1008) -> None:
+        for websocket in list(self._session_connections.get(session_id, set())):
+            try:
+                await websocket.close(code=code)
+            except (RuntimeError, WebSocketDisconnect):
+                await self.disconnect(websocket)
+            else:
+                await self.disconnect(websocket)
 
 
 realtime_manager = RealtimeManager()

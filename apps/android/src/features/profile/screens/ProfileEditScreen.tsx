@@ -13,7 +13,7 @@ import { avatarEmoji, builtInAvatarRefs, type BuiltInAvatarRef } from '../avatar
 const usernamePattern = /^[A-Za-z0-9]{3,32}$/;
 
 export function ProfileEditScreen() {
-  const { session, saveSession } = useSession();
+  const { session, updateSessionUser } = useSession();
   const { t } = useI18n();
   const [displayName, setDisplayName] = useState(session?.user.displayName ?? '');
   const [username, setUsername] = useState(session?.user.username ?? '');
@@ -63,7 +63,7 @@ export function ProfileEditScreen() {
         phonePublic: phone.trim() ? phonePublic : false,
         avatarRef,
       });
-      await saveSession({ ...session, user: profileUser });
+      await updateSessionUser(profileUser);
 
       const nextUser =
         username.trim() === profileUser.username
@@ -71,7 +71,7 @@ export function ProfileEditScreen() {
           : await updateUsername(username);
 
       if (nextUser !== profileUser) {
-        await saveSession({ ...session, user: nextUser });
+        await updateSessionUser(nextUser);
       }
       setStatus(t('profileUpdated'));
     } catch (nextError) {

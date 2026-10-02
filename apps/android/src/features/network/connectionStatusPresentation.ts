@@ -3,7 +3,7 @@ import type { IconName } from '../../ui/Icon';
 import type { RealtimeConnectionStatus } from '../realtime/RealtimeProvider';
 import type { NetworkConnection, NetworkTransport } from './networkClient';
 
-export type ConnectionStatusTone = 'danger' | 'primary' | 'success';
+export type ConnectionStatusTone = 'danger' | 'primary';
 
 export interface ConnectionStatusPresentation {
   icon: IconName;
@@ -19,17 +19,6 @@ function connectingKeyForTransport(transport: NetworkTransport): TranslationKey 
       return 'networkConnectingWifi';
     default:
       return 'networkConnecting';
-  }
-}
-
-function connectedKeyForTransport(transport: NetworkTransport): TranslationKey {
-  switch (transport) {
-    case 'cellular':
-      return 'networkConnectedMobile';
-    case 'wifi':
-      return 'networkConnectedWifi';
-    default:
-      return 'networkConnected';
   }
 }
 
@@ -56,11 +45,7 @@ export function connectionStatusPresentation(
       if (realtimeConnectionStatus === 'disconnected') {
         return { icon: 'refresh', key: 'networkRestoringAraChat', tone: 'primary' };
       }
-      return {
-        icon: 'check',
-        key: connectedKeyForTransport(connection.transport),
-        tone: 'success',
-      };
+      return null;
     default:
       return null;
   }

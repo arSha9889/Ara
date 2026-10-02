@@ -81,6 +81,7 @@ from app.services.phone_verification_service import (
     handle_telegram_bot_update,
     verify_phone_code,
 )
+from app.services.realtime_revocation_service import realtime_revocation_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -280,11 +281,12 @@ async def password_reset_confirm(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, str]:
     try:
-        await finish_password_reset(session, request.email, request.code, request.new_password, request.device_id)
+        user_id = await finish_password_reset(session, request.email, request.code, request.new_password, request.device_id)
     except SmtpDeliveryError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await realtime_revocation_service.disconnect_user(user_id)
     return {'status': 'ok'}
 
 
@@ -448,7 +450,9 @@ async def logout(
     request: LogoutRequest,
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, str]:
-    await logout_by_refresh_token(session, request.refresh_token)
+    session_id = await logout_by_refresh_token(session, request.refresh_token)
+    if session_id:
+        await realtime_revocation_service.disconnect_session(session_id)
     return {'status': 'ok'}
 
 
@@ -495,4 +499,5 @@ async def delete_current_account(
         await delete_account(session, current_user.id)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await realtime_revocation_service.disconnect_user(current_user.id)
     return {'status': 'ok'}

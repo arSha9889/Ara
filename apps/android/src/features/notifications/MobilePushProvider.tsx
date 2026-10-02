@@ -15,7 +15,6 @@ type MobilePushStatus = 'unsupported' | 'disabled' | 'enabled' | 'denied';
 
 interface MobilePushContextValue {
   status: MobilePushStatus;
-  enableNotifications(): Promise<void>;
 }
 
 const MobilePushContext = createContext<MobilePushContextValue | null>(null);
@@ -23,6 +22,7 @@ const MobilePushContext = createContext<MobilePushContextValue | null>(null);
 export function MobilePushProvider({ children }: { children: ReactNode }) {
   const { session } = useSession();
   const canUsePush = Boolean(session?.user.legalDocumentsCurrent);
+  const userId = session?.user.id;
   const [status, setStatus] = useState<MobilePushStatus>(() =>
     pushClientIsAvailable() ? 'disabled' : 'unsupported',
   );
@@ -40,32 +40,51 @@ export function MobilePushProvider({ children }: { children: ReactNode }) {
   }, [registerToken]);
 
   useEffect(() => {
-    if (!canUsePush || !pushClientIsAvailable()) {
+    if (!canUsePush || !userId || !pushClientIsAvailable()) {
       return;
     }
 
     let active = true;
     const request = ++permissionStatusRequest.current;
-    getNotificationPermissionStatus()
-      .then(permission => {
+    (async () => {
+      try {
+        const permission = await getNotificationPermissionStatus();
+        const shouldRequestPermission = await sessionStore.consumeNotificationPermissionRequest(userId);
+
         if (!active || request !== permissionStatusRequest.current) {
           return;
         }
+
         setStatus(permission === 'granted' ? 'enabled' : 'disabled');
         if (permission === 'granted') {
           syncTokens();
+          return;
         }
-      })
-      .catch(() => {
+
+        if (!shouldRequestPermission) {
+          return;
+        }
+
+        const requestedPermission = await requestNotificationPermission();
+        if (active && request === permissionStatusRequest.current) {
+          if (requestedPermission === 'granted') {
+            setStatus('enabled');
+            syncTokens();
+          } else {
+            setStatus('denied');
+          }
+        }
+      } catch {
         if (active && request === permissionStatusRequest.current) {
           setStatus('disabled');
         }
-      });
+      }
+    })();
 
     return () => {
       active = false;
     };
-  }, [canUsePush, syncTokens]);
+  }, [canUsePush, syncTokens, userId]);
 
   useEffect(() => {
     if (!canUsePush || status !== 'enabled') {
@@ -77,27 +96,7 @@ export function MobilePushProvider({ children }: { children: ReactNode }) {
     });
   }, [canUsePush, registerToken, status]);
 
-  const enableNotifications = useCallback(async () => {
-    if (!pushClientIsAvailable()) {
-      setStatus('unsupported');
-      return;
-    }
-
-    ++permissionStatusRequest.current;
-    const permission = await requestNotificationPermission();
-    if (permission !== 'granted') {
-      setStatus('denied');
-      return;
-    }
-
-    setStatus('enabled');
-    syncTokens();
-  }, [syncTokens]);
-
-  const value = useMemo(
-    () => ({ status, enableNotifications }),
-    [enableNotifications, status],
-  );
+  const value = useMemo(() => ({ status }), [status]);
 
   return <MobilePushContext.Provider value={value}>{children}</MobilePushContext.Provider>;
 }

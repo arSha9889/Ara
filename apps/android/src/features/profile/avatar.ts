@@ -1,3 +1,5 @@
+import { runtimeConfig } from '../../config/runtimeConfig';
+
 export const builtInAvatarRefs = [
   'animal-01',
   'animal-02',
@@ -50,4 +52,27 @@ export function avatarEmoji(avatarRef?: string): string | null {
   return avatarRef && avatarRef in avatarEmojis
     ? avatarEmojis[avatarRef as BuiltInAvatarRef]
     : null;
+}
+
+export function uploadedAvatarUrl(
+  avatarType?: string | null,
+  avatarRef?: string | null,
+): string | null {
+  if (avatarType !== 'uploaded' || !avatarRef?.trim()) {
+    return null;
+  }
+
+  const value = avatarRef.trim();
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  if (
+    !runtimeConfig.apiBaseUrl ||
+    (!value.startsWith('/storage/') && !value.startsWith('/api/media/avatars/'))
+  ) {
+    return null;
+  }
+
+  return `${runtimeConfig.apiBaseUrl}${value}`;
 }

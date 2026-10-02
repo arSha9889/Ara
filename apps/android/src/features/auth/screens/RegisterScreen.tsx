@@ -146,6 +146,9 @@ export function RegisterScreen({ country, onBack }: RegisterScreenProps) {
         language,
         country,
       });
+      await sessionStore
+        .markNotificationPermissionRequest(session.user.id)
+        .catch(() => undefined);
       await saveSession(session);
     } catch (nextError) {
       setError(t(registrationErrorKey(nextError)));
