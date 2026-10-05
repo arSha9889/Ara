@@ -276,21 +276,22 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             ]
             session.add_all(history_messages)
             await session.commit()
-            message_outside_history = history_messages[-1]
+            oldest_message_outside_history = history_messages[0]
+            newest_history_message = history_messages[-1]
 
             ordinary_history = await list_messages(session, second_user.id, chat.id)
             assert len(ordinary_history) == 100
-            assert message_outside_history.id not in {
-                item.id for item in ordinary_history
-            }
-            exact_message_outside_history = await get_message(
+            history_message_ids = {item.id for item in ordinary_history}
+            assert oldest_message_outside_history.id not in history_message_ids
+            assert newest_history_message.id in history_message_ids
+            exact_newest_history_message = await get_message(
                 session,
                 second_user.id,
                 chat.id,
-                message_outside_history.id,
+                newest_history_message.id,
             )
-            assert exact_message_outside_history.id == message_outside_history.id
-            assert exact_message_outside_history.payload == 'История 100'
+            assert exact_newest_history_message.id == newest_history_message.id
+            assert exact_newest_history_message.payload == 'История 100'
     finally:
         await engine.dispose()
 

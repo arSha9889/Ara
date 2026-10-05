@@ -29,13 +29,13 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
 
   @ReactMethod
   fun getTokens(promise: Promise) {
+    val selectedProvider = PushProviderSelector.select(reactApplicationContext)
     RuStoreUniversalPushClient.getTokens()
       .addOnSuccessListener { tokens ->
         val result = Arguments.createMap()
-        tokens.forEach { (provider, token) ->
-          if (token.isNotBlank()) {
-            result.putString(provider, token)
-          }
+        val token = tokens[selectedProvider.sdkKey]
+        if (!token.isNullOrBlank()) {
+          result.putString(selectedProvider.sdkKey, token)
         }
         promise.resolve(result)
       }
@@ -120,10 +120,10 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
       PERMISSION_GRANTED
     } else {
       PERMISSION_DENIED
-    }
+  }
 
   private fun emitToken(provider: String, token: String) {
-    if (token.isBlank()) {
+    if (provider != PushProviderSelector.select(reactApplicationContext).sdkKey || token.isBlank()) {
       return
     }
 

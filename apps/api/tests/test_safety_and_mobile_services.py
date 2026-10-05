@@ -104,7 +104,7 @@ async def test_mobile_push_token_moves_to_current_user_and_deactivates() -> None
 
 
 @pytest.mark.anyio
-async def test_mobile_push_tokens_keep_rustore_and_fcm_for_one_device() -> None:
+async def test_mobile_push_token_registration_deactivates_the_other_provider_for_one_device() -> None:
     engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     try:
@@ -129,7 +129,11 @@ async def test_mobile_push_tokens_keep_rustore_and_fcm_for_one_device() -> None:
 
             tokens = list((await session.execute(select(MobilePushToken))).scalars())
             assert {token.provider for token in tokens} == {'rustore', 'fcm'}
-            assert all(token.is_active for token in tokens)
+            assert {
+                token.provider
+                for token in tokens
+                if token.is_active
+            } == {'fcm'}
     finally:
         await engine.dispose()
 

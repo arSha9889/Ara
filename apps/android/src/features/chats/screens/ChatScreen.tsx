@@ -128,6 +128,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const [isSending, setIsSending] = useState(false);
   const [isPickingAttachment, setIsPickingAttachment] = useState(false);
   const [isAttachmentPickerVisible, setIsAttachmentPickerVisible] = useState(false);
+  const [isRecordingPickerVisible, setIsRecordingPickerVisible] = useState(false);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isStoppingVoiceRecording, setIsStoppingVoiceRecording] = useState(false);
   const [voiceRecordingSeconds, setVoiceRecordingSeconds] = useState(0);
@@ -822,12 +823,17 @@ export function ChatScreen({ navigation, route }: Props) {
 
     setAttachmentError('');
     if (Platform.OS === 'android') {
-      const permission = await PermissionsAndroid.request(
+      const permissions = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.CAMERA,
-      );
-      if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      ]);
+      if (
+        permissions[PermissionsAndroid.PERMISSIONS.CAMERA] !== PermissionsAndroid.RESULTS.GRANTED ||
+        permissions[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== PermissionsAndroid.RESULTS.GRANTED
+      ) {
         setAttachmentError(t('videoNotePermissionDenied'));
         setIsAttachmentPickerVisible(false);
+        setIsRecordingPickerVisible(false);
         return;
       }
     }
@@ -1700,32 +1706,11 @@ export function ChatScreen({ navigation, route }: Props) {
               value={text}
             />
             <View style={styles.composerQuickActions}>
-              <Pressable
-                accessibilityHint={t('attachmentVideoNoteHint')}
-                accessibilityLabel={t('attachmentVideoNote')}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: isSending || isPickingAttachment }}
-                disabled={isSending || isPickingAttachment}
-                hitSlop={4}
-                onPress={() => {
-                  startVideoNoteRecording().catch(() => undefined);
-                }}
-                style={({ pressed }) => [
-                  styles.composerVideoNoteButton,
-                  (isSending || isPickingAttachment) && styles.composerVideoNoteButtonDisabled,
-                  pressed &&
-                    !isSending &&
-                    !isPickingAttachment &&
-                    styles.composerVideoNoteButtonPressed,
-                ]}
-              >
-                <Icon color={colors.primary} name="videoNote" size={21} />
-              </Pressable>
               <Animated.View
                 style={{ transform: [{ scale: composerActionScale }] }}
               >
                 <Pressable
-                  accessibilityHint={composerShowsSend ? undefined : t('attachmentVoiceHint')}
+                  accessibilityHint={composerShowsSend ? undefined : t('recordMessageHint')}
                   accessibilityLabel={
                     isSending
                       ? selectedAttachment
@@ -1735,7 +1720,7 @@ export function ChatScreen({ navigation, route }: Props) {
                         ? selectedAttachment
                           ? t('sendAttachment')
                           : t('sendMessage')
-                        : t('attachmentVoice')
+                        : t('recordMessage')
                   }
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isSending || isPickingAttachment }}
@@ -1746,7 +1731,7 @@ export function ChatScreen({ navigation, route }: Props) {
                       handleSend().catch(() => undefined);
                       return;
                     }
-                    startVoiceRecording().catch(() => undefined);
+                    setIsRecordingPickerVisible(true);
                   }}
                   style={({ pressed }) => [
                     styles.composerPrimaryButton,
@@ -1760,11 +1745,16 @@ export function ChatScreen({ navigation, route }: Props) {
                   {isSending ? (
                     <ActivityIndicator color={colors.canvas} size="small" />
                   ) : (
-                    <Icon
-                      color={colors.canvas}
-                      name={composerShowsSend ? 'send' : 'microphone'}
-                      size={20}
-                    />
+                    <View style={styles.composerPrimaryButtonContent}>
+                      <Icon
+                        color={colors.canvas}
+                        name={composerShowsSend ? 'send' : 'microphone'}
+                        size={20}
+                      />
+                      {!composerShowsSend ? (
+                        <Icon color={colors.canvas} name="chevronDown" size={14} />
+                      ) : null}
+                    </View>
                   )}
                 </Pressable>
               </Animated.View>
@@ -2107,6 +2097,87 @@ export function ChatScreen({ navigation, route }: Props) {
                     {t('attachmentFileDescription')}
                   </Text>
                 </View>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setIsRecordingPickerVisible(false)}
+        transparent
+        visible={isRecordingPickerVisible}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable
+            accessibilityLabel={t('closeRecordingPicker')}
+            accessibilityRole="button"
+            disabled={isPickingAttachment}
+            onPress={() => setIsRecordingPickerVisible(false)}
+            style={styles.sheetBackdrop}
+          />
+          <View
+            accessibilityLabel={t('recordMessage')}
+            accessibilityViewIsModal
+            style={[sharedStyles.glassPanel, styles.attachmentSheet]}
+          >
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>{t('recordMessage')}</Text>
+            <Text style={styles.attachmentSheetDescription}>{t('recordMessageDescription')}</Text>
+            <View style={styles.attachmentPickerMediaRow}>
+              <Pressable
+                accessibilityHint={t('attachmentVoiceHint')}
+                accessibilityLabel={t('attachmentVoice')}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isPickingAttachment }}
+                disabled={isPickingAttachment}
+                onPress={() => {
+                  setIsRecordingPickerVisible(false);
+                  startVoiceRecording().catch(() => undefined);
+                }}
+                style={({ pressed }) => [
+                  styles.attachmentPickerTile,
+                  styles.recordingPickerTile,
+                  isPickingAttachment && styles.attachmentPickerTileDisabled,
+                  pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
+                ]}
+              >
+                <View style={styles.attachmentPickerTileIcon}>
+                  <Icon color={colors.primary} name="microphone" size={23} />
+                </View>
+                <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
+                  {t('attachmentVoice')}
+                </Text>
+                <Text numberOfLines={2} style={styles.attachmentPickerTileDescription}>
+                  {t('attachmentVoiceDescription')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityHint={t('attachmentVideoNoteHint')}
+                accessibilityLabel={t('attachmentVideoNote')}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isPickingAttachment }}
+                disabled={isPickingAttachment}
+                onPress={() => {
+                  setIsRecordingPickerVisible(false);
+                  startVideoNoteRecording().catch(() => undefined);
+                }}
+                style={({ pressed }) => [
+                  styles.attachmentPickerTile,
+                  styles.recordingPickerTile,
+                  isPickingAttachment && styles.attachmentPickerTileDisabled,
+                  pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
+                ]}
+              >
+                <View style={styles.attachmentPickerTileIcon}>
+                  <Icon color={colors.primary} name="videoNote" size={23} />
+                </View>
+                <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
+                  {t('attachmentVideoNote')}
+                </Text>
+                <Text numberOfLines={2} style={styles.attachmentPickerTileDescription}>
+                  {t('attachmentVideoNoteDescription')}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -2668,8 +2739,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     lineHeight: 22,
-    maxHeight: 180,
-    minHeight: 96,
+    maxHeight: 240,
+    minHeight: 120,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
@@ -2680,21 +2751,10 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     gap: spacing.xs,
   },
-  composerVideoNoteButton: {
+  composerPrimaryButtonContent: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.1)',
-    borderColor: colors.glassBorder,
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  composerVideoNoteButtonDisabled: {
-    opacity: 0.45,
-  },
-  composerVideoNoteButtonPressed: {
-    backgroundColor: colors.surfacePressed,
+    flexDirection: 'row',
+    marginLeft: 3,
   },
   composerPrimaryButton: {
     alignItems: 'center',
@@ -2774,6 +2834,11 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   attachmentPickerMediaTile: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 152,
+  },
+  recordingPickerTile: {
     flex: 1,
     minWidth: 0,
     minHeight: 152,

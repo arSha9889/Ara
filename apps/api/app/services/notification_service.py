@@ -145,6 +145,16 @@ async def save_mobile_push_token(
                 last_seen_at=now,
             )
             session.add(token)
+        await session.execute(
+            MobilePushToken.__table__.update()
+            .where(
+                MobilePushToken.user_id == user_id,
+                MobilePushToken.device_id == request.device_id,
+                MobilePushToken.provider != request.provider,
+                MobilePushToken.is_active.is_(True),
+            )
+            .values(is_active=False)
+        )
         await session.commit()
     except Exception:
         await session.rollback()

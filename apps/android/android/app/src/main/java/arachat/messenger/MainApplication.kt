@@ -33,19 +33,27 @@ class MainApplication : Application(), ReactApplication {
   }
 
   private fun initializePushProviders() {
-    val rustoreProjectId = BuildConfig.RUSTORE_PUSH_PROJECT_ID.trim()
-    val rustoreProvider = rustoreProjectId.takeIf { it.isNotEmpty() }?.let { projectId ->
-      RuStorePushProvider(
-        application = this,
-        projectId = projectId,
-        logger = PushLogger,
-      )
+    val selectedProvider = PushProviderSelector.select(this)
+    val rustoreProvider = if (selectedProvider == AndroidPushProvider.RUSTORE) {
+      BuildConfig.RUSTORE_PUSH_PROJECT_ID.trim().takeIf { it.isNotEmpty() }?.let { projectId ->
+        RuStorePushProvider(
+          application = this,
+          projectId = projectId,
+          logger = PushLogger,
+        )
+      }
+    } else {
+      null
     }
 
     RuStoreUniversalPushClient.init(
       context = this,
       rustore = rustoreProvider,
-      firebase = FirebasePushProvider(context = this),
+      firebase = if (selectedProvider == AndroidPushProvider.FCM) {
+        FirebasePushProvider(context = this)
+      } else {
+        null
+      },
     )
   }
 

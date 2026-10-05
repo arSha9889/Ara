@@ -7,6 +7,7 @@ import { useSession } from '../../auth/session/useSession';
 import { useI18n } from '../../../localization/I18nProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
+import { Icon } from '../../../ui/Icon';
 import { avatarEmoji } from '../avatar';
 
 function firstLetter(value: string): string {
@@ -26,19 +27,24 @@ export function ProfileScreen() {
       <Text style={sharedStyles.eyebrow}>{t('account')}</Text>
       <Text style={sharedStyles.title}>{t('profile')}</Text>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => navigation.navigate('ProfileEdit')}
-        style={({ pressed }) => [sharedStyles.elevatedCard, styles.profileCard, pressed && styles.pressed]}
-      >
+      <View style={[sharedStyles.elevatedCard, styles.profileCard]}>
         <View accessibilityLabel={`${t('profile')} ${name}`} style={styles.avatar}>
           <Text style={avatar ? styles.avatarEmoji : styles.avatarLetter}>{avatar ?? firstLetter(name)}</Text>
         </View>
         <Text style={styles.name}>{name}</Text>
         {user?.username ? <Text style={styles.username}>@{user.username}</Text> : null}
         {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
-        <Text style={styles.editLabel}>{t('editProfile')}</Text>
-      </Pressable>
+        <Pressable
+          accessibilityLabel={t('editProfile')}
+          accessibilityRole="button"
+          hitSlop={4}
+          onPress={() => navigation.navigate('ProfileEdit')}
+          style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
+        >
+          <Icon color={colors.canvas} name="compose" size={20} />
+          <Text style={styles.editLabel}>{t('editProfile')}</Text>
+        </Pressable>
+      </View>
 
       <View style={[sharedStyles.glassCard, styles.identifierCard]}>
         <Text style={styles.identifierLabel}>{t('arachatId')}</Text>
@@ -96,10 +102,23 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   editLabel: {
-    color: colors.primary,
+    color: colors.canvas,
     fontSize: 14,
     fontWeight: '700',
-    marginTop: spacing.sm,
+  },
+  editButton: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryStrong,
+    borderRadius: 24,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+  },
+  editButtonPressed: {
+    backgroundColor: colors.primaryPressed,
   },
   identifierCard: {
     marginTop: spacing.md,
@@ -124,8 +143,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: spacing.sm,
-  },
-  pressed: {
-    opacity: 0.78,
   },
 });

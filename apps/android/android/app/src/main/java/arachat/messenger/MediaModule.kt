@@ -200,6 +200,10 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
       promise.reject("CAMERA_PERMISSION_DENIED", "Для записи видеосообщения нужен доступ к камере.")
       return
     }
+    if (ContextCompat.checkSelfPermission(reactApplicationContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+      promise.reject("VIDEO_NOTE_AUDIO_PERMISSION_DENIED", "Для записи видеосообщения нужен доступ к микрофону.")
+      return
+    }
 
     val activity = reactApplicationContext.currentActivity
     if (activity == null) {
@@ -208,8 +212,9 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     val target = File(draftsDirectory(), "video-note-${UUID.randomUUID()}.mp4")
+    var outputUri: Uri? = null
     try {
-      val outputUri = FileProvider.getUriForFile(
+      outputUri = FileProvider.getUriForFile(
         reactApplicationContext,
         "${reactApplicationContext.packageName}.media",
         target,
@@ -218,18 +223,47 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         setType("video/mp4")
         putExtra(MediaStore.EXTRA_OUTPUT, outputUri)
         putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0)
+        putExtra(MediaStore.EXTRA_SIZE_LIMIT, MAX_ATTACHMENT_BYTES)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         clipData = ClipData.newRawUri("video-note", outputUri)
+      }
+      val cameraActivities = activity.packageManager.queryIntentActivities(
+        captureIntent,
+        PackageManager.MATCH_DEFAULT_ONLY,
+      )
+      if (cameraActivities.isEmpty()) {
+        target.delete()
+        promise.reject("VIDEO_NOTE_UNAVAILABLE", "Системная камера недоступна на этом устройстве.")
+        return
+      }
+      cameraActivities.forEach { resolveInfo ->
+        reactApplicationContext.grantUriPermission(
+          resolveInfo.activityInfo.packageName,
+          outputUri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        )
       }
 
       pendingVideoNote = PendingVideoNote(promise = promise, target = target, outputUri = outputUri)
       activity.startActivityForResult(captureIntent, VIDEO_NOTE_RECORDING_REQUEST_CODE)
     } catch (_: ActivityNotFoundException) {
       pendingVideoNote = null
+      outputUri?.let { uri ->
+        reactApplicationContext.revokeUriPermission(
+          uri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        )
+      }
       target.delete()
       promise.reject("VIDEO_NOTE_UNAVAILABLE", "Системная камера недоступна на этом устройстве.")
     } catch (_: Exception) {
       pendingVideoNote = null
+      outputUri?.let { uri ->
+        reactApplicationContext.revokeUriPermission(
+          uri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        )
+      }
       target.delete()
       promise.reject("VIDEO_NOTE_UNAVAILABLE", "Не удалось открыть системную камеру.")
     }
@@ -602,6 +636,10 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     pendingPicker?.promise?.reject("PICKER_CANCELLED", "Выбор вложения был отменён.")
     pendingPicker = null
     pendingVideoNote?.let { pending ->
+      reactApplicationContext.revokeUriPermission(
+        pending.outputUri,
+        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+      )
       pending.target.delete()
       pending.promise.reject("VIDEO_NOTE_CANCELLED", "Запись видеосообщения была отменена.")
     }
@@ -975,6 +1013,9 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
       attachmentKind == AttachmentKind.PHOTO && name.endsWith(".png") -> "image/png"
       attachmentKind == AttachmentKind.PHOTO && name.endsWith(".gif") -> "image/gif"
       attachmentKind == AttachmentKind.PHOTO && name.endsWith(".webp") -> "image/webp"
+      attachmentKind == AttachmentKind.PHOTO && name.endsWith(".heic") -> "image/heic"
+      attachmentKind == AttachmentKind.PHOTO && name.endsWith(".heif") -> "image/heif"
+      attachmentKind == AttachmentKind.PHOTO && name.endsWith(".avif") -> "image/avif"
       attachmentKind == AttachmentKind.DOCUMENT && name.endsWith(".pdf") -> "application/pdf"
       attachmentKind == AttachmentKind.DOCUMENT && name.endsWith(".txt") -> "text/plain"
       attachmentKind == AttachmentKind.VIDEO && name.endsWith(".mp4") -> "video/mp4"
@@ -1035,6 +1076,9 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
       "image/png",
       "image/gif",
       "image/webp",
+      "image/heic",
+      "image/heif",
+      "image/avif",
     )
     private val DOCUMENT_MIME_TYPES = setOf(
       "application/pdf",
@@ -1058,6 +1102,9 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
       "image/png" to ".png",
       "image/gif" to ".gif",
       "image/webp" to ".webp",
+      "image/heic" to ".heic",
+      "image/heif" to ".heif",
+      "image/avif" to ".avif",
       "application/pdf" to ".pdf",
       "text/plain" to ".txt",
       "video/mp4" to ".mp4",

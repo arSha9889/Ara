@@ -1,16 +1,24 @@
 import type { ForwardedRef, ReactNode } from 'react';
 import { act, create } from 'react-test-renderer';
+import { PermissionsAndroid } from 'react-native';
 
 import {
+  sendMediaMessage,
   sendTextMessage,
   togglePinMessage,
+  uploadChatAttachment,
   type ChatMessage,
 } from '../src/features/chats/api/chatApi';
+import { recordChatVideoNote } from '../src/features/chats/media/mediaClient';
 
 const mockGetMessages = jest.fn();
 const mockGetChat = jest.fn();
+const mockRecordChatVideoNote = recordChatVideoNote as jest.Mock;
+const mockRequestMultiple = PermissionsAndroid.requestMultiple as jest.Mock;
+const mockSendMediaMessage = sendMediaMessage as jest.Mock;
 const mockSendTextMessage = sendTextMessage as jest.Mock;
 const mockTogglePinMessage = togglePinMessage as jest.Mock;
+const mockUploadChatAttachment = uploadChatAttachment as jest.Mock;
 const mockStartCall = jest.fn();
 const mockSubscribeToChat = jest.fn();
 const mockSubscribeToEvents = jest.fn();
@@ -96,6 +104,7 @@ jest.mock('react-native', () => {
       PERMISSIONS: { CAMERA: 'CAMERA', RECORD_AUDIO: 'RECORD_AUDIO' },
       RESULTS: { GRANTED: 'granted' },
       request: jest.fn(),
+      requestMultiple: jest.fn(),
     },
     Platform: {
       OS: 'android',
@@ -247,8 +256,12 @@ function ownTextMessage(
 async function renderChatScreen(messages: ChatMessage[]): Promise<ReturnType<typeof create>> {
   mockGetMessages.mockReset();
   mockGetChat.mockReset();
+  mockRecordChatVideoNote.mockReset();
+  mockRequestMultiple.mockReset();
+  mockSendMediaMessage.mockReset();
   mockSendTextMessage.mockReset();
   mockTogglePinMessage.mockReset();
+  mockUploadChatAttachment.mockReset();
   mockSubscribeToChat.mockReset();
   mockSubscribeToEvents.mockReset();
   mockGetMessages.mockResolvedValue(messages);
@@ -391,6 +404,91 @@ test('opens the attachment picker without an Android-unsupported dialog role', a
   expect(attachmentPickerModal?.props.visible).toBe(true);
   expect(attachmentSheet?.props.accessibilityViewIsModal).toBe(true);
   expect(attachmentSheet?.props.accessibilityRole).toBeUndefined();
+
+  await act(async () => {
+    component.unmount();
+  });
+});
+
+test('opens explicit voice and video-note choices from one recording control', async () => {
+  const component = await renderChatScreen([ownTextMessage('message-1', 'sent')]);
+  const recordButton = component.root
+    .findAllByProps({ accessibilityLabel: 'recordMessage' })
+    .find(node => node.props.accessibilityRole === 'button');
+  const recordingPickerModal = component.root
+    .findAllByType('Modal' as never)
+    .find(modal =>
+      modal
+        .findAllByProps({ accessibilityLabel: 'recordMessage' })
+        .some(node => node.props.accessibilityViewIsModal),
+    );
+
+  expect(recordButton).toBeDefined();
+  expect(recordingPickerModal?.props.visible).toBe(false);
+
+  act(() => {
+    recordButton?.props.onPress();
+  });
+
+  expect(recordingPickerModal?.props.visible).toBe(true);
+  const recordingSheet = recordingPickerModal
+    ?.findAllByProps({ accessibilityLabel: 'recordMessage' })
+    .find(node => node.props.accessibilityViewIsModal);
+  expect(recordingSheet?.findByProps({ accessibilityLabel: 'attachmentVoice' })).toBeDefined();
+  expect(recordingSheet?.findByProps({ accessibilityLabel: 'attachmentVideoNote' })).toBeDefined();
+
+  await act(async () => {
+    component.unmount();
+  });
+});
+
+test('uploads a recorded video note and sends it with its type and duration', async () => {
+  const draft = {
+    uri: 'file:///cache/arachat-media/drafts/video-note.mp4',
+    name: 'video-note.mp4',
+    mimeType: 'video/mp4',
+    sizeBytes: 8_192,
+    messageType: 'video_note' as const,
+    durationSeconds: 12,
+  };
+  const upload = {
+    media_url: '/api/media/23e3f4d5-6fd3-423e-b310-7b0fdf8f7359',
+    media_name: 'video-note.mp4',
+    media_mime_type: 'video/mp4',
+    media_size_bytes: 8_192,
+    suggested_message_type: 'video',
+  };
+  const component = await renderChatScreen([ownTextMessage('message-1', 'sent')]);
+  mockRequestMultiple.mockResolvedValue({ CAMERA: 'granted', RECORD_AUDIO: 'granted' });
+  mockRecordChatVideoNote.mockResolvedValue(draft);
+  mockUploadChatAttachment.mockResolvedValue(upload);
+  mockSendMediaMessage.mockResolvedValue({ id: 'video-note-message' });
+
+  act(() => {
+    component.root
+      .findAllByProps({ accessibilityLabel: 'recordMessage' })
+      .find(node => node.props.accessibilityRole === 'button')
+      ?.props.onPress();
+  });
+  await act(async () => {
+    component.root.findByProps({ accessibilityLabel: 'attachmentVideoNote' }).props.onPress();
+    await settleAsyncWork();
+  });
+
+  expect(mockRequestMultiple).toHaveBeenCalledWith(['CAMERA', 'RECORD_AUDIO']);
+  expect(mockRecordChatVideoNote).toHaveBeenCalledWith();
+
+  await act(async () => {
+    component.root.findByProps({ accessibilityLabel: 'sendAttachment' }).props.onPress();
+    await settleAsyncWork();
+  });
+
+  expect(mockUploadChatAttachment).toHaveBeenCalledWith(draft);
+  expect(mockSendMediaMessage).toHaveBeenCalledWith('chat-1', upload, '', {
+    durationSeconds: 12,
+    type: 'video_note',
+    replyToMessageId: undefined,
+  });
 
   await act(async () => {
     component.unmount();

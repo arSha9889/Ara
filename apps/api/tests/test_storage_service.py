@@ -15,6 +15,8 @@ from app.services.storage_service import delete_storage_object, save_upload_file
 
 WEBM_BYTES = b'\x1a\x45\xdf\xa3webm-data'
 PNG_BYTES = b'\x89PNG\r\n\x1a\nimage-data'
+HEIC_BYTES = b'\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic'
+AVIF_BYTES = b'\x00\x00\x00\x18ftypavif\x00\x00\x00\x00mif1avif'
 
 
 def _upload(filename: str, content_type: str, content: bytes) -> UploadFile:
@@ -40,6 +42,34 @@ async def test_save_upload_file_stores_audio_with_normalized_mime_type(tmp_path,
     assert stored.suggested_message_type == 'voice'
     assert stored.storage_key.startswith(f'/storage/uploads/{user_id}/')
     assert (tmp_path / str(user_id) / stored.storage_key.rsplit('/', 1)[-1]).exists()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ('filename', 'mime_type', 'content', 'extension'),
+    [
+        ('photo.heic', 'image/heic', HEIC_BYTES, '.heic'),
+        ('photo.heif', 'image/heif', HEIC_BYTES, '.heif'),
+        ('photo.avif', 'image/avif', AVIF_BYTES, '.avif'),
+    ],
+)
+async def test_save_upload_file_stores_supported_modern_photo_formats(
+    tmp_path,
+    monkeypatch,
+    filename: str,
+    mime_type: str,
+    content: bytes,
+    extension: str,
+) -> None:
+    monkeypatch.setattr(settings, 'storage_backend', 'local')
+    monkeypatch.setattr(settings, 'upload_dir', str(tmp_path))
+    monkeypatch.setattr(settings, 'storage_public_url_prefix', '/storage/uploads')
+
+    stored = await save_upload_file(_upload(filename, mime_type, content), uuid4())
+
+    assert stored.mime_type == mime_type
+    assert stored.suggested_message_type == 'photo'
+    assert stored.storage_key.endswith(extension)
 
 
 @pytest.mark.anyio

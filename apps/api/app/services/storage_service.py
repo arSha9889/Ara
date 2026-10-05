@@ -28,6 +28,9 @@ ALLOWED_MIME_TYPES = {
     'image/png',
     'image/gif',
     'image/webp',
+    'image/heic',
+    'image/heif',
+    'image/avif',
     'video/mp4',
     'video/webm',
     'video/quicktime',
@@ -46,6 +49,9 @@ EXTENSIONS_BY_MIME_TYPE = {
     'image/png': '.png',
     'image/gif': '.gif',
     'image/webp': '.webp',
+    'image/heic': '.heic',
+    'image/heif': '.heif',
+    'image/avif': '.avif',
     'video/mp4': '.mp4',
     'video/webm': '.webm',
     'video/quicktime': '.mov',
@@ -309,6 +315,9 @@ def _validate_file_signature(mime_type: str, header: bytes) -> None:
         'image/png': lambda value: value.startswith(b'\x89PNG\r\n\x1a\n'),
         'image/gif': lambda value: value.startswith((b'GIF87a', b'GIF89a')),
         'image/webp': lambda value: value.startswith(b'RIFF') and value[8:12] == b'WEBP',
+        'image/heic': _has_heif_signature,
+        'image/heif': _has_heif_signature,
+        'image/avif': _has_avif_signature,
         'video/mp4': _has_iso_base_media_signature,
         'video/quicktime': _has_iso_base_media_signature,
         'video/webm': lambda value: value.startswith(b'\x1a\x45\xdf\xa3'),
@@ -328,3 +337,17 @@ def _validate_file_signature(mime_type: str, header: bytes) -> None:
 
 def _has_iso_base_media_signature(header: bytes) -> bool:
     return len(header) >= 12 and header[4:8] == b'ftyp'
+
+
+def _has_heif_signature(header: bytes) -> bool:
+    return bool(_iso_base_media_brands(header) & {b'heic', b'heix', b'hevc', b'hevx', b'mif1', b'msf1'})
+
+
+def _has_avif_signature(header: bytes) -> bool:
+    return bool(_iso_base_media_brands(header) & {b'avif', b'avis'})
+
+
+def _iso_base_media_brands(header: bytes) -> set[bytes]:
+    if not _has_iso_base_media_signature(header):
+        return set()
+    return {header[index:index + 4] for index in range(8, len(header) - 3, 4)}

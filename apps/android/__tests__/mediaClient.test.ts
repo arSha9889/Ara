@@ -79,18 +79,18 @@ test('reads a selected video from the native picker draft', async () => {
   });
 });
 
-test('reads a selected photo from the native photo picker draft', async () => {
+test('reads a selected HEIC photo from the native photo picker draft', async () => {
   nativeMedia.pickPhoto.mockResolvedValue({
-    uri: 'file:///cache/arachat-media/drafts/photo.jpg',
-    name: 'photo.jpg',
-    mimeType: 'image/jpeg',
+    uri: 'file:///cache/arachat-media/drafts/photo.heic',
+    name: 'photo.heic',
+    mimeType: 'image/heic',
     sizeBytes: 2_048,
   });
 
   await expect(pickChatPhoto()).resolves.toEqual({
-    uri: 'file:///cache/arachat-media/drafts/photo.jpg',
-    name: 'photo.jpg',
-    mimeType: 'image/jpeg',
+    uri: 'file:///cache/arachat-media/drafts/photo.heic',
+    name: 'photo.heic',
+    mimeType: 'image/heic',
     sizeBytes: 2_048,
   });
 });
