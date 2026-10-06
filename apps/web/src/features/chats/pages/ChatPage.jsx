@@ -675,8 +675,7 @@ export function ChatPage() {
   const typingStopTimerRef = useRef(null);
   const lastTypingSentAtRef = useRef(0);
   const messageListRef = useRef(null);
-  const pendingReadMessageIdsRef = useRef(new Set());
-  const readTimerRef = useRef(null);
+  const readMessageIdsRef = useRef(new Set());
   const isInitialMessageLoadRef = useRef(true);
   const reactionEffectTimersRef = useRef(new Map());
   const reactionRequestIdsRef = useRef(new Set());
@@ -1089,35 +1088,34 @@ export function ChatPage() {
   }, [messageType, selectedFile]);
 
   useEffect(() => {
-    const list = messageListRef.current;
-    if (!list || !messages.length) return undefined;
+    if (!isChatIdValid || !session.accessToken || !session.user?.id) return;
 
-    const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-          pendingReadMessageIdsRef.current.add(entry.target.dataset.messageId);
+    const messageIds = messages
+      .filter((message) => (
+        !message.deleted_at
+        && message.sender_id !== session.user.id
+        && !readMessageIdsRef.current.has(message.id)
+      ))
+      .map((message) => message.id);
+
+    if (!messageIds.length) return;
+
+    messageIds.forEach((messageId) => readMessageIdsRef.current.add(messageId));
+
+    async function markUnreadMessagesRead() {
+      for (let offset = 0; offset < messageIds.length; offset += 100) {
+        const messageIdBatch = messageIds.slice(offset, offset + 100);
+        try {
+          await markMessagesRead(session.accessToken, chatId, messageIdBatch);
+          markMessageNotificationsRead(chatId, messageIdBatch);
+        } catch {
+          messageIdBatch.forEach((messageId) => readMessageIdsRef.current.delete(messageId));
         }
       }
-      if (!pendingReadMessageIdsRef.current.size || readTimerRef.current) return;
-      readTimerRef.current = window.setTimeout(() => {
-        const messageIds = [...pendingReadMessageIdsRef.current];
-        pendingReadMessageIdsRef.current.clear();
-        readTimerRef.current = null;
-        markMessagesRead(session.accessToken, chatId, messageIds)
-          .then(() => markMessageNotificationsRead(chatId, messageIds))
-          .catch(() => undefined);
-      }, 150);
-    }, { root: list, threshold: [0.5] });
+    }
 
-    list.querySelectorAll('[data-incoming-message="true"]').forEach((element) => observer.observe(element));
-    return () => {
-      observer.disconnect();
-      if (readTimerRef.current) {
-        window.clearTimeout(readTimerRef.current);
-        readTimerRef.current = null;
-      }
-    };
-  }, [chatId, messages, session.accessToken]);
+    markUnreadMessagesRead();
+  }, [chatId, isChatIdValid, markMessageNotificationsRead, messages, session.accessToken, session.user?.id]);
 
   useLayoutEffect(() => {
     const list = messageListRef.current;
@@ -2010,8 +2008,6 @@ export function ChatPage() {
             {messageDate ? <div className="message-date-divider" role="separator" aria-label={messageDate}><span>{messageDate}</span></div> : null}
             <article
             id={`message-${message.id}`}
-            data-message-id={message.id}
-            data-incoming-message={message.sender_id !== session.user?.id}
             className={`message-bubble ${message.sender_id === session.user?.id ? 'outgoing' : 'incoming'} ${areMessagesGrouped(messages[index - 1], message) ? 'grouped-with-previous' : ''} ${areMessagesGrouped(message, messages[index + 1]) ? 'grouped-with-next' : ''} ${message.type === 'sticker' ? 'sticker-message' : ''} ${message.encryption_state === 'e2ee_web_v1' ? 'e2ee' : ''} ${message.deleted_at ? 'deleted' : ''} ${message.is_pinned ? 'pinned' : ''} ${highlightedMessageId === message.id ? 'is-highlighted' : ''}`}
             role={!message.deleted_at ? 'button' : undefined}
             tabIndex={!message.deleted_at ? 0 : undefined}

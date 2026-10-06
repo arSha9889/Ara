@@ -1,0 +1,19 @@
+[package]
+name = "arachat-desktop"
+version = "0.1.0"
+description = "AraChat Desktop client"
+authors = ["AraChat"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "arachat_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+keyring = { version = "3.6.2", default-features = false, features = ["apple-native", "windows-native"] }
+tauri-plugin-notification = "2"

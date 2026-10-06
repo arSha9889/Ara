@@ -14,7 +14,12 @@ class Settings(BaseSettings):
     app_name: str = 'AraChat API'
     environment: str = 'dev'
     api_prefix: str = '/api'
-    allowed_origins: list[str] = ['http://localhost:5173']
+    allowed_origins: list[str] = [
+        'http://localhost:5173',
+        'http://localhost:1420',
+        'tauri://localhost',
+        'http://tauri.localhost',
+    ]
     database_url: str = 'postgresql+asyncpg://nexus:nexus@localhost:5432/nexus'
     redis_url: str = 'redis://localhost:6379/0'
     telegram_bot_token: str = ''

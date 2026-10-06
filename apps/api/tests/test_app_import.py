@@ -1,4 +1,18 @@
+import pytest
+
+from app.core.config import Settings
 from app.main import app
+
+
+def test_default_allowed_origins_include_tauri(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv('NEXUS_ALLOWED_ORIGINS', raising=False)
+
+    assert Settings(_env_file=None).allowed_origins == [
+        'http://localhost:5173',
+        'http://localhost:1420',
+        'tauri://localhost',
+        'http://tauri.localhost',
+    ]
 
 
 def test_app_imports_with_auth_routes() -> None:

@@ -39,12 +39,14 @@ class PublicUserProfileOut(BaseModel):
 
 class PublicUserOut(BaseModel):
     id: UUID
+    nexus_id: str
     is_official: bool = False
     profile: PublicUserProfileOut | None
 
 
 class ProfileUpdateRequest(BaseModel):
     display_name: str | None = Field(default=None, max_length=80)
+    username: str | None = Field(default=None, min_length=3, max_length=32)
     email: str | None = Field(default=None, max_length=255)
     optional_phone: str | None = Field(default=None, max_length=32)
     phone_public: bool | None = None

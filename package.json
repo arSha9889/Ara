@@ -11,6 +11,9 @@
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "preview:web": "npm --workspace apps/web run preview",
+    "dev:desktop": "npm --workspace @arachat/desktop run dev",
+    "build:desktop": "npm --workspace @arachat/desktop run build",
+    "tauri:desktop": "npm --workspace @arachat/desktop run tauri",
     "test:api": "apps/api/.venv/bin/pytest -c apps/api/pytest.ini apps/api/tests"
   },
   "engines": {

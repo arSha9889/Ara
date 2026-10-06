@@ -171,7 +171,7 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
         async with session_factory() as session:
             private_profile = await find_public_user(session, 'bobnexus')
             assert private_profile.profile and private_profile.profile.optional_phone == '+79990000002'
-            assert 'nexus_id' not in private_profile.model_dump()
+            assert private_profile.nexus_id == second_user.nexus_id
             assert 'telegram_id' not in private_profile.model_dump()
             assert 'email' not in private_profile.profile.model_dump()
 

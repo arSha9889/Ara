@@ -55,6 +55,43 @@ def test_legal_documents_current_only_for_the_latest_accepted_versions() -> None
     assert not legal_documents_are_current(user)
 
 
+@pytest.mark.anyio
+async def test_public_user_search_returns_arachat_id_and_matches_display_name(anyio_backend) -> None:
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app import models  # noqa: F401
+    from app.db.base import Base
+    from app.models.users import User, UserProfile
+    from app.services.user_service import search_users
+
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    try:
+        async with session_factory() as session:
+            user = User(id=uuid4(), nexus_id='1234567890123456', status='active')
+            session.add_all([
+                user,
+                UserProfile(user_id=user.id, display_name='Mira Orlova', username='miraorlova'),
+            ])
+            await session.commit()
+
+            results = await search_users(session, 'mira')
+
+            assert len(results) == 1
+            assert results[0].nexus_id == '1234567890123456'
+            assert results[0].profile is not None
+            assert results[0].profile.display_name == 'Mira Orlova'
+    finally:
+        await engine.dispose()
+
+
 def test_normalize_phone() -> None:
     assert normalize_phone('8 (999) 123-45-67') == '+79991234567'
     assert normalize_phone('+1 555 123 4567') == '+15551234567'

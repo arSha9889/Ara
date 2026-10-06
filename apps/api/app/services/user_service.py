@@ -26,7 +26,16 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
     if not profile:
         raise AuthError('Profile not found')
     if request.display_name is not None:
-        profile.display_name = request.display_name
+        display_name = request.display_name.strip()
+        if not display_name:
+            raise AuthError('Display name is required')
+        profile.display_name = display_name
+    username_changed = False
+    if request.username is not None and request.username != profile.username:
+        if not await is_username_available(session, request.username):
+            raise AuthError('Этот username уже занят')
+        profile.username = request.username
+        username_changed = True
     if request.email is not None:
         raise AuthError('E-mail can only be changed through e-mail verification')
     if 'optional_phone' in request.model_fields_set:
@@ -90,6 +99,8 @@ async def update_profile(session: AsyncSession, user_id, request: ProfileUpdateR
         await session.commit()
     except IntegrityError as exc:
         await session.rollback()
+        if username_changed:
+            raise AuthError('Этот username уже занят') from exc
         raise AuthError('Phone number is already in use') from exc
     return await get_current_user_out(session, user_id)
 
@@ -118,7 +129,11 @@ async def search_users(session: AsyncSession, query: str, current_user_id=None):
         return []
     statement = select(User).join(UserProfile).where(
         User.deleted_at.is_(None),
-        or_(UserProfile.username.ilike(f'%{value}%'), User.nexus_id == value),
+        or_(
+            UserProfile.display_name.ilike(f'%{value}%'),
+            UserProfile.username.ilike(f'%{value}%'),
+            User.nexus_id == value,
+        ),
     ).limit(20)
     result = await session.execute(statement)
     users = result.scalars().all()
@@ -152,6 +167,7 @@ def to_public_user_out(user: User) -> PublicUserOut:
     profile = user.profile
     return PublicUserOut(
         id=user.id,
+        nexus_id=user.nexus_id,
         is_official=is_configured_admin_profile(profile),
         profile=PublicUserProfileOut(
             display_name=profile.display_name,
