@@ -19,6 +19,7 @@ from app.models.users import User
 from app.db.health import check_database
 from app.services.call_signaling import CallSignalingError, call_signaling_manager, normalize_call_signal
 from app.services.auth_service import AuthError, is_access_token_session_active
+from app.services.notification_service import send_mobile_call_invite_push
 from app.services.realtime_manager import realtime_manager
 from app.services.realtime_revocation_service import realtime_revocation_service
 from app.services.redis_client import check_redis
@@ -85,6 +86,7 @@ def create_app() -> FastAPI:
         was_offline = await realtime_manager.connect_user(websocket, user_id, authentication.session_id)
         if was_offline:
             await _broadcast_presence_to_user_chats(user_id, True)
+        await _send_pending_call_invite(websocket, user_id)
 
         typing_started_at: dict[UUID, float] = {}
         try:
@@ -389,11 +391,14 @@ async def _handle_call_signal(websocket: WebSocket, message: dict, user_id: UUID
         if not peer_user_id:
             await _send_call_failure(websocket, signal['call_id'], 'direct_chat_required')
             return
-        if not realtime_manager.is_user_online(peer_user_id):
-            await _send_call_failure(websocket, signal['call_id'], 'peer_offline')
-            return
         try:
-            await call_signaling_manager.start_call(signal['call_id'], chat_id, user_id, peer_user_id)
+            await call_signaling_manager.start_call(
+                signal['call_id'],
+                chat_id,
+                user_id,
+                peer_user_id,
+                signal['call_type'],
+            )
         except CallSignalingError as exc:
             await _send_call_failure(websocket, signal['call_id'], exc.reason)
             return
@@ -402,6 +407,14 @@ async def _handle_call_signal(websocket: WebSocket, message: dict, user_id: UUID
             'chat_id': str(chat_id),
             'user_id': str(user_id),
         })
+        if not realtime_manager.is_user_online(peer_user_id):
+            await _send_call_invite_push(
+                recipient_user_id=peer_user_id,
+                caller_user_id=user_id,
+                chat_id=chat_id,
+                call_id=signal['call_id'],
+                call_type=signal['call_type'],
+            )
         return
 
     try:
@@ -427,6 +440,42 @@ async def _send_call_failure(websocket: WebSocket, call_id: object, reason: str)
     if isinstance(call_id, str):
         payload['call_id'] = call_id
     await _safe_send_json(websocket, payload)
+
+
+async def _send_pending_call_invite(websocket: WebSocket, user_id: UUID) -> None:
+    session = await call_signaling_manager.get_pending_incoming_call(user_id)
+    if not session:
+        return
+    await _safe_send_json(websocket, {
+        'event': 'call.invite',
+        'call_id': session.call_id,
+        'call_type': session.call_type,
+        'chat_id': str(session.chat_id),
+        'user_id': str(session.caller_user_id),
+    })
+
+
+async def _send_call_invite_push(
+    *,
+    recipient_user_id: UUID,
+    caller_user_id: UUID,
+    chat_id: UUID,
+    call_id: str,
+    call_type: str,
+) -> None:
+    try:
+        async with AsyncSessionLocal() as session:
+            await send_mobile_call_invite_push(
+                session,
+                recipient_user_id,
+                caller_user_id,
+                chat_id,
+                call_id,
+                call_type,
+            )
+    except Exception:
+        # Push delivery must not cancel a valid call when a provider is temporarily unavailable.
+        return
 
 
 async def _end_calls_for_disconnected_user(user_id: UUID) -> None:

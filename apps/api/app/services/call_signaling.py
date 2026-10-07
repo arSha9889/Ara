@@ -30,6 +30,7 @@ class CallSignalingError(ValueError):
 @dataclass
 class CallSession:
     call_id: str
+    call_type: str
     chat_id: UUID
     caller_user_id: UUID
     callee_user_id: UUID
@@ -107,7 +108,14 @@ class CallSignalingManager:
         self._user_call_ids: dict[UUID, str] = {}
         self._lock = asyncio.Lock()
 
-    async def start_call(self, call_id: str, chat_id: UUID, caller_user_id: UUID, callee_user_id: UUID) -> CallSession:
+    async def start_call(
+        self,
+        call_id: str,
+        chat_id: UUID,
+        caller_user_id: UUID,
+        callee_user_id: UUID,
+        call_type: str = 'audio',
+    ) -> CallSession:
         async with self._lock:
             self._remove_expired_calls_locked()
             if call_id in self._calls:
@@ -119,6 +127,7 @@ class CallSignalingManager:
 
             session = CallSession(
                 call_id=call_id,
+                call_type=call_type,
                 chat_id=chat_id,
                 caller_user_id=caller_user_id,
                 callee_user_id=callee_user_id,
@@ -129,6 +138,15 @@ class CallSignalingManager:
             self._calls[call_id] = session
             self._user_call_ids[caller_user_id] = call_id
             self._user_call_ids[callee_user_id] = call_id
+            return session
+
+    async def get_pending_incoming_call(self, user_id: UUID) -> CallSession | None:
+        async with self._lock:
+            self._remove_expired_calls_locked()
+            call_id = self._user_call_ids.get(user_id)
+            session = self._calls.get(call_id) if call_id else None
+            if not session or session.callee_user_id != user_id or session.status != 'ringing':
+                return None
             return session
 
     async def relay_call_signal(self, call_id: str, chat_id: UUID, sender_user_id: UUID, event: str) -> UUID:

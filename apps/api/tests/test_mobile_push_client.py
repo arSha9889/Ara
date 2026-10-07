@@ -9,7 +9,7 @@ import pytest
 from app.core.config import Settings, settings
 from app.schemas.chats import NotificationOut
 from app.services import mobile_push_client
-from app.services.notification_service import _mobile_push_data
+from app.services.notification_service import _mobile_call_push_data, _mobile_push_data
 
 
 class FakeResponse:
@@ -244,3 +244,22 @@ def test_mobile_push_data_skips_messages_without_a_safe_preview() -> None:
     )
 
     assert _mobile_push_data(notification, preview_available=False) is None
+
+
+def test_mobile_call_push_data_contains_only_call_signalling_metadata() -> None:
+    chat_id = uuid4()
+
+    assert _mobile_call_push_data(
+        chat_id=chat_id,
+        call_id='call-123',
+        call_type='video',
+        caller_name='  Ирина\nПетрова  ',
+        recipient_language='ru',
+    ) == {
+        'kind': 'call',
+        'call_id': 'call-123',
+        'call_type': 'video',
+        'chat_id': str(chat_id),
+        'title': 'Ирина Петрова',
+        'body': 'Входящий видеозвонок',
+    }

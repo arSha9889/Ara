@@ -112,6 +112,25 @@ async def test_call_signaling_releases_users_after_call_ends() -> None:
 
 
 @pytest.mark.anyio
+async def test_call_signaling_keeps_a_pending_video_invite_for_an_offline_callee() -> None:
+    manager = CallSignalingManager()
+    chat_id = uuid4()
+    caller_id = uuid4()
+    callee_id = uuid4()
+
+    await manager.start_call('call-123', chat_id, caller_id, callee_id, 'video')
+
+    pending_call = await manager.get_pending_incoming_call(callee_id)
+    assert pending_call is not None
+    assert pending_call.call_id == 'call-123'
+    assert pending_call.call_type == 'video'
+    assert pending_call.caller_user_id == caller_id
+
+    await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.accept')
+    assert await manager.get_pending_incoming_call(callee_id) is None
+
+
+@pytest.mark.anyio
 async def test_call_signaling_ends_call_when_one_participant_blocks_the_other() -> None:
     manager = CallSignalingManager()
     chat_id = uuid4()

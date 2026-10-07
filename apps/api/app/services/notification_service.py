@@ -435,6 +435,47 @@ async def _send_push_to_user(
     return delivered
 
 
+async def send_mobile_call_invite_push(
+    session: AsyncSession,
+    recipient_user_id: UUID,
+    caller_user_id: UUID,
+    chat_id: UUID,
+    call_id: str,
+    call_type: str,
+) -> bool:
+    caller = await session.get(UserProfile, caller_user_id)
+    recipient = await session.get(UserProfile, recipient_user_id)
+    mobile_tokens = list((await session.execute(
+        select(MobilePushToken).where(
+            MobilePushToken.user_id == recipient_user_id,
+            MobilePushToken.is_active.is_(True),
+        )
+    )).scalars())
+    if not mobile_tokens:
+        return False
+
+    mobile_result = await send_mobile_push(
+        _mobile_tokens_by_provider(mobile_tokens),
+        _mobile_call_push_data(
+            chat_id=chat_id,
+            call_id=call_id,
+            call_type=call_type,
+            caller_name=caller.display_name if caller else '',
+            recipient_language=recipient.language if recipient else None,
+        ),
+    )
+    for provider, prefixes in mobile_result.invalid_token_prefixes.items():
+        for prefix in prefixes:
+            matching_tokens = [
+                token for token in mobile_tokens
+                if token.provider == provider and token.token.startswith(prefix)
+            ]
+            if len(matching_tokens) == 1:
+                matching_tokens[0].is_active = False
+    await session.commit()
+    return mobile_result.delivered
+
+
 def _mobile_tokens_by_provider(tokens: list[MobilePushToken]) -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
     for token in tokens:
@@ -466,6 +507,26 @@ def _mobile_push_data(
     if notification.message_id:
         data['message_id'] = str(notification.message_id)
     return data
+
+
+def _mobile_call_push_data(
+    *,
+    chat_id: UUID,
+    call_id: str,
+    call_type: str,
+    caller_name: str,
+    recipient_language: str | None,
+) -> dict[str, str]:
+    normalized_call_type = 'video' if call_type == 'video' else 'audio'
+    title = _mobile_push_text(caller_name, maximum_length=120) or 'AraChat'
+    return {
+        'kind': 'call',
+        'call_id': call_id,
+        'call_type': normalized_call_type,
+        'chat_id': str(chat_id),
+        'title': title,
+        'body': tr(recipient_language, f'notification.call.{normalized_call_type}'),
+    }
 
 
 def _mobile_push_text(value: str, maximum_length: int) -> str:

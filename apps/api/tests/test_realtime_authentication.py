@@ -7,6 +7,7 @@ from app import main
 from app.domain.tokens import AccessTokenClaims
 from app.models.chats import Chat
 from app.models.users import User
+from app.services.call_signaling import CallSignalingManager
 from app.services.realtime_manager import RealtimeManager
 from app.services.realtime_revocation_service import RealtimeRevocationService, SESSION_REVOKED_CLOSE_CODE
 
@@ -206,6 +207,80 @@ async def test_chat_broadcast_can_exclude_all_connections_for_the_sender() -> No
     assert sender_socket.sent == []
     assert sender_second_socket.sent == []
     assert recipient_socket.sent == [payload]
+
+
+@pytest.mark.anyio
+async def test_offline_call_invite_is_queued_and_sent_as_a_mobile_push(monkeypatch: pytest.MonkeyPatch) -> None:
+    caller_id = uuid4()
+    callee_id = uuid4()
+    chat_id = uuid4()
+    websocket = WebSocketStub({})
+    manager = CallSignalingManager()
+    pushes: list[dict[str, object]] = []
+    broadcasts: list[dict[str, object]] = []
+
+    async def direct_call_peer(user_id: UUID, candidate_chat_id: UUID) -> UUID | None:
+        return callee_id if user_id == caller_id and candidate_chat_id == chat_id else None
+
+    async def send_push(**payload: object) -> None:
+        pushes.append(payload)
+
+    async def broadcast_to_user(user_id: UUID, payload: dict) -> None:
+        broadcasts.append({'user_id': user_id, 'payload': payload})
+
+    monkeypatch.setattr(main, '_get_direct_call_peer', direct_call_peer)
+    monkeypatch.setattr(main, '_send_call_invite_push', send_push)
+    monkeypatch.setattr(main, 'call_signaling_manager', manager)
+    monkeypatch.setattr(main.realtime_manager, 'broadcast_to_user', broadcast_to_user)
+    monkeypatch.setattr(main.realtime_manager, 'is_user_online', lambda _: False)
+
+    await main._handle_call_signal(websocket, {
+        'event': 'call.invite',
+        'call_id': 'call-123',
+        'call_type': 'video',
+        'chat_id': str(chat_id),
+    }, caller_id)
+
+    assert websocket.sent == []
+    assert broadcasts == [{
+        'user_id': callee_id,
+        'payload': {
+            'event': 'call.invite',
+            'call_id': 'call-123',
+            'call_type': 'video',
+            'chat_id': str(chat_id),
+            'user_id': str(caller_id),
+        },
+    }]
+    assert pushes == [{
+        'recipient_user_id': callee_id,
+        'caller_user_id': caller_id,
+        'chat_id': chat_id,
+        'call_id': 'call-123',
+        'call_type': 'video',
+    }]
+    assert (await manager.get_pending_incoming_call(callee_id)).call_id == 'call-123'
+
+
+@pytest.mark.anyio
+async def test_pending_video_call_invite_is_resent_when_callee_connects(monkeypatch: pytest.MonkeyPatch) -> None:
+    caller_id = uuid4()
+    callee_id = uuid4()
+    chat_id = uuid4()
+    websocket = WebSocketStub({})
+    manager = CallSignalingManager()
+    await manager.start_call('call-123', chat_id, caller_id, callee_id, 'video')
+    monkeypatch.setattr(main, 'call_signaling_manager', manager)
+
+    await main._send_pending_call_invite(websocket, callee_id)
+
+    assert websocket.sent == [{
+        'event': 'call.invite',
+        'call_id': 'call-123',
+        'call_type': 'video',
+        'chat_id': str(chat_id),
+        'user_id': str(caller_id),
+    }]
 
 
 @pytest.mark.anyio
