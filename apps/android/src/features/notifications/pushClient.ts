@@ -11,6 +11,7 @@ interface NativePushToken {
 
 interface NativePushModule {
   addListener(eventName: string): void;
+  clearMessageNotificationsForChat?: (chatId: string) => void;
   getPendingNotificationOpen?: () => Promise<unknown>;
   getTokens?: () => Promise<Record<string, unknown>>;
   getNotificationPermissionStatus?: () => Promise<NotificationPermissionStatus>;
@@ -88,6 +89,10 @@ export async function getPendingMobilePushOpen(): Promise<unknown | null> {
   }
 
   return nativePush.getPendingNotificationOpen();
+}
+
+export function clearMessageNotificationsForChat(chatId: string): void {
+  nativePush?.clearMessageNotificationsForChat?.(chatId);
 }
 
 export function subscribeToMobilePushOpen(listener: (open: unknown) => void): () => void {

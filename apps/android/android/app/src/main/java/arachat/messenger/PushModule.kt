@@ -108,6 +108,11 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
   }
 
   @ReactMethod
+  fun clearMessageNotificationsForChat(chatId: String) {
+    PushNotificationHandler.clearMessageNotificationsForChat(reactApplicationContext, chatId)
+  }
+
+  @ReactMethod
   fun addListener(eventName: String) = Unit
 
   @ReactMethod

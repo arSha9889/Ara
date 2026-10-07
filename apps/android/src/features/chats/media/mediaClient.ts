@@ -12,6 +12,13 @@ export interface PickedChatAttachment {
   durationSeconds?: number;
 }
 
+export interface MediaLibraryItem {
+  uri: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export interface AudioPlaybackState {
   isPlaying: boolean;
   positionSeconds: number;
@@ -39,7 +46,9 @@ interface NativeMediaModule {
   stopCachedAudioPlayback?: (fileUri: string) => Promise<void>;
   stopVoiceRecording?: () => Promise<unknown>;
   getCachedAudioPlaybackState?: (fileUri: string) => Promise<unknown>;
+  listRecentMedia?: (limit: number) => Promise<unknown>;
   toggleCachedAudioPlayback?: (fileUri: string, mimeType: string) => Promise<unknown>;
+  copyMediaLibraryItem?: (contentUri: string) => Promise<unknown>;
 }
 
 const nativeMedia = NativeModules.AraChatMedia as NativeMediaModule | undefined;
@@ -90,6 +99,36 @@ function parsePickedAttachment(value: unknown): PickedChatAttachment | null {
   };
 }
 
+function parseMediaLibraryItems(value: unknown): MediaLibraryItem[] {
+  if (!Array.isArray(value)) {
+    throw new Error('Не удалось прочитать медиатеку устройства.');
+  }
+
+  return value.map(item => {
+    if (
+      !isRecord(item) ||
+      typeof item.uri !== 'string' ||
+      typeof item.name !== 'string' ||
+      typeof item.mimeType !== 'string' ||
+      typeof item.sizeBytes !== 'number' ||
+      !item.uri.startsWith('content://') ||
+      !item.name.trim() ||
+      !item.mimeType.includes('/') ||
+      !Number.isFinite(item.sizeBytes) ||
+      item.sizeBytes <= 0
+    ) {
+      throw new Error('Элемент медиатеки имеет некорректный формат.');
+    }
+
+    return {
+      uri: item.uri,
+      name: item.name,
+      mimeType: item.mimeType,
+      sizeBytes: item.sizeBytes,
+    };
+  });
+}
+
 function parseAudioPlaybackState(value: unknown): AudioPlaybackState {
   if (
     !isRecord(value) ||
@@ -138,6 +177,28 @@ export async function pickChatDocument(): Promise<PickedChatAttachment | null> {
 export async function pickChatVideo(): Promise<PickedChatAttachment | null> {
   const result = await nativeModuleOrThrow().pickVideo?.();
   return parsePickedAttachment(result);
+}
+
+export async function getRecentChatMedia(limit = 60): Promise<MediaLibraryItem[]> {
+  const module = nativeModuleOrThrow();
+  if (!module.listRecentMedia) {
+    throw new Error('Встроенная медиатека недоступна в этой сборке приложения.');
+  }
+  return parseMediaLibraryItems(await module.listRecentMedia(Math.max(1, Math.min(limit, 100))));
+}
+
+export async function selectChatMediaFromLibrary(
+  contentUri: string,
+): Promise<PickedChatAttachment> {
+  const module = nativeModuleOrThrow();
+  if (!module.copyMediaLibraryItem) {
+    throw new Error('Встроенная медиатека недоступна в этой сборке приложения.');
+  }
+  const attachment = parsePickedAttachment(await module.copyMediaLibraryItem(contentUri));
+  if (!attachment) {
+    throw new Error('Не удалось выбрать объект из медиатеки.');
+  }
+  return attachment;
 }
 
 export async function startChatVoiceRecording(): Promise<void> {

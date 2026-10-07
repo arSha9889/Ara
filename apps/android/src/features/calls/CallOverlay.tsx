@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { RTCView } from 'react-native-webrtc';
 
 import { useI18n } from '../../localization/I18nProvider';
 import { colors, spacing } from '../../theme/theme';
@@ -28,7 +29,9 @@ export function CallOverlay() {
     rejectCall,
     selectAudioRoute,
     selectedAudioRouteId,
+    switchCamera,
     toggleMute,
+    toggleVideo,
   } = useDirectCall();
   const [reduceMotion, setReduceMotion] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -65,12 +68,18 @@ export function CallOverlay() {
   const isIncoming = call.phase === 'incoming';
   const isFailed = call.phase === 'failed';
   const isActive = call.phase === 'active';
+  const isVideoCall = call.callType === 'video';
+  const showVideoStage = isVideoCall && !isIncoming && !isFailed;
   const canEnd = !isIncoming && !isFailed && !isActive;
   const duration = call.connectedAt
     ? formatCallDuration(Math.max(0, Math.floor((now - call.connectedAt) / 1_000)))
     : null;
   const peerName = call.peerName || t('callUnknownCaller');
-  const status = isFailed && call.failure ? t(call.failure) : t(callPhaseKey(call.phase));
+  const status = isFailed && call.failure
+    ? t(call.failure === 'callPermissionDenied' && isVideoCall
+      ? 'callCameraAndMicrophonePermissionDenied'
+      : call.failure)
+    : t(callPhaseKey(call));
 
   return (
     <Modal
@@ -88,18 +97,30 @@ export function CallOverlay() {
       visible
     >
       <SafeAreaView style={styles.safeArea}>
+        {showVideoStage && call.remoteStream ? (
+          <RTCView
+            accessible={false}
+            objectFit="cover"
+            pointerEvents="none"
+            streamURL={call.remoteStream.toURL()}
+            style={styles.remoteVideo}
+            zOrder={0}
+          />
+        ) : null}
         <View pointerEvents="none" style={styles.primaryGlow} />
         <View pointerEvents="none" style={styles.secondaryGlow} />
         <ConnectionStatusStrip />
-        <View style={styles.content}>
-          <View accessibilityElementsHidden style={styles.avatar}>
-            <Text style={styles.avatarLabel}>{peerName.slice(0, 1).toUpperCase()}</Text>
-            {isActive ? <View style={styles.connectedDot} /> : null}
-          </View>
+        <View style={[styles.content, showVideoStage && styles.videoContent]}>
+          {!showVideoStage ? (
+            <View accessibilityElementsHidden style={styles.avatar}>
+              <Text style={styles.avatarLabel}>{peerName.slice(0, 1).toUpperCase()}</Text>
+              {isActive ? <View style={styles.connectedDot} /> : null}
+            </View>
+          ) : null}
 
-          <View accessibilityLiveRegion="polite" style={styles.copy}>
+          <View accessibilityLiveRegion="polite" style={[styles.copy, showVideoStage && styles.videoCopy]}>
             <Text numberOfLines={2} style={styles.name}>{peerName}</Text>
-            <Text style={styles.kind}>{t('callAudio')}</Text>
+            <Text style={styles.kind}>{isVideoCall ? t('callVideo') : t('callAudio')}</Text>
             <Text accessibilityRole="alert" style={[styles.status, isFailed && styles.statusFailed]}>
               {duration || status}
             </Text>
@@ -117,7 +138,7 @@ export function CallOverlay() {
               />
               <CallAction
                 accessibilityLabel={t('callAccept')}
-                icon="call"
+                icon={isVideoCall ? 'video' : 'call'}
                 label={t('callAccept')}
                 onPress={() => {
                   acceptCall().catch(() => undefined);
@@ -150,6 +171,25 @@ export function CallOverlay() {
                   selected={call.isMuted}
                   tone="default"
                 />
+                {isVideoCall ? (
+                  <CallAction
+                    accessibilityLabel={call.isVideoEnabled ? t('callCameraOff') : t('callCameraOn')}
+                    icon={call.isVideoEnabled ? 'video' : 'videoOff'}
+                    label={call.isVideoEnabled ? t('callCameraOff') : t('callCameraOn')}
+                    onPress={toggleVideo}
+                    selected={!call.isVideoEnabled}
+                    tone="default"
+                  />
+                ) : null}
+                {isVideoCall ? (
+                  <CallAction
+                    accessibilityLabel={t('callSwitchCamera')}
+                    icon="cameraSwitch"
+                    label={t('callSwitchCamera')}
+                    onPress={switchCamera}
+                    tone="default"
+                  />
+                ) : null}
                 <CallAction
                   accessibilityLabel={t('callEnd')}
                   icon="hangUp"
@@ -184,6 +224,17 @@ export function CallOverlay() {
             </Pressable>
           ) : null}
         </View>
+        {showVideoStage && call.localStream && call.isVideoEnabled ? (
+          <RTCView
+            accessible={false}
+            mirror={call.isFrontCamera}
+            objectFit="cover"
+            pointerEvents="none"
+            streamURL={call.localStream.toURL()}
+            style={styles.localVideo}
+            zOrder={1}
+          />
+        ) : null}
       </SafeAreaView>
     </Modal>
   );
@@ -235,7 +286,7 @@ function routePresentation(route: CallAudioRoute, t: ReturnType<typeof useI18n>[
 
 interface CallActionProps {
   accessibilityLabel: string;
-  icon: 'call' | 'hangUp' | 'microphone' | 'microphoneOff';
+  icon: IconName;
   label: string;
   onPress(): void;
   selected?: boolean;
@@ -298,6 +349,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xxl,
   },
+  videoContent: {
+    paddingTop: spacing.lg,
+  },
+  remoteVideo: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  localVideo: {
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.glassBorder,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 156,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: spacing.md,
+    top: spacing.xxl + spacing.xl + spacing.xs,
+    width: 112,
+  },
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
@@ -329,6 +402,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     maxWidth: 440,
+  },
+  videoCopy: {
+    backgroundColor: 'rgba(10, 17, 28, 0.78)',
+    borderColor: 'rgba(243, 247, 252, 0.16)',
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   name: {
     color: colors.text,
@@ -365,7 +446,10 @@ const styles = StyleSheet.create({
   },
   activeActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xxl,
+    justifyContent: 'center',
+    maxWidth: 440,
   },
   activeControls: {
     alignItems: 'center',

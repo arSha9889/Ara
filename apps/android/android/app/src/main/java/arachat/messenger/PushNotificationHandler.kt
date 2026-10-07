@@ -20,19 +20,23 @@ object PushNotificationHandler {
 
   fun install(context: Context) {
     RuStoreUniversalPushClient.setOnMessageReceiveListener { message ->
-      showDataMessageNotification(context.applicationContext, message)
+      showDataNotification(context.applicationContext, message)
     }
   }
 
-  private fun showDataMessageNotification(context: Context, message: UniversalRemoteMessage) {
+  private fun showDataNotification(context: Context, message: UniversalRemoteMessage) {
     if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
       return
     }
 
     val data = message.data
-    if (data["kind"] != MESSAGE_KIND) {
-      return
+    when (data["kind"]) {
+      MESSAGE_KIND -> showMessageNotification(context, data)
+      CALL_KIND -> showCallNotification(context, data)
     }
+  }
+
+  private fun showMessageNotification(context: Context, data: Map<String, String>) {
     val title = data["title"]?.trim()?.takeIf { it.isNotEmpty() } ?: return
     val body = data["body"]?.trim()?.takeIf { it.isNotEmpty() } ?: return
     val notificationIdValue = data["notification_id"] ?: return
@@ -56,6 +60,7 @@ object PushNotificationHandler {
     )
 
     NotificationManagerCompat.from(context).notify(
+      messageNotificationTag(chatId),
       notificationId,
       NotificationCompat.Builder(context, MESSAGES_CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_stat_arachat)
@@ -64,6 +69,59 @@ object PushNotificationHandler {
         .setContentText(body)
         .setStyle(NotificationCompat.BigTextStyle().bigText(body))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setAutoCancel(true)
+        .build(),
+    )
+  }
+
+  fun clearMessageNotificationsForChat(context: Context, chatId: String) {
+    if (chatId.isBlank()) {
+      return
+    }
+
+    val tag = messageNotificationTag(chatId)
+    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val notifications = manager.activeNotifications.filter { it.tag == tag }
+    val notificationManager = NotificationManagerCompat.from(context)
+    notifications.forEach { notification ->
+      notificationManager.cancel(tag, notification.id)
+    }
+  }
+
+  private fun showCallNotification(context: Context, data: Map<String, String>) {
+    val title = data["title"]?.trim()?.takeIf { it.isNotEmpty() } ?: return
+    val body = data["body"]?.trim()?.takeIf { it.isNotEmpty() } ?: return
+    val callId = data["call_id"] ?: return
+    val chatId = data["chat_id"] ?: return
+    if (data["call_type"] !in setOf("audio", "video")) {
+      return
+    }
+
+    createCallsNotificationChannel(context)
+    val notificationId = callId.hashCode()
+    val openAppIntent = Intent(context, MainActivity::class.java).apply {
+      action = ACTION_OPEN_CALL
+      flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+      putExtra(EXTRA_CHAT_ID, chatId)
+      putExtra(EXTRA_CALL_ID, callId)
+    }
+    val openApp = PendingIntent.getActivity(
+      context,
+      notificationId,
+      openAppIntent,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    NotificationManagerCompat.from(context).notify(
+      notificationId,
+      NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
+        .setSmallIcon(R.drawable.ic_stat_arachat)
+        .setCategory(NotificationCompat.CATEGORY_CALL)
+        .setContentIntent(openApp)
+        .setContentTitle(title)
+        .setContentText(body)
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setTimeoutAfter(CALL_NOTIFICATION_TIMEOUT_MILLIS)
         .setAutoCancel(true)
         .build(),
     )
@@ -84,6 +142,21 @@ object PushNotificationHandler {
     )
   }
 
+  private fun createCallsNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      return
+    }
+
+    val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    manager.createNotificationChannel(
+      NotificationChannel(
+        CALLS_CHANNEL_ID,
+        context.getString(R.string.push_calls_channel),
+        NotificationManager.IMPORTANCE_HIGH,
+      ),
+    )
+  }
+
   fun notificationOpenFromIntent(intent: Intent): NotificationOpen? {
     if (intent.action != ACTION_OPEN_NOTIFICATION) {
       return null
@@ -100,10 +173,18 @@ object PushNotificationHandler {
   }
 
   const val ACTION_OPEN_NOTIFICATION = "arachat.messenger.OPEN_NOTIFICATION"
+  const val ACTION_OPEN_CALL = "arachat.messenger.OPEN_CALL"
   const val EXTRA_NOTIFICATION_KIND = "arachat.notification.kind"
   const val EXTRA_CHAT_ID = "arachat.notification.chat_id"
+  const val EXTRA_CALL_ID = "arachat.notification.call_id"
   const val EXTRA_MESSAGE_ID = "arachat.notification.message_id"
   const val EXTRA_NOTIFICATION_ID = "arachat.notification.notification_id"
   private const val MESSAGES_CHANNEL_ID = "arachat_messages"
+  private const val MESSAGE_NOTIFICATION_TAG_PREFIX = "arachat.message."
+  private const val CALLS_CHANNEL_ID = "arachat_calls"
+  private const val CALL_NOTIFICATION_TIMEOUT_MILLIS = 75_000L
+  private const val CALL_KIND = "call"
   private const val MESSAGE_KIND = "message"
+
+  private fun messageNotificationTag(chatId: String): String = "$MESSAGE_NOTIFICATION_TAG_PREFIX$chatId"
 }

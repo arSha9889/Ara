@@ -3,26 +3,40 @@ import { act, create } from 'react-test-renderer';
 import { PermissionsAndroid } from 'react-native';
 
 import {
+  markMessagesRead,
   sendMediaMessage,
   sendTextMessage,
   togglePinMessage,
   uploadChatAttachment,
   type ChatMessage,
 } from '../src/features/chats/api/chatApi';
-import { recordChatVideoNote } from '../src/features/chats/media/mediaClient';
+import {
+  getRecentChatMedia,
+  recordChatVideoNote,
+  selectChatMediaFromLibrary,
+} from '../src/features/chats/media/mediaClient';
 
 const mockGetMessages = jest.fn();
 const mockGetChat = jest.fn();
+const mockGetRecentChatMedia = getRecentChatMedia as jest.Mock;
 const mockRecordChatVideoNote = recordChatVideoNote as jest.Mock;
+const mockMarkMessagesRead = markMessagesRead as jest.Mock;
 const mockRequestMultiple = PermissionsAndroid.requestMultiple as jest.Mock;
 const mockSendMediaMessage = sendMediaMessage as jest.Mock;
+const mockSelectChatMediaFromLibrary = selectChatMediaFromLibrary as jest.Mock;
 const mockSendTextMessage = sendTextMessage as jest.Mock;
 const mockTogglePinMessage = togglePinMessage as jest.Mock;
 const mockUploadChatAttachment = uploadChatAttachment as jest.Mock;
 const mockStartCall = jest.fn();
+const mockStartVideoCall = jest.fn();
 const mockSubscribeToChat = jest.fn();
 const mockSubscribeToEvents = jest.fn();
-const mockDirectCall = { call: null, startCall: (...args: unknown[]) => mockStartCall(...args) };
+const mockClearMessageNotificationsForChat = jest.fn();
+const mockDirectCall = {
+  call: null,
+  startCall: (...args: unknown[]) => mockStartCall(...args),
+  startVideoCall: (...args: unknown[]) => mockStartVideoCall(...args),
+};
 const mockI18n = { language: 'ru' as const, t: (key: string) => key };
 const mockRealtime = {
   send: jest.fn(),
@@ -101,7 +115,13 @@ jest.mock('react-native', () => {
     KeyboardAvoidingView: 'KeyboardAvoidingView',
     Modal: 'Modal',
     PermissionsAndroid: {
-      PERMISSIONS: { CAMERA: 'CAMERA', RECORD_AUDIO: 'RECORD_AUDIO' },
+      PERMISSIONS: {
+        CAMERA: 'CAMERA',
+        READ_MEDIA_IMAGES: 'READ_MEDIA_IMAGES',
+        READ_MEDIA_VIDEO: 'READ_MEDIA_VIDEO',
+        READ_MEDIA_VISUAL_USER_SELECTED: 'READ_MEDIA_VISUAL_USER_SELECTED',
+        RECORD_AUDIO: 'RECORD_AUDIO',
+      },
       RESULTS: { GRANTED: 'granted' },
       request: jest.fn(),
       requestMultiple: jest.fn(),
@@ -111,6 +131,7 @@ jest.mock('react-native', () => {
       select: (options: Record<string, unknown>) => options.android ?? options.default,
     },
     Pressable: 'Pressable',
+    ScrollView: 'ScrollView',
     StyleSheet: {
       create: <T extends object>(styles: T) => styles,
       hairlineWidth: 1,
@@ -161,11 +182,13 @@ jest.mock('../src/features/chats/components/ChatAvatar', () => ({
 
 jest.mock('../src/features/chats/media/mediaClient', () => ({
   cancelChatVoiceRecording: jest.fn(),
-  discardChatAttachmentDraft: jest.fn(),
+  discardChatAttachmentDraft: jest.fn().mockResolvedValue(undefined),
+  getRecentChatMedia: jest.fn(),
   pickChatDocument: jest.fn(),
   pickChatPhoto: jest.fn(),
   pickChatVideo: jest.fn(),
   recordChatVideoNote: jest.fn(),
+  selectChatMediaFromLibrary: jest.fn(),
   startChatVoiceRecording: jest.fn(),
   stopChatVoiceRecording: jest.fn(),
 }));
@@ -180,6 +203,11 @@ jest.mock('../src/features/chats/messageState', () => ({
 
 jest.mock('../src/features/calls/DirectCallProvider', () => ({
   useDirectCall: () => mockDirectCall,
+}));
+
+jest.mock('../src/features/notifications/pushClient', () => ({
+  clearMessageNotificationsForChat: (...args: unknown[]) =>
+    mockClearMessageNotificationsForChat(...args),
 }));
 
 jest.mock('../src/features/realtime/RealtimeProvider', () => ({
@@ -256,17 +284,26 @@ function ownTextMessage(
 async function renderChatScreen(messages: ChatMessage[]): Promise<ReturnType<typeof create>> {
   mockGetMessages.mockReset();
   mockGetChat.mockReset();
+  mockMarkMessagesRead.mockReset();
+  mockClearMessageNotificationsForChat.mockReset();
+  mockGetRecentChatMedia.mockReset();
   mockRecordChatVideoNote.mockReset();
   mockRequestMultiple.mockReset();
   mockSendMediaMessage.mockReset();
+  mockSelectChatMediaFromLibrary.mockReset();
   mockSendTextMessage.mockReset();
+  mockStartCall.mockReset();
+  mockStartVideoCall.mockReset();
   mockTogglePinMessage.mockReset();
   mockUploadChatAttachment.mockReset();
   mockSubscribeToChat.mockReset();
   mockSubscribeToEvents.mockReset();
   mockGetMessages.mockResolvedValue(messages);
   mockGetChat.mockResolvedValue({ pinned_message: null });
+  mockMarkMessagesRead.mockResolvedValue([]);
   mockSendTextMessage.mockResolvedValue({ id: 'reply-message' });
+  mockStartCall.mockResolvedValue(undefined);
+  mockStartVideoCall.mockResolvedValue(undefined);
   mockTogglePinMessage.mockResolvedValue({ pinned_message: null, pinned_message_id: null });
   mockSubscribeToChat.mockReturnValue(() => undefined);
   mockSubscribeToEvents.mockReturnValue(() => undefined);
@@ -292,6 +329,31 @@ async function renderChatScreen(messages: ChatMessage[]): Promise<ReturnType<typ
 
   return component;
 }
+
+test('clears only the current chat notifications after incoming messages are marked read', async () => {
+  await renderChatScreen([{
+    id: 'incoming-message-1',
+    chat_id: 'chat-1',
+    sender_id: 'peer-1',
+    author: null,
+    type: 'text',
+    payload: 'Новое сообщение',
+    media_url: null,
+    media_name: null,
+    media_mime_type: null,
+    media_size_bytes: null,
+    duration_seconds: null,
+    encryption_state: 'plain_web_core',
+    delivery_status: 'received',
+    created_at: '2026-10-07T06:00:00Z',
+    edited_at: null,
+    deleted_at: null,
+    reactions: [],
+  }]);
+
+  expect(mockMarkMessagesRead).toHaveBeenCalledWith('chat-1', ['incoming-message-1']);
+  expect(mockClearMessageNotificationsForChat).toHaveBeenCalledWith('chat-1');
+});
 
 test('keeps the edit form above the Android keyboard without a bottom sheet border', async () => {
   mockGetMessages.mockReset();
@@ -378,6 +440,25 @@ test('keeps the edit form above the Android keyboard without a bottom sheet bord
   });
 });
 
+test('starts a video call from the direct chat header', async () => {
+  const component = await renderChatScreen([]);
+  const videoCallButton = component.root
+    .findAllByType('IconButton' as never)
+    .find(button => button.props.accessibilityLabel === 'callVideo');
+
+  expect(videoCallButton).toBeDefined();
+  await act(async () => {
+    videoCallButton?.props.onPress();
+    await settleAsyncWork();
+  });
+
+  expect(mockStartVideoCall).toHaveBeenCalledWith({
+    chatId: 'chat-1',
+    peerName: 'Peer',
+    peerUserId: 'peer-1',
+  });
+});
+
 test('opens the attachment picker without an Android-unsupported dialog role', async () => {
   const component = await renderChatScreen([ownTextMessage('message-1', 'sent')]);
   const attachmentButton = component.root
@@ -404,6 +485,61 @@ test('opens the attachment picker without an Android-unsupported dialog role', a
   expect(attachmentPickerModal?.props.visible).toBe(true);
   expect(attachmentSheet?.props.accessibilityViewIsModal).toBe(true);
   expect(attachmentSheet?.props.accessibilityRole).toBeUndefined();
+
+  await act(async () => {
+    component.unmount();
+  });
+});
+
+test('selects an item from the internal media library into a private draft', async () => {
+  const libraryItem = {
+    uri: 'content://media/external/file/4',
+    name: 'photo.jpg',
+    mimeType: 'image/jpeg',
+    sizeBytes: 2_048,
+  };
+  const draft = {
+    ...libraryItem,
+    uri: 'file:///cache/arachat-media/drafts/photo.jpg',
+  };
+  const component = await renderChatScreen([ownTextMessage('message-1', 'sent')]);
+  mockRequestMultiple.mockResolvedValue({
+    READ_MEDIA_IMAGES: 'granted',
+    READ_MEDIA_VIDEO: 'granted',
+    READ_MEDIA_VISUAL_USER_SELECTED: 'granted',
+  });
+  mockGetRecentChatMedia.mockResolvedValue([libraryItem]);
+  mockSelectChatMediaFromLibrary.mockResolvedValue(draft);
+
+  act(() => {
+    component.root
+      .findAllByProps({ accessibilityLabel: 'addAttachment' })
+      .find(node => node.props.accessibilityRole === 'button')
+      ?.props.onPress();
+  });
+  await act(async () => {
+    component.root
+      .findAllByProps({ accessibilityLabel: 'attachmentMedia' })
+      .find(node => node.props.accessibilityRole === 'button')
+      ?.props.onPress();
+    await settleAsyncWork();
+  });
+
+  expect(mockRequestMultiple).toHaveBeenCalledWith([
+    'READ_MEDIA_IMAGES',
+    'READ_MEDIA_VIDEO',
+    'READ_MEDIA_VISUAL_USER_SELECTED',
+  ]);
+  expect(mockGetRecentChatMedia).toHaveBeenCalledWith();
+  expect(component.root.findByProps({ accessibilityLabel: 'chatPhoto: photo.jpg' })).toBeDefined();
+
+  await act(async () => {
+    component.root.findByProps({ accessibilityLabel: 'chatPhoto: photo.jpg' }).props.onPress();
+    await settleAsyncWork();
+  });
+
+  expect(mockSelectChatMediaFromLibrary).toHaveBeenCalledWith(libraryItem.uri);
+  expect(component.root.findByProps({ accessibilityLabel: 'sendAttachment' })).toBeDefined();
 
   await act(async () => {
     component.unmount();

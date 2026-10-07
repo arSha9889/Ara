@@ -1,4 +1,11 @@
 <resources>
     <string name="app_name" translatable="false">AraChat</string>
     <string name="push_messages_channel">Сообщения</string>
+    <string name="push_calls_channel">Звонки</string>
+    <string name="video_note_camera_close">Закрыть</string>
+    <string name="video_note_camera_close_description">Закрыть запись видео-заметки</string>
+    <string name="video_note_camera_switch">Сменить камеру</string>
+    <string name="video_note_camera_switch_description">Переключить камеру</string>
+    <string name="video_note_camera_start_description">Начать запись видео-заметки</string>
+    <string name="video_note_camera_stop_description">Завершить запись видео-заметки</string>
 </resources>

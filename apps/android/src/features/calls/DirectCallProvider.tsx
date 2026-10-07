@@ -11,10 +11,11 @@ import {
 import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import {
   mediaDevices,
+  MediaStream,
   RTCIceCandidate,
   RTCPeerConnection,
   RTCSessionDescription,
-  type MediaStream,
+  type MediaStreamTrack,
 } from 'react-native-webrtc';
 
 import type {
@@ -38,6 +39,7 @@ import {
   callFailureKeyForReason,
   type ActiveDirectCall,
   type CallFailureKey,
+  type DirectCallType,
 } from './callPresentation';
 
 const CALL_RING_TIMEOUT_MS = 70_000;
@@ -60,13 +62,21 @@ interface DirectCallContextValue {
   selectAudioRoute(routeId: string): Promise<void>;
   selectedAudioRouteId: string | null;
   startCall(input: StartDirectCallInput): Promise<void>;
+  startVideoCall(input: StartDirectCallInput): Promise<void>;
+  switchCamera(): void;
   toggleMute(): void;
+  toggleVideo(): void;
 }
 
 class CallWorkflowError extends Error {
   constructor(readonly failureKey: CallFailureKey) {
     super(failureKey);
   }
+}
+
+interface RemoteTrackEvent {
+  streams: MediaStream[];
+  track: MediaStreamTrack | null;
 }
 
 const DirectCallContext = createContext<DirectCallContextValue | null>(null);
@@ -112,6 +122,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
   const [call, setCallState] = useState<ActiveDirectCall | null>(null);
   const callRef = useRef<ActiveDirectCall | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,6 +179,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     const stream = localStreamRef.current;
     localStreamRef.current = null;
     stopStream(stream);
+    remoteStreamRef.current = null;
     setAudioRoutes([]);
     setSelectedAudioRouteId(null);
     stopCallAudioSession().catch(() => undefined);
@@ -182,7 +194,14 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     const current = callRef.current;
     releaseResources();
     if (current) {
-      setCall({ ...current, connectedAt: null, failure, phase: 'failed' });
+      setCall({
+        ...current,
+        connectedAt: null,
+        failure,
+        localStream: null,
+        phase: 'failed',
+        remoteStream: null,
+      });
     }
   }, [releaseResources, setCall]);
 
@@ -220,17 +239,21 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     }, CALL_CONNECTION_TIMEOUT_MS);
   }, [clearConnectionTimeout, finishWithFailure, sendCallSignal]);
 
-  const prepareLocalAudio = useCallback(async (callId: string): Promise<MediaStream> => {
+  const prepareLocalMedia = useCallback(async (callId: string): Promise<MediaStream> => {
     const current = callRef.current;
     if (!isCurrentCall(current, callId)) {
       throw new CallWorkflowError('callCancelled');
     }
 
     if (Platform.OS === 'android') {
-      const permission = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      const permissions = current.callType === 'video'
+        ? [PermissionsAndroid.PERMISSIONS.CAMERA, PermissionsAndroid.PERMISSIONS.RECORD_AUDIO]
+        : [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+      const results = await PermissionsAndroid.requestMultiple(permissions);
+      const hasAllPermissions = permissions.every(
+        permission => results[permission] === PermissionsAndroid.RESULTS.GRANTED,
       );
-      if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
+      if (!hasAllPermissions) {
         throw new CallWorkflowError('callPermissionDenied');
       }
     }
@@ -252,7 +275,17 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
 
     let stream: MediaStream;
     try {
-      stream = await mediaDevices.getUserMedia({ audio: true, video: false });
+      stream = await mediaDevices.getUserMedia({
+        audio: true,
+        video: current.callType === 'video'
+          ? {
+              facingMode: 'user',
+              frameRate: { ideal: 30, max: 30 },
+              height: { ideal: 720, max: 1080 },
+              width: { ideal: 1280, max: 1920 },
+            }
+          : false,
+      });
     } catch {
       stopCallAudioSession().catch(() => undefined);
       throw new CallWorkflowError('callPermissionDenied');
@@ -268,9 +301,13 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     stream.getAudioTracks().forEach(track => {
       track.enabled = !activeCall.isMuted;
     });
+    stream.getVideoTracks().forEach(track => {
+      track.enabled = activeCall.isVideoEnabled;
+    });
     localStreamRef.current = stream;
+    updateCall({ localStream: stream });
     return stream;
-  }, [applyAudioSession]);
+  }, [applyAudioSession, updateCall]);
 
   const flushIceCandidates = useCallback(async (): Promise<void> => {
     const connection = peerConnectionRef.current;
@@ -308,6 +345,30 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     }
 
     const connection = new RTCPeerConnection(getRtcConfiguration(iceConfiguration.ice_servers));
+    connection.ontrack = (event: unknown): void => {
+      const activeCall = callRef.current;
+      if (!isCurrentCall(activeCall, callId)) {
+        return;
+      }
+
+      const { streams, track } = event as unknown as RemoteTrackEvent;
+      const stream = streams[0] ?? (track ? new MediaStream([track]) : null);
+      if (!stream) {
+        return;
+      }
+
+      const remoteStream = remoteStreamRef.current;
+      if (!remoteStream) {
+        remoteStreamRef.current = stream;
+        updateCall({ remoteStream: stream });
+        return;
+      }
+
+      if (track && !remoteStream.getTrackById(track.id)) {
+        remoteStream.addTrack(track);
+        updateCall({ remoteStream });
+      }
+    };
     connection.onicecandidate = (event: { candidate: RTCIceCandidate | null }) => {
       const activeCall = callRef.current;
       const candidate = event.candidate;
@@ -353,7 +414,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const stream = await prepareLocalAudio(callId);
+    const stream = await prepareLocalMedia(callId);
     if (!isCurrentCall(callRef.current, callId)) {
       connection.close();
       throw new CallWorkflowError('callCancelled');
@@ -361,7 +422,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     stream.getTracks().forEach(track => connection.addTrack(track, stream));
     peerConnectionRef.current = connection;
     return connection;
-  }, [clearConnectionTimeout, clearDisconnectedTimeout, finishWithFailure, prepareLocalAudio, sendCallSignal, updateCall]);
+  }, [clearConnectionTimeout, clearDisconnectedTimeout, finishWithFailure, prepareLocalMedia, sendCallSignal, updateCall]);
 
   const startRingTimeout = useCallback((callId: string, isCaller: boolean): void => {
     clearRingTimeout();
@@ -379,7 +440,10 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     }, CALL_RING_TIMEOUT_MS);
   }, [clearRingTimeout, finishWithFailure, sendCallSignal]);
 
-  const startCall = useCallback(async ({ chatId, peerName, peerUserId }: StartDirectCallInput): Promise<void> => {
+  const startCallWithType = useCallback(async (
+    { chatId, peerName, peerUserId }: StartDirectCallInput,
+    callType: DirectCallType,
+  ): Promise<void> => {
     if (!chatId || !peerUserId || callRef.current) {
       return;
     }
@@ -387,14 +451,19 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     const callId = createCallId(chatId);
     setCall({
       callId,
+      callType,
       chatId,
       connectedAt: null,
       failure: null,
+      isFrontCamera: true,
       isCaller: true,
       isMuted: false,
+      isVideoEnabled: callType === 'video',
+      localStream: null,
       peerName,
       peerUserId,
       phase: 'requestingMicrophone',
+      remoteStream: null,
     });
 
     try {
@@ -403,7 +472,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       if (!isCurrentCall(activeCall, callId)) {
         return;
       }
-      if (!sendCallSignal('call.invite', callId, chatId)) {
+      if (!sendCallSignal('call.invite', callId, chatId, { call_type: callType })) {
         throw new CallWorkflowError('callConnectionFailed');
       }
       updateCall({ phase: 'outgoing' });
@@ -414,6 +483,16 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [ensurePeerConnection, finishWithFailure, sendCallSignal, setCall, startRingTimeout, updateCall]);
+
+  const startCall = useCallback(
+    (input: StartDirectCallInput): Promise<void> => startCallWithType(input, 'audio'),
+    [startCallWithType],
+  );
+
+  const startVideoCall = useCallback(
+    (input: StartDirectCallInput): Promise<void> => startCallWithType(input, 'video'),
+    [startCallWithType],
+  );
 
   const rejectCall = useCallback((): void => {
     const activeCall = callRef.current;
@@ -480,6 +559,34 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     updateCall({ isMuted });
   }, [updateCall]);
 
+  const toggleVideo = useCallback((): void => {
+    const activeCall = callRef.current;
+    if (!activeCall || activeCall.callType !== 'video' || activeCall.phase !== 'active') {
+      return;
+    }
+
+    const isVideoEnabled = !activeCall.isVideoEnabled;
+    localStreamRef.current?.getVideoTracks().forEach(track => {
+      track.enabled = isVideoEnabled;
+    });
+    updateCall({ isVideoEnabled });
+  }, [updateCall]);
+
+  const switchCamera = useCallback((): void => {
+    const activeCall = callRef.current;
+    const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+    if (!activeCall || activeCall.callType !== 'video' || activeCall.phase !== 'active' || !videoTrack) {
+      return;
+    }
+
+    try {
+      videoTrack._switchCamera();
+      updateCall({ isFrontCamera: !activeCall.isFrontCamera });
+    } catch {
+      // The current camera stays selected if the device cannot switch cameras.
+    }
+  }, [updateCall]);
+
   const selectAudioRoute = useCallback(async (routeId: string): Promise<void> => {
     const activeCall = callRef.current;
     if (!activeCall || activeCall.phase !== 'active') {
@@ -509,24 +616,26 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       const incomingCallId = event.callId;
       const incomingChatId = event.chatId;
       const incomingUserId = event.userId;
-      if (event.callType === 'video') {
-        sendCallSignal('call.reject', incomingCallId, incomingChatId, { reason: 'unsupported_media' });
-        return;
-      }
+      const callType: DirectCallType = event.callType === 'video' ? 'video' : 'audio';
       if (callRef.current) {
         sendCallSignal('call.reject', incomingCallId, incomingChatId, { reason: 'busy' });
         return;
       }
       setCall({
         callId: incomingCallId,
+        callType,
         chatId: incomingChatId,
         connectedAt: null,
         failure: null,
+        isFrontCamera: true,
         isCaller: false,
         isMuted: false,
+        isVideoEnabled: callType === 'video',
+        localStream: null,
         peerName: '',
         peerUserId: incomingUserId,
         phase: 'incoming',
+        remoteStream: null,
       });
       startRingTimeout(incomingCallId, false);
       getChat(incomingChatId)
@@ -690,9 +799,12 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       selectAudioRoute,
       selectedAudioRouteId,
       startCall,
+      startVideoCall,
+      switchCamera,
       toggleMute,
+      toggleVideo,
     }),
-    [acceptCall, audioRoutes, call, dismissCall, endCall, rejectCall, selectAudioRoute, selectedAudioRouteId, startCall, toggleMute],
+    [acceptCall, audioRoutes, call, dismissCall, endCall, rejectCall, selectAudioRoute, selectedAudioRouteId, startCall, startVideoCall, switchCamera, toggleMute, toggleVideo],
   );
 
   return <DirectCallContext.Provider value={value}>{children}</DirectCallContext.Provider>;

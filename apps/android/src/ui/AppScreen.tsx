@@ -15,7 +15,9 @@ const screenEdges: Edge[] = ['top', 'left', 'right'];
 const screenEdgesWithBottom: Edge[] = ['top', 'bottom', 'left', 'right'];
 
 export function AppScreen({ children, bottomSafeArea = false, scroll = true, contentStyle }: AppScreenProps) {
-  const content = <View style={[styles.content, contentStyle]}>{children}</View>;
+  const content = (
+    <View style={[scroll ? styles.scrollableContent : styles.content, contentStyle]}>{children}</View>
+  );
 
   return (
     <SafeAreaView edges={bottomSafeArea ? screenEdgesWithBottom : screenEdges} style={styles.safeArea}>
@@ -49,6 +51,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  scrollableContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },

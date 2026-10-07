@@ -1,4 +1,8 @@
+import type { MediaStream } from 'react-native-webrtc';
+
 import type { TranslationKey } from '../../localization/messages';
+
+export type DirectCallType = 'audio' | 'video';
 
 export type DirectCallPhase =
   | 'requestingMicrophone'
@@ -20,20 +24,29 @@ export type CallFailureKey =
 
 export interface ActiveDirectCall {
   callId: string;
+  callType: DirectCallType;
   chatId: string;
   connectedAt: number | null;
   failure: CallFailureKey | null;
+  isFrontCamera: boolean;
   isCaller: boolean;
   isMuted: boolean;
+  isVideoEnabled: boolean;
+  localStream: MediaStream | null;
   peerName: string;
   peerUserId: string;
   phase: DirectCallPhase;
+  remoteStream: MediaStream | null;
 }
 
-export function callPhaseKey(phase: DirectCallPhase): TranslationKey {
+export function callPhaseKey(call: Pick<ActiveDirectCall, 'callType' | 'phase'>): TranslationKey {
+  const { callType, phase } = call;
+
   switch (phase) {
     case 'requestingMicrophone':
-      return 'callRequestingMicrophone';
+      return callType === 'video'
+        ? 'callRequestingCameraAndMicrophone'
+        : 'callRequestingMicrophone';
     case 'outgoing':
       return 'callCalling';
     case 'incoming':
@@ -57,6 +70,8 @@ export function callFailureKeyForReason(reason: string | undefined): CallFailure
       return 'callPeerBusy';
     case 'media_failed':
       return 'callPermissionDenied';
+    case 'unsupported_media':
+      return 'callUnavailable';
     default:
       return 'callConnectionFailed';
   }

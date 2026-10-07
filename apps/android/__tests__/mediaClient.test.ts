@@ -1,7 +1,9 @@
 jest.mock('react-native', () => ({
   NativeModules: {
     AraChatMedia: {
+      copyMediaLibraryItem: jest.fn(),
       downloadPrivateMedia: jest.fn(),
+      listRecentMedia: jest.fn(),
       pickPhoto: jest.fn(),
       pickVideo: jest.fn(),
       playCachedVideo: jest.fn(),
@@ -27,18 +29,22 @@ import { NativeModules } from 'react-native';
 import { apiClient } from '../src/infrastructure/http/apiClient';
 import {
   downloadPrivateChatMedia,
+  getRecentChatMedia,
   pickChatPhoto,
   pickChatVideo,
   playCachedChatVideoNote,
   playCachedChatVideo,
   recordChatVideoNote,
+  selectChatMediaFromLibrary,
   startChatVoiceRecording,
   stopChatVoiceRecording,
   toggleCachedChatAudioPlayback,
 } from '../src/features/chats/media/mediaClient';
 
 const nativeMedia = NativeModules.AraChatMedia as {
+  copyMediaLibraryItem: jest.Mock;
   downloadPrivateMedia: jest.Mock;
+  listRecentMedia: jest.Mock;
   pickPhoto: jest.Mock;
   pickVideo: jest.Mock;
   playCachedVideo: jest.Mock;
@@ -51,7 +57,9 @@ const nativeMedia = NativeModules.AraChatMedia as {
 const withAuthRetry = apiClient.withAuthRetry as jest.Mock;
 
 beforeEach(() => {
+  nativeMedia.copyMediaLibraryItem.mockReset();
   nativeMedia.downloadPrivateMedia.mockReset();
+  nativeMedia.listRecentMedia.mockReset();
   nativeMedia.pickPhoto.mockReset();
   nativeMedia.pickVideo.mockReset();
   nativeMedia.playCachedVideo.mockReset();
@@ -93,6 +101,57 @@ test('reads a selected HEIC photo from the native photo picker draft', async () 
     mimeType: 'image/heic',
     sizeBytes: 2_048,
   });
+});
+
+test('reads recent photo and video items from the internal media library', async () => {
+  nativeMedia.listRecentMedia.mockResolvedValue([
+    {
+      uri: 'content://media/external/file/4',
+      name: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 2_048,
+    },
+    {
+      uri: 'content://media/external/file/5',
+      name: 'video.mp4',
+      mimeType: 'video/mp4',
+      sizeBytes: 4_096,
+    },
+  ]);
+
+  await expect(getRecentChatMedia()).resolves.toEqual([
+    {
+      uri: 'content://media/external/file/4',
+      name: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 2_048,
+    },
+    {
+      uri: 'content://media/external/file/5',
+      name: 'video.mp4',
+      mimeType: 'video/mp4',
+      sizeBytes: 4_096,
+    },
+  ]);
+  expect(nativeMedia.listRecentMedia).toHaveBeenCalledWith(60);
+});
+
+test('copies an internal media-library object into a private attachment draft', async () => {
+  const contentUri = 'content://media/external/file/4';
+  nativeMedia.copyMediaLibraryItem.mockResolvedValue({
+    uri: 'file:///cache/arachat-media/drafts/photo.jpg',
+    name: 'photo.jpg',
+    mimeType: 'image/jpeg',
+    sizeBytes: 2_048,
+  });
+
+  await expect(selectChatMediaFromLibrary(contentUri)).resolves.toEqual({
+    uri: 'file:///cache/arachat-media/drafts/photo.jpg',
+    name: 'photo.jpg',
+    mimeType: 'image/jpeg',
+    sizeBytes: 2_048,
+  });
+  expect(nativeMedia.copyMediaLibraryItem).toHaveBeenCalledWith(contentUri);
 });
 
 test('downloads video into the private cache with an authorization argument, not a tokenized URL', async () => {

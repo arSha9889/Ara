@@ -1,3 +1,10 @@
 <resources>
     <string name="push_messages_channel">Messages</string>
+    <string name="push_calls_channel">Calls</string>
+    <string name="video_note_camera_close">Close</string>
+    <string name="video_note_camera_close_description">Close video-note recording</string>
+    <string name="video_note_camera_switch">Switch camera</string>
+    <string name="video_note_camera_switch_description">Switch camera</string>
+    <string name="video_note_camera_start_description">Start video-note recording</string>
+    <string name="video_note_camera_stop_description">Finish video-note recording</string>
 </resources>

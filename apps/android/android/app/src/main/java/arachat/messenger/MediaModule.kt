@@ -15,8 +15,10 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.SystemClock
+import android.provider.MediaStore.Files.FileColumns
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.ActivityEventListener
@@ -106,6 +108,96 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
       attachmentKind = AttachmentKind.VIDEO,
       promise = promise,
     )
+  }
+
+  @ReactMethod
+  fun listRecentMedia(limit: Int, promise: Promise) {
+    try {
+      if (!hasMediaLibraryPermission()) {
+        promise.reject("MEDIA_LIBRARY_PERMISSION_DENIED", "Для просмотра медиатеки нужен доступ к фото и видео.")
+        return
+      }
+
+      val result = Arguments.createArray()
+      val projection = arrayOf(
+        FileColumns._ID,
+        FileColumns.DISPLAY_NAME,
+        FileColumns.MIME_TYPE,
+        FileColumns.SIZE,
+        FileColumns.DATE_MODIFIED,
+        FileColumns.MEDIA_TYPE,
+      )
+      val mediaCollection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
+      val selection = "${FileColumns.MEDIA_TYPE} IN (?, ?)"
+      val selectionArgs = arrayOf(
+        FileColumns.MEDIA_TYPE_IMAGE.toString(),
+        FileColumns.MEDIA_TYPE_VIDEO.toString(),
+      )
+      val sortOrder = "${FileColumns.DATE_MODIFIED} DESC"
+      val maxResults = limit.coerceIn(1, MAX_MEDIA_LIBRARY_ITEMS)
+      reactApplicationContext.contentResolver.query(
+        mediaCollection,
+        projection,
+        selection,
+        selectionArgs,
+        sortOrder,
+      )?.use { cursor ->
+        val idIndex = cursor.getColumnIndexOrThrow(FileColumns._ID)
+        val nameIndex = cursor.getColumnIndexOrThrow(FileColumns.DISPLAY_NAME)
+        val mimeTypeIndex = cursor.getColumnIndexOrThrow(FileColumns.MIME_TYPE)
+        val sizeIndex = cursor.getColumnIndexOrThrow(FileColumns.SIZE)
+        while (cursor.moveToNext() && result.size() < maxResults) {
+          val mimeType = normalizedMimeType(cursor.getString(mimeTypeIndex))
+          if (mimeType !in PHOTO_MIME_TYPES && mimeType !in VIDEO_MIME_TYPES) {
+            continue
+          }
+          val name = cursor.getString(nameIndex)?.takeIf { it.isNotBlank() } ?: continue
+          val sizeBytes = cursor.getLong(sizeIndex)
+          if (sizeBytes <= 0L) {
+            continue
+          }
+          val itemUri = Uri.withAppendedPath(mediaCollection, cursor.getLong(idIndex).toString())
+          result.pushMap(Arguments.createMap().apply {
+            putString("uri", itemUri.toString())
+            putString("name", name.take(MAX_FILENAME_LENGTH))
+            putString("mimeType", mimeType)
+            putDouble("sizeBytes", sizeBytes.toDouble())
+          })
+        }
+      }
+      promise.resolve(result)
+    } catch (error: SecurityException) {
+      promise.reject("MEDIA_LIBRARY_PERMISSION_DENIED", "Для просмотра медиатеки нужен доступ к фото и видео.", error)
+    } catch (error: Exception) {
+      Log.w(LOG_TAG, "Unable to list recent media.", error)
+      promise.reject("MEDIA_LIBRARY_UNAVAILABLE", "Не удалось открыть медиатеку устройства.", error)
+    }
+  }
+
+  @ReactMethod
+  fun copyMediaLibraryItem(contentUri: String, promise: Promise) {
+    Thread {
+      try {
+        val source = Uri.parse(contentUri)
+        if (source.scheme != "content" || source.authority != MediaStore.AUTHORITY) {
+          throw MediaModuleException("INVALID_MEDIA_LIBRARY_ITEM", "Выбранный объект медиатеки недоступен.")
+        }
+        val mimeType = normalizedMimeType(reactApplicationContext.contentResolver.getType(source))
+        val attachmentKind = when (mimeType) {
+          in PHOTO_MIME_TYPES -> AttachmentKind.PHOTO
+          in VIDEO_MIME_TYPES -> AttachmentKind.VIDEO
+          else -> throw MediaModuleException("UNSUPPORTED_ATTACHMENT_TYPE", "Этот формат вложения пока не поддерживается.")
+        }
+        promise.resolve(copySelectedAttachment(source, attachmentKind))
+      } catch (error: MediaModuleException) {
+        promise.reject(error.code, error.message)
+      } catch (error: SecurityException) {
+        promise.reject("MEDIA_LIBRARY_PERMISSION_DENIED", "Для выбора объекта нужен доступ к медиатеке.", error)
+      } catch (error: Exception) {
+        Log.w(LOG_TAG, "Unable to copy media library item.", error)
+        promise.reject("ATTACHMENT_READ_FAILED", "Не удалось прочитать выбранный файл.", error)
+      }
+    }.start()
   }
 
   @ReactMethod
@@ -212,60 +304,22 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     }
 
     val target = File(draftsDirectory(), "video-note-${UUID.randomUUID()}.mp4")
-    var outputUri: Uri? = null
     try {
-      outputUri = FileProvider.getUriForFile(
-        reactApplicationContext,
-        "${reactApplicationContext.packageName}.media",
-        target,
+      pendingVideoNote = PendingVideoNote(promise = promise, target = target)
+      activity.startActivityForResult(
+        VideoNoteCameraActivity.createIntent(activity, target),
+        VIDEO_NOTE_RECORDING_REQUEST_CODE,
       )
-      val captureIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
-        setType("video/mp4")
-        putExtra(MediaStore.EXTRA_OUTPUT, outputUri)
-        putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0)
-        putExtra(MediaStore.EXTRA_SIZE_LIMIT, MAX_ATTACHMENT_BYTES)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        clipData = ClipData.newRawUri("video-note", outputUri)
-      }
-      val cameraActivities = activity.packageManager.queryIntentActivities(
-        captureIntent,
-        PackageManager.MATCH_DEFAULT_ONLY,
-      )
-      if (cameraActivities.isEmpty()) {
-        target.delete()
-        promise.reject("VIDEO_NOTE_UNAVAILABLE", "Системная камера недоступна на этом устройстве.")
-        return
-      }
-      cameraActivities.forEach { resolveInfo ->
-        reactApplicationContext.grantUriPermission(
-          resolveInfo.activityInfo.packageName,
-          outputUri,
-          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-        )
-      }
-
-      pendingVideoNote = PendingVideoNote(promise = promise, target = target, outputUri = outputUri)
-      activity.startActivityForResult(captureIntent, VIDEO_NOTE_RECORDING_REQUEST_CODE)
-    } catch (_: ActivityNotFoundException) {
+    } catch (error: ActivityNotFoundException) {
+      Log.w(LOG_TAG, "Unable to launch the internal camera for a video note.", error)
       pendingVideoNote = null
-      outputUri?.let { uri ->
-        reactApplicationContext.revokeUriPermission(
-          uri,
-          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-        )
-      }
       target.delete()
-      promise.reject("VIDEO_NOTE_UNAVAILABLE", "Системная камера недоступна на этом устройстве.")
-    } catch (_: Exception) {
+      promise.reject("VIDEO_NOTE_UNAVAILABLE", "Камера для видеосообщений недоступна на этом устройстве.")
+    } catch (error: Exception) {
+      Log.e(LOG_TAG, "Unable to launch the internal camera for a video note.", error)
       pendingVideoNote = null
-      outputUri?.let { uri ->
-        reactApplicationContext.revokeUriPermission(
-          uri,
-          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-        )
-      }
       target.delete()
-      promise.reject("VIDEO_NOTE_UNAVAILABLE", "Не удалось открыть системную камеру.")
+      promise.reject("VIDEO_NOTE_UNAVAILABLE", "Не удалось открыть камеру для видеосообщения.")
     }
   }
 
@@ -567,29 +621,31 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     if (requestCode == VIDEO_NOTE_RECORDING_REQUEST_CODE) {
       val pending = pendingVideoNote ?: return
       pendingVideoNote = null
-      reactApplicationContext.revokeUriPermission(
-        pending.outputUri,
-        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-      )
       if (resultCode != Activity.RESULT_OK) {
         pending.target.delete()
-        pending.promise.resolve(null)
+        val errorCode = data?.getStringExtra(VideoNoteCameraActivity.EXTRA_ERROR_CODE)
+        if (errorCode.isNullOrBlank()) {
+          pending.promise.resolve(null)
+        } else {
+          pending.promise.reject(errorCode, "Не удалось сохранить видеосообщение.")
+        }
         return
       }
 
       Thread {
         try {
-          val target = videoNoteAttachmentTarget(pending, data?.data)
           pending.promise.resolve(recordedAttachment(
-            target,
+            pending.target,
             "video-note-${System.currentTimeMillis()}.mp4",
             "video/mp4",
-            recordedDurationSeconds(target),
+            recordedDurationSeconds(pending.target),
           ))
         } catch (error: MediaModuleException) {
+          Log.w(LOG_TAG, "Video note recording failed: ${error.code}.", error)
           pending.target.delete()
           pending.promise.reject(error.code, error.message)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+          Log.e(LOG_TAG, "Video note recording failed unexpectedly.", error)
           pending.target.delete()
           pending.promise.reject("VIDEO_NOTE_RECORDING_FAILED", "Не удалось сохранить видеосообщение.")
         }
@@ -636,10 +692,6 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     pendingPicker?.promise?.reject("PICKER_CANCELLED", "Выбор вложения был отменён.")
     pendingPicker = null
     pendingVideoNote?.let { pending ->
-      reactApplicationContext.revokeUriPermission(
-        pending.outputUri,
-        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-      )
       pending.target.delete()
       pending.promise.reject("VIDEO_NOTE_CANCELLED", "Запись видеосообщения была отменена.")
     }
@@ -704,26 +756,6 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     putString("name", name)
     putString("mimeType", mimeType)
     putDouble("sizeBytes", sizeBytes.toDouble())
-  }
-
-  private fun videoNoteAttachmentTarget(pending: PendingVideoNote, fallbackUri: Uri?): File {
-    if (pending.target.isFile && pending.target.length() > 0L) {
-      return pending.target
-    }
-
-    if (
-      fallbackUri == null ||
-      fallbackUri == pending.outputUri ||
-      (fallbackUri.scheme == "file" && fallbackUri.path == pending.target.absolutePath)
-    ) {
-      throw MediaModuleException(
-        "VIDEO_NOTE_RECORDING_FAILED",
-        "Системная камера не вернула записанное видеосообщение.",
-      )
-    }
-
-    copyUriToDraft(fallbackUri, pending.target)
-    return pending.target
   }
 
   private fun copyUriToDraft(source: Uri, target: File): Long {
@@ -1027,6 +1059,20 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
   private fun extensionForMime(mimeType: String): String = EXTENSIONS_BY_MIME_TYPE[normalizedMimeType(mimeType)] ?: ""
 
+  private fun hasMediaLibraryPermission(): Boolean =
+    ContextCompat.checkSelfPermission(
+      reactApplicationContext,
+      Manifest.permission.READ_MEDIA_IMAGES,
+    ) == PackageManager.PERMISSION_GRANTED ||
+      ContextCompat.checkSelfPermission(
+        reactApplicationContext,
+        Manifest.permission.READ_MEDIA_VIDEO,
+      ) == PackageManager.PERMISSION_GRANTED ||
+      ContextCompat.checkSelfPermission(
+        reactApplicationContext,
+        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+      ) == PackageManager.PERMISSION_GRANTED
+
   private fun mediaRoot(): File = File(reactApplicationContext.cacheDir, MEDIA_CACHE_DIRECTORY)
 
   private fun draftsDirectory(): File = File(mediaRoot(), DRAFTS_DIRECTORY).apply { mkdirs() }
@@ -1049,13 +1095,13 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
   private data class PendingVideoNote(
     val promise: Promise,
     val target: File,
-    val outputUri: Uri,
   )
 
   private class MediaModuleException(val code: String, override val message: String) : Exception(message)
 
   companion object {
     const val NAME = "AraChatMedia"
+    private const val LOG_TAG = "AraChatMedia"
     private const val PHOTO_PICKER_REQUEST_CODE = 8111
     private const val DOCUMENT_PICKER_REQUEST_CODE = 8112
     private const val VIDEO_PICKER_REQUEST_CODE = 8113
@@ -1064,6 +1110,7 @@ class MediaModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private const val DRAFTS_DIRECTORY = "drafts"
     private const val DOWNLOADS_DIRECTORY = "downloads"
     private const val MAX_ATTACHMENT_BYTES = 30L * 1024 * 1024
+    private const val MAX_MEDIA_LIBRARY_ITEMS = 100
     private const val MAX_FILENAME_LENGTH = 255
     private const val BUFFER_SIZE = 64 * 1024
     private const val NETWORK_TIMEOUT_MS = 30_000

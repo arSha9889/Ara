@@ -127,8 +127,8 @@ android {
         applicationId = "arachat.messenger"
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 5
+        versionName = "1.0.4"
         buildConfigField "String", "API_BASE_URL", "\"${escapedApiBaseUrl}\""
         buildConfigField "String", "RUSTORE_PUSH_PROJECT_ID", "\"${escapedRustorePushProjectId}\""
     }
@@ -163,6 +163,12 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation("androidx.activity:activity-ktx:1.10.1")
+    implementation("androidx.camera:camera-camera2:1.6.0")
+    implementation("androidx.camera:camera-core:1.6.0")
+    implementation("androidx.camera:camera-lifecycle:1.6.0")
+    implementation("androidx.camera:camera-video:1.6.0")
+    implementation("androidx.camera:camera-view:1.6.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

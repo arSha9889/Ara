@@ -14,6 +14,7 @@ import {
   PermissionsAndroid,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -48,18 +49,23 @@ import {
 import {
   cancelChatVoiceRecording,
   discardChatAttachmentDraft,
+  getRecentChatMedia,
   pickChatDocument,
   pickChatPhoto,
   pickChatVideo,
   recordChatVideoNote,
+  selectChatMediaFromLibrary,
   startChatVoiceRecording,
   stopChatVoiceRecording,
+  type MediaLibraryItem,
   type PickedChatAttachment,
 } from '../media/mediaClient';
+import { videoNoteRecordingErrorKey } from '../media/mediaError';
 import { mergeChatMessages, upsertChatMessage } from '../messageState';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
 import { useDirectCall } from '../../calls/DirectCallProvider';
+import { clearMessageNotificationsForChat } from '../../notifications/pushClient';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { AppScreen } from '../../../ui/AppScreen';
@@ -99,7 +105,7 @@ interface PhotoViewerState {
 export function ChatScreen({ navigation, route }: Props) {
   const { language, t } = useI18n();
   const { session } = useSession();
-  const { call, startCall } = useDirectCall();
+  const { call, startCall, startVideoCall } = useDirectCall();
   const { send, subscribeToChat, subscribeToEvents } = useRealtime();
   const messageList = useRef<FlatList<ChatMessage>>(null);
   const highlightedMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,6 +135,10 @@ export function ChatScreen({ navigation, route }: Props) {
   const [isPickingAttachment, setIsPickingAttachment] = useState(false);
   const [isAttachmentPickerVisible, setIsAttachmentPickerVisible] = useState(false);
   const [isRecordingPickerVisible, setIsRecordingPickerVisible] = useState(false);
+  const [isMediaLibraryVisible, setIsMediaLibraryVisible] = useState(false);
+  const [isMediaLibraryLoading, setIsMediaLibraryLoading] = useState(false);
+  const [mediaLibraryItems, setMediaLibraryItems] = useState<MediaLibraryItem[]>([]);
+  const [mediaLibraryError, setMediaLibraryError] = useState('');
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isStoppingVoiceRecording, setIsStoppingVoiceRecording] = useState(false);
   const [voiceRecordingSeconds, setVoiceRecordingSeconds] = useState(0);
@@ -168,6 +178,18 @@ export function ChatScreen({ navigation, route }: Props) {
       targetScrollRetryTimer.current = null;
     }
   }, []);
+
+  const markChatMessagesRead = useCallback((messageIds: string[]): void => {
+    if (!messageIds.length) {
+      return;
+    }
+
+    markMessagesRead(route.params.chatId, messageIds)
+      .then(() => {
+        clearMessageNotificationsForChat(route.params.chatId);
+      })
+      .catch(() => undefined);
+  }, [route.params.chatId]);
 
   const scrollToTargetMessage = useCallback((): void => {
     const targetMessageId = route.params.targetMessageId;
@@ -448,9 +470,7 @@ export function ChatScreen({ navigation, route }: Props) {
           .map(message => message.id);
 
         if (unreadIds.length > 0) {
-          markMessagesRead(route.params.chatId, unreadIds).catch(
-            () => undefined,
-          );
+          markChatMessagesRead(unreadIds);
         }
       } catch (nextError) {
         setError(t(authErrorKey(nextError)));
@@ -460,7 +480,7 @@ export function ChatScreen({ navigation, route }: Props) {
         }
       }
     },
-    [route.params.chatId, session?.user.id, t],
+    [markChatMessagesRead, route.params.chatId, session?.user.id, t],
   );
 
   useEffect(() => {
@@ -667,9 +687,7 @@ export function ChatScreen({ navigation, route }: Props) {
           event.event === 'message.created' &&
           message.sender_id !== session?.user.id
         ) {
-          markMessagesRead(route.params.chatId, [message.id]).catch(
-            () => undefined,
-          );
+          markChatMessagesRead([message.id]);
         }
         return;
       }
@@ -697,6 +715,7 @@ export function ChatScreen({ navigation, route }: Props) {
     });
   }, [
     loadMessages,
+    markChatMessagesRead,
     route.params.chatId,
     route.params.peerUserId,
     session?.user.id,
@@ -744,6 +763,7 @@ export function ChatScreen({ navigation, route }: Props) {
   async function selectAttachment(
     picker: () => Promise<PickedChatAttachment | null>,
     errorKey: TranslationKey = 'attachmentPickError',
+    resolveErrorKey: (error: unknown) => TranslationKey = () => errorKey,
   ): Promise<void> {
     if (isPickingAttachment || isSending) {
       return;
@@ -758,11 +778,46 @@ export function ChatScreen({ navigation, route }: Props) {
       }
 
       saveSelectedAttachment(attachment);
-    } catch {
-      setAttachmentError(t(errorKey));
+    } catch (pickerError) {
+      setAttachmentError(t(resolveErrorKey(pickerError)));
     } finally {
       setIsPickingAttachment(false);
       setIsAttachmentPickerVisible(false);
+      setIsMediaLibraryVisible(false);
+    }
+  }
+
+  async function openMediaLibrary(): Promise<void> {
+    if (isPickingAttachment || isSending) {
+      return;
+    }
+
+    setAttachmentError('');
+    setMediaLibraryError('');
+    setMediaLibraryItems([]);
+    setIsAttachmentPickerVisible(false);
+    setIsMediaLibraryVisible(true);
+    setIsMediaLibraryLoading(true);
+    try {
+      if (Platform.OS === 'android') {
+        const permissions = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
+          PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO,
+          PermissionsAndroid.PERMISSIONS.READ_MEDIA_VISUAL_USER_SELECTED,
+        ]);
+        const hasMediaAccess = Object.values(permissions).some(
+          value => value === PermissionsAndroid.RESULTS.GRANTED,
+        );
+        if (!hasMediaAccess) {
+          setMediaLibraryError(t('mediaLibraryPermissionDenied'));
+          return;
+        }
+      }
+      setMediaLibraryItems(await getRecentChatMedia());
+    } catch {
+      setMediaLibraryError(t('mediaLibraryUnavailable'));
+    } finally {
+      setIsMediaLibraryLoading(false);
     }
   }
 
@@ -838,7 +893,11 @@ export function ChatScreen({ navigation, route }: Props) {
       }
     }
 
-    await selectAttachment(recordChatVideoNote, 'videoNoteRecordError');
+    await selectAttachment(
+      recordChatVideoNote,
+      'videoNoteRecordError',
+      videoNoteRecordingErrorKey,
+    );
   }
 
   async function stopVoiceRecording(): Promise<void> {
@@ -1393,6 +1452,20 @@ export function ChatScreen({ navigation, route }: Props) {
               icon="call"
               onPress={() => {
                 startCall({
+                  chatId: route.params.chatId,
+                  peerName: route.params.title,
+                  peerUserId: route.params.peerUserId!,
+                }).catch(() => undefined);
+              }}
+            />
+          ) : null}
+          {route.params.peerUserId ? (
+            <IconButton
+              accessibilityLabel={t('callVideo')}
+              disabled={Boolean(call)}
+              icon="video"
+              onPress={() => {
+                startVideoCall({
                   chatId: route.params.chatId,
                   peerName: route.params.title,
                   peerUserId: route.params.peerUserId!,
@@ -2015,13 +2088,13 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.attachmentPickerGrid}>
               <View style={styles.attachmentPickerMediaRow}>
                 <Pressable
-                  accessibilityHint={t('attachmentPhotoHint')}
-                  accessibilityLabel={t('attachmentPhoto')}
+                  accessibilityHint={t('attachmentMediaDescription')}
+                  accessibilityLabel={t('attachmentMedia')}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isPickingAttachment }}
                   disabled={isPickingAttachment}
                   onPress={() => {
-                    selectAttachment(pickChatPhoto).catch(() => undefined);
+                      openMediaLibrary().catch(() => undefined);
                   }}
                   style={({ pressed }) => [
                     styles.attachmentPickerTile,
@@ -2034,10 +2107,10 @@ export function ChatScreen({ navigation, route }: Props) {
                     <Icon color={colors.primary} name="photo" size={23} />
                   </View>
                   <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
-                    {t('attachmentPhoto')}
+                    {t('attachmentMedia')}
                   </Text>
                   <Text numberOfLines={2} style={styles.attachmentPickerTileDescription}>
-                    {t('attachmentPhotoDescription')}
+                    {t('attachmentMediaDescription')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -2047,7 +2120,7 @@ export function ChatScreen({ navigation, route }: Props) {
                   accessibilityState={{ disabled: isPickingAttachment }}
                   disabled={isPickingAttachment}
                   onPress={() => {
-                    selectAttachment(pickChatVideo).catch(() => undefined);
+                    startVideoNoteRecording().catch(() => undefined);
                   }}
                   style={({ pressed }) => [
                     styles.attachmentPickerTile,
@@ -2057,13 +2130,13 @@ export function ChatScreen({ navigation, route }: Props) {
                   ]}
                 >
                   <View style={styles.attachmentPickerTileIcon}>
-                    <Icon color={colors.primary} name="video" size={23} />
+                    <Icon color={colors.primary} name="videoNote" size={23} />
                   </View>
                   <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
-                    {t('attachmentVideo')}
+                    {t('attachmentVideoNote')}
                   </Text>
                   <Text numberOfLines={2} style={styles.attachmentPickerTileDescription}>
-                    {t('attachmentVideoDescription')}
+                    {t('attachmentVideoNoteDescription')}
                   </Text>
                 </Pressable>
               </View>
@@ -2097,6 +2170,131 @@ export function ChatScreen({ navigation, route }: Props) {
                     {t('attachmentFileDescription')}
                   </Text>
                 </View>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setIsMediaLibraryVisible(false)}
+        transparent
+        visible={isMediaLibraryVisible}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable
+            accessibilityLabel={t('closeMediaLibrary')}
+            accessibilityRole="button"
+            disabled={isPickingAttachment}
+            onPress={() => setIsMediaLibraryVisible(false)}
+            style={styles.sheetBackdrop}
+          />
+          <View
+            accessibilityLabel={t('attachmentMedia')}
+            accessibilityViewIsModal
+            style={[sharedStyles.glassPanel, styles.mediaLibrarySheet]}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.mediaLibraryHeader}>
+              <View style={styles.mediaLibraryHeading}>
+                <Text style={styles.sheetTitle}>{t('attachmentMedia')}</Text>
+                <Text style={styles.attachmentSheetDescription}>
+                  {t('mediaLibraryDescription')}
+                </Text>
+              </View>
+              <IconButton
+                accessibilityLabel={t('closeMediaLibrary')}
+                disabled={isPickingAttachment}
+                icon="close"
+                onPress={() => setIsMediaLibraryVisible(false)}
+                size={48}
+              />
+            </View>
+
+            {isMediaLibraryLoading ? (
+              <View style={styles.mediaLibraryState}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.mediaLibraryStateLabel}>{t('mediaLibraryLoading')}</Text>
+              </View>
+            ) : mediaLibraryError ? (
+              <View style={styles.mediaLibraryState}>
+                <Text accessibilityRole="alert" style={styles.attachmentErrorText}>
+                  {mediaLibraryError}
+                </Text>
+              </View>
+            ) : mediaLibraryItems.length === 0 ? (
+              <View style={styles.mediaLibraryState}>
+                <Text style={styles.mediaLibraryStateLabel}>{t('mediaLibraryEmpty')}</Text>
+              </View>
+            ) : (
+              <ScrollView
+                contentContainerStyle={styles.mediaLibraryGrid}
+                showsVerticalScrollIndicator={false}
+              >
+                {mediaLibraryItems.map(item => (
+                  <Pressable
+                    accessibilityLabel={`${item.mimeType.startsWith('video/') ? t('chatVideo') : t('chatPhoto')}: ${item.name}`}
+                    accessibilityRole="button"
+                    disabled={isPickingAttachment}
+                    key={item.uri}
+                    onPress={() => {
+                      selectAttachment(() => selectChatMediaFromLibrary(item.uri)).catch(
+                        () => undefined,
+                      );
+                    }}
+                    style={({ pressed }) => [
+                      styles.mediaLibraryTile,
+                      isPickingAttachment && styles.attachmentPickerTileDisabled,
+                      pressed && !isPickingAttachment && styles.mediaLibraryTilePressed,
+                    ]}
+                  >
+                    {item.mimeType.startsWith('image/') ? (
+                      <Image source={{ uri: item.uri }} style={styles.mediaLibraryImage} />
+                    ) : (
+                      <View style={styles.mediaLibraryVideoPlaceholder}>
+                        <Icon color={colors.primary} name="video" size={26} />
+                        <Text numberOfLines={2} style={styles.mediaLibraryVideoName}>
+                          {item.name}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            <View style={styles.mediaLibraryFallbackActions}>
+              <Pressable
+                accessibilityHint={t('attachmentPhotoHint')}
+                accessibilityLabel={t('attachmentPhoto')}
+                accessibilityRole="button"
+                disabled={isPickingAttachment}
+                onPress={() => {
+                  selectAttachment(pickChatPhoto).catch(() => undefined);
+                }}
+                style={({ pressed }) => [
+                  styles.mediaLibraryFallbackButton,
+                  pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
+                ]}
+              >
+                <Icon color={colors.primary} name="photo" size={20} />
+                <Text style={styles.mediaLibraryFallbackLabel}>{t('attachmentPhoto')}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityHint={t('attachmentVideoHint')}
+                accessibilityLabel={t('attachmentVideo')}
+                accessibilityRole="button"
+                disabled={isPickingAttachment}
+                onPress={() => {
+                  selectAttachment(pickChatVideo).catch(() => undefined);
+                }}
+                style={({ pressed }) => [
+                  styles.mediaLibraryFallbackButton,
+                  pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
+                ]}
+              >
+                <Icon color={colors.primary} name="video" size={20} />
+                <Text style={styles.mediaLibraryFallbackLabel}>{t('attachmentVideo')}</Text>
               </Pressable>
             </View>
           </View>
@@ -2809,6 +3007,95 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  mediaLibrarySheet: {
+    backgroundColor: colors.glassStrong,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    gap: spacing.sm,
+    maxHeight: '84%',
+    minHeight: 360,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  mediaLibraryHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  mediaLibraryHeading: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mediaLibraryState: {
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 180,
+    paddingHorizontal: spacing.md,
+  },
+  mediaLibraryStateLabel: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  mediaLibraryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  mediaLibraryTile: {
+    aspectRatio: 1,
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.glassBorder,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    width: '31.8%',
+  },
+  mediaLibraryTilePressed: {
+    opacity: 0.7,
+  },
+  mediaLibraryImage: {
+    height: '100%',
+    width: '100%',
+  },
+  mediaLibraryVideoPlaceholder: {
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.xs,
+    justifyContent: 'center',
+    padding: spacing.xs,
+  },
+  mediaLibraryVideoName: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    textAlign: 'center',
+  },
+  mediaLibraryFallbackActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  mediaLibraryFallbackButton: {
+    alignItems: 'center',
+    borderColor: colors.glassBorder,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.sm,
+  },
+  mediaLibraryFallbackLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
   attachmentSheetDescription: {
     color: colors.textMuted,

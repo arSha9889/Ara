@@ -5,6 +5,7 @@ jest.mock('react-native', () => ({
   NativeModules: {
     AraChatPush: {
       addListener: jest.fn(),
+      clearMessageNotificationsForChat: jest.fn(),
       getPendingNotificationOpen: jest.fn(),
       getNotificationPermissionStatus: jest.fn(),
       getTokens: jest.fn(),
@@ -17,9 +18,14 @@ jest.mock('react-native', () => ({
 
 import { NativeModules } from 'react-native';
 
-import { getMobilePushTokens, getPendingMobilePushOpen } from '../src/features/notifications/pushClient';
+import {
+  clearMessageNotificationsForChat,
+  getMobilePushTokens,
+  getPendingMobilePushOpen,
+} from '../src/features/notifications/pushClient';
 
 const nativePush = NativeModules.AraChatPush as {
+  clearMessageNotificationsForChat: jest.Mock;
   getPendingNotificationOpen: jest.Mock;
   getTokens: jest.Mock;
 };
@@ -50,4 +56,12 @@ test('returns the pending cold-start notification destination from the native br
   nativePush.getPendingNotificationOpen.mockResolvedValue(destination);
 
   await expect(getPendingMobilePushOpen()).resolves.toEqual(destination);
+});
+
+test('asks the native bridge to clear message notifications only for the read chat', () => {
+  clearMessageNotificationsForChat('b4983206-5337-42a8-8173-0b9f6a741451');
+
+  expect(nativePush.clearMessageNotificationsForChat).toHaveBeenCalledWith(
+    'b4983206-5337-42a8-8173-0b9f6a741451',
+  );
 });
