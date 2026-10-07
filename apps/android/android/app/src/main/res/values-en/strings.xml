@@ -1,6 +1,11 @@
 <resources>
     <string name="push_messages_channel">Messages</string>
     <string name="push_calls_channel">Calls</string>
+    <string name="active_call_channel">Active calls</string>
+    <string name="active_call_title">AraChat call</string>
+    <string name="active_call_with">Call with %1$s</string>
+    <string name="active_audio_call">Audio call</string>
+    <string name="active_video_call">Video call</string>
     <string name="video_note_camera_close">Close</string>
     <string name="video_note_camera_close_description">Close video-note recording</string>
     <string name="video_note_camera_switch">Switch camera</string>

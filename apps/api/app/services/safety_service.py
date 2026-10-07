@@ -18,7 +18,8 @@ from app.schemas.safety import (
 )
 from app.services.admin_service import require_admin
 from app.services.auth_service import AuthError
-from app.services.call_signaling import call_signaling_manager
+from app.services.call_signaling import call_signaling_manager, call_terminal_outcome
+from app.services.call_history_service import finalize_call_record
 from app.services.realtime_manager import realtime_manager
 
 
@@ -119,6 +120,7 @@ async def block_user(session: AsyncSession, blocker_user_id: UUID, blocked_user_
         shared_direct_chat_ids,
     )
     if call := await call_signaling_manager.end_call_between_users(blocker_user_id, blocked_user_id):
+        await finalize_call_record(session, call, call_terminal_outcome(call))
         for user_id in {blocker_user_id, blocked_user_id}:
             await realtime_manager.broadcast_to_user(user_id, {
                 'event': 'call.end',

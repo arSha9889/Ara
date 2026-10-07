@@ -12,6 +12,7 @@ const mockGetDeviceId = jest.fn();
 const mockLoadSession = jest.fn();
 const mockLogout = jest.fn();
 const mockLoginWithPassword = jest.fn();
+const mockMarkNotificationPermissionRequest = jest.fn();
 const mockSaveSession = jest.fn();
 const mockSubscribe = jest.fn();
 const mockUnregisterMobilePushTokens = jest.fn();
@@ -35,6 +36,7 @@ jest.mock('../src/infrastructure/storage/sessionStore', () => ({
     getDeviceId: (...args: unknown[]) => mockGetDeviceId(...args),
     clearSessionIfCurrent: (...args: unknown[]) => mockClearSessionIfCurrent(...args),
     loadSession: (...args: unknown[]) => mockLoadSession(...args),
+    markNotificationPermissionRequest: (...args: unknown[]) => mockMarkNotificationPermissionRequest(...args),
     saveSession: (...args: unknown[]) => mockSaveSession(...args),
     subscribe: (...args: unknown[]) => mockSubscribe(...args),
   },
@@ -62,11 +64,13 @@ const updatedUser: SessionUser = {
 
 let mockStoredSession: AuthSession | null = null;
 let mockSessionListener: ((session: AuthSession | null) => void) | undefined;
+let exposedSignIn: ((identifier: string, password: string) => Promise<void>) | undefined;
 let exposedUpdateSessionUser: ((user: SessionUser) => Promise<void>) | undefined;
 let exposedSignOut: (() => Promise<void>) | undefined;
 
 function SessionProbe() {
   const session = useSession();
+  exposedSignIn = session.signIn;
   exposedUpdateSessionUser = session.updateSessionUser;
   exposedSignOut = session.signOut;
   return null;
@@ -79,6 +83,7 @@ function settleAsyncWork(): Promise<void> {
 describe('SessionProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    exposedSignIn = undefined;
     exposedUpdateSessionUser = undefined;
     exposedSignOut = undefined;
     mockSessionListener = undefined;
@@ -92,6 +97,7 @@ describe('SessionProvider', () => {
       mockSessionListener?.(nextSession);
     });
     mockGetDeviceId.mockResolvedValue('device-id');
+    mockMarkNotificationPermissionRequest.mockResolvedValue(undefined);
     mockUnregisterMobilePushTokens.mockResolvedValue(undefined);
     mockClearSessionIfCurrent.mockImplementation(async (expected: AuthSession) => {
       if (
@@ -111,6 +117,37 @@ describe('SessionProvider', () => {
           mockSessionListener = undefined;
         }
       };
+    });
+  });
+
+  it('arms a notification permission request after a successful interactive sign-in', async () => {
+    const signedInSession: AuthSession = {
+      ...initialSession,
+      accessToken: 'new-access-token',
+      refreshToken: 'new-refresh-token',
+      user: { ...initialSession.user, id: 'user-2', nexusId: '9876543210987654' },
+    };
+    mockLoginWithPassword.mockResolvedValue(signedInSession);
+
+    let component!: ReturnType<typeof create>;
+    await act(async () => {
+      component = create(
+        <SessionProvider>
+          <SessionProbe />
+        </SessionProvider>,
+      );
+      await settleAsyncWork();
+    });
+
+    await act(async () => {
+      await exposedSignIn?.('user@example.com', 'secret');
+    });
+
+    expect(mockLoginWithPassword).toHaveBeenCalledWith('user@example.com', 'secret', 'device-id');
+    expect(mockMarkNotificationPermissionRequest).toHaveBeenCalledWith('user-2');
+
+    await act(async () => {
+      component.unmount();
     });
   });
 

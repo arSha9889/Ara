@@ -1,4 +1,5 @@
 import type { Chat, ChatMessage } from '../../features/chats/api/chatApi';
+import type { CallHistoryItem } from '../../features/calls/api/callApi';
 
 export interface CallSessionDescription {
   sdp: string;
@@ -15,6 +16,7 @@ export interface RealtimeEvent {
   callId?: string;
   callType?: 'audio' | 'video';
   candidate?: CallIceCandidate;
+  callHistory?: CallHistoryItem;
   chat?: Chat;
   description?: CallSessionDescription;
   event: string;
@@ -98,6 +100,31 @@ function isChat(value: unknown): value is Chat {
   );
 }
 
+function isCallHistoryItem(value: unknown): value is CallHistoryItem {
+  if (!isRecord(value) || !isRecord(value.peer)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string'
+    && typeof value.call_id === 'string'
+    && typeof value.chat_id === 'string'
+    && (value.call_type === 'audio' || value.call_type === 'video')
+    && (value.direction === 'incoming' || value.direction === 'outgoing')
+    && ['completed', 'cancelled', 'rejected', 'busy', 'failed'].includes(String(value.outcome))
+    && typeof value.peer.id === 'string'
+    && typeof value.peer.display_name === 'string'
+    && typeof value.peer.username === 'string'
+    && typeof value.peer.avatar_type === 'string'
+    && typeof value.peer.avatar_ref === 'string'
+    && typeof value.peer.is_official === 'boolean'
+    && typeof value.started_at === 'string'
+    && (value.connected_at === null || typeof value.connected_at === 'string')
+    && typeof value.ended_at === 'string'
+    && (value.duration_seconds === null || typeof value.duration_seconds === 'number')
+  );
+}
+
 export function parseRealtimeEvent(value: unknown): RealtimeEvent | null {
   if (!isRecord(value) || typeof value.event !== 'string') {
     return null;
@@ -107,6 +134,7 @@ export function parseRealtimeEvent(value: unknown): RealtimeEvent | null {
     callId: stringValue(value.call_id),
     callType: callType(value.call_type),
     candidate: callIceCandidate(value.candidate),
+    callHistory: isCallHistoryItem(value.call) ? value.call : undefined,
     chat: isChat(value.chat) ? value.chat : undefined,
     description: callSessionDescription(value.description),
     event: value.event,

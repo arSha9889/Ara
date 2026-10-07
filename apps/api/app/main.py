@@ -1,6 +1,7 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -17,7 +18,9 @@ from app.domain.tokens import AccessTokenClaims, decode_access_token
 from app.models.chats import Chat, ChatParticipant
 from app.models.users import User
 from app.db.health import check_database
-from app.services.call_signaling import CallSignalingError, call_signaling_manager, normalize_call_signal
+from app.services.call_history_service import call_history_item_for_user, finalize_call_record, mark_call_record_connected, start_call_record
+from app.services.call_signaling import CallSession, CallSignalingError, call_signaling_manager, call_terminal_outcome, normalize_call_signal
+from app.services.chat_service import create_call_history_message
 from app.services.auth_service import AuthError, is_access_token_session_active
 from app.services.notification_service import send_mobile_call_invite_push
 from app.services.realtime_manager import realtime_manager
@@ -30,14 +33,24 @@ from app.services.user_access_service import user_can_access
 WEBSOCKET_AUTH_TIMEOUT_SECONDS = 10
 TYPING_EVENT_THROTTLE_SECONDS = 2
 ACCESS_TOKEN_EXPIRED_CLOSE_CODE = 4001
+CALL_EXPIRY_SWEEP_SECONDS = 1
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def _app_lifespan(_: FastAPI) -> AsyncIterator[None]:
     await realtime_revocation_service.start()
+    await _finalize_expired_calls()
+    call_expiry_task = asyncio.create_task(
+        _call_expiry_worker(),
+        name='call-expiry-finalizer',
+    )
     try:
         yield
     finally:
+        call_expiry_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await call_expiry_task
         await realtime_revocation_service.stop()
 
 
@@ -86,6 +99,7 @@ def create_app() -> FastAPI:
         was_offline = await realtime_manager.connect_user(websocket, user_id, authentication.session_id)
         if was_offline:
             await _broadcast_presence_to_user_chats(user_id, True)
+        await _finalize_expired_calls()
         await _send_pending_call_invite(websocket, user_id)
 
         typing_started_at: dict[UUID, float] = {}
@@ -371,6 +385,7 @@ async def _mark_user_last_seen(user_id: UUID) -> datetime:
 
 
 async def _handle_call_signal(websocket: WebSocket, message: dict, user_id: UUID) -> None:
+    await _finalize_expired_calls()
     chat_id = _parse_uuid(message.get('chat_id'))
     if not chat_id:
         await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'invalid_chat_id'})
@@ -392,7 +407,7 @@ async def _handle_call_signal(websocket: WebSocket, message: dict, user_id: UUID
             await _send_call_failure(websocket, signal['call_id'], 'direct_chat_required')
             return
         try:
-            await call_signaling_manager.start_call(
+            call = await call_signaling_manager.start_call(
                 signal['call_id'],
                 chat_id,
                 user_id,
@@ -402,6 +417,8 @@ async def _handle_call_signal(websocket: WebSocket, message: dict, user_id: UUID
         except CallSignalingError as exc:
             await _send_call_failure(websocket, signal['call_id'], exc.reason)
             return
+        await _finalize_expired_calls()
+        await _start_call_record(call)
         await realtime_manager.broadcast_to_user(peer_user_id, {
             **signal,
             'chat_id': str(chat_id),
@@ -418,21 +435,32 @@ async def _handle_call_signal(websocket: WebSocket, message: dict, user_id: UUID
         return
 
     try:
-        recipient_user_id = await call_signaling_manager.relay_call_signal(
+        relay_result = await call_signaling_manager.relay_call_signal(
             signal['call_id'],
             chat_id,
             user_id,
             signal['event'],
+            signal.get('reason'),
         )
     except CallSignalingError as exc:
         await _send_call_failure(websocket, signal['call_id'], exc.reason)
         return
 
-    await realtime_manager.broadcast_to_user(recipient_user_id, {
-        **signal,
-        'chat_id': str(chat_id),
-        'user_id': str(user_id),
-    })
+    if signal['event'] != 'call.connected':
+        await realtime_manager.broadcast_to_user(relay_result.recipient_user_id, {
+            **signal,
+            'chat_id': str(chat_id),
+            'user_id': str(user_id),
+        })
+    if relay_result.connected_session:
+        await _mark_call_record_connected(relay_result.connected_session)
+    if relay_result.terminal_session and relay_result.terminal_outcome:
+        await _finalize_call_record_and_broadcast(
+            relay_result.terminal_session,
+            relay_result.terminal_outcome,
+        )
+    if relay_result.terminal_session and relay_result.history_outcome:
+        await _create_and_broadcast_call_history(relay_result.terminal_session, relay_result.history_outcome)
 
 
 async def _send_call_failure(websocket: WebSocket, call_id: object, reason: str) -> None:
@@ -440,6 +468,87 @@ async def _send_call_failure(websocket: WebSocket, call_id: object, reason: str)
     if isinstance(call_id, str):
         payload['call_id'] = call_id
     await _safe_send_json(websocket, payload)
+
+
+async def _create_and_broadcast_call_history(call: CallSession, outcome: str) -> None:
+    try:
+        async with AsyncSessionLocal() as session:
+            message = await create_call_history_message(session, call, outcome)
+    except Exception:
+        logger.exception('Unable to save call history for call %s', call.call_id)
+        return
+
+    if not message:
+        return
+    payload = {
+        'event': 'message.created',
+        'chat_id': str(call.chat_id),
+        'message': message.model_dump(mode='json'),
+    }
+    for user_id in {call.caller_user_id, call.callee_user_id}:
+        await realtime_manager.broadcast_to_user(user_id, payload)
+
+
+async def _start_call_record(call: CallSession) -> None:
+    try:
+        async with AsyncSessionLocal() as session:
+            await start_call_record(session, call)
+    except Exception:
+        logger.exception('Unable to start call record for call %s', call.call_id)
+
+
+async def _mark_call_record_connected(call: CallSession) -> None:
+    try:
+        async with AsyncSessionLocal() as session:
+            await mark_call_record_connected(session, call)
+    except Exception:
+        logger.exception('Unable to record connection for call %s', call.call_id)
+
+
+async def _finalize_call_record_and_broadcast(call: CallSession, outcome: str) -> None:
+    try:
+        async with AsyncSessionLocal() as session:
+            record = await finalize_call_record(session, call, outcome)
+            history_items = {
+                user_id: await call_history_item_for_user(session, record, user_id)
+                for user_id in {call.caller_user_id, call.callee_user_id}
+            }
+    except Exception:
+        logger.exception('Unable to finalize call record for call %s', call.call_id)
+        return
+
+    for user_id, history_item in history_items.items():
+        if history_item:
+            await realtime_manager.broadcast_to_user(user_id, {
+                'event': 'call.history_created',
+                'call': history_item.model_dump(mode='json'),
+            })
+
+
+async def _finalize_expired_calls() -> None:
+    for call in await call_signaling_manager.expire_calls():
+        outcome = call_terminal_outcome(call)
+        for user_id in {call.caller_user_id, call.callee_user_id}:
+            await realtime_manager.broadcast_to_user(user_id, {
+                'event': 'call.cancel' if outcome == 'cancelled' else 'call.end',
+                'call_id': call.call_id,
+                'chat_id': str(call.chat_id),
+                'user_id': str(call.caller_user_id),
+            })
+        await _finalize_call_record_and_broadcast(call, outcome)
+        if outcome == 'cancelled':
+            await _create_and_broadcast_call_history(call, 'cancelled')
+
+
+async def _call_expiry_worker() -> None:
+    while True:
+        await asyncio.sleep(CALL_EXPIRY_SWEEP_SECONDS)
+        try:
+            await _finalize_expired_calls()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception('Unable to finalize expired call sessions.')
 
 
 async def _send_pending_call_invite(websocket: WebSocket, user_id: UUID) -> None:
@@ -486,6 +595,10 @@ async def _end_calls_for_disconnected_user(user_id: UUID) -> None:
             'chat_id': str(session.chat_id),
             'user_id': str(user_id),
         })
+        outcome = call_terminal_outcome(session)
+        await _finalize_call_record_and_broadcast(session, outcome)
+        if outcome == 'cancelled':
+            await _create_and_broadcast_call_history(session, 'cancelled')
 
 
 async def _safe_send_json(websocket: WebSocket, payload: dict) -> bool:

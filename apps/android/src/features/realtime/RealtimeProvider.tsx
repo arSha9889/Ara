@@ -13,6 +13,10 @@ import { AppState } from 'react-native';
 import { apiClient } from '../../infrastructure/http/apiClient';
 import { getWebSocketUrl } from '../../infrastructure/realtime/realtimeConfig';
 import { parseRealtimeEvent, type RealtimeEvent } from '../../infrastructure/realtime/realtimeEvent';
+import {
+  shouldKeepRealtimeConnection,
+  subscribeToCallLifecycle,
+} from '../calls/callLifecycle';
 
 const HEARTBEAT_INTERVAL_MS = 25_000;
 const HEARTBEAT_TIMEOUT_MS = 10_000;
@@ -34,10 +38,6 @@ interface RealtimeContextValue {
 }
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
-
-function isForegroundAppState(state: string | null | undefined): boolean {
-  return state === 'active' || state === 'unknown';
-}
 
 function sendPayload(socket: WebSocket, payload: RealtimeOutboundEvent): boolean {
   if (socket.readyState !== SOCKET_OPEN) {
@@ -110,7 +110,8 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
 
   useEffect(() => {
     let isDisposed = false;
-    let shouldConnect = isForegroundAppState(AppState.currentState);
+    let appState = AppState.currentState;
+    let shouldConnect = shouldKeepRealtimeConnection(appState);
     let reconnectAttempts = 0;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -308,8 +309,8 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
       };
     }
 
-    const appStateSubscription = AppState.addEventListener('change', nextAppState => {
-      shouldConnect = isForegroundAppState(nextAppState);
+    function updateConnectionPolicy(): void {
+      shouldConnect = shouldKeepRealtimeConnection(appState);
       if (shouldConnect) {
         reconnectAttempts = 0;
         connect();
@@ -319,7 +320,13 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
       clearReconnectTimer();
       closeSocket();
       setConnectionStatus('disconnected');
+    }
+
+    const appStateSubscription = AppState.addEventListener('change', nextAppState => {
+      appState = nextAppState;
+      updateConnectionPolicy();
     });
+    const callLifecycleSubscription = subscribeToCallLifecycle(updateConnectionPolicy);
 
     connect();
 
@@ -327,6 +334,7 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
       isDisposed = true;
       clearReconnectTimer();
       appStateSubscription.remove();
+      callLifecycleSubscription();
       closeSocket();
     };
   }, [accessToken]);

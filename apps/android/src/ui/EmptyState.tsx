@@ -1,18 +1,19 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, sharedStyles, spacing } from '../theme/theme';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 
 interface EmptyStateProps {
   title: string;
   description: string;
+  icon?: IconName;
 }
 
-export function EmptyState({ title, description }: EmptyStateProps) {
+export function EmptyState({ title, description, icon = 'chats' }: EmptyStateProps) {
   return (
     <View style={[sharedStyles.glassCard, styles.card]}>
       <View accessibilityElementsHidden style={styles.orb}>
-        <Icon color={colors.primary} name="chats" size={24} />
+        <Icon color={colors.primary} name={icon} size={24} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>

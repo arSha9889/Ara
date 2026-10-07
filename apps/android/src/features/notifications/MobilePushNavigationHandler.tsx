@@ -28,6 +28,7 @@ export function MobilePushNavigationHandler({ navigation }: Props) {
   const chatCopy = useMemo(
     () => ({
       attachment: t('chatsAttachment'),
+      call: t('call'),
       directChat: t('chatsDirectFallback'),
       noMessages: t('noMessages'),
       savedMessages: t('chatsSavedMessages'),

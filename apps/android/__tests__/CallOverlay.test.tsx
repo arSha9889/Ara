@@ -33,11 +33,9 @@ const mockDirectCall = {
 };
 
 jest.mock('react-native', () => ({
-  AccessibilityInfo: {
+  BackHandler: {
     addEventListener: jest.fn(() => ({ remove: jest.fn() })),
-    isReduceMotionEnabled: jest.fn().mockResolvedValue(false),
   },
-  Modal: 'Modal',
   Pressable: 'Pressable',
   SafeAreaView: 'SafeAreaView',
   StyleSheet: {
@@ -54,6 +52,10 @@ jest.mock('react-native-webrtc', () => ({
 
 jest.mock('../src/features/calls/DirectCallProvider', () => ({
   useDirectCall: () => mockDirectCall,
+}));
+
+jest.mock('../src/features/calls/callForeground', () => ({
+  subscribeToPictureInPicture: () => () => undefined,
 }));
 
 jest.mock('../src/localization/I18nProvider', () => ({

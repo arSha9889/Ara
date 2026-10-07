@@ -2,6 +2,7 @@ import type { Chat, ChatPreviewMessage } from './api/chatApi';
 
 export interface ChatPresentationCopy {
   attachment: string;
+  call: string;
   directChat: string;
   noMessages: string;
   savedMessages: string;
@@ -37,6 +38,8 @@ export function chatPreview(
   const content =
     message.type === 'text' || message.type === 'emoji'
       ? message.payload
+      : message.type === 'call'
+        ? copy.call
       : message.media_name || copy.attachment;
 
   return `${prefix}${content}`;

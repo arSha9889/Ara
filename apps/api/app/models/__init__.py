@@ -1,4 +1,5 @@
 from app.models.audit import AuditLog, TelegramRecoveryRequest
+from app.models.calls import CallRecord
 from app.models.chats import BranchComment, Chat, ChatParticipant, ChatPreference, Message, MessageReaction, MessageReceipt, MobilePushToken, Notification, PushSubscription, SystemAnnouncement
 from app.models.news import ProjectNews, ProjectNewsTranslation
 from app.models.oauth import OAuthAttempt, OAuthIdentity
@@ -13,6 +14,7 @@ from app.models.verification import EmailVerification, PasswordConfirmation, Pho
 __all__ = [
     'AuditLog',
     'BranchComment',
+    'CallRecord',
     'Chat',
     'ChatParticipant',
     'ChatPreference',

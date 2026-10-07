@@ -35,6 +35,8 @@ import {
   type CallAudioSession,
 } from './callAudio';
 import { getRtcConfiguration } from './callConfig';
+import { startCallForeground, stopCallForeground } from './callForeground';
+import { setCallLifecycle } from './callLifecycle';
 import {
   callFailureKeyForReason,
   type ActiveDirectCall,
@@ -93,10 +95,6 @@ function isCallEvent(event: RealtimeEvent): boolean {
   return event.event.startsWith('call.');
 }
 
-function isForegroundAppState(state: string | null | undefined): boolean {
-  return state === 'active' || state === 'unknown';
-}
-
 function isCurrentCall(call: ActiveDirectCall | null, callId: string): call is ActiveDirectCall {
   return Boolean(call && call.callId === callId);
 }
@@ -133,6 +131,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
 
   const setCall = useCallback((nextCall: ActiveDirectCall | null): void => {
     callRef.current = nextCall;
+    setCallLifecycle(nextCall);
     setCallState(nextCall);
   }, []);
 
@@ -182,6 +181,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     remoteStreamRef.current = null;
     setAudioRoutes([]);
     setSelectedAudioRouteId(null);
+    stopCallForeground().catch(() => undefined);
     stopCallAudioSession().catch(() => undefined);
   }, [clearConnectionTimeout, clearDisconnectedTimeout, clearRingTimeout]);
 
@@ -269,6 +269,19 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       throw new CallWorkflowError('callCancelled');
     }
 
+    try {
+      await startCallForeground(current.callType, current.peerName);
+    } catch {
+      stopCallAudioSession().catch(() => undefined);
+      throw new CallWorkflowError('callUnavailable');
+    }
+
+    if (!isCurrentCall(callRef.current, callId)) {
+      stopCallForeground().catch(() => undefined);
+      stopCallAudioSession().catch(() => undefined);
+      throw new CallWorkflowError('callCancelled');
+    }
+
     if (localStreamRef.current) {
       return localStreamRef.current;
     }
@@ -287,6 +300,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
           : false,
       });
     } catch {
+      stopCallForeground().catch(() => undefined);
       stopCallAudioSession().catch(() => undefined);
       throw new CallWorkflowError('callPermissionDenied');
     }
@@ -294,6 +308,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
     const activeCall = callRef.current;
     if (!isCurrentCall(activeCall, callId)) {
       stopStream(stream);
+      stopCallForeground().catch(() => undefined);
       stopCallAudioSession().catch(() => undefined);
       throw new CallWorkflowError('callCancelled');
     }
@@ -395,6 +410,7 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       if (connection.connectionState === 'connected') {
         clearConnectionTimeout();
         clearDisconnectedTimeout();
+        sendCallSignal('call.connected', callId, activeCall.chatId);
         updateCall({ connectedAt: Date.now(), failure: null, phase: 'active' });
       }
       if (connection.connectionState === 'disconnected') {
@@ -764,17 +780,6 @@ export function DirectCallProvider({ children }: { children: ReactNode }) {
       finishWithFailure('callConnectionFailed');
     }
   }), [finishWithFailure, refreshAudioSession, sendCallSignal]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextState => {
-      const activeCall = callRef.current;
-      if (!isForegroundAppState(nextState) && activeCall && activeCall.phase !== 'failed') {
-        sendCallSignal(signalForEndingCall(activeCall), activeCall.callId, activeCall.chatId);
-        resetCall();
-      }
-    });
-    return () => subscription.remove();
-  }, [resetCall, sendCallSignal]);
 
   useEffect(() => () => {
     const activeCall = callRef.current;

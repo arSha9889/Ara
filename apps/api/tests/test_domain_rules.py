@@ -66,6 +66,11 @@ def test_sticker_message_accepts_only_known_stickers_without_media() -> None:
         _validate_message_request(MessageCreateRequest(type='sticker', text=sticker_id, media_url='https://example.test/sticker.svg'))
 
 
+def test_clients_cannot_create_call_history_messages() -> None:
+    with pytest.raises(AuthError, match='Unsupported message type'):
+        _validate_message_request(MessageCreateRequest(type='call', text='{"outcome":"cancelled"}'))
+
+
 def test_public_user_output_exposes_only_allowed_profile_data() -> None:
     user = User(id=uuid4(), nexus_id='1234567890123456', telegram_id='telegram-private-id')
     user.profile = UserProfile(

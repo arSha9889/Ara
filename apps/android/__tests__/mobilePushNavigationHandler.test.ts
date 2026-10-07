@@ -17,6 +17,7 @@ const mockGetPendingMobilePushOpen = jest.fn();
 const mockMarkMobileNotificationsRead = jest.fn();
 const mockSubscribeToMobilePushOpen = jest.fn();
 const mockTranslations: Record<string, string> = {
+  call: 'Звонок',
   chatsAttachment: 'Вложение',
   chatsDirectFallback: 'Личный чат',
   chatsSavedMessages: 'Сохранённые',
@@ -60,6 +61,7 @@ const messageId = '8fc57aec-8406-4d75-9994-7733ce1a69e2';
 const notificationId = 'a20c6930-145f-4bc0-a8a6-2a20fcc021b1';
 const chatCopy = {
   attachment: 'Вложение',
+  call: 'Звонок',
   directChat: 'Личный чат',
   noMessages: 'Нет сообщений',
   savedMessages: 'Сохранённые',

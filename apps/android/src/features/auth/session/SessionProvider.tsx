@@ -75,6 +75,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (identifier: string, password: string) => {
     const deviceId = await sessionStore.getDeviceId();
     const nextSession = await loginWithPassword(identifier, password, deviceId);
+    await sessionStore
+      .markNotificationPermissionRequest(nextSession.user.id)
+      .catch(() => undefined);
     await saveSession(nextSession);
   }, [saveSession]);
 

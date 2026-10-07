@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app import models  # noqa: F401
 from app.db.base import Base
 from app.models.chats import Chat, ChatParticipant, Message
+from app.models.safety import UserBlock
 from app.models.verification import EmailVerification
 from app.models.users import UserProfile
 from app.schemas.auth import RegisterCompleteRequest
@@ -19,7 +20,9 @@ from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, list_branch_comments, update_branch_comment
 from app.services.branch_service import subscribe_to_branch, unsubscribe_from_branch
-from app.services.chat_service import create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, get_message, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
+from app.services.call_signaling import CallSession
+from app.services.call_history_service import finalize_call_record, list_call_history, start_call_record
+from app.services.chat_service import create_call_history_message, create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, get_message, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
 from app.services.e2ee_service import E2EE_WEB_ALGORITHM, list_direct_chat_e2ee_keys, upsert_e2ee_web_key
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
@@ -258,6 +261,32 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             messages_for_sender = await list_messages(session, first_user.id, chat.id)
             assert [item.delivery_status for item in messages_for_sender] == ['read', 'received', 'delivered', 'read']
 
+            await hide_chat(session, second_user.id, chat.id)
+            call_history = await create_call_history_message(
+                session,
+                CallSession(
+                    call_id='call-history-test',
+                    call_type='video',
+                    chat_id=chat.id,
+                    caller_user_id=first_user.id,
+                    callee_user_id=second_user.id,
+                    status='ringing',
+                    expires_at=0,
+                    pending_answer_user_id=None,
+                ),
+                'rejected',
+            )
+            assert call_history and call_history.type == 'call'
+            assert json.loads(call_history.payload) == {
+                'version': 1,
+                'call_id': 'call-history-test',
+                'call_type': 'video',
+                'outcome': 'rejected',
+            }
+            assert chat.id in [item.id for item in await list_chats(session, second_user.id)]
+            received_call_history = await get_message(session, second_user.id, chat.id, call_history.id)
+            assert received_call_history.delivery_status == 'received'
+
             await delete_message(session, first_user.id, chat.id, message.id)
             messages_with_deleted_reply_source = await list_messages(session, second_user.id, chat.id)
             assert messages_with_deleted_reply_source[1].reply_to
@@ -292,6 +321,54 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             )
             assert exact_newest_history_message.id == newest_history_message.id
             assert exact_newest_history_message.payload == 'История 100'
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_persistent_call_history_includes_completed_calls_and_hides_blocked_peers() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        caller, _, _ = await _create_user(session_factory, 'calleralice', '601')
+        callee, _, _ = await _create_user(session_factory, 'calleealice', '602')
+        started_at = datetime(2026, 10, 7, 9, 0, tzinfo=timezone.utc)
+        connected_at = started_at + timedelta(seconds=5)
+        ended_at = connected_at + timedelta(seconds=65)
+
+        async with session_factory() as session:
+            chat = await create_or_get_direct_chat_for_user(session, caller.id, callee.id)
+            call = CallSession(
+                call_id='persistent-call-history',
+                call_type='video',
+                chat_id=chat.id,
+                caller_user_id=caller.id,
+                callee_user_id=callee.id,
+                status='active',
+                expires_at=0,
+                pending_answer_user_id=None,
+                created_at=started_at,
+                connected_at=connected_at,
+            )
+            await start_call_record(session, call)
+            await finalize_call_record(session, call, 'completed', ended_at=ended_at)
+
+            caller_history = await list_call_history(session, caller.id, limit=100)
+            callee_history = await list_call_history(session, callee.id, limit=100)
+            assert len(caller_history) == len(callee_history) == 1
+            assert caller_history[0].direction == 'outgoing'
+            assert callee_history[0].direction == 'incoming'
+            assert caller_history[0].peer.id == callee.id
+            assert caller_history[0].duration_seconds == 65
+
+            session.add(UserBlock(blocker_user_id=caller.id, blocked_user_id=callee.id))
+            await session.commit()
+            assert await list_call_history(session, caller.id, limit=100) == []
     finally:
         await engine.dispose()
 

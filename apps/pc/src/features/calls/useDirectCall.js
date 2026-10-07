@@ -8,6 +8,7 @@ const CALL_EVENTS = new Set([
   'call.reject',
   'call.cancel',
   'call.end',
+  'call.connected',
   'call.offer',
   'call.answer',
   'call.ice_candidate',
@@ -215,6 +216,9 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
     connection.onconnectionstatechange = () => {
       if (peerConnectionRef.current !== connection) return;
       if (connection.connectionState === 'connected') {
+        if (callIdRef.current) {
+          sendSignal({ event: 'call.connected', call_id: callIdRef.current });
+        }
         setCurrentCallState('active');
         setStartedAt((current) => current ?? Date.now());
         setStatusText(t('workspace.callsPanel.connected'));

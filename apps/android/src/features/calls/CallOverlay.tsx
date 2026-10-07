@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  AccessibilityInfo,
-  Modal,
+  BackHandler,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -17,6 +16,7 @@ import { Icon, type IconName } from '../../ui/Icon';
 import type { CallAudioRoute } from './callAudio';
 import { callPhaseKey, formatCallDuration } from './callPresentation';
 import { useDirectCall } from './DirectCallProvider';
+import { subscribeToPictureInPicture } from './callForeground';
 
 export function CallOverlay() {
   const { t } = useI18n();
@@ -33,24 +33,21 @@ export function CallOverlay() {
     toggleMute,
     toggleVideo,
   } = useDirectCall();
-  const [reduceMotion, setReduceMotion] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [isInPictureInPicture, setIsInPictureInPicture] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then(value => {
-        if (active) {
-          setReduceMotion(value);
-        }
-      })
-      .catch(() => undefined);
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
+  const handleRequestClose = useCallback((): void => {
+    if (!call) {
+      return;
+    }
+    if (call.phase === 'incoming') {
+      rejectCall();
+    } else if (call.phase === 'failed') {
+      dismissCall();
+    } else {
+      endCall();
+    }
+  }, [call, dismissCall, endCall, rejectCall]);
 
   useEffect(() => {
     if (call?.phase !== 'active' || !call.connectedAt) {
@@ -60,6 +57,21 @@ export function CallOverlay() {
     const timer = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(timer);
   }, [call?.connectedAt, call?.phase]);
+
+  useEffect(() => subscribeToPictureInPicture(event => {
+    setIsInPictureInPicture(event.isInPictureInPicture);
+  }), []);
+
+  useEffect(() => {
+    if (!call) {
+      return;
+    }
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleRequestClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [call, handleRequestClose]);
 
   if (!call) {
     return null;
@@ -80,22 +92,28 @@ export function CallOverlay() {
       ? 'callCameraAndMicrophonePermissionDenied'
       : call.failure)
     : t(callPhaseKey(call));
+  const pictureInPictureStream = call.remoteStream ?? call.localStream;
+
+  if (isInPictureInPicture && isVideoCall) {
+    return (
+      <View style={styles.pictureInPictureStage}>
+        {pictureInPictureStream ? (
+          <RTCView
+            accessible={false}
+            mirror={!call.remoteStream && call.isFrontCamera}
+            objectFit="cover"
+            pointerEvents="none"
+            streamURL={pictureInPictureStream.toURL()}
+            style={styles.remoteVideo}
+            zOrder={0}
+          />
+        ) : null}
+      </View>
+    );
+  }
 
   return (
-    <Modal
-      animationType={reduceMotion ? 'none' : 'fade'}
-      onRequestClose={() => {
-        if (isIncoming) {
-          rejectCall();
-        } else if (isFailed) {
-          dismissCall();
-        } else {
-          endCall();
-        }
-      }}
-      statusBarTranslucent
-      visible
-    >
+    <View style={styles.overlay}>
       <SafeAreaView style={styles.safeArea}>
         {showVideoStage && call.remoteStream ? (
           <RTCView
@@ -236,7 +254,7 @@ export function CallOverlay() {
           />
         ) : null}
       </SafeAreaView>
-    </Modal>
+    </View>
   );
 }
 
@@ -319,6 +337,15 @@ function CallAction({ accessibilityLabel, icon, label, onPress, selected = false
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.canvas,
+    elevation: 16,
+  },
+  pictureInPictureStage: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.canvas,
+  },
   safeArea: {
     backgroundColor: colors.canvas,
     flex: 1,

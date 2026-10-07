@@ -11,6 +11,7 @@ class AppConfigPackage : BaseReactPackage() {
     when (name) {
       AppConfigModule.NAME -> AppConfigModule(reactContext)
       CallAudioModule.NAME -> CallAudioModule(reactContext)
+      CallForegroundModule.NAME -> CallForegroundModule(reactContext)
       MediaModule.NAME -> MediaModule(reactContext)
       NetworkModule.NAME -> NetworkModule(reactContext)
       PushModule.NAME -> PushModule(reactContext)
@@ -33,6 +34,15 @@ class AppConfigPackage : BaseReactPackage() {
           ReactModuleInfo(
             name = CallAudioModule.NAME,
             className = CallAudioModule::class.java.name,
+            canOverrideExistingModule = false,
+            needsEagerInit = false,
+            isCxxModule = false,
+            isTurboModule = false,
+          ),
+        CallForegroundModule.NAME to
+          ReactModuleInfo(
+            name = CallForegroundModule.NAME,
+            className = CallForegroundModule::class.java.name,
             canOverrideExistingModule = false,
             needsEagerInit = false,
             isCxxModule = false,

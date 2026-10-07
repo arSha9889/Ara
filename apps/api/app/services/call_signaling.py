@@ -1,6 +1,7 @@
 import asyncio
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from time import monotonic
 from uuid import UUID
 
@@ -11,6 +12,7 @@ CALL_SIGNAL_EVENTS = {
     'call.reject',
     'call.cancel',
     'call.end',
+    'call.connected',
     'call.offer',
     'call.answer',
     'call.ice_candidate',
@@ -37,6 +39,17 @@ class CallSession:
     status: str
     expires_at: float
     pending_answer_user_id: UUID | None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    connected_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class CallSignalRelayResult:
+    recipient_user_id: UUID
+    terminal_session: CallSession | None = None
+    terminal_outcome: str | None = None
+    history_outcome: str | None = None
+    connected_session: CallSession | None = None
 
 
 def normalize_call_signal(message: dict) -> dict:
@@ -105,6 +118,7 @@ def normalize_call_signal(message: dict) -> dict:
 class CallSignalingManager:
     def __init__(self) -> None:
         self._calls: dict[str, CallSession] = {}
+        self._expired_calls: list[CallSession] = []
         self._user_call_ids: dict[UUID, str] = {}
         self._lock = asyncio.Lock()
 
@@ -117,7 +131,7 @@ class CallSignalingManager:
         call_type: str = 'audio',
     ) -> CallSession:
         async with self._lock:
-            self._remove_expired_calls_locked()
+            self._collect_expired_calls_locked()
             if call_id in self._calls:
                 raise CallSignalingError('call_id_in_use')
             if caller_user_id in self._user_call_ids:
@@ -142,16 +156,27 @@ class CallSignalingManager:
 
     async def get_pending_incoming_call(self, user_id: UUID) -> CallSession | None:
         async with self._lock:
-            self._remove_expired_calls_locked()
+            self._collect_expired_calls_locked()
             call_id = self._user_call_ids.get(user_id)
             session = self._calls.get(call_id) if call_id else None
-            if not session or session.callee_user_id != user_id or session.status != 'ringing':
+            if (
+                not session
+                or session.callee_user_id != user_id
+                or session.status != 'ringing'
+            ):
                 return None
             return session
 
-    async def relay_call_signal(self, call_id: str, chat_id: UUID, sender_user_id: UUID, event: str) -> UUID:
+    async def relay_call_signal(
+        self,
+        call_id: str,
+        chat_id: UUID,
+        sender_user_id: UUID,
+        event: str,
+        reason: str | None = None,
+    ) -> CallSignalRelayResult:
         async with self._lock:
-            self._remove_expired_calls_locked()
+            self._collect_expired_calls_locked()
             session = self._calls.get(call_id)
             if not session or session.chat_id != chat_id:
                 raise CallSignalingError('call_not_found')
@@ -159,18 +184,36 @@ class CallSignalingManager:
                 raise CallSignalingError('call_not_available')
 
             recipient_user_id = session.callee_user_id if sender_user_id == session.caller_user_id else session.caller_user_id
+            terminal_session = None
+            terminal_outcome = None
+            history_outcome = None
+            connected_session = None
             if event == 'call.accept':
                 self._require_state(session, sender_user_id == session.callee_user_id and session.status == 'ringing')
                 session.status = 'accepted'
                 session.expires_at = monotonic() + MAX_CALL_DURATION_SECONDS
             elif event == 'call.reject':
                 self._require_state(session, sender_user_id == session.callee_user_id and session.status == 'ringing')
+                terminal_session = replace(session)
+                terminal_outcome = _rejection_outcome(reason)
+                history_outcome = 'rejected'
                 self._remove_call_locked(call_id)
             elif event == 'call.cancel':
                 self._require_state(session, sender_user_id == session.caller_user_id)
+                terminal_session = replace(session)
+                terminal_outcome = call_terminal_outcome(terminal_session)
+                if terminal_outcome == 'cancelled':
+                    history_outcome = 'cancelled'
                 self._remove_call_locked(call_id)
             elif event == 'call.end':
+                terminal_session = replace(session)
+                terminal_outcome = call_terminal_outcome(terminal_session)
                 self._remove_call_locked(call_id)
+            elif event == 'call.connected':
+                self._require_state(session, session.status in {'accepted', 'active'})
+                if session.connected_at is None:
+                    session.connected_at = datetime.now(timezone.utc)
+                connected_session = replace(session)
             elif event == 'call.offer':
                 self._require_state(
                     session,
@@ -191,11 +234,17 @@ class CallSignalingManager:
             else:
                 raise CallSignalingError('unsupported_call_event')
 
-            return recipient_user_id
+            return CallSignalRelayResult(
+                recipient_user_id=recipient_user_id,
+                terminal_session=terminal_session,
+                terminal_outcome=terminal_outcome,
+                history_outcome=history_outcome,
+                connected_session=connected_session,
+            )
 
     async def end_calls_for_user(self, user_id: UUID) -> list[tuple[UUID, CallSession]]:
         async with self._lock:
-            self._remove_expired_calls_locked()
+            self._collect_expired_calls_locked()
             call_id = self._user_call_ids.get(user_id)
             if not call_id or not (session := self._calls.get(call_id)):
                 return []
@@ -205,7 +254,7 @@ class CallSignalingManager:
 
     async def end_call_between_users(self, first_user_id: UUID, second_user_id: UUID) -> CallSession | None:
         async with self._lock:
-            self._remove_expired_calls_locked()
+            self._collect_expired_calls_locked()
             call_id = self._user_call_ids.get(first_user_id)
             session = self._calls.get(call_id) if call_id else None
             if not session or {session.caller_user_id, session.callee_user_id} != {first_user_id, second_user_id}:
@@ -213,10 +262,18 @@ class CallSignalingManager:
             self._remove_call_locked(call_id)
             return session
 
-    def _remove_expired_calls_locked(self) -> None:
+    async def expire_calls(self) -> list[CallSession]:
+        async with self._lock:
+            self._collect_expired_calls_locked()
+            expired_calls = self._expired_calls
+            self._expired_calls = []
+            return expired_calls
+
+    def _collect_expired_calls_locked(self) -> None:
         now = monotonic()
         for call_id, session in list(self._calls.items()):
             if session.expires_at <= now:
+                self._expired_calls.append(replace(session))
                 self._remove_call_locked(call_id)
 
     def _remove_call_locked(self, call_id: str) -> None:
@@ -230,6 +287,22 @@ class CallSignalingManager:
     def _require_state(session: CallSession, is_allowed: bool) -> None:
         if not is_allowed:
             raise CallSignalingError('invalid_call_state')
+
+
+def _rejection_outcome(reason: str | None) -> str:
+    if reason == 'busy':
+        return 'busy'
+    if reason in {'media_failed', 'unsupported_media'}:
+        return 'failed'
+    return 'rejected'
+
+
+def call_terminal_outcome(call: CallSession) -> str:
+    if call.connected_at:
+        return 'completed'
+    if call.status == 'ringing':
+        return 'cancelled'
+    return 'failed'
 
 
 call_signaling_manager = CallSignalingManager()

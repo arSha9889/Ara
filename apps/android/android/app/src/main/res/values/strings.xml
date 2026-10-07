@@ -2,6 +2,11 @@
     <string name="app_name" translatable="false">AraChat</string>
     <string name="push_messages_channel">Сообщения</string>
     <string name="push_calls_channel">Звонки</string>
+    <string name="active_call_channel">Активные звонки</string>
+    <string name="active_call_title">Звонок AraChat</string>
+    <string name="active_call_with">Звонок с %1$s</string>
+    <string name="active_audio_call">Аудиозвонок</string>
+    <string name="active_video_call">Видеозвонок</string>
     <string name="video_note_camera_close">Закрыть</string>
     <string name="video_note_camera_close_description">Закрыть запись видео-заметки</string>
     <string name="video_note_camera_switch">Сменить камеру</string>

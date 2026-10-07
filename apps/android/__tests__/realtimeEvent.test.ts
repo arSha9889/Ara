@@ -9,6 +9,27 @@ const message = {
   created_at: '2026-08-23T12:00:00Z',
 };
 
+const callHistory = {
+  call_id: 'call-1',
+  call_type: 'video',
+  connected_at: '2026-10-07T09:00:05Z',
+  direction: 'outgoing',
+  duration_seconds: 65,
+  ended_at: '2026-10-07T09:01:10Z',
+  id: 'history-1',
+  outcome: 'completed',
+  peer: {
+    avatar_ref: 'animal-01',
+    avatar_type: 'built_in',
+    display_name: 'Мария',
+    id: 'user-2',
+    is_official: false,
+    username: 'maria',
+  },
+  started_at: '2026-10-07T09:00:00Z',
+  chat_id: 'chat-1',
+};
+
 test('parses a valid message event from the server contract', () => {
   expect(
     parseRealtimeEvent({
@@ -20,6 +41,16 @@ test('parses a valid message event from the server contract', () => {
     event: 'message.created',
     chatId: 'chat-1',
     message,
+  });
+});
+
+test('parses a validated persistent call history event', () => {
+  expect(parseRealtimeEvent({
+    event: 'call.history_created',
+    call: callHistory,
+  })).toEqual({
+    callHistory,
+    event: 'call.history_created',
   });
 });
 

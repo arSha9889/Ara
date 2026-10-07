@@ -459,6 +459,47 @@ test('starts a video call from the direct chat header', async () => {
   });
 });
 
+test('calls back with the call type saved in call history', async () => {
+  const component = await renderChatScreen([{
+    id: 'call-history-1',
+    chat_id: 'chat-1',
+    sender_id: 'peer-1',
+    author: null,
+    type: 'call',
+    payload: '{"version":1,"call_id":"call-123","call_type":"video","outcome":"cancelled"}',
+    media_url: null,
+    media_name: null,
+    media_mime_type: null,
+    media_size_bytes: null,
+    duration_seconds: null,
+    encryption_state: 'plain_web_core',
+    delivery_status: 'received',
+    created_at: '2026-10-07T06:00:00Z',
+    edited_at: null,
+    deleted_at: null,
+    reactions: [],
+  }]);
+  const callbackButton = component.root
+    .findAllByProps({ accessibilityLabel: 'callCallback: callVideo' })
+    .find(node => node.props.accessibilityRole === 'button');
+
+  expect(callbackButton).toBeDefined();
+  expect(flattenedStyle(callbackButton?.props.style({ pressed: false }))).toMatchObject({
+    minHeight: 48,
+  });
+  await act(async () => {
+    callbackButton?.props.onPress();
+    await settleAsyncWork();
+  });
+
+  expect(mockStartVideoCall).toHaveBeenCalledWith({
+    chatId: 'chat-1',
+    peerName: 'Peer',
+    peerUserId: 'peer-1',
+  });
+  expect(mockStartCall).not.toHaveBeenCalled();
+});
+
 test('opens the attachment picker without an Android-unsupported dialog role', async () => {
   const component = await renderChatScreen([ownTextMessage('message-1', 'sent')]);
   const attachmentButton = component.root

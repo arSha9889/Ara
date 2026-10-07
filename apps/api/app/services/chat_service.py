@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -9,11 +10,12 @@ from app.models.users import User, UserProfile
 from app.schemas.chats import ChatOut, ChatPeerOut, ChatPreviewMessageOut, MessageAuthorOut, MessageCreateRequest, MessageOut, MessageReactionOut, MessageReplyOut
 from app.services.branch_service import can_post_to_branch, ensure_official_branch
 from app.services.auth_service import AuthError
+from app.services.call_signaling import CallSession
 from app.services.e2ee_service import validate_e2ee_message_envelope
 from app.services.media_service import media_url_for_message
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
-from app.services.safety_service import ensure_chat_interaction_allowed, ensure_direct_interaction_allowed
+from app.services.safety_service import ensure_chat_interaction_allowed, ensure_direct_interaction_allowed, is_user_interaction_blocked
 from app.services.stored_object_service import attach_upload_to_message, schedule_message_upload_deletion
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'sticker', 'file'}
@@ -246,6 +248,47 @@ async def create_message(
     else:
         await session.flush()
     return await _message_out(session, message, user_id)
+
+
+async def create_call_history_message(
+    session: AsyncSession,
+    call: CallSession,
+    outcome: str,
+) -> MessageOut | None:
+    if outcome not in {'cancelled', 'rejected'}:
+        raise ValueError('Unsupported call history outcome')
+
+    chat = await session.get(Chat, call.chat_id)
+    if not chat or chat.type != 'direct':
+        return None
+
+    participant_ids = set((await session.execute(
+        select(ChatParticipant.user_id).where(ChatParticipant.chat_id == call.chat_id)
+    )).scalars())
+    if participant_ids != {call.caller_user_id, call.callee_user_id}:
+        return None
+    if await is_user_interaction_blocked(session, call.caller_user_id, call.callee_user_id):
+        return None
+
+    message = Message(
+        chat_id=call.chat_id,
+        sender_id=call.caller_user_id,
+        type='call',
+        payload=json.dumps({
+            'version': 1,
+            'call_id': call.call_id,
+            'call_type': call.call_type,
+            'outcome': outcome,
+        }, separators=(',', ':')),
+    )
+    session.add(message)
+    await session.flush()
+    await _create_delivery_receipts(session, message)
+    chat.last_message_id = message.id
+    await _activate_direct_chat_participants(session, call.chat_id)
+    await _restore_hidden_chat_recipients(session, call.chat_id, call.caller_user_id)
+    await session.commit()
+    return await _message_out(session, message, call.caller_user_id)
 
 
 async def edit_message(session: AsyncSession, user_id: UUID, chat_id: UUID, message_id: UUID, text: str) -> MessageOut:

@@ -61,6 +61,7 @@ import {
   type PickedChatAttachment,
 } from '../media/mediaClient';
 import { videoNoteRecordingErrorKey } from '../media/mediaError';
+import { callHistoryStatusKey, parseCallHistoryEvent } from '../callHistory';
 import { mergeChatMessages, upsertChatMessage } from '../messageState';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
@@ -1180,6 +1181,62 @@ export function ChatScreen({ navigation, route }: Props) {
 
   function renderMessage({ item }: { item: ChatMessage }) {
     const isOwn = item.sender_id === session?.user.id;
+
+    if (item.type === 'call') {
+      const callHistory = parseCallHistoryEvent(item.payload);
+      const callTypeLabel = t(callHistory?.callType === 'video' ? 'callVideo' : 'callAudio');
+      const statusLabel = t(
+        callHistory
+          ? callHistoryStatusKey(callHistory, isOwn)
+          : 'call',
+      );
+      const canCallBack = Boolean(callHistory && route.params.peerUserId);
+
+      return (
+        <View style={styles.callHistoryRow}>
+          <View style={styles.callHistoryIcon}>
+            <Icon
+              color={colors.danger}
+              name={callHistory?.callType === 'video' ? 'video' : 'call'}
+              size={20}
+            />
+          </View>
+          <View style={styles.callHistoryCopy}>
+            <Text style={styles.callHistoryTitle}>{callTypeLabel}</Text>
+            <Text style={styles.callHistoryStatus}>{statusLabel}</Text>
+            <Text style={styles.callHistoryTime}>
+              {formatMessageTime(item.created_at, language)}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel={`${t('callCallback')}: ${callTypeLabel}`}
+            accessibilityRole="button"
+            disabled={!canCallBack || Boolean(call)}
+            onPress={() => {
+              if (!callHistory || !route.params.peerUserId) {
+                return;
+              }
+              const input = {
+                chatId: route.params.chatId,
+                peerName: route.params.title,
+                peerUserId: route.params.peerUserId,
+              };
+              const start = callHistory.callType === 'video' ? startVideoCall : startCall;
+              start(input).catch(() => undefined);
+            }}
+            style={({ pressed }) => [
+              styles.callHistoryCallback,
+              (!canCallBack || call) && styles.callHistoryCallbackDisabled,
+              pressed && canCallBack && !call && styles.callHistoryCallbackPressed,
+            ]}
+          >
+            <Icon color={colors.primary} name={callHistory?.callType === 'video' ? 'video' : 'call'} size={18} />
+            <Text style={styles.callHistoryCallbackLabel}>{t('callCallback')}</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
     const authorName = item.author?.display_name || item.author?.username || route.params.title;
     const messageText = item.deleted_at ? t('messageDeleted') : item.payload;
     const replyTo = item.reply_to;
@@ -2590,6 +2647,69 @@ const styles = StyleSheet.create({
   messageContent: {
     alignItems: 'flex-start',
     maxWidth: '82%',
+  },
+  callHistoryRow: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.glassBorder,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    maxWidth: '94%',
+    padding: spacing.sm,
+  },
+  callHistoryIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 156, 173, 0.12)',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  callHistoryCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  callHistoryTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  callHistoryStatus: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 1,
+  },
+  callHistoryTime: {
+    color: colors.textFaint,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  callHistoryCallback: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    borderColor: colors.primary,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.sm,
+  },
+  callHistoryCallbackDisabled: {
+    opacity: 0.46,
+  },
+  callHistoryCallbackPressed: {
+    backgroundColor: 'rgba(140, 201, 255, 0.24)',
+  },
+  callHistoryCallbackLabel: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   messageBubble: {
     borderRadius: 18,

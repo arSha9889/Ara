@@ -3,6 +3,7 @@ import type { Chat, ChatPreviewMessage } from '../src/features/chats/api/chatApi
 
 const copy = {
   attachment: 'Attachment',
+  call: 'Call',
   directChat: 'Direct chat',
   noMessages: 'No messages',
   savedMessages: 'Saved messages',
@@ -57,5 +58,11 @@ test('labels the current user in a text-message preview', () => {
 test('uses a local attachment label when a media preview has no name', () => {
   expect(chatPreview({ ...message, type: 'photo', payload: '', media_name: null }, 'user-2', copy)).toBe(
     'Attachment',
+  );
+});
+
+test('uses a local call label for call history previews', () => {
+  expect(chatPreview({ ...message, type: 'call', payload: '{"version":1}', media_name: null }, 'user-2', copy)).toBe(
+    'Call',
   );
 });

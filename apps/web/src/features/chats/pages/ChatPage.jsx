@@ -217,6 +217,9 @@ function MessageContent({ message, t, onOpenMedia, accessToken }) {
   if (displayType === 'sticker') {
     return <Sticker id={message.payload} label={t('messages.sticker')} />;
   }
+  if (displayType === 'call') {
+    return <span>{t('calls.call')}</span>;
+  }
   return message.payload;
 }
 

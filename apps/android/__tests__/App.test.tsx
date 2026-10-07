@@ -85,7 +85,7 @@ test('does not accept sessions without legal document state', async () => {
   expect(keychain.resetGenericPassword).toHaveBeenCalledTimes(1);
 });
 
-test('stores and consumes the registration-only notification permission marker per user', async () => {
+test('stores and consumes the user-specific notification permission marker', async () => {
   const store = new SecureSessionStore();
   const service = `arachat.messenger.notification-permission-request.${session.user.id}`;
 

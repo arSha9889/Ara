@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from app.services import call_signaling
 from app.services.call_signaling import CallSignalingError, CallSignalingManager, normalize_call_signal
 from app.services.turn_credentials import create_turn_rest_credentials, get_turn_ice_configuration
 
@@ -72,10 +73,10 @@ async def test_call_signaling_allows_only_the_direct_call_participants() -> None
     callee_id = uuid4()
 
     await manager.start_call('call-123', chat_id, caller_id, callee_id)
-    assert await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.accept') == caller_id
-    assert await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.offer') == callee_id
-    assert await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.answer') == caller_id
-    assert await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.ice_candidate') == callee_id
+    assert (await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.accept')).recipient_user_id == caller_id
+    assert (await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.offer')).recipient_user_id == callee_id
+    assert (await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.answer')).recipient_user_id == caller_id
+    assert (await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.ice_candidate')).recipient_user_id == callee_id
 
     with pytest.raises(CallSignalingError, match='call_not_available'):
         await manager.relay_call_signal('call-123', chat_id, uuid4(), 'call.end')
@@ -93,8 +94,8 @@ async def test_call_signaling_allows_the_other_participant_to_renegotiate_an_act
     await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.offer')
     await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.answer')
 
-    assert await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.offer') == caller_id
-    assert await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.answer') == callee_id
+    assert (await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.offer')).recipient_user_id == caller_id
+    assert (await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.answer')).recipient_user_id == callee_id
 
 
 @pytest.mark.anyio
@@ -105,10 +106,76 @@ async def test_call_signaling_releases_users_after_call_ends() -> None:
     callee_id = uuid4()
 
     await manager.start_call('call-123', chat_id, caller_id, callee_id)
-    assert await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.cancel') == callee_id
+    cancelled = await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.cancel')
+    assert cancelled.recipient_user_id == callee_id
+    assert cancelled.history_outcome == 'cancelled'
+    assert cancelled.terminal_session and cancelled.terminal_session.status == 'ringing'
 
     replacement = await manager.start_call('call-456', chat_id, caller_id, callee_id)
     assert replacement.call_id == 'call-456'
+
+
+@pytest.mark.anyio
+async def test_call_signaling_reports_terminal_outcomes_for_call_records() -> None:
+    manager = CallSignalingManager()
+    chat_id = uuid4()
+    caller_id = uuid4()
+    callee_id = uuid4()
+
+    await manager.start_call('call-rejected', chat_id, caller_id, callee_id, 'video')
+    rejected = await manager.relay_call_signal('call-rejected', chat_id, callee_id, 'call.reject')
+    assert rejected.history_outcome == 'rejected'
+    assert rejected.terminal_outcome == 'rejected'
+    assert rejected.terminal_session and rejected.terminal_session.call_type == 'video'
+
+    await manager.start_call('call-connected', chat_id, caller_id, callee_id)
+    await manager.relay_call_signal('call-connected', chat_id, callee_id, 'call.accept')
+    cancelled = await manager.relay_call_signal('call-connected', chat_id, caller_id, 'call.cancel')
+    assert cancelled.terminal_session and cancelled.terminal_session.status == 'accepted'
+    assert cancelled.terminal_outcome == 'failed'
+    assert cancelled.history_outcome is None
+
+
+@pytest.mark.anyio
+async def test_call_signaling_marks_a_connected_call_once_and_completes_it() -> None:
+    manager = CallSignalingManager()
+    chat_id = uuid4()
+    caller_id = uuid4()
+    callee_id = uuid4()
+
+    await manager.start_call('call-connected', chat_id, caller_id, callee_id)
+    await manager.relay_call_signal('call-connected', chat_id, callee_id, 'call.accept')
+
+    first_connected = await manager.relay_call_signal('call-connected', chat_id, caller_id, 'call.connected')
+    second_connected = await manager.relay_call_signal('call-connected', chat_id, callee_id, 'call.connected')
+    ended = await manager.relay_call_signal('call-connected', chat_id, caller_id, 'call.end')
+
+    assert first_connected.connected_session and first_connected.connected_session.connected_at
+    assert second_connected.connected_session
+    assert second_connected.connected_session.connected_at == first_connected.connected_session.connected_at
+    assert ended.terminal_outcome == 'completed'
+    assert ended.terminal_session and ended.terminal_session.connected_at == first_connected.connected_session.connected_at
+
+
+@pytest.mark.anyio
+async def test_expired_call_releases_participants_for_a_new_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = CallSignalingManager()
+    chat_id = uuid4()
+    caller_id = uuid4()
+    callee_id = uuid4()
+    clock = 1_000.0
+    monkeypatch.setattr(call_signaling, 'monotonic', lambda: clock)
+
+    await manager.start_call('call-expired', chat_id, caller_id, callee_id)
+    clock += 76
+    replacement = await manager.start_call('call-replacement', chat_id, caller_id, callee_id)
+    expired_calls = await manager.expire_calls()
+
+    assert [call.call_id for call in expired_calls] == ['call-expired']
+    assert expired_calls[0].status == 'ringing'
+    assert replacement.call_id == 'call-replacement'
 
 
 @pytest.mark.anyio

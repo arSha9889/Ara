@@ -47,6 +47,7 @@ export function ChatsScreen() {
   const resyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copy: ChatPresentationCopy = {
     attachment: t('chatsAttachment'),
+    call: t('call'),
     directChat: t('chatsDirectFallback'),
     noMessages: t('noMessages'),
     savedMessages: t('chatsSavedMessages'),
@@ -156,7 +157,7 @@ export function ChatsScreen() {
   }
 
   function openNewChat(): void {
-    navigation.navigate('MainTabs', { screen: 'Search' });
+    navigation.navigate('MainTabs', { params: { mode: undefined }, screen: 'Search' });
   }
 
   function renderChat({ item }: { item: Chat }) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
+import type { MainTabParamList } from '../../../navigation/MainTabs';
 import { authErrorKey } from '../../auth/authError';
 import { createDirectChatForUser } from '../../chats/api/chatApi';
 import { useSession } from '../../auth/session/useSession';
@@ -25,6 +27,7 @@ import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { ReportUserSheet } from '../../safety/components/ReportUserSheet';
 import { blockUser } from '../../safety/api/safetyApi';
+import { useDirectCall } from '../../calls/DirectCallProvider';
 import {
   normalizeUserSearchQuery,
   searchPublicUsers,
@@ -43,6 +46,8 @@ export function SearchScreen() {
   const { t } = useI18n();
   const { session } = useSession();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<MainTabParamList, 'Search'>>();
+  const { call, startCall, startVideoCall } = useDirectCall();
   const inputRef = useRef<TextInputInstance>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PublicUser[]>([]);
@@ -50,10 +55,12 @@ export function SearchScreen() {
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isOpeningChat, setIsOpeningChat] = useState(false);
+  const [isStartingCall, setIsStartingCall] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
   const normalizedQuery = normalizeUserSearchQuery(query);
   const hasSearchQuery = normalizedQuery.length >= 2;
+  const isCallMode = route.params?.mode === 'call';
 
   useFocusEffect(
     useCallback(() => {
@@ -114,6 +121,7 @@ export function SearchScreen() {
       const chat = await createDirectChatForUser(user.id);
       const title = chat.peer?.display_name || chat.peer?.username || publicUserName(user, t('chatsDirectFallback'));
       setSelectedUser(null);
+      navigation.navigate('MainTabs', { params: { mode: undefined }, screen: 'Search' });
       navigation.navigate('Chat', {
         chatId: chat.id,
         title,
@@ -125,6 +133,36 @@ export function SearchScreen() {
       setError(t(authErrorKey(nextError)));
     } finally {
       setIsOpeningChat(false);
+    }
+  }
+
+  async function startCallForUser(
+    user: PublicUser | null,
+    callType: 'audio' | 'video',
+  ): Promise<void> {
+    if (!user || isOpeningChat || isStartingCall || isBlocking || call) {
+      return;
+    }
+
+    setError('');
+    setIsStartingCall(true);
+    try {
+      const chat = await createDirectChatForUser(user.id);
+      const title = chat.peer?.display_name || chat.peer?.username || publicUserName(user, t('chatsDirectFallback'));
+      setSelectedUser(null);
+      navigation.navigate('Chat', {
+        chatId: chat.id,
+        title,
+        peerUserId: user.id,
+        peerIsOnline: chat.peer?.is_online,
+        peerLastSeenAt: chat.peer?.last_seen_at,
+      });
+      const start = callType === 'video' ? startVideoCall : startCall;
+      await start({ chatId: chat.id, peerName: title, peerUserId: user.id });
+    } catch (nextError) {
+      setError(t(authErrorKey(nextError)));
+    } finally {
+      setIsStartingCall(false);
     }
   }
 
@@ -167,9 +205,9 @@ export function SearchScreen() {
 
   return (
     <AppScreen>
-      <Text style={sharedStyles.eyebrow}>{t('newConnections')}</Text>
-      <Text style={sharedStyles.title}>{t('search')}</Text>
-      <Text style={styles.intro}>{t('searchIntro')}</Text>
+      <Text style={sharedStyles.eyebrow}>{t(isCallMode ? 'newCallSearchEyebrow' : 'newConnections')}</Text>
+      <Text style={sharedStyles.title}>{t(isCallMode ? 'newCallSearchTitle' : 'search')}</Text>
+      <Text style={styles.intro}>{t(isCallMode ? 'newCallSearchDescription' : 'searchIntro')}</Text>
 
       <View style={styles.searchBox}>
         <Icon color={colors.primary} name="search" size={22} />
@@ -202,6 +240,7 @@ export function SearchScreen() {
         <View style={styles.emptyState}>
           <EmptyState
             description={t('searchEmptyDescription')}
+            icon={isCallMode ? 'call' : undefined}
             title={t('searchEmptyTitle')}
           />
         </View>
@@ -211,6 +250,7 @@ export function SearchScreen() {
         <View style={styles.emptyState}>
           <EmptyState
             description={t('searchNoResultsDescription')}
+            icon={isCallMode ? 'call' : undefined}
             title={t('searchNoResultsTitle')}
           />
         </View>
@@ -272,35 +312,75 @@ export function SearchScreen() {
               {selectedUser?.is_official ? <Text accessibilityLabel={t('officialAccount')} style={styles.officialMark}>✓</Text> : null}
             </View>
             {selectedUser?.profile?.username ? <Text style={styles.sheetUsername}>@{selectedUser.profile.username}</Text> : null}
-            <Text style={styles.sheetDescription}>{t('searchProfileDescription')}</Text>
+            <Text style={styles.sheetDescription}>{t(isCallMode ? 'newCallSearchDescription' : 'searchProfileDescription')}</Text>
             {error ? <Text accessibilityRole="alert" style={styles.sheetError}>{error}</Text> : null}
-            <PrimaryButton
-              disabled={isOpeningChat || isBlocking}
-              label={isOpeningChat ? t('openingChat') : t('writeMessage')}
-              onPress={() => {
-                openChatForUser(selectedUser).catch(() => undefined);
-              }}
-            />
+            {isCallMode ? (
+              <View style={styles.callActions}>
+                <Pressable
+                  accessibilityLabel={t('callAudio')}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isStartingCall || isBlocking || Boolean(call) }}
+                  disabled={isStartingCall || isBlocking || Boolean(call)}
+                  onPress={() => {
+                    startCallForUser(selectedUser, 'audio').catch(() => undefined);
+                  }}
+                  style={({ pressed }) => [
+                    styles.callAction,
+                    (isStartingCall || isBlocking || call) && styles.callActionDisabled,
+                    pressed && !isStartingCall && !isBlocking && !call && styles.callActionPressed,
+                  ]}
+                >
+                  <Icon color={colors.canvas} name="call" size={20} />
+                  <Text style={styles.callActionLabel}>{isStartingCall ? t('startingCall') : t('callAudio')}</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={t('callVideo')}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isStartingCall || isBlocking || Boolean(call) }}
+                  disabled={isStartingCall || isBlocking || Boolean(call)}
+                  onPress={() => {
+                    startCallForUser(selectedUser, 'video').catch(() => undefined);
+                  }}
+                  style={({ pressed }) => [
+                    styles.callAction,
+                    styles.videoCallAction,
+                    (isStartingCall || isBlocking || call) && styles.callActionDisabled,
+                    pressed && !isStartingCall && !isBlocking && !call && styles.callActionPressed,
+                  ]}
+                >
+                  <Icon color={colors.primary} name="video" size={20} />
+                  <Text style={styles.videoCallActionLabel}>{isStartingCall ? t('startingCall') : t('callVideo')}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <PrimaryButton
+                disabled={isOpeningChat || isBlocking}
+                label={isOpeningChat ? t('openingChat') : t('writeMessage')}
+                onPress={() => {
+                  openChatForUser(selectedUser).catch(() => undefined);
+                }}
+              />
+            )}
             <View style={styles.safetyActions}>
               <Pressable
                 accessibilityRole="button"
-                disabled={isOpeningChat || isBlocking}
+                disabled={isOpeningChat || isStartingCall || isBlocking}
                 onPress={() => setIsReportVisible(true)}
                 style={({ pressed }) => [
                   styles.safetyButton,
-                  pressed && !isOpeningChat && !isBlocking && styles.safetyButtonPressed,
+                  pressed && !isOpeningChat && !isStartingCall && !isBlocking && styles.safetyButtonPressed,
                 ]}
               >
                 <Text style={styles.safetyButtonLabel}>{t('reportUser')}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                disabled={isOpeningChat || isBlocking}
+                disabled={isOpeningChat || isStartingCall || isBlocking}
                 onPress={confirmBlockSelectedUser}
                 style={({ pressed }) => [
                   styles.safetyButton,
                   styles.blockButton,
-                  pressed && !isOpeningChat && !isBlocking && styles.safetyButtonPressed,
+                  pressed && !isOpeningChat && !isStartingCall && !isBlocking && styles.safetyButtonPressed,
                 ]}
               >
                 <Text style={styles.blockButtonLabel}>
@@ -491,6 +571,43 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     marginTop: spacing.md,
     textAlign: 'center',
+  },
+  callActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    width: '100%',
+  },
+  callAction: {
+    alignItems: 'center',
+    backgroundColor: colors.primaryStrong,
+    borderRadius: 14,
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: 52,
+    paddingHorizontal: spacing.sm,
+  },
+  videoCallAction: {
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.primary,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  callActionPressed: {
+    backgroundColor: colors.primaryPressed,
+  },
+  callActionDisabled: {
+    opacity: 0.45,
+  },
+  callActionLabel: {
+    color: colors.canvas,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  videoCallActionLabel: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
   },
   sheetError: {
     alignSelf: 'stretch',

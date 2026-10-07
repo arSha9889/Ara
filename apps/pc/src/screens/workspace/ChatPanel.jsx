@@ -149,6 +149,7 @@ function MediaMessage({ accessToken, message, t }) {
 function MessageContent({ accessToken, message, t }) {
   if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
   if (message.type === 'text' || message.type === 'emoji') return <p>{message.payload}</p>;
+  if (message.type === 'call') return <p>{t('workspace.calls')}</p>;
   return <MediaMessage accessToken={accessToken} message={message} t={t} />;
 }
 
