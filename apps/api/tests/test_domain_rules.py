@@ -86,7 +86,8 @@ def test_public_user_output_exposes_only_allowed_profile_data() -> None:
     private_data = to_public_user_out(user).model_dump()
 
     assert private_data['profile']['optional_phone'] is None
-    assert set(private_data) == {'id', 'is_official', 'profile'}
+    assert private_data['nexus_id'] == '1234567890123456'
+    assert set(private_data) == {'id', 'nexus_id', 'is_official', 'profile'}
     assert set(private_data['profile']) == {'display_name', 'username', 'avatar_type', 'avatar_ref', 'optional_phone'}
 
     user.profile.phone_public = True
