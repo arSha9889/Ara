@@ -65,6 +65,35 @@ def test_normalize_call_invite_preserves_video_type_and_defaults_to_audio() -> N
         })
 
 
+def test_normalize_call_media_state_keeps_only_safe_sharing_metadata() -> None:
+    normalized = normalize_call_signal({
+        'event': 'call.media_state',
+        'call_id': 'call-screen-123',
+        'source': 'window',
+        'status': 'active',
+        'audio_enabled': True,
+        'window_title': 'Sensitive project plan',
+        'stream_id': 'discarded',
+    })
+
+    assert normalized == {
+        'event': 'call.media_state',
+        'call_id': 'call-screen-123',
+        'source': 'window',
+        'status': 'active',
+        'audio_enabled': True,
+    }
+
+    with pytest.raises(CallSignalingError, match='invalid_media_state'):
+        normalize_call_signal({
+            'event': 'call.media_state',
+            'call_id': 'call-screen-123',
+            'source': 'browser',
+            'status': 'active',
+            'audio_enabled': True,
+        })
+
+
 @pytest.mark.anyio
 async def test_call_signaling_allows_only_the_direct_call_participants() -> None:
     manager = CallSignalingManager()
@@ -80,6 +109,26 @@ async def test_call_signaling_allows_only_the_direct_call_participants() -> None
 
     with pytest.raises(CallSignalingError, match='call_not_available'):
         await manager.relay_call_signal('call-123', chat_id, uuid4(), 'call.end')
+
+
+@pytest.mark.anyio
+async def test_call_signaling_relays_media_state_only_for_active_calls() -> None:
+    manager = CallSignalingManager()
+    chat_id = uuid4()
+    caller_id = uuid4()
+    callee_id = uuid4()
+
+    await manager.start_call('call-123', chat_id, caller_id, callee_id)
+    await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.accept')
+
+    with pytest.raises(CallSignalingError, match='invalid_call_state'):
+        await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.media_state')
+
+    await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.offer')
+    await manager.relay_call_signal('call-123', chat_id, callee_id, 'call.answer')
+    relayed = await manager.relay_call_signal('call-123', chat_id, caller_id, 'call.media_state')
+
+    assert relayed.recipient_user_id == callee_id
 
 
 @pytest.mark.anyio

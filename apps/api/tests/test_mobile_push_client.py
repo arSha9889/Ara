@@ -7,9 +7,10 @@ from uuid import uuid4
 import pytest
 
 from app.core.config import Settings, settings
-from app.schemas.chats import NotificationOut
+from app.models.chats import Notification
+from app.schemas.chats import NotificationOut, NotificationTargetOut
 from app.services import mobile_push_client
-from app.services.notification_service import _mobile_call_push_data, _mobile_push_data
+from app.services.notification_service import _mobile_call_push_data, _mobile_push_data, _notification_out
 
 
 class FakeResponse:
@@ -195,6 +196,7 @@ def test_mobile_push_data_includes_sanitized_sender_and_message_text_without_url
         kind='message',
         chat_id=chat_id,
         message_id=message_id,
+        target=NotificationTargetOut(kind='message', chat_id=chat_id, message_id=message_id),
         title='  Private\n sender name  ',
         body=' Private\tmessage\ntext ',
         url=f'/app/chats/{chat_id}',
@@ -219,6 +221,7 @@ def test_mobile_push_data_skips_non_message_notifications() -> None:
         kind='system',
         chat_id=None,
         message_id=None,
+        target=NotificationTargetOut(kind='system', section='settings'),
         title='AraChat',
         body='Test push',
         url='/app/settings',
@@ -230,12 +233,15 @@ def test_mobile_push_data_skips_non_message_notifications() -> None:
 
 
 def test_mobile_push_data_skips_messages_without_a_safe_preview() -> None:
+    chat_id = uuid4()
+    message_id = uuid4()
     notification = NotificationOut(
         id=uuid4(),
         notification_id=uuid4(),
         kind='message',
-        chat_id=uuid4(),
-        message_id=uuid4(),
+        chat_id=chat_id,
+        message_id=message_id,
+        target=NotificationTargetOut(kind='message', chat_id=chat_id, message_id=message_id),
         title='AraChat',
         body='New message',
         url='/app/chats/example',
@@ -244,6 +250,71 @@ def test_mobile_push_data_skips_messages_without_a_safe_preview() -> None:
     )
 
     assert _mobile_push_data(notification, preview_available=False) is None
+
+
+def test_notification_out_includes_a_platform_neutral_target() -> None:
+    chat_id = uuid4()
+    message_id = uuid4()
+    notification = Notification(
+        id=uuid4(),
+        recipient_user_id=uuid4(),
+        chat_id=chat_id,
+        message_id=message_id,
+        support_ticket_id=None,
+        announcement_id=None,
+        title='AraChat',
+        body='New message',
+        url=f'/app/chats/{chat_id}',
+        created_at=datetime.now(timezone.utc),
+        read_at=None,
+    )
+
+    result = _notification_out(notification)
+
+    assert result.target.model_dump() == {
+        'kind': 'message',
+        'chat_id': chat_id,
+        'message_id': message_id,
+        'support_ticket_id': None,
+        'section': None,
+    }
+
+
+@pytest.mark.parametrize(
+    ('announcement_id', 'support_ticket_id', 'expected_kind'),
+    [
+        (uuid4(), None, 'announcement'),
+        (None, uuid4(), 'support'),
+    ],
+)
+def test_notification_out_uses_the_canonical_target_kind(
+    announcement_id,
+    support_ticket_id,
+    expected_kind: str,
+) -> None:
+    chat_id = uuid4() if announcement_id else None
+    message_id = uuid4() if announcement_id else None
+    notification = Notification(
+        id=uuid4(),
+        recipient_user_id=uuid4(),
+        chat_id=chat_id,
+        message_id=message_id,
+        support_ticket_id=support_ticket_id,
+        announcement_id=announcement_id,
+        title='AraChat',
+        body='Notification',
+        url='/app/example',
+        created_at=datetime.now(timezone.utc),
+        read_at=None,
+    )
+
+    result = _notification_out(notification)
+
+    assert result.kind == expected_kind
+    assert result.target.kind == expected_kind
+    assert result.target.chat_id == chat_id
+    assert result.target.message_id == message_id
+    assert result.target.support_ticket_id == support_ticket_id
 
 
 def test_mobile_call_push_data_contains_only_call_signalling_metadata() -> None:

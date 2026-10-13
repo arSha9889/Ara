@@ -3,11 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { parrotIcon } from '../components/BrandMark.jsx';
 import { ThemeLanguageControls } from '../components/ThemeLanguageControls.jsx';
 import { WorkspaceIcon as Icon } from '../components/WorkspaceIcon.jsx';
-import { getChat, getChats } from '../features/chats/chatsApi.js';
+import { getChat, getChatMessage, getChats } from '../features/chats/chatsApi.js';
 import { isCallSignal, useDirectCall } from '../features/calls/useDirectCall.js';
 import { createRealtimeConnection } from '../features/chats/realtimeClient.js';
-import { showDesktopNotification } from '../features/notifications/desktopNotifications.js';
+import { showDesktopNotification, subscribeDesktopNotificationActions } from '../features/notifications/desktopNotifications.js';
 import { getNotifications, markNotificationsRead } from '../features/notifications/notificationsApi.js';
+import { notificationId, notificationTarget } from '../features/notifications/notificationTarget.js';
 import { CallOverlay } from './workspace/CallOverlay.jsx';
 import { CallsPanel } from './workspace/CallsPanel.jsx';
 import { ChatPanel } from './workspace/ChatPanel.jsx';
@@ -96,6 +97,7 @@ function sortNotifications(items) {
 
 function chatPreview(lastMessage, t) {
   if (!lastMessage) return t('workspace.noMessagesPreview');
+  if (lastMessage.encryption_state === 'e2ee_web_v1') return t('workspace.chatPanel.encryptedMessage');
   if (lastMessage.type === 'text' || lastMessage.type === 'emoji') return lastMessage.payload;
   if (lastMessage.type === 'photo' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('image/'))) return t('workspace.chatPanel.typePhoto');
   if (lastMessage.type === 'video' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('video/'))) return t('workspace.chatPanel.typeVideo');
@@ -108,6 +110,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const [activeSection, setActiveSection] = useState('chats');
   const [query, setQuery] = useState('');
   const [selectedChatId, setSelectedChatId] = useState(null);
+  const [messageFocus, setMessageFocus] = useState(null);
   const [contactMode, setContactMode] = useState('contacts');
   const [chats, setChats] = useState([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
@@ -133,6 +136,8 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const notificationsRequestIdRef = useRef(0);
   const knownNotificationIdsRef = useRef(new Set());
   const ownMessageIdsRef = useRef([]);
+  const messageFocusRequestIdRef = useRef(0);
+  const messageFocusResolversRef = useRef(new Map());
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleChats = chats.filter((chat) => {
     const peer = chat.peer;
@@ -208,6 +213,85 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     }
   }, [accessToken]);
 
+  const focusMessage = useCallback((message) => {
+    const requestId = messageFocusRequestIdRef.current + 1;
+    messageFocusRequestIdRef.current = requestId;
+
+    return new Promise((resolve) => {
+      const timeoutId = window.setTimeout(() => {
+        const pendingFocus = messageFocusResolversRef.current.get(requestId);
+        if (!pendingFocus) return;
+        messageFocusResolversRef.current.delete(requestId);
+        pendingFocus.resolve(false);
+      }, 8_000);
+      messageFocusResolversRef.current.set(requestId, { resolve, timeoutId });
+      setMessageFocus({ id: message.id, message, requestId });
+    });
+  }, []);
+
+  const handleMessageFocused = useCallback((requestId) => {
+    const pendingFocus = messageFocusResolversRef.current.get(requestId);
+    if (!pendingFocus) return;
+    window.clearTimeout(pendingFocus.timeoutId);
+    messageFocusResolversRef.current.delete(requestId);
+    pendingFocus.resolve(true);
+  }, []);
+
+  const openNotificationTarget = useCallback(async (notification) => {
+    const target = notificationTarget(notification);
+    if (!target) {
+      setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
+      return false;
+    }
+
+    if (target.kind === 'message') {
+      let chat = chatsRef.current.find((item) => item.id === target.chat_id);
+      let targetMessage = null;
+      try {
+        if (!chat) {
+          chat = await getChat(accessToken, target.chat_id);
+          if (chat?.type !== 'direct') {
+            setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
+            return false;
+          }
+          setChats((current) => current.some((item) => item.id === chat.id) ? current : [chat, ...current]);
+        }
+        if (chat?.type !== 'direct') {
+          setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
+          return false;
+        }
+        if (target.message_id) targetMessage = await getChatMessage(accessToken, chat.id, target.message_id);
+      } catch {
+        setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
+        return false;
+      }
+
+      setActiveSection('chats');
+      setSelectedChatId(chat.id);
+      if (targetMessage) {
+        const didFocusMessage = await focusMessage(targetMessage);
+        if (!didFocusMessage) {
+          setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
+          return false;
+        }
+      } else {
+        setMessageFocus(null);
+      }
+      void loadChats({ showLoading: false });
+      return true;
+    }
+
+    if (target.kind === 'system' && target.section === 'settings') {
+      setActiveSection('settings');
+      setSelectedChatId(null);
+      setMessageFocus(null);
+      return true;
+    }
+
+    setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
+    return false;
+  }, [accessToken, focusMessage, loadChats, t]);
+
   const startCall = useCallback(async (chat, callType) => {
     if (!chat?.peer || call.callState !== 'idle') return;
     setCallError('');
@@ -272,12 +356,15 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
         ...current.filter((item) => item.id !== notification.id),
       ]));
 
-      const isOpenChat = activeSection === 'chats' && selectedChatId === notification.chat_id;
-      const isOwnMessage = Boolean(notification.message_id && ownMessageIdsRef.current.includes(notification.message_id));
+      const target = notificationTarget(notification);
+      const isOpenChat = activeSection === 'chats' && selectedChatId === target?.chat_id;
+      const isOwnMessage = Boolean(target?.message_id && ownMessageIdsRef.current.includes(target.message_id));
       if (isNewNotification && preferences.desktopNotifications && !isOpenChat && !isOwnMessage) {
         void showDesktopNotification({
+          accountId: String(currentUserId ?? ''),
           title: notification.title || t('window.appName'),
           body: preferences.messagePreview ? notification.body : t('workspace.notificationsPanel.newMessage'),
+          notification,
           soundEnabled: Boolean(preferences.soundEnabled),
         }).catch(() => undefined);
       }
@@ -373,15 +460,25 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     window.clearTimeout(chatsRefreshTimerRef.current);
   }, []);
 
+  useEffect(() => () => {
+    messageFocusResolversRef.current.forEach((pendingFocus) => {
+      window.clearTimeout(pendingFocus.timeoutId);
+      pendingFocus.resolve(false);
+    });
+    messageFocusResolversRef.current.clear();
+  }, []);
+
   async function markNotificationRead(notificationId) {
     const notification = notifications.find((item) => item.id === notificationId);
-    if (!notification || notification.read_at) return;
+    if (notification?.read_at) return true;
     try {
       await markNotificationsRead(accessToken, [notificationId]);
       const readAt = new Date().toISOString();
       setNotifications((current) => current.map((item) => item.id === notificationId ? { ...item, read_at: readAt } : item));
+      return true;
     } catch (requestError) {
       setNotificationsError(requestError.message);
+      return false;
     }
   }
 
@@ -410,6 +507,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   function openChat(chatId) {
     setActiveSection('chats');
     setSelectedChatId(chatId);
+    setMessageFocus(null);
   }
 
   function openNewChat() {
@@ -418,13 +516,29 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     setContactMode('new');
   }
 
-  function openNotification(notification) {
-    void markNotificationRead(notification.id);
-    if (notification.chat_id) {
-      openChat(notification.chat_id);
-      void loadChats({ showLoading: false });
-    }
+  async function openNotification(notification) {
+    if (!await openNotificationTarget(notification)) return;
+    await markNotificationRead(notificationId(notification));
   }
+
+  useEffect(() => {
+    let dispose = () => undefined;
+    let isActive = true;
+
+    void subscribeDesktopNotificationActions(async (payload) => {
+      if (String(payload.account_id) !== String(currentUserId ?? '')) return;
+      if (!await openNotificationTarget(payload)) return;
+      await markNotificationRead(notificationId(payload));
+    }).then((unsubscribe) => {
+      if (isActive) dispose = unsubscribe;
+      else unsubscribe();
+    }).catch(() => undefined);
+
+    return () => {
+      isActive = false;
+      dispose();
+    };
+  }, [currentUserId, openNotificationTarget]);
 
   function handleChatCreated(chat) {
     setChats((current) => [chat, ...current.filter((item) => item.id !== chat.id)]);
@@ -446,7 +560,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     }
 
     if (selectedChat) {
-      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={() => loadChats({ showLoading: false })} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} />;
+      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={() => loadChats({ showLoading: false })} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} />;
     }
 
     return (

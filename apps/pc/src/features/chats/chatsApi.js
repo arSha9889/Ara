@@ -29,6 +29,18 @@ export function getChatMessages(accessToken, chatId) {
   });
 }
 
+export function getChatMessage(accessToken, chatId, messageId) {
+  return apiRequest(`/api/chats/${chatId}/messages/${messageId}`, {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function getChatE2eeKeys(accessToken, chatId) {
+  return apiRequest(`/api/chats/${chatId}/e2ee-keys`, {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
 export function sendTextMessage(accessToken, chatId, text) {
   return sendMessage(accessToken, chatId, { text, type: 'text' });
 }

@@ -222,6 +222,16 @@ class AndroidReleaseOut(BaseModel):
     rustore_installer_package: str | None = None
 
 
+class NotificationTargetOut(BaseModel):
+    """Platform-neutral destination selected by the client after a notification tap."""
+
+    kind: Literal['message', 'announcement', 'support', 'system']
+    chat_id: UUID | None = None
+    message_id: UUID | None = None
+    support_ticket_id: UUID | None = None
+    section: Literal['settings'] | None = None
+
+
 class NotificationOut(BaseModel):
     id: UUID
     notification_id: UUID
@@ -229,6 +239,7 @@ class NotificationOut(BaseModel):
     chat_id: UUID | None
     message_id: UUID | None
     support_ticket_id: UUID | None = None
+    target: NotificationTargetOut
     title: str
     body: str
     url: str

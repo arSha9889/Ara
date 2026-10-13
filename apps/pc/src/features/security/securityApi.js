@@ -35,6 +35,14 @@ export function resetPin(accessToken, payload) {
   });
 }
 
+export function saveE2eeWebKey(accessToken, payload) {
+  return apiRequest('/api/security/e2ee/web-key', {
+    method: 'PUT',
+    headers: authorizationHeaders(accessToken),
+    body: payload,
+  });
+}
+
 export function startPasswordChange(accessToken, payload) {
   return apiRequest('/api/auth/password/change/start', {
     method: 'POST',

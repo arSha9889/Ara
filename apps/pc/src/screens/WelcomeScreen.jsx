@@ -4,7 +4,6 @@ import { BrandMark, parrotIcon } from '../components/BrandMark.jsx';
 import { ThemeLanguageControls } from '../components/ThemeLanguageControls.jsx';
 
 export function WelcomeScreen({ preferences, updatePreferences, t, onNavigate, onOpenLegal }) {
-  const sceneRef = useRef(null);
   const transitionTimerRef = useRef(null);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -16,16 +15,6 @@ export function WelcomeScreen({ preferences, updatePreferences, t, onNavigate, o
       window.clearTimeout(transitionTimerRef.current);
     };
   }, []);
-
-  function handlePointerMove(event) {
-    const scene = sceneRef.current;
-    if (!scene || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const bounds = scene.getBoundingClientRect();
-    const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
-    const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
-    scene.style.setProperty('--gaze-x', x.toFixed(2));
-    scene.style.setProperty('--gaze-y', y.toFixed(2));
-  }
 
   function skipScene() {
     setIsRevealed(true);
@@ -44,20 +33,17 @@ export function WelcomeScreen({ preferences, updatePreferences, t, onNavigate, o
         <ThemeLanguageControls preferences={preferences} updatePreferences={updatePreferences} t={t} />
       </div>
 
-      <section className="parrot-scene" ref={sceneRef} onPointerMove={handlePointerMove} aria-label={t('welcome.visualFallback')}>
-        <span className="scene-orb scene-orb-one" aria-hidden="true" />
-        <span className="scene-orb scene-orb-two" aria-hidden="true" />
-        <span className="scene-light scene-light-one" aria-hidden="true" />
-        <div className="tree-branch" aria-hidden="true"><i /><i /><i /></div>
-        <span className="feather feather-one" aria-hidden="true" />
-        <span className="feather feather-two" aria-hidden="true" />
-        <span className="feather feather-three" aria-hidden="true" />
-        <div className="parrot-stage" aria-hidden="true">
-          <span className="parrot-halo" />
-          <img className="parrot-render" src={parrotIcon} alt="" />
-          <span className="parrot-gaze" />
+      <section className="brand-scene" aria-label={t('welcome.visualScene')}>
+        <span className="brand-scene-glow" aria-hidden="true" />
+        <span className="brand-route brand-route-one" aria-hidden="true" />
+        <span className="brand-route brand-route-two" aria-hidden="true" />
+        <div className="brand-emblem" aria-hidden="true">
+          <span className="brand-emblem-ring brand-emblem-ring-one" />
+          <span className="brand-emblem-ring brand-emblem-ring-two" />
+          <div className="brand-emblem-icon"><img src={parrotIcon} alt="" /></div>
         </div>
-        <p className="parrot-bubble">{t('welcome.friendMessage')}</p>
+        <span className="brand-feather" aria-hidden="true" />
+        <p className="brand-scene-message">{t('welcome.friendMessage')}</p>
       </section>
 
       <section className="welcome-content" aria-labelledby="welcome-heading">
@@ -70,17 +56,6 @@ export function WelcomeScreen({ preferences, updatePreferences, t, onNavigate, o
           <button className="button button-primary" type="button" onClick={() => startTransition('login')}>{t('welcome.logIn')}</button>
           <button className="button button-secondary" type="button" onClick={() => startTransition('register')}>{t('welcome.createAccount')}</button>
         </div>
-        <button
-          className={`sound-control ${preferences.soundEnabled ? 'is-active' : ''}`}
-          type="button"
-          onClick={() => updatePreferences({ soundEnabled: !preferences.soundEnabled })}
-          aria-pressed={preferences.soundEnabled}
-          aria-describedby="sound-help"
-        >
-          <span className="sound-control-icon" aria-hidden="true">⌁</span>
-          {preferences.soundEnabled ? t('welcome.soundOff') : t('welcome.soundOn')}
-        </button>
-        <p id="sound-help" className="sound-help">{t('welcome.soundUnavailable')}</p>
         <p className="welcome-legal">
           {t('welcome.legalBefore')}
           <button type="button" onClick={() => onOpenLegal('privacy')}>{t('welcome.privacy')}</button>

@@ -15,6 +15,7 @@ deploy/production.env
 deploy/staging.env
 !.env.example
 !apps/api/.env.example
+!apps/pc/.env.production
 !apps/web/.env.example
 !deploy/production.env.example
 !deploy/staging.env.example

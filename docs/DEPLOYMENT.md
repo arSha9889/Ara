@@ -157,7 +157,8 @@ nano deploy/production.env
 NEXUS_PUBLIC_DOMAIN=<ваш-домен>
 NEXUS_ACME_EMAIL=<ваш-email>
 NEXUS_POSTGRES_PASSWORD=<длинный-случайный-пароль>
-NEXUS_ALLOWED_ORIGINS=["https://<ваш-домен>"]
+# Не удаляйте Tauri origins: они требуются Desktop-клиенту на macOS/Linux и Windows.
+NEXUS_ALLOWED_ORIGINS=["https://<ваш-домен>","tauri://localhost","http://tauri.localhost"]
 NEXUS_S3_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com
 NEXUS_S3_BUCKET=<имя-bucket>
 NEXUS_S3_ACCESS_KEY_ID=<access-key-id>
@@ -205,6 +206,39 @@ chmod 600 deploy/production.env
 ```
 
 Перед запуском убедитесь, что в `production.env` не осталось примерных значений `change-me`, `example.ru` или `203.0.113.10`.
+
+### Desktop-клиент: production API и CORS
+
+Production-сборка Desktop уже содержит публичный адрес API `https://aramsg.ru` из
+`apps/pc/.env.production`. При сборке этот адрес попадает в приложение, поэтому в
+файле разрешены только публичные данные — секреты, токены и учётные данные туда
+добавлять нельзя.
+
+WebView Tauri имеет собственный origin, не совпадающий с доменом API. Поэтому в
+production `NEXUS_ALLOWED_ORIGINS` обязательно должны присутствовать все три
+значения:
+
+```dotenv
+NEXUS_ALLOWED_ORIGINS=["https://aramsg.ru","tauri://localhost","http://tauri.localhost"]
+```
+
+После изменения `deploy/production.env` пересоздайте только API-контейнер:
+
+```bash
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --no-deps api
+```
+
+Проверьте CORS для macOS/Linux до выпуска `.dmg`: ответ должен иметь статус `200`
+и заголовок `access-control-allow-origin: tauri://localhost`.
+
+```bash
+curl -i -X OPTIONS https://aramsg.ru/api/auth/login \
+  -H 'Origin: tauri://localhost' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type'
+```
+
+Для Windows повторите команду с `Origin: http://tauri.localhost`.
 
 ## 6. Object storage для production
 

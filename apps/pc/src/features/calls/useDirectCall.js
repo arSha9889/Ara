@@ -12,9 +12,12 @@ const CALL_EVENTS = new Set([
   'call.offer',
   'call.answer',
   'call.ice_candidate',
+  'call.media_state',
   'call.failed',
 ]);
 const CALL_RING_TIMEOUT_MS = 70_000;
+const SCREEN_AUDIO_DEFAULT_LEVEL = 35;
+const STOPPED_SHARE_STATE = { source: null, status: 'stopped', audioEnabled: false, audioAvailable: false };
 const AUDIO_CONSTRAINTS = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -48,6 +51,24 @@ function setVideoEnabled(stream, enabled) {
   });
 }
 
+function stopScreenCapture(stream, audioTrack, audioContext) {
+  stopStream(stream);
+  audioTrack?.stop();
+  void audioContext?.close?.().catch(() => undefined);
+}
+
+function shareSourceForTrack(track, fallbackSource) {
+  const displaySurface = track?.getSettings?.().displaySurface;
+  if (!displaySurface) return fallbackSource;
+  return displaySurface === 'window' ? 'window' : 'screen';
+}
+
+function screenShareErrorMessage(error, t) {
+  if (['AbortError', 'NotAllowedError'].includes(error?.name)) return t('workspace.callsPanel.screenShareCancelled');
+  if (error?.name === 'NotFoundError') return t('workspace.callsPanel.screenShareUnavailable');
+  return t('workspace.callsPanel.screenShareStartError');
+}
+
 function iceConfiguration(servers) {
   const iceServers = Array.isArray(servers)
     ? servers.map((server) => {
@@ -77,11 +98,34 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [remoteCameraStream, setRemoteCameraStream] = useState(null);
+  const [localScreenStream, setLocalScreenStream] = useState(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState(null);
+  const [screenShareState, setScreenShareState] = useState(STOPPED_SHARE_STATE);
+  const [remoteShareState, setRemoteShareState] = useState(STOPPED_SHARE_STATE);
+  const [screenAudioLevel, setScreenAudioLevel] = useState(SCREEN_AUDIO_DEFAULT_LEVEL);
+  const [screenShareNotice, setScreenShareNotice] = useState('');
   const [startedAt, setStartedAt] = useState(null);
   const [statusText, setStatusText] = useState('');
 
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
+  const localScreenCaptureRef = useRef(null);
+  const localScreenVideoTrackRef = useRef(null);
+  const localScreenAudioTrackRef = useRef(null);
+  const localScreenAudioContextRef = useRef(null);
+  const localScreenAudioGainRef = useRef(null);
+  const screenVideoSenderRef = useRef(null);
+  const screenAudioSenderRef = useRef(null);
+  const cameraVideoSenderRef = useRef(null);
+  const screenVideoTransceiverRef = useRef(null);
+  const screenAudioTransceiverRef = useRef(null);
+  const cameraVideoTransceiverRef = useRef(null);
+  const remoteCameraTrackRef = useRef(null);
+  const remoteScreenTrackRef = useRef(null);
+  const remoteShareStateRef = useRef(STOPPED_SHARE_STATE);
+  const screenShareStateRef = useRef(STOPPED_SHARE_STATE);
+  const screenShareLockRef = useRef(false);
   const iceServersRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
   const makingOfferRef = useRef(false);
@@ -101,6 +145,10 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
     && typeof RTCPeerConnection !== 'undefined'
     && typeof MediaStream !== 'undefined',
   ), []);
+  const canShareScreen = useMemo(() => Boolean(
+    navigator.mediaDevices?.getDisplayMedia
+    && typeof MediaStream !== 'undefined',
+  ), []);
 
   const setCurrentCallState = useCallback((nextState) => {
     callStateRef.current = nextState;
@@ -117,17 +165,52 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
     setIsVideoEnabled(enabled);
   }, []);
 
+  const setCurrentScreenShareState = useCallback((nextState) => {
+    screenShareStateRef.current = nextState;
+    setScreenShareState(nextState);
+  }, []);
+
+  const setCurrentRemoteShareState = useCallback((nextState) => {
+    remoteShareStateRef.current = nextState;
+    setRemoteShareState(nextState);
+  }, []);
+
   const sendSignal = useCallback((payload, chatId = chatIdRef.current) => {
     if (!chatId) return false;
     return Boolean(sendRealtimeRef.current?.({ ...payload, chat_id: chatId }));
+  }, []);
+
+  const releaseScreenCapture = useCallback(() => {
+    if (localScreenVideoTrackRef.current) localScreenVideoTrackRef.current.onended = null;
+    localScreenVideoTrackRef.current = null;
+    stopScreenCapture(
+      localScreenCaptureRef.current,
+      localScreenAudioTrackRef.current,
+      localScreenAudioContextRef.current,
+    );
+    localScreenCaptureRef.current = null;
+    localScreenAudioTrackRef.current = null;
+    localScreenAudioContextRef.current = null;
+    localScreenAudioGainRef.current = null;
+    setLocalScreenStream(null);
   }, []);
 
   const resetCall = useCallback(() => {
     const connection = peerConnectionRef.current;
     peerConnectionRef.current = null;
     connection?.close();
+    releaseScreenCapture();
     stopStream(localStreamRef.current);
     localStreamRef.current = null;
+    screenVideoSenderRef.current = null;
+    screenAudioSenderRef.current = null;
+    cameraVideoSenderRef.current = null;
+    screenVideoTransceiverRef.current = null;
+    screenAudioTransceiverRef.current = null;
+    cameraVideoTransceiverRef.current = null;
+    screenShareLockRef.current = false;
+    remoteCameraTrackRef.current = null;
+    remoteScreenTrackRef.current = null;
     iceServersRef.current = null;
     pendingIceCandidatesRef.current = [];
     makingOfferRef.current = false;
@@ -145,9 +228,15 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
     setIsVideoEnabled(false);
     setLocalStream(null);
     setRemoteStream(null);
+    setRemoteCameraStream(null);
+    setRemoteScreenStream(null);
+    setCurrentScreenShareState(STOPPED_SHARE_STATE);
+    setCurrentRemoteShareState(STOPPED_SHARE_STATE);
+    setScreenAudioLevel(SCREEN_AUDIO_DEFAULT_LEVEL);
+    setScreenShareNotice('');
     setStartedAt(null);
     setStatusText('');
-  }, [setCurrentCallState]);
+  }, [releaseScreenCapture, setCurrentCallState, setCurrentRemoteShareState, setCurrentScreenShareState]);
 
   const reportError = useCallback((message) => {
     setStatusText(message);
@@ -205,11 +294,28 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
     };
 
     connection.ontrack = (event) => {
-      event.streams[0]?.getTracks().forEach((track) => {
-        if (!nextRemoteStream.getTracks().some((currentTrack) => currentTrack.id === track.id)) {
-          nextRemoteStream.addTrack(track);
-        }
-      });
+      const track = event.track;
+      if (!nextRemoteStream.getTracks().some((currentTrack) => currentTrack.id === track.id)) {
+        nextRemoteStream.addTrack(track);
+      }
+      if (event.transceiver === screenVideoTransceiverRef.current && track.kind === 'video') {
+        remoteScreenTrackRef.current = track;
+        setRemoteScreenStream(new MediaStream([track]));
+        track.onended = () => {
+          if (remoteScreenTrackRef.current !== track) return;
+          remoteScreenTrackRef.current = null;
+          setRemoteScreenStream(null);
+        };
+      }
+      if (event.transceiver === cameraVideoTransceiverRef.current && track.kind === 'video') {
+        remoteCameraTrackRef.current = track;
+        setRemoteCameraStream(new MediaStream([track]));
+        track.onended = () => {
+          if (remoteCameraTrackRef.current !== track) return;
+          remoteCameraTrackRef.current = null;
+          setRemoteCameraStream(null);
+        };
+      }
       setRemoteStream(new MediaStream(nextRemoteStream.getTracks()));
     };
 
@@ -231,6 +337,18 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
       withVideo: callTypeRef.current === 'video' && isVideoEnabledRef.current,
     });
     stream.getTracks().forEach((track) => connection.addTrack(track, stream));
+    const cameraSender = connection.getSenders().find((sender) => sender.track?.kind === 'video');
+    const cameraTransceiver = cameraSender
+      ? connection.getTransceivers().find((transceiver) => transceiver.sender === cameraSender)
+      : connection.addTransceiver('video', { direction: 'sendrecv' });
+    cameraVideoSenderRef.current = cameraTransceiver.sender;
+    cameraVideoTransceiverRef.current = cameraTransceiver;
+    const screenVideoTransceiver = connection.addTransceiver('video', { direction: 'sendrecv' });
+    const screenAudioTransceiver = connection.addTransceiver('audio', { direction: 'sendrecv' });
+    screenVideoSenderRef.current = screenVideoTransceiver.sender;
+    screenAudioSenderRef.current = screenAudioTransceiver.sender;
+    screenVideoTransceiverRef.current = screenVideoTransceiver;
+    screenAudioTransceiverRef.current = screenAudioTransceiver;
     return connection;
   }, [getLocalStream, loadIceServers, sendSignal, setCurrentCallState, t]);
 
@@ -371,7 +489,7 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
 
       const connection = peerConnectionRef.current;
       if (!connection || connection.connectionState !== 'connected') return;
-      const sender = connection.getSenders().find((item) => item.track?.kind === 'video');
+      const sender = cameraVideoSenderRef.current;
       if (sender) {
         await sender.replaceTrack(videoTrack);
       } else {
@@ -382,6 +500,188 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
       reportError(error.message || t('workspace.callsPanel.cameraStartError'));
     }
   }, [createAndSendOffer, getLocalStream, reportError, setCurrentVideoEnabled, t]);
+
+  const stopScreenShare = useCallback(async ({ announce = true } = {}) => {
+    const videoTrack = localScreenVideoTrackRef.current;
+    const capture = localScreenCaptureRef.current;
+    const audioTrack = localScreenAudioTrackRef.current;
+    const audioContext = localScreenAudioContextRef.current;
+    const previousState = screenShareStateRef.current;
+    const wasSharing = previousState.status !== 'stopped';
+
+    if (!videoTrack && !capture && !wasSharing) return;
+    if (videoTrack) videoTrack.onended = null;
+    localScreenVideoTrackRef.current = null;
+    localScreenCaptureRef.current = null;
+    localScreenAudioTrackRef.current = null;
+    localScreenAudioContextRef.current = null;
+    localScreenAudioGainRef.current = null;
+    setLocalScreenStream(null);
+
+    const connection = peerConnectionRef.current;
+    if (connection && connection.connectionState !== 'closed') {
+      await Promise.all([
+        screenVideoSenderRef.current?.replaceTrack(null).catch(() => undefined),
+        screenAudioSenderRef.current?.replaceTrack(null).catch(() => undefined),
+      ]);
+    }
+    stopScreenCapture(capture, audioTrack, audioContext);
+    setCurrentScreenShareState(STOPPED_SHARE_STATE);
+    setScreenShareNotice('');
+    if (announce && wasSharing && callIdRef.current) {
+      sendSignal({
+        event: 'call.media_state',
+        call_id: callIdRef.current,
+        source: previousState.source ?? 'screen',
+        status: 'stopped',
+        audio_enabled: false,
+      });
+    }
+  }, [sendSignal, setCurrentScreenShareState]);
+
+  const startScreenShare = useCallback(async ({ source = 'screen', withAudio = false } = {}) => {
+    if (
+      screenShareLockRef.current
+      || callStateRef.current !== 'active'
+      || !callIdRef.current
+      || !navigator.mediaDevices?.getDisplayMedia
+    ) {
+      if (!navigator.mediaDevices?.getDisplayMedia) reportError(t('workspace.callsPanel.screenShareUnsupported'));
+      return false;
+    }
+
+    const connection = peerConnectionRef.current;
+    const videoSender = screenVideoSenderRef.current;
+    const audioSender = screenAudioSenderRef.current;
+    if (!connection || connection.connectionState !== 'connected' || !videoSender || !audioSender) {
+      reportError(t('workspace.callsPanel.screenShareUnavailable'));
+      return false;
+    }
+
+    screenShareLockRef.current = true;
+    let capture = null;
+    let processedAudioTrack = null;
+    let audioContext = null;
+    let audioGain = null;
+    try {
+      capture = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          cursor: 'always',
+          displaySurface: source === 'window' ? 'window' : 'monitor',
+          frameRate: { ideal: 30, max: 30 },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+        },
+        audio: withAudio ? {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          suppressLocalAudioPlayback: true,
+        } : false,
+      });
+      const videoTrack = capture.getVideoTracks()[0];
+      if (!videoTrack) throw new Error('missing_display_video');
+
+      const captureAudioTrack = capture.getAudioTracks()[0];
+      if (withAudio && captureAudioTrack) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioContext = new AudioContextClass();
+          const audioSource = audioContext.createMediaStreamSource(new MediaStream([captureAudioTrack]));
+          const gain = audioContext.createGain();
+          const destination = audioContext.createMediaStreamDestination();
+          gain.gain.value = screenAudioLevel / 100;
+          audioSource.connect(gain).connect(destination);
+          await audioContext.resume().catch(() => undefined);
+          processedAudioTrack = destination.stream.getAudioTracks()[0] ?? null;
+          if (processedAudioTrack) audioGain = gain;
+        }
+      }
+
+      if (callStateRef.current !== 'active' || peerConnectionRef.current !== connection || !callIdRef.current) {
+        throw new Error('call_ended');
+      }
+
+      const oldVideoTrack = localScreenVideoTrackRef.current;
+      const oldCapture = localScreenCaptureRef.current;
+      const oldAudioTrack = localScreenAudioTrackRef.current;
+      const oldAudioContext = localScreenAudioContextRef.current;
+      try {
+        await videoSender.replaceTrack(videoTrack);
+        await audioSender.replaceTrack(processedAudioTrack);
+      } catch (error) {
+        await Promise.all([
+          videoSender.replaceTrack(oldVideoTrack).catch(() => undefined),
+          audioSender.replaceTrack(oldAudioTrack).catch(() => undefined),
+        ]);
+        throw error;
+      }
+
+      if (oldVideoTrack) oldVideoTrack.onended = null;
+      stopScreenCapture(oldCapture, oldAudioTrack, oldAudioContext);
+      localScreenCaptureRef.current = capture;
+      localScreenVideoTrackRef.current = videoTrack;
+      localScreenAudioTrackRef.current = processedAudioTrack;
+      localScreenAudioContextRef.current = audioContext;
+      localScreenAudioGainRef.current = audioGain;
+      setLocalScreenStream(new MediaStream([videoTrack]));
+      const actualSource = shareSourceForTrack(videoTrack, source);
+      const audioEnabled = Boolean(processedAudioTrack);
+      setCurrentScreenShareState({
+        source: actualSource,
+        status: 'active',
+        audioEnabled,
+        audioAvailable: Boolean(captureAudioTrack),
+      });
+      setScreenShareNotice(withAudio && !audioEnabled ? t('workspace.callsPanel.screenAudioUnavailable') : '');
+      videoTrack.onended = () => {
+        if (localScreenVideoTrackRef.current === videoTrack) void stopScreenShare();
+      };
+      sendSignal({
+        event: 'call.media_state',
+        call_id: callIdRef.current,
+        source: actualSource,
+        status: 'active',
+        audio_enabled: audioEnabled,
+      });
+      return true;
+    } catch (error) {
+      stopScreenCapture(capture, processedAudioTrack, audioContext);
+      setScreenShareNotice(screenShareErrorMessage(error, t));
+      return false;
+    } finally {
+      screenShareLockRef.current = false;
+    }
+  }, [reportError, screenAudioLevel, sendSignal, setCurrentScreenShareState, stopScreenShare, t]);
+
+  const toggleScreenSharePaused = useCallback(() => {
+    const current = screenShareStateRef.current;
+    const videoTrack = localScreenVideoTrackRef.current;
+    if (!videoTrack || current.status === 'stopped' || !callIdRef.current) return;
+
+    const nextStatus = current.status === 'paused' ? 'active' : 'paused';
+    const enabled = nextStatus === 'active';
+    videoTrack.enabled = enabled;
+    if (localScreenAudioTrackRef.current) localScreenAudioTrackRef.current.enabled = enabled;
+    const nextState = { ...current, status: nextStatus };
+    setCurrentScreenShareState(nextState);
+    sendSignal({
+      event: 'call.media_state',
+      call_id: callIdRef.current,
+      source: current.source,
+      status: nextStatus,
+      audio_enabled: Boolean(localScreenAudioTrackRef.current) && enabled,
+    });
+  }, [sendSignal, setCurrentScreenShareState]);
+
+  const setScreenShareAudioLevel = useCallback((value) => {
+    const nextLevel = Math.min(100, Math.max(0, Number(value) || 0));
+    setScreenAudioLevel(nextLevel);
+    const gain = localScreenAudioGainRef.current;
+    if (gain) gain.gain.setTargetAtTime(nextLevel / 100, gain.context.currentTime, 0.015);
+  }, []);
+
+  const clearScreenShareNotice = useCallback(() => setScreenShareNotice(''), []);
 
   const handleSignal = useCallback(async (payload) => {
     if (!isCallSignal(payload)) return;
@@ -445,6 +745,17 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
         return;
       }
 
+      if (payload.event === 'call.media_state') {
+        const nextRemoteState = {
+          source: payload.source,
+          status: payload.status,
+          audioEnabled: Boolean(payload.audio_enabled),
+          audioAvailable: Boolean(payload.audio_enabled),
+        };
+        setCurrentRemoteShareState(nextRemoteState);
+        return;
+      }
+
       if (payload.event === 'call.offer' && payload.description) {
         const connection = await ensurePeerConnection();
         if (makingOfferRef.current || connection.signalingState !== 'stable') return;
@@ -480,7 +791,7 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
       makingOfferRef.current = false;
       reportError(error.message || t('workspace.callsPanel.connectionError'));
     }
-  }, [createAndSendOffer, currentUserId, ensurePeerConnection, flushIceCandidates, reportError, resetCall, sendSignal, setCurrentCallState, setCurrentCallType, setCurrentVideoEnabled, startRingTimeout, t]);
+  }, [createAndSendOffer, currentUserId, ensurePeerConnection, flushIceCandidates, reportError, resetCall, sendSignal, setCurrentCallState, setCurrentCallType, setCurrentRemoteShareState, setCurrentVideoEnabled, startRingTimeout, t]);
 
   useEffect(() => {
     if (!canSignalCall && callStateRef.current !== 'idle') resetCall();
@@ -498,6 +809,7 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
 
   return {
     canUseCalls,
+    canShareScreen,
     canSignalCall,
     callState,
     callType,
@@ -505,6 +817,13 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
     isVideoEnabled,
     localStream,
     remoteStream,
+    remoteCameraStream,
+    localScreenStream,
+    remoteScreenStream,
+    screenShareState,
+    remoteShareState,
+    screenAudioLevel,
+    screenShareNotice,
     startedAt,
     statusText,
     startCall,
@@ -513,6 +832,11 @@ export function useDirectCall({ accessToken, currentUserId, canSignalCall, onRea
     endCall,
     toggleMute,
     toggleVideo,
+    startScreenShare,
+    stopScreenShare,
+    toggleScreenSharePaused,
+    setScreenShareAudioLevel,
+    clearScreenShareNotice,
     handleSignal,
   };
 }

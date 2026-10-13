@@ -44,6 +44,9 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'phone-off') return <svg {...commonProps}><path d="m4 4 16 16" /><path d="m10.4 8.7-1.5 1.1a12.7 12.7 0 0 0 5.3 5.3l1.8-1.5 3.7 2.6-1 3.1a2.5 2.5 0 0 1-2.8 1.6 16.8 16.8 0 0 1-10.8-10.8 2.5 2.5 0 0 1 1.6-2.8l3.1-1 1.6 2.2" /></svg>;
   if (name === 'speaker') return <svg {...commonProps}><path d="M4 10h4l5-4v12l-5-4H4v-4Z" /><path d="M16 9.2a4 4 0 0 1 0 5.6M18.5 6.8a7.4 7.4 0 0 1 0 10.4" /></svg>;
   if (name === 'speaker-off') return <svg {...commonProps}><path d="M4 10h4l5-4v12l-5-4H4v-4Z" /><path d="m17 9 4 4M21 9l-4 4" /></svg>;
+  if (name === 'screen') return <svg {...commonProps}><rect x="3" y="4" width="18" height="13" rx="2.4" /><path d="M8 21h8M12 17v4" /></svg>;
+  if (name === 'pause') return <svg {...commonProps}><path d="M8 5v14M16 5v14" /></svg>;
+  if (name === 'switch') return <svg {...commonProps}><path d="M7 7h10l-3-3M17 17H7l3 3M17 7l3 3M7 17l-3-3" /></svg>;
   if (name === 'warning') return <svg {...commonProps}><path d="M12 3 2.9 19a1.4 1.4 0 0 0 1.2 2h15.8a1.4 1.4 0 0 0 1.2-2L12 3Z" /><path d="M12 9v4.5M12 17.1v.1" /></svg>;
   if (name === 'key') return <svg {...commonProps}><circle cx="7.5" cy="15.5" r="3.5" /><path d="m10.1 12.9 7.8-7.8 2 2-1.5 1.5 1.2 1.2-1.8 1.8-1.2-1.2-4 4" /></svg>;
   if (name === 'lock') return <svg {...commonProps}><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7.2a4 4 0 0 1 8 0V10M12 14.5v2.5" /></svg>;

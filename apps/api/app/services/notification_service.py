@@ -13,7 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.chats import Chat, ChatParticipant, Message, MobilePushToken, Notification, PushSubscription, SystemAnnouncement
 from app.models.users import User, UserProfile
-from app.schemas.chats import MessageOut, MobilePushTokenRegisterRequest, NotificationOut, PushSubscriptionCreateRequest
+from app.schemas.chats import (
+    MessageOut,
+    MobilePushTokenRegisterRequest,
+    NotificationOut,
+    NotificationTargetOut,
+    PushSubscriptionCreateRequest,
+)
 from app.services.localization import message_preview, tr
 from app.services.mobile_push_client import send_mobile_push
 from app.services.mobile_push_token_service import deactivate_mobile_push_tokens
@@ -374,6 +380,7 @@ async def send_test_push_notification(session: AsyncSession, user_id: UUID) -> b
         kind='system',
         chat_id=None,
         message_id=None,
+        target=NotificationTargetOut(kind='system', section='settings'),
         title='AraChat',
         body=tr(profile.language if profile else None, 'notification.test'),
         url='/app/settings',
@@ -489,7 +496,8 @@ def _mobile_push_data(
     *,
     preview_available: bool = True,
 ) -> dict[str, str] | None:
-    if not preview_available or notification.kind != 'message' or not notification.chat_id:
+    target = notification.target
+    if not preview_available or target.kind != 'message' or not target.chat_id:
         return None
 
     title = _mobile_push_text(notification.title, maximum_length=120)
@@ -498,14 +506,14 @@ def _mobile_push_data(
         return None
 
     data = {
-        'kind': 'message',
+        'kind': target.kind,
         'notification_id': str(notification.notification_id),
-        'chat_id': str(notification.chat_id),
+        'chat_id': str(target.chat_id),
         'title': title,
         'body': body,
     }
-    if notification.message_id:
-        data['message_id'] = str(notification.message_id)
+    if target.message_id:
+        data['message_id'] = str(target.message_id)
     return data
 
 
@@ -566,13 +574,20 @@ def _send_push(subscription: PushSubscription, notification: NotificationOut) ->
 
 
 def _notification_out(notification: Notification) -> NotificationOut:
+    kind = 'announcement' if notification.announcement_id else 'support' if notification.support_ticket_id else 'message'
     return NotificationOut(
         id=notification.id,
         notification_id=notification.id,
-        kind='announcement' if notification.announcement_id else 'support' if notification.support_ticket_id else 'message',
+        kind=kind,
         chat_id=notification.chat_id,
         message_id=notification.message_id,
         support_ticket_id=notification.support_ticket_id,
+        target=NotificationTargetOut(
+            kind=kind,
+            chat_id=notification.chat_id,
+            message_id=notification.message_id,
+            support_ticket_id=notification.support_ticket_id,
+        ),
         title=notification.title,
         body=notification.body,
         url=notification.url,

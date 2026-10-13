@@ -16,9 +16,12 @@ CALL_SIGNAL_EVENTS = {
     'call.offer',
     'call.answer',
     'call.ice_candidate',
+    'call.media_state',
 }
 CALL_ID_PATTERN = re.compile(r'^[A-Za-z0-9-]{1,200}$')
 CALL_TYPES = {'audio', 'video'}
+MEDIA_SOURCES = {'screen', 'window'}
+MEDIA_STATUSES = {'active', 'paused', 'stopped'}
 INVITE_TIMEOUT_SECONDS = 75
 MAX_CALL_DURATION_SECONDS = 12 * 60 * 60
 
@@ -111,6 +114,22 @@ def normalize_call_signal(message: dict) -> dict:
         reason = message.get('reason')
         if reason in {'busy', 'media_failed', 'unsupported_media'}:
             payload['reason'] = reason
+
+    if event == 'call.media_state':
+        source = message.get('source')
+        status = message.get('status')
+        audio_enabled = message.get('audio_enabled')
+        if (
+            source not in MEDIA_SOURCES
+            or status not in MEDIA_STATUSES
+            or not isinstance(audio_enabled, bool)
+        ):
+            raise CallSignalingError('invalid_media_state')
+        payload.update({
+            'source': source,
+            'status': status,
+            'audio_enabled': audio_enabled,
+        })
 
     return payload
 
@@ -231,6 +250,8 @@ class CallSignalingManager:
                 session.pending_answer_user_id = None
             elif event == 'call.ice_candidate':
                 self._require_state(session, session.status in {'accepted', 'active'})
+            elif event == 'call.media_state':
+                self._require_state(session, session.status == 'active')
             else:
                 raise CallSignalingError('unsupported_call_event')
 

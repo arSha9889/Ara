@@ -4,6 +4,7 @@ import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import {
   deleteMessage,
   editMessage,
+  getChatE2eeKeys,
   getChatMessages,
   markMessagesRead,
   pinMessage,
@@ -11,7 +12,14 @@ import {
   sendMessage,
   uploadChatMedia,
 } from '../../features/chats/chatsApi.js';
+import { saveE2eeWebKey } from '../../features/security/securityApi.js';
 import { useAuthenticatedMediaUrl } from '../../shared/api/authenticatedMedia.js';
+import {
+  decryptE2eeMessage,
+  encryptE2eeText,
+  isE2eeDesktopSupported,
+  registerE2eeDesktopIdentity,
+} from '../../shared/crypto/e2eeDesktop.js';
 
 const AVATAR_TONES = ['violet', 'coral', 'yellow', 'blue'];
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '🙏', '🔥'];
@@ -56,12 +64,19 @@ function messageRevisionTime(message) {
 
 function mergeMessage(existing, nextMessage) {
   if (!existing) return nextMessage;
+  const preserveDecryptedPayload = existing.encryption_state === 'e2ee_web_v1'
+    && ['verified', 'unverified', 'key_changed'].includes(existing.e2ee_status)
+    && nextMessage.encryption_state === 'e2ee_web_v1'
+    && nextMessage.e2ee_status === 'unavailable';
+  const resolvedNextMessage = preserveDecryptedPayload
+    ? { ...nextMessage, payload: existing.payload, e2ee_status: existing.e2ee_status, reply_to: existing.reply_to }
+    : nextMessage;
   const existingPriority = DELIVERY_STATUS_PRIORITY[existing.delivery_status] ?? 0;
-  const nextPriority = DELIVERY_STATUS_PRIORITY[nextMessage.delivery_status] ?? 0;
-  const newestMessage = messageRevisionTime(nextMessage) >= messageRevisionTime(existing) ? nextMessage : existing;
+  const nextPriority = DELIVERY_STATUS_PRIORITY[resolvedNextMessage.delivery_status] ?? 0;
+  const newestMessage = messageRevisionTime(resolvedNextMessage) >= messageRevisionTime(existing) ? resolvedNextMessage : existing;
   return {
     ...newestMessage,
-    delivery_status: nextPriority >= existingPriority ? nextMessage.delivery_status : existing.delivery_status,
+    delivery_status: nextPriority >= existingPriority ? resolvedNextMessage.delivery_status : existing.delivery_status,
   };
 }
 
@@ -114,7 +129,44 @@ function messageTypeLabel(message, t) {
 
 function replyPreview(message, t) {
   if (!message || message.deleted_at) return t('workspace.chatPanel.deletedMessage');
+  if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
+    return t('workspace.chatPanel.encryptedMessage');
+  }
   return message.type === 'text' ? message.payload : message.media_name || messageTypeLabel(message, t);
+}
+
+function encryptedMessageStatus(message, t) {
+  if (message.encryption_state !== 'e2ee_web_v1') return null;
+  if (message.e2ee_status === 'verified') return { label: t('workspace.chatPanel.encryptionVerified'), tone: 'verified' };
+  if (message.e2ee_status === 'unverified') return { label: t('workspace.chatPanel.encryptionUnverified'), tone: 'unverified' };
+  if (message.e2ee_status === 'key_changed') return { label: t('workspace.chatPanel.encryptionKeyChanged'), tone: 'key-changed' };
+  return { label: t('workspace.chatPanel.encryptionUnavailable'), tone: 'unavailable' };
+}
+
+function directChatEncryptionLabel(status, t) {
+  if (status === 'ready') return { label: t('workspace.chatPanel.encryptionTextReady'), tone: 'ready' };
+  if (status === 'checking') return { label: t('workspace.chatPanel.encryptionChecking'), tone: 'checking' };
+  if (status === 'unsupported') return { label: t('workspace.chatPanel.encryptionUnsupported'), tone: 'unavailable' };
+  if (status === 'unavailable') return { label: t('workspace.chatPanel.encryptionUnavailable'), tone: 'unavailable' };
+  return { label: t('workspace.chatPanel.encryptionNotReady'), tone: 'unavailable' };
+}
+
+async function decryptChatMessage(message, { chatId, currentUserId, identity, chatKeys }) {
+  async function decryptOne(item) {
+    if (item.encryption_state !== 'e2ee_web_v1') return { ...item, e2ee_status: 'plain' };
+    if (!identity || !currentUserId) return { ...item, payload: '', e2ee_status: 'unavailable' };
+    return decryptE2eeMessage({
+      message: item,
+      chatId,
+      currentUserId: String(currentUserId),
+      identity,
+      chatKeys,
+    });
+  }
+
+  const decrypted = await decryptOne(message);
+  if (!message.reply_to) return decrypted;
+  return { ...decrypted, reply_to: await decryptOne(message.reply_to) };
 }
 
 function realtimeNotice(status, t) {
@@ -148,6 +200,9 @@ function MediaMessage({ accessToken, message, t }) {
 
 function MessageContent({ accessToken, message, t }) {
   if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
+  if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
+    return <p className="chat-encrypted-unavailable">{t('workspace.chatPanel.encryptedMessageUnavailable')}</p>;
+  }
   if (message.type === 'text' || message.type === 'emoji') return <p>{message.payload}</p>;
   if (message.type === 'call') return <p>{t('workspace.calls')}</p>;
   return <MediaMessage accessToken={accessToken} message={message} t={t} />;
@@ -157,8 +212,12 @@ export function ChatPanel({
   accessToken,
   chat,
   currentUserId,
+  focusMessage,
+  focusMessageId,
+  focusRequestId,
   onBack,
   onChatChanged,
+  onMessageFocused,
   onMessageSent,
   onRealtimeSend,
   onStartCall,
@@ -181,9 +240,13 @@ export function ChatPanel({
   const [isSending, setIsSending] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const [composerError, setComposerError] = useState('');
+  const [e2eeStatus, setE2eeStatus] = useState(chat.type === 'direct' ? 'checking' : 'inactive');
   const [readRetryVersion, setReadRetryVersion] = useState(0);
   const fileInputRef = useRef(null);
   const isCurrentRef = useRef(true);
+  const messagesRef = useRef([]);
+  const e2eeCryptoRef = useRef({ identity: null, keys: [] });
+  const messageElementRefs = useRef(new Map());
   const processedRealtimeEventIdRef = useRef(0);
   const readMessageIdsRef = useRef(new Set());
   const readRetryTimerRef = useRef(null);
@@ -191,9 +254,77 @@ export function ChatPanel({
   const activityTimerRef = useRef(null);
   const lastTypingSentAtRef = useRef(0);
   const handledResyncVersionRef = useRef(realtimeResyncVersion);
+  const focusedRequestIdRef = useRef(0);
+  const focusHighlightTimerRef = useRef(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const peer = chatState.peer;
   const peerName = peer?.display_name || peer?.username || t('workspace.unknownUser');
   const peerUsername = peer?.username || '';
+  const isDirectChat = chat.type === 'direct';
+  const isE2eeReady = isDirectChat && e2eeStatus === 'ready';
+  const participantIdsKey = (chat.participant_ids || []).map(String).sort().join(':');
+
+  messagesRef.current = messages;
+
+  const prepareDirectChatEncryption = useCallback(async () => {
+    if (!isDirectChat) {
+      e2eeCryptoRef.current = { identity: null, keys: [] };
+      if (isCurrentRef.current) {
+        setE2eeStatus('inactive');
+      }
+      return { identity: null, keys: [] };
+    }
+    if (!isE2eeDesktopSupported()) {
+      e2eeCryptoRef.current = { identity: null, keys: [] };
+      if (isCurrentRef.current) {
+        setE2eeStatus('unsupported');
+      }
+      return { identity: null, keys: [] };
+    }
+
+    if (isCurrentRef.current) setE2eeStatus('checking');
+    try {
+      const identity = await registerE2eeDesktopIdentity(
+        String(currentUserId),
+        (payload) => saveE2eeWebKey(accessToken, payload),
+      );
+      const keys = await getChatE2eeKeys(accessToken, chat.id);
+      const participantIds = new Set((chat.participant_ids || []).map(String));
+      const keyParticipantIds = new Set(keys.map((key) => String(key.user_id)));
+      const hasCurrentDeviceKey = keys.some((key) => (
+        String(key.user_id) === String(currentUserId)
+        && key.encryption_public_key === identity.encryptionPublicKey
+        && key.signing_public_key === identity.signingPublicKey
+      ));
+      const status = participantIds.size === 2
+        && participantIds.size === keyParticipantIds.size
+        && [...participantIds].every((userId) => keyParticipantIds.has(userId))
+        && hasCurrentDeviceKey
+        ? 'ready'
+        : 'waiting';
+
+      e2eeCryptoRef.current = { identity, keys };
+      if (isCurrentRef.current) {
+        setE2eeStatus(status);
+      }
+      return { identity, keys };
+    } catch {
+      e2eeCryptoRef.current = { identity: null, keys: [] };
+      if (isCurrentRef.current) {
+        setE2eeStatus('unavailable');
+      }
+      return { identity: null, keys: [] };
+    }
+  }, [accessToken, chat.id, currentUserId, isDirectChat, participantIdsKey]);
+
+  const decryptWithCurrentCrypto = useCallback(async (message) => {
+    return decryptChatMessage(message, {
+      chatId: chat.id,
+      currentUserId,
+      identity: e2eeCryptoRef.current.identity,
+      chatKeys: e2eeCryptoRef.current.keys,
+    });
+  }, [chat.id, currentUserId]);
 
   const loadMessages = useCallback(async ({ showLoading = true } = {}) => {
     if (showLoading) {
@@ -201,9 +332,18 @@ export function ChatPanel({
       setHistoryError('');
     }
     try {
+      const cryptoContext = await prepareDirectChatEncryption();
       const history = await getChatMessages(accessToken, chat.id);
+      const decryptedHistory = await Promise.all((Array.isArray(history) ? history : []).map((message) => decryptChatMessage(message, {
+        chatId: chat.id,
+        currentUserId,
+        identity: cryptoContext.identity,
+        chatKeys: cryptoContext.keys,
+      })));
       if (isCurrentRef.current) {
-        setMessages((current) => mergeMessages(Array.isArray(history) ? history : [], current));
+        const pinnedMessage = decryptedHistory.find((message) => message.id === chat.pinned_message_id) || chat.pinned_message;
+        setChatState((current) => ({ ...current, pinned_message: pinnedMessage }));
+        setMessages((current) => mergeMessages(decryptedHistory, current));
         setHistoryError('');
       }
     } catch (requestError) {
@@ -211,11 +351,23 @@ export function ChatPanel({
     } finally {
       if (isCurrentRef.current && showLoading) setIsLoadingMessages(false);
     }
-  }, [accessToken, chat.id]);
+  }, [accessToken, chat.id, currentUserId, prepareDirectChatEncryption]);
 
   useEffect(() => {
-    setChatState(chat);
+    setChatState((current) => {
+      const pinnedMessage = chat.pinned_message_id
+        ? messagesRef.current.find((message) => message.id === chat.pinned_message_id)
+          || (current?.pinned_message?.id === chat.pinned_message_id ? current.pinned_message : null)
+          || chat.pinned_message
+        : null;
+      return { ...chat, pinned_message: pinnedMessage };
+    });
   }, [chat]);
+
+  useEffect(() => {
+    if (!isE2eeReady || !selectedFile) return;
+    setSelectedFile(null);
+  }, [isE2eeReady, selectedFile]);
 
   useEffect(() => {
     isCurrentRef.current = true;
@@ -225,9 +377,48 @@ export function ChatPanel({
       window.clearTimeout(readRetryTimerRef.current);
       window.clearTimeout(typingStopTimerRef.current);
       window.clearTimeout(activityTimerRef.current);
+      window.clearTimeout(focusHighlightTimerRef.current);
       onRealtimeSend?.({ event: 'typing.stopped', chat_id: chat.id });
     };
   }, [chat.id, loadMessages, onRealtimeSend]);
+
+  useEffect(() => {
+    if (!focusMessage || !focusMessageId || !focusRequestId) return undefined;
+    let isCancelled = false;
+
+    void (async () => {
+      const cryptoContext = await prepareDirectChatEncryption();
+      const decryptedMessage = await decryptChatMessage(focusMessage, {
+        chatId: chat.id,
+        currentUserId,
+        identity: cryptoContext.identity,
+        chatKeys: cryptoContext.keys,
+      });
+      if (!isCurrentRef.current || isCancelled) return;
+      setMessages((current) => upsertMessage(current, decryptedMessage));
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [chat.id, currentUserId, focusMessage, focusMessageId, focusRequestId, prepareDirectChatEncryption]);
+
+  useEffect(() => {
+    if (!focusMessageId || !focusRequestId || focusedRequestIdRef.current === focusRequestId) return;
+    if (!messages.some((message) => message.id === focusMessageId)) return;
+    const messageElement = messageElementRefs.current.get(focusMessageId);
+    if (!messageElement) return;
+
+    focusedRequestIdRef.current = focusRequestId;
+    setHighlightedMessageId(focusMessageId);
+    messageElement.scrollIntoView({
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'center',
+    });
+    window.clearTimeout(focusHighlightTimerRef.current);
+    focusHighlightTimerRef.current = window.setTimeout(() => setHighlightedMessageId(null), 2_400);
+    onMessageFocused?.(focusRequestId);
+  }, [focusMessageId, focusRequestId, messages, onMessageFocused]);
 
   useEffect(() => {
     if (realtimeStatus !== 'connected') return;
@@ -246,44 +437,52 @@ export function ChatPanel({
 
     nextEvents.forEach(({ id, payload }) => {
       processedRealtimeEventIdRef.current = id;
-      if (payload.chat_id !== chat.id) return;
+      void (async () => {
+        if (payload.chat_id !== chat.id) return;
 
-      if (['message.created', 'message.updated', 'message.deleted', 'message.reactions_updated'].includes(payload.event) && payload.message) {
-        setMessages((current) => upsertMessage(current, payload.message));
-        if (payload.message.sender_id !== currentUserId) setActivity('');
-        return;
-      }
+        if (['message.created', 'message.updated', 'message.deleted', 'message.reactions_updated'].includes(payload.event) && payload.message) {
+          const message = await decryptWithCurrentCrypto(payload.message);
+          if (!isCurrentRef.current) return;
+          setMessages((current) => upsertMessage(current, message));
+          if (message.sender_id !== currentUserId) setActivity('');
+          return;
+        }
 
-      if (payload.event === 'message.pin_updated' && payload.chat) {
-        setChatState(payload.chat);
-        setMessages((current) => syncPinnedState(current, payload.chat.pinned_message_id));
-        onChatChanged?.();
-        return;
-      }
+        if (payload.event === 'message.pin_updated' && payload.chat) {
+          if (!isCurrentRef.current) return;
+          const pinnedMessage = messagesRef.current.find((message) => message.id === payload.chat.pinned_message_id) || null;
+          setChatState({ ...payload.chat, pinned_message: pinnedMessage });
+          setMessages((current) => syncPinnedState(current, payload.chat.pinned_message_id));
+          onChatChanged?.();
+          return;
+        }
 
-      if (payload.event === 'message.read' && payload.message) {
-        setMessages((current) => current.map((message) => {
-          if (message.id !== payload.message.id) return message;
-          if (message.sender_id === currentUserId && payload.reader_id !== currentUserId) return { ...message, delivery_status: 'read' };
-          return mergeMessage(message, payload.message);
-        }));
-        return;
-      }
+        if (payload.event === 'message.read' && payload.message) {
+          const message = await decryptWithCurrentCrypto(payload.message);
+          if (!isCurrentRef.current) return;
+          setMessages((current) => current.map((currentMessage) => {
+            if (currentMessage.id !== message.id) return currentMessage;
+            if (currentMessage.sender_id === currentUserId && payload.reader_id !== currentUserId) return { ...currentMessage, delivery_status: 'read' };
+            return mergeMessage(currentMessage, message);
+          }));
+          return;
+        }
 
-      if (payload.user_id === currentUserId) return;
-      if (payload.event === 'typing.started') showActivity(t('workspace.chatPanel.typing'), 3_500);
-      if (payload.event === 'file.uploading') showActivity(t('workspace.chatPanel.sendingFile'), 8_000);
-      if (payload.event === 'voice.uploading') showActivity(t('workspace.chatPanel.sendingAudio'), 8_000);
-      if (payload.event === 'typing.stopped') setActivity('');
-      if (payload.event === 'presence.active') showActivity(t('workspace.chatPanel.peerActive'));
-      if (payload.event === 'presence.status' && payload.user_id === peer?.id) {
-        setChatState((current) => ({
-          ...current,
-          peer: { ...current.peer, is_online: Boolean(payload.is_online), last_seen_at: payload.last_seen_at ?? current.peer.last_seen_at },
-        }));
-      }
+        if (payload.user_id === currentUserId) return;
+        if (payload.event === 'typing.started') showActivity(t('workspace.chatPanel.typing'), 3_500);
+        if (payload.event === 'file.uploading') showActivity(t('workspace.chatPanel.sendingFile'), 8_000);
+        if (payload.event === 'voice.uploading') showActivity(t('workspace.chatPanel.sendingAudio'), 8_000);
+        if (payload.event === 'typing.stopped') setActivity('');
+        if (payload.event === 'presence.active') showActivity(t('workspace.chatPanel.peerActive'));
+        if (payload.event === 'presence.status' && payload.user_id === peer?.id) {
+          setChatState((current) => ({
+            ...current,
+            peer: { ...current.peer, is_online: Boolean(payload.is_online), last_seen_at: payload.last_seen_at ?? current.peer.last_seen_at },
+          }));
+        }
+      })();
     });
-  }, [chat.id, currentUserId, onChatChanged, peer?.id, realtimeEvents, t]);
+  }, [chat.id, currentUserId, decryptWithCurrentCrypto, onChatChanged, peer?.id, realtimeEvents, t]);
 
   useEffect(() => {
     if (handledResyncVersionRef.current === realtimeResyncVersion) return;
@@ -343,6 +542,7 @@ export function ChatPanel({
 
   async function sendMediaMessage() {
     if (!selectedFile) return;
+    if (isE2eeReady) throw new Error(t('workspace.chatPanel.encryptedAttachmentsUnavailable'));
     onRealtimeSend?.({ event: 'file.uploading', chat_id: chat.id });
     const uploadedMedia = await uploadChatMedia(accessToken, selectedFile);
     const message = await sendMessage(accessToken, chat.id, {
@@ -380,10 +580,27 @@ export function ChatPanel({
       } else if (selectedFile) {
         await sendMediaMessage();
       } else {
-        const message = await sendMessage(accessToken, chat.id, {
-          type: 'text', text, reply_to_message_id: replyingTo?.id ?? null,
-        });
-        setMessages((current) => upsertMessage(current, message));
+        const encryptedPayload = isE2eeReady
+          ? await encryptE2eeText({
+            text,
+            chatId: chat.id,
+            senderId: String(currentUserId),
+            recipientKeys: e2eeCryptoRef.current.keys,
+            identity: e2eeCryptoRef.current.identity,
+          })
+          : null;
+        const message = await sendMessage(accessToken, chat.id, encryptedPayload
+          ? {
+            type: 'text',
+            text: encryptedPayload,
+            reply_to_message_id: replyingTo?.id ?? null,
+            encryption_state: 'e2ee_web_v1',
+          }
+          : {
+            type: 'text', text, reply_to_message_id: replyingTo?.id ?? null,
+          });
+        const decryptedMessage = await decryptWithCurrentCrypto(message);
+        setMessages((current) => upsertMessage(current, decryptedMessage));
         setDraft('');
         setReplyingTo(null);
         stopTyping();
@@ -412,7 +629,7 @@ export function ChatPanel({
     setComposerError('');
     try {
       const nextChat = await pinMessage(accessToken, chat.id, message.id);
-      setChatState(nextChat);
+      setChatState({ ...nextChat, pinned_message: messagesRef.current.find((item) => item.id === nextChat.pinned_message_id) || null });
       setMessages((current) => syncPinnedState(current, nextChat.pinned_message_id));
       void onChatChanged?.();
     } catch (requestError) {
@@ -435,11 +652,16 @@ export function ChatPanel({
     const file = event.target.files?.[0] ?? null;
     event.target.value = '';
     if (!file) return;
+    if (isE2eeReady) {
+      setComposerError(t('workspace.chatPanel.encryptedAttachmentsUnavailable'));
+      return;
+    }
     setComposerError('');
     setSelectedFile(file);
   }
 
   function startEditing(message) {
+    if (message.encryption_state === 'e2ee_web_v1') return;
     setEditingMessage(message);
     setEditText(message.payload || '');
     setSelectedFile(null);
@@ -456,6 +678,7 @@ export function ChatPanel({
 
   const composerValue = editingMessage ? editText : draft;
   const composerPlaceholder = editingMessage ? t('workspace.chatPanel.editPlaceholder') : t('workspace.chatPanel.composerPlaceholder');
+  const directChatEncryption = directChatEncryptionLabel(isDirectChat ? e2eeStatus : 'inactive', t);
 
   return (
     <section className="workspace-chat-panel" aria-labelledby="chat-title">
@@ -463,7 +686,7 @@ export function ChatPanel({
         <button className="chat-back-button" type="button" onClick={onBack}><Icon name="arrow-left" size={18} />{t('workspace.chatPanel.back')}</button>
         <div className="chat-contact-heading">
           <span className={`workspace-avatar is-${avatarTone(peer?.id || chat.id)}`} aria-hidden="true">{initials(peerName, peerUsername)}</span>
-          <div><h1 id="chat-title">{peerName}</h1><span>{activity || `${peerUsername ? `@${peerUsername} · ` : ''}${peerPresence(peer, t)}`}</span></div>
+          <div><h1 id="chat-title">{peerName}</h1><span>{activity || `${peerUsername ? `@${peerUsername} · ` : ''}${peerPresence(peer, t)}`}</span>{isDirectChat ? <span className={`chat-e2ee-chat-status is-${directChatEncryption.tone}`} title={directChatEncryption.label}><Icon name="shield" size={12} />{directChatEncryption.label}</span> : null}</div>
         </div>
         <div className="chat-header-actions" aria-label={t('workspace.chatPanel.actionsLabel')}>
           <button type="button" title={canStartCall ? t('workspace.chatPanel.startAudio') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startAudio')} onClick={() => void onStartCall?.(chat, 'audio')} disabled={!canStartCall}><Icon name="calls" size={18} /></button>
@@ -476,10 +699,14 @@ export function ChatPanel({
         <div className={`chat-server-notice is-${realtimeStatus}`} role="status" aria-live="polite" aria-atomic="true"><Icon name="shield" size={15} /><span>{realtimeNotice(realtimeStatus, t)}</span></div>
         {chatState.pinned_message ? <div className="chat-pinned-message"><Icon name="pin" size={15} /><span><strong>{t('workspace.chatPanel.pinnedMessage')}</strong><small>{replyPreview(chatState.pinned_message, t)}</small></span></div> : null}
         {historyError ? <div className="chat-history-error" role="alert"><strong>{t('workspace.chatPanel.historyLoadError')}</strong><span>{historyError}</span><button type="button" onClick={() => loadMessages()}>{t('workspace.retry')}</button></div> : null}
-        {isLoadingMessages ? <p className="chat-history-status" role="status">{t('workspace.chatPanel.loadingHistory')}</p> : historyError ? null : messages.length ? messages.map((message) => {
-          const isMine = message.sender_id === currentUserId;
-          const deliveryStatus = isMine ? deliveryStatusLabel(message.delivery_status, t) : '';
-          return <article className={`chat-message ${isMine ? 'is-mine' : ''} ${message.is_pinned ? 'is-pinned' : ''}`} key={message.id}>
+          {isLoadingMessages ? <p className="chat-history-status" role="status">{t('workspace.chatPanel.loadingHistory')}</p> : historyError ? null : messages.length ? messages.map((message) => {
+            const isMine = message.sender_id === currentUserId;
+            const deliveryStatus = isMine ? deliveryStatusLabel(message.delivery_status, t) : '';
+            const e2eeMessageStatus = encryptedMessageStatus(message, t);
+            return <article ref={(element) => {
+              if (element) messageElementRefs.current.set(message.id, element);
+              else messageElementRefs.current.delete(message.id);
+            }} className={`chat-message ${isMine ? 'is-mine' : ''} ${message.is_pinned ? 'is-pinned' : ''} ${highlightedMessageId === message.id ? 'is-notification-target' : ''}`} key={message.id}>
             <div className="chat-message-bubble">
               {message.reply_to ? <div className="chat-reply-preview"><span>{message.reply_to.sender_id === currentUserId ? t('workspace.chatPanel.you') : peerName}</span><small>{replyPreview(message.reply_to, t)}</small></div> : null}
               <MessageContent accessToken={accessToken} message={message} t={t} />
@@ -488,12 +715,12 @@ export function ChatPanel({
                 <button type="button" onClick={() => setReplyingTo(message)}><Icon name="reply" size={14} />{t('workspace.chatPanel.reply')}</button>
                 <button type="button" aria-expanded={openReactionPickerMessageId === message.id} onClick={() => setOpenReactionPickerMessageId((current) => current === message.id ? null : message.id)}><Icon name="smile" size={14} />{t('workspace.chatPanel.react')}</button>
                 <button type="button" aria-pressed={message.is_pinned} onClick={() => handlePin(message)}><Icon name="pin" size={14} />{message.is_pinned ? t('workspace.chatPanel.unpin') : t('workspace.chatPanel.pin')}</button>
-                {isMine && message.type === 'text' ? <button type="button" onClick={() => startEditing(message)}><Icon name="edit" size={14} />{t('workspace.chatPanel.edit')}</button> : null}
+                {isMine && message.type === 'text' && message.encryption_state !== 'e2ee_web_v1' ? <button type="button" onClick={() => startEditing(message)}><Icon name="edit" size={14} />{t('workspace.chatPanel.edit')}</button> : null}
                 {isMine ? <button className="is-danger" type="button" onClick={() => handleDelete(message)}><Icon name="trash" size={14} />{t('workspace.chatPanel.delete')}</button> : null}
               </div> : null}
               {openReactionPickerMessageId === message.id ? <div className="chat-reaction-picker" aria-label={t('workspace.chatPanel.reactionsLabel')}>{REACTION_EMOJIS.map((emoji) => <button type="button" key={emoji} onClick={() => handleReaction(message, emoji)}>{emoji}</button>)}</div> : null}
             </div>
-            <footer><time dateTime={message.created_at}>{formatMessageTime(message.created_at)}</time>{message.edited_at && !message.deleted_at ? <span>{t('workspace.chatPanel.edited')}</span> : null}{message.is_pinned ? <span>{t('workspace.chatPanel.pinned')}</span> : null}{isMine && deliveryStatus ? <span className="chat-delivery-status" title={deliveryStatus}><Icon name="check-double" size={14} /><span className="sr-only">{deliveryStatus}</span></span> : null}</footer>
+            <footer><time dateTime={message.created_at}>{formatMessageTime(message.created_at)}</time>{message.edited_at && !message.deleted_at ? <span>{t('workspace.chatPanel.edited')}</span> : null}{message.is_pinned ? <span>{t('workspace.chatPanel.pinned')}</span> : null}{e2eeMessageStatus ? <span className={`chat-message-e2ee-status is-${e2eeMessageStatus.tone}`} title={e2eeMessageStatus.label}><Icon name="shield" size={12} />{e2eeMessageStatus.label}</span> : null}{isMine && deliveryStatus ? <span className="chat-delivery-status" title={deliveryStatus}><Icon name="check-double" size={14} /><span className="sr-only">{deliveryStatus}</span></span> : null}</footer>
           </article>;
         }) : <div className="chat-empty-history"><span className={`workspace-avatar workspace-avatar-large is-${avatarTone(peer?.id || chat.id)}`} aria-hidden="true">{initials(peerName, peerUsername)}</span><strong>{t('workspace.chatPanel.noMessagesTitle')}</strong><p>{t('workspace.chatPanel.noMessagesText')}</p></div>}
       </div>
@@ -503,14 +730,14 @@ export function ChatPanel({
         {replyingTo ? <div className="chat-composer-context"><Icon name="reply" size={15} /><span><strong>{t('workspace.chatPanel.replyingTo')}</strong><small>{replyPreview(replyingTo, t)}</small></span><button type="button" aria-label={t('workspace.chatPanel.cancelReply')} onClick={() => setReplyingTo(null)}><Icon name="close" size={15} /></button></div> : null}
         {editingMessage ? <div className="chat-composer-context"><Icon name="edit" size={15} /><span><strong>{t('workspace.chatPanel.editingMessage')}</strong><small>{t('workspace.chatPanel.editHint')}</small></span><button type="button" aria-label={t('workspace.chatPanel.cancelEdit')} onClick={() => { setEditingMessage(null); setEditText(''); }}><Icon name="close" size={15} /></button></div> : null}
         {selectedFile ? <div className="chat-draft-type"><span><Icon name={selectedFile.type.startsWith('image/') ? 'image' : selectedFile.type.startsWith('video/') ? 'video' : 'document'} size={16} /></span><div><strong>{t('workspace.chatPanel.attachmentReady')}</strong><small>{selectedFile.name}{formatFileSize(selectedFile.size) ? ` · ${formatFileSize(selectedFile.size)}` : ''}</small></div><button type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setSelectedFile(null)}><Icon name="close" size={15} /></button></div> : null}
-        <form className="chat-composer" onSubmit={submitMessage}>
-          <input ref={fileInputRef} className="sr-only" type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileSelected} disabled={isLoadingMessages || isSending || Boolean(editingMessage)} />
-          <button className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.attachFile')} onClick={() => fileInputRef.current?.click()} disabled={isLoadingMessages || isSending || Boolean(editingMessage)}><Icon name="attachment" size={18} /></button>
+        <form className={`chat-composer ${isE2eeReady ? 'is-text-only' : ''}`} onSubmit={submitMessage}>
+          <input ref={fileInputRef} className="sr-only" type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileSelected} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isE2eeReady} />
+          <button className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.attachFile')} title={isE2eeReady ? t('workspace.chatPanel.encryptedAttachmentsUnavailable') : t('workspace.chatPanel.attachFile')} onClick={() => fileInputRef.current?.click()} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isE2eeReady}><Icon name="attachment" size={18} /></button>
           <label className="sr-only" htmlFor="chat-message-input">{t('workspace.chatPanel.composerLabel')}</label>
           <textarea id="chat-message-input" value={composerValue} onChange={(event) => editingMessage ? setEditText(event.target.value) : updateDraft(event.target.value)} onKeyDown={submitOnEnter} rows="1" maxLength="4000" placeholder={composerPlaceholder} aria-invalid={Boolean(composerError)} aria-describedby={composerError ? 'chat-message-error' : undefined} disabled={isLoadingMessages || isSending} />
-          <button className="chat-send-button" type="submit" disabled={(!composerValue.trim() && !selectedFile) || isLoadingMessages || isSending} aria-label={isSending ? t('workspace.chatPanel.sending') : editingMessage ? t('workspace.chatPanel.saveEdit') : t('workspace.chatPanel.send')}><Icon name={editingMessage ? 'save' : 'send'} size={18} /></button>
+          <button className="chat-send-button" type="submit" disabled={(!composerValue.trim() && !selectedFile) || isLoadingMessages || isSending || (isDirectChat && e2eeStatus === 'checking')} aria-label={isSending ? t('workspace.chatPanel.sending') : editingMessage ? t('workspace.chatPanel.saveEdit') : t('workspace.chatPanel.send')}><Icon name={editingMessage ? 'save' : 'send'} size={18} /></button>
         </form>
-        <p className="chat-composer-hint">{editingMessage ? t('workspace.chatPanel.editHint') : t('workspace.chatPanel.composerHint')}<br />{t('workspace.chatPanel.attachmentsHint')}</p>
+        <p className="chat-composer-hint">{editingMessage ? t('workspace.chatPanel.editHint') : t('workspace.chatPanel.composerHint')}<br />{isE2eeReady ? t('workspace.chatPanel.encryptedAttachmentsUnavailable') : t('workspace.chatPanel.attachmentsHint')}</p>
       </div>
     </section>
   );
