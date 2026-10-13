@@ -22,21 +22,18 @@ import {
 } from '../media/mediaClient';
 
 interface ChatPhotoAttachmentProps {
-  mediaName: string | null;
   mediaUrl: string;
   mimeType: string | null;
   onOpen(uri: string, name: string): void;
 }
 
 interface ChatFileAttachmentProps {
-  mediaName: string | null;
   mediaSizeBytes: number | null;
   mediaUrl: string;
   mimeType: string | null;
 }
 
 interface ChatVideoAttachmentProps {
-  mediaName: string | null;
   mediaSizeBytes: number | null;
   mediaUrl: string;
   mimeType: string | null;
@@ -55,7 +52,6 @@ interface ChatVideoNoteAttachmentProps {
 }
 
 export function ChatPhotoAttachment({
-  mediaName,
   mediaUrl,
   mimeType,
   onOpen,
@@ -105,12 +101,12 @@ export function ChatPhotoAttachment({
   return (
     <Pressable
       accessibilityHint={t('openAttachmentHint')}
-      accessibilityLabel={mediaName || t('chatPhoto')}
+      accessibilityLabel={t('chatPhoto')}
       accessibilityRole="button"
       disabled={!cachedUri || isLoading}
       onPress={() => {
         if (cachedUri) {
-          onOpen(cachedUri, mediaName || t('chatPhoto'));
+          onOpen(cachedUri, t('chatPhoto'));
         }
       }}
       style={({ pressed }) => [
@@ -120,7 +116,7 @@ export function ChatPhotoAttachment({
     >
       {cachedUri ? (
         <Image
-          accessibilityLabel={mediaName || t('chatPhoto')}
+          accessibilityLabel={t('chatPhoto')}
           resizeMode="cover"
           source={{ uri: cachedUri }}
           style={styles.photo}
@@ -136,7 +132,6 @@ export function ChatPhotoAttachment({
 }
 
 export function ChatFileAttachment({
-  mediaName,
   mediaSizeBytes,
   mediaUrl,
   mimeType,
@@ -144,7 +139,7 @@ export function ChatFileAttachment({
   const { t } = useI18n();
   const [isOpening, setIsOpening] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
-  const name = mediaName || t('chatFile');
+  const name = t('chatFile');
   const typeLabel = mimeType === 'application/pdf' ? 'PDF' : mimeType === 'text/plain' ? 'TXT' : t('chatFile');
 
   async function openFile(): Promise<void> {
@@ -209,7 +204,6 @@ export function ChatFileAttachment({
 }
 
 export function ChatVideoAttachment({
-  mediaName,
   mediaSizeBytes,
   mediaUrl,
   mimeType,
@@ -217,7 +211,7 @@ export function ChatVideoAttachment({
   const { t } = useI18n();
   const [isOpening, setIsOpening] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
-  const name = mediaName || t('chatVideo');
+  const name = t('chatVideo');
 
   async function playVideo(): Promise<void> {
     if (isOpening) {

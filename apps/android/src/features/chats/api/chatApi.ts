@@ -34,6 +34,7 @@ export interface ChatPeer {
   avatar_ref: string;
   is_online: boolean;
   last_seen_at: string | null;
+  active_platforms?: string[];
   is_official: boolean;
 }
 

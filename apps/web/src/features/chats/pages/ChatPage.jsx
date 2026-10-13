@@ -354,9 +354,10 @@ function realtimeStatusView(status, lastSeenAt, t, language) {
   };
 }
 
-function PresenceStatus({ status, lastSeenAt, t, language }) {
+function PresenceStatus({ status, lastSeenAt, activePlatforms = [], t, language }) {
   const [, setCurrentTime] = useState(Date.now());
   const view = realtimeStatusView(status, lastSeenAt, t, language);
+  const isAndroidActive = view.tone === 'online' && activePlatforms.includes('android');
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 60000);
@@ -366,7 +367,16 @@ function PresenceStatus({ status, lastSeenAt, t, language }) {
   return (
     <span className={`presence-status ${view.tone}`}>
       <span className="presence-status-indicator" aria-hidden="true" />
-      {view.dateTime ? <time dateTime={view.dateTime}>{view.label}</time> : <span>{view.label}</span>}
+      {isAndroidActive ? (
+        <>
+          <Icon name="smartphone" size={14} />
+          <span>{t('messages.onlineOnAndroid')}</span>
+        </>
+      ) : view.dateTime ? (
+        <time dateTime={view.dateTime}>{view.label}</time>
+      ) : (
+        <span>{view.label}</span>
+      )}
     </span>
   );
 }
@@ -1018,6 +1028,7 @@ export function ChatPage() {
                 ...current.peer,
                 is_online: Boolean(payload.is_online),
                 last_seen_at: payload.last_seen_at ?? current.peer.last_seen_at,
+                active_platforms: Array.isArray(payload.active_platforms) ? payload.active_platforms : current.peer.active_platforms,
               },
             }
             : current);
@@ -1845,6 +1856,7 @@ export function ChatPage() {
               <PresenceStatus
                 status={isSavedChat ? false : chat?.peer?.is_online ?? 'connecting'}
                 lastSeenAt={chat?.peer?.last_seen_at}
+                activePlatforms={chat?.peer?.active_platforms}
                 t={t}
                 language={language}
               />

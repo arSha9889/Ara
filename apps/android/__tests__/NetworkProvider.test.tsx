@@ -7,6 +7,7 @@ const mockGetNetworkConnection = jest.fn();
 const mockNetworkClientIsAvailable = jest.fn();
 const mockSubscribeToNetworkConnection = jest.fn();
 const mockUnsubscribe = jest.fn();
+let nativeListener: ((connection: NetworkConnection) => void) | undefined;
 
 jest.mock('../src/features/network/networkClient', () => ({
   INITIAL_NETWORK_CONNECTION: { state: 'checking', transport: 'none' },
@@ -33,6 +34,7 @@ describe('NetworkProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockNetworkClientIsAvailable.mockReturnValue(true);
+    nativeListener = undefined;
   });
 
   it('keeps a newer native event when the initial network query resolves later', async () => {
@@ -40,7 +42,6 @@ describe('NetworkProvider', () => {
     const initialConnection = new Promise<NetworkConnection>(resolve => {
       resolveInitialConnection = resolve;
     });
-    let nativeListener: ((connection: NetworkConnection) => void) | undefined;
 
     mockGetNetworkConnection.mockReturnValue(initialConnection);
     mockSubscribeToNetworkConnection.mockImplementation((listener: (connection: NetworkConnection) => void) => {
@@ -72,5 +73,118 @@ describe('NetworkProvider', () => {
 
     act(() => component.unmount());
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms a disconnected native event before showing offline after a network handover', async () => {
+    jest.useFakeTimers();
+    mockGetNetworkConnection
+      .mockResolvedValueOnce({ state: 'connected', transport: 'wifi' })
+      .mockResolvedValueOnce({ state: 'connected', transport: 'wifi' });
+    mockSubscribeToNetworkConnection.mockImplementation((listener: (connection: NetworkConnection) => void) => {
+      nativeListener = listener;
+      return mockUnsubscribe;
+    });
+
+    let component!: ReturnType<typeof create>;
+    await act(async () => {
+      component = create(
+        <NetworkProvider>
+          <NetworkConnectionProbe />
+        </NetworkProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    expect(connectionProbeText(component)).toBe('connected:wifi');
+
+    act(() => {
+      nativeListener?.({ state: 'disconnected', transport: 'none' });
+    });
+    expect(connectionProbeText(component)).toBe('connecting:wifi');
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_500);
+      await Promise.resolve();
+    });
+    expect(connectionProbeText(component)).toBe('connected:wifi');
+
+    act(() => component.unmount());
+    jest.useRealTimers();
+  });
+
+  it('shows offline when the delayed network check confirms a real disconnection', async () => {
+    jest.useFakeTimers();
+    mockGetNetworkConnection
+      .mockResolvedValueOnce({ state: 'connected', transport: 'cellular' })
+      .mockResolvedValueOnce({ state: 'disconnected', transport: 'none' });
+    mockSubscribeToNetworkConnection.mockImplementation((listener: (connection: NetworkConnection) => void) => {
+      nativeListener = listener;
+      return mockUnsubscribe;
+    });
+
+    let component!: ReturnType<typeof create>;
+    await act(async () => {
+      component = create(
+        <NetworkProvider>
+          <NetworkConnectionProbe />
+        </NetworkProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    act(() => {
+      nativeListener?.({ state: 'disconnected', transport: 'none' });
+    });
+    expect(connectionProbeText(component)).toBe('connecting:cellular');
+
+    await act(async () => {
+      jest.advanceTimersByTime(1_500);
+      await Promise.resolve();
+    });
+    expect(connectionProbeText(component)).toBe('disconnected:none');
+
+    act(() => component.unmount());
+    jest.useRealTimers();
+  });
+
+  it('keeps a newer native connection event when the delayed check resolves late', async () => {
+    jest.useFakeTimers();
+    let resolveConfirmation: (connection: NetworkConnection) => void = () => undefined;
+    const confirmation = new Promise<NetworkConnection>(resolve => {
+      resolveConfirmation = resolve;
+    });
+    mockGetNetworkConnection
+      .mockResolvedValueOnce({ state: 'connected', transport: 'wifi' })
+      .mockReturnValueOnce(confirmation);
+    mockSubscribeToNetworkConnection.mockImplementation((listener: (connection: NetworkConnection) => void) => {
+      nativeListener = listener;
+      return mockUnsubscribe;
+    });
+
+    let component!: ReturnType<typeof create>;
+    await act(async () => {
+      component = create(
+        <NetworkProvider>
+          <NetworkConnectionProbe />
+        </NetworkProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    act(() => {
+      nativeListener?.({ state: 'disconnected', transport: 'none' });
+      jest.advanceTimersByTime(1_500);
+      nativeListener?.({ state: 'connected', transport: 'cellular' });
+    });
+    expect(connectionProbeText(component)).toBe('connected:cellular');
+
+    await act(async () => {
+      resolveConfirmation({ state: 'disconnected', transport: 'none' });
+      await Promise.resolve();
+    });
+    expect(connectionProbeText(component)).toBe('connected:cellular');
+
+    act(() => component.unmount());
+    jest.useRealTimers();
   });
 });

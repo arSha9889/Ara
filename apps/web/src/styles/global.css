@@ -2744,6 +2744,11 @@ p { margin-bottom: 14px; }
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor, transparent 82%);
 }
 
+.presence-status .icon {
+  flex: 0 0 auto;
+  margin-left: -1px;
+}
+
 .presence-status.online { color: var(--success); }
 .presence-status.online .presence-status-indicator { animation: presencePulse 2.2s ease-in-out infinite; }
 .presence-status.connecting { color: var(--warning); }
@@ -6536,6 +6541,88 @@ button.info-card {
 .admin-danger-zone p { margin: 0; color: var(--danger); font-size: 0.7rem; font-weight: 900; text-transform: uppercase; }
 .admin-danger-zone strong { font-size: 0.76rem; line-height: 1.4; }
 .admin-danger-zone .button { justify-self: start; min-height: 38px; margin-top: 3px; padding: 7px 10px; font-size: 0.75rem; }
+
+.admin-support-layout { display: grid; grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.42fr); gap: 14px; align-items: start; }
+.admin-support-queue { min-height: 620px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0; overflow: hidden; padding: 0; }
+.admin-support-queue > header { align-items: center; border-bottom: 1px solid var(--border-soft); padding: 16px 18px; }
+.admin-support-queue > header .text-input { width: min(154px, 48%); min-height: 38px; padding-block: 7px; font-size: 0.74rem; }
+.admin-support-queue > .admin-empty-state,
+.admin-support-queue > .arachat-loader { align-self: start; margin: 20px 18px; }
+.admin-support-ticket-list { min-height: 0; overflow-y: auto; }
+.admin-support-ticket-list button { width: 100%; min-width: 0; border: 0; border-bottom: 1px solid var(--border-soft); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; background: transparent; color: var(--text); cursor: pointer; padding: 14px 18px; text-align: left; transition: background 150ms ease, box-shadow 150ms ease; }
+.admin-support-ticket-list button:hover { background: color-mix(in srgb, var(--primary), transparent 95%); }
+.admin-support-ticket-list button.active { background: color-mix(in srgb, var(--primary), transparent 91%); box-shadow: inset 3px 0 0 var(--primary); }
+.admin-support-ticket-list button > span { min-width: 0; display: grid; gap: 4px; }
+.admin-support-ticket-list strong,
+.admin-support-ticket-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-support-ticket-list strong { font-size: 0.79rem; line-height: 1.35; }
+.admin-support-ticket-list small { color: var(--muted); font-size: 0.68rem; line-height: 1.3; }
+.admin-support-ticket-list .support-status { font-size: 0.66rem; }
+
+.admin-support-detail { min-height: 620px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; padding: 0; }
+.admin-support-detail > .admin-empty-state,
+.admin-support-detail > .arachat-loader { align-self: center; }
+.admin-support-detail-header { border-bottom: 1px solid var(--border-soft); padding: clamp(17px, 2.5vw, 22px); }
+.admin-support-detail-header > div { min-width: 0; }
+.admin-support-detail-header .eyebrow { margin: 0 0 6px; color: var(--primary); font-size: 0.65rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.admin-support-detail-header h2 { overflow-wrap: anywhere; font-size: clamp(1.05rem, 2vw, 1.3rem); }
+.admin-support-status-select { min-width: 148px; display: grid; gap: 6px; }
+.admin-support-status-select > span { color: var(--muted); font-size: 0.68rem; font-weight: 850; }
+.admin-support-status-select .text-input { min-height: 38px; padding-block: 7px; font-size: 0.74rem; }
+
+.admin-support-message-list { min-height: 360px; max-height: min(54dvh, 680px); display: grid; align-content: start; gap: 10px; overflow-y: auto; padding: clamp(16px, 2.5vw, 22px); background: color-mix(in srgb, var(--primary), transparent 97%); scrollbar-color: var(--border-soft) transparent; }
+.admin-support-message { width: min(84%, 680px); border: 1px solid var(--border-soft); border-radius: 15px 15px 15px 5px; background: var(--surface); color: var(--text); padding: 12px 14px; }
+.admin-support-message.from-user { justify-self: start; }
+.admin-support-message.from-team { justify-self: end; border-color: color-mix(in srgb, var(--primary), transparent 60%); border-radius: 15px 15px 5px 15px; background: color-mix(in srgb, var(--primary), var(--surface) 91%); }
+.admin-support-message.internal { width: 100%; justify-self: stretch; border-color: color-mix(in srgb, var(--warning), transparent 60%); background: color-mix(in srgb, var(--warning), var(--surface) 93%); }
+.admin-support-message header { display: flex; align-items: center; gap: 7px; }
+.admin-support-message header strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.74rem; }
+.admin-support-message header span { border-radius: 999px; background: color-mix(in srgb, var(--warning), transparent 82%); color: color-mix(in srgb, var(--warning), var(--text) 38%); padding: 3px 6px; font-size: 0.61rem; font-weight: 850; line-height: 1; white-space: nowrap; }
+.admin-support-message time { margin-left: auto; flex: 0 0 auto; color: var(--muted); font-size: 0.65rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.admin-support-message p { margin: 8px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 0.84rem; line-height: 1.5; }
+.admin-support-message .support-attachment { margin-top: 10px; }
+
+.admin-support-composer { border-top: 1px solid var(--border-soft); display: grid; gap: 12px; background: color-mix(in srgb, var(--surface), transparent 2%); padding: clamp(16px, 2.5vw, 22px); }
+.admin-support-composer.internal { background: color-mix(in srgb, var(--warning), var(--surface) 96%); }
+.admin-support-composer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.admin-support-composer-head > div:first-child { display: grid; gap: 4px; }
+.admin-support-composer-head strong { font-size: 0.86rem; }
+.admin-support-composer-head p { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
+.admin-support-composer-modes { flex: 0 0 auto; display: inline-flex; gap: 3px; border: 1px solid var(--border-soft); border-radius: 11px; background: color-mix(in srgb, var(--surface), transparent 10%); padding: 3px; }
+.admin-support-composer-modes button { min-height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 0.68rem; font-weight: 850; padding: 6px 9px; transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease; }
+.admin-support-composer-modes button:hover:not(:disabled) { color: var(--text); }
+.admin-support-composer-modes button.active { background: var(--surface-elevated); box-shadow: 0 1px 4px color-mix(in srgb, var(--text), transparent 88%); color: var(--text); }
+.admin-support-composer-modes button:disabled { cursor: wait; opacity: 0.6; }
+.admin-support-composer textarea { width: 100%; min-height: 122px; resize: vertical; line-height: 1.5; }
+.admin-support-composer .support-composer-actions { justify-content: flex-end; }
+.admin-support-composer .support-file-button { margin-right: auto; }
+.admin-support-composer .support-composer-actions .button { margin-left: 0; }
+.admin-support-composer textarea:focus-visible,
+.admin-support-composer-modes button:focus-visible,
+.admin-support-ticket-list button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+@media (max-width: 860px) {
+  .admin-support-queue,
+  .admin-support-detail { min-height: 0; }
+  .admin-support-ticket-list { max-height: 370px; }
+}
+
+@media (max-width: 640px) {
+  .admin-support-queue > header { align-items: flex-start; }
+  .admin-support-queue > header .text-input { width: 100%; }
+  .admin-support-ticket-list button { padding: 13px 15px; }
+  .admin-support-detail-header { gap: 14px; padding: 16px 15px; }
+  .admin-support-message-list { min-height: 300px; max-height: none; padding: 14px; }
+  .admin-support-message { width: 94%; padding: 11px 12px; }
+  .admin-support-message.internal { width: 100%; }
+  .admin-support-message header { flex-wrap: wrap; }
+  .admin-support-message time { margin-left: 0; }
+  .admin-support-composer { padding: 14px; }
+  .admin-support-composer-head { display: grid; }
+  .admin-support-composer-modes { width: 100%; }
+  .admin-support-composer-modes button { flex: 1; }
+  .admin-support-composer .support-file-button { margin-right: 0; }
+}
 
 .system-bot-layout { display: grid; grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr); gap: 14px; align-items: start; }
 .system-bot-composer { position: sticky; top: 20px; }

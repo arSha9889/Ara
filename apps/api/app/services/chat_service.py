@@ -617,6 +617,7 @@ async def _chat_peer_out(session: AsyncSession, participant_ids: list[UUID], cur
         avatar_ref=profile.avatar_ref,
         is_online=realtime_manager.is_user_online(peer_id),
         last_seen_at=user.last_seen_at,
+        active_platforms=realtime_manager.active_platforms(peer_id),
         is_official=_is_official_profile(profile),
     )
 

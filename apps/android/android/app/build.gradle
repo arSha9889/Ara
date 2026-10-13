@@ -128,7 +128,7 @@ android {
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
         versionCode = 5
-        versionName = "1.0.4"
+        versionName = "1.0"
         buildConfigField "String", "API_BASE_URL", "\"${escapedApiBaseUrl}\""
         buildConfigField "String", "RUSTORE_PUSH_PROJECT_ID", "\"${escapedRustorePushProjectId}\""
     }

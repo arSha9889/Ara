@@ -616,6 +616,7 @@ export const dictionaries = {
       sending: 'Отправляется',
       scrollToLatest: 'К последним сообщениям',
       online: 'онлайн',
+      onlineOnAndroid: 'в сети с Android',
       connecting: 'подключаемся',
       offline: 'не в сети',
       lastSeenJustNow: 'был(а) в сети только что',
@@ -1427,6 +1428,7 @@ export const dictionaries = {
       sending: 'Sending',
       scrollToLatest: 'Jump to latest messages',
       online: 'online',
+      onlineOnAndroid: 'online on Android',
       connecting: 'connecting',
       offline: 'offline',
       lastSeenJustNow: 'last seen just now',
@@ -1635,6 +1637,24 @@ Object.assign(dictionaries.ru.support, {
 
 Object.assign(dictionaries.en.support, {
   eyebrow: 'AraChat · Support',
+});
+
+Object.assign(dictionaries.ru.admin, {
+  supportQueueFilter: 'Показать обращения по статусу',
+  supportMessageType: 'Тип сообщения',
+  supportTeamNote: 'Заметка для команды',
+  supportInternalBadge: 'Только для команды',
+  supportReplyHint: 'Пользователь увидит сообщение в этом обращении и получит уведомление.',
+  supportTeamNoteHint: 'Эта заметка останется внутри команды и не будет показана пользователю.',
+});
+
+Object.assign(dictionaries.en.admin, {
+  supportQueueFilter: 'Show requests by status',
+  supportMessageType: 'Message type',
+  supportTeamNote: 'Team note',
+  supportInternalBadge: 'Team only',
+  supportReplyHint: 'The user will see this message in the request and receive a notification.',
+  supportTeamNoteHint: 'This note stays within the team and is not shown to the user.',
 });
 
 Object.assign(dictionaries.ru.admin, {

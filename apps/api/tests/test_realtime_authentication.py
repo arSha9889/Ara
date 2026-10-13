@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
+from starlette.websockets import WebSocketDisconnect
 
 from app import main
 from app.domain.tokens import AccessTokenClaims
@@ -47,8 +48,39 @@ async def test_websocket_authenticates_only_with_the_first_authentication_messag
 
     monkeypatch.setattr(main, '_is_active_access_token_session', active_session)
 
-    assert await main._authenticate_websocket(websocket) == claims
+    assert await main._authenticate_websocket(websocket) == main.WebSocketAuthentication(claims, None)
     assert websocket.sent == [{'event': 'connection.authenticated', 'user_id': str(user_id)}]
+    assert websocket.close_codes == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ('platform', 'expected_platform'),
+    [
+        pytest.param('android', 'android', id='known-platform'),
+        pytest.param('unknown', None, id='unknown-platform'),
+        pytest.param(['android'], None, id='invalid-platform-type'),
+    ],
+)
+async def test_websocket_authentication_accepts_only_known_client_platforms(
+    monkeypatch: pytest.MonkeyPatch,
+    platform: object,
+    expected_platform: str | None,
+) -> None:
+    claims = AccessTokenClaims(uuid4(), uuid4(), datetime.now(timezone.utc))
+    websocket = WebSocketStub({
+        'event': 'connection.authenticate',
+        'token': 'access-token',
+        'platform': platform,
+    })
+    monkeypatch.setattr(main, 'decode_access_token', lambda _: claims)
+
+    async def active_session(candidate: AccessTokenClaims) -> bool:
+        return candidate == claims
+
+    monkeypatch.setattr(main, '_is_active_access_token_session', active_session)
+
+    assert await main._authenticate_websocket(websocket) == main.WebSocketAuthentication(claims, expected_platform)
     assert websocket.close_codes == []
 
 
@@ -135,6 +167,11 @@ class BroadcastWebSocketStub:
         self.sent.append(payload)
 
 
+class StaleBroadcastWebSocketStub(BroadcastWebSocketStub):
+    async def send_json(self, payload: dict) -> None:
+        raise WebSocketDisconnect
+
+
 class RevocableWebSocketStub(BroadcastWebSocketStub):
     def __init__(self) -> None:
         super().__init__()
@@ -164,6 +201,7 @@ async def test_direct_peer_presence_snapshot_uses_online_state_and_persisted_las
 
     monkeypatch.setattr(main, 'is_user_interaction_blocked', interaction_not_blocked)
     monkeypatch.setattr(main.realtime_manager, 'is_user_online', lambda candidate: candidate == peer_id)
+    monkeypatch.setattr(main.realtime_manager, 'active_platforms', lambda candidate: ['android'] if candidate == peer_id else [])
 
     assert await main._direct_peer_presence(user_id, chat_id) == {
         'event': 'presence.status',
@@ -171,6 +209,7 @@ async def test_direct_peer_presence_snapshot_uses_online_state_and_persisted_las
         'user_id': str(peer_id),
         'is_online': True,
         'last_seen_at': None,
+        'active_platforms': ['android'],
     }
 
     monkeypatch.setattr(main.realtime_manager, 'is_user_online', lambda _: False)
@@ -181,7 +220,50 @@ async def test_direct_peer_presence_snapshot_uses_online_state_and_persisted_las
         'user_id': str(peer_id),
         'is_online': False,
         'last_seen_at': last_seen_at.isoformat(),
+        'active_platforms': [],
     }
+
+
+@pytest.mark.anyio
+async def test_realtime_manager_tracks_active_client_platforms() -> None:
+    manager = RealtimeManager()
+    user_id = uuid4()
+    android_socket = BroadcastWebSocketStub()
+    second_android_socket = BroadcastWebSocketStub()
+    web_socket = BroadcastWebSocketStub()
+
+    await manager.connect_user(android_socket, user_id, uuid4(), 'android')
+    await manager.connect_user(second_android_socket, user_id, uuid4(), 'android')
+    await manager.connect_user(web_socket, user_id, uuid4(), 'web')
+    assert manager.active_platforms(user_id) == ['android', 'web']
+
+    await manager.disconnect(android_socket)
+    assert manager.active_platforms(user_id) == ['android', 'web']
+
+    await manager.disconnect(second_android_socket)
+    assert manager.active_platforms(user_id) == ['web']
+
+    await manager.disconnect(web_socket)
+    assert manager.active_platforms(user_id) == []
+
+
+@pytest.mark.anyio
+async def test_stale_connection_publishes_a_presence_change() -> None:
+    manager = RealtimeManager()
+    user_id = uuid4()
+    socket = StaleBroadcastWebSocketStub()
+    presence_changes: list[tuple[UUID, bool]] = []
+
+    async def record_presence_change(changed_user_id: UUID, went_offline: bool) -> None:
+        presence_changes.append((changed_user_id, went_offline))
+
+    manager.set_presence_change_handler(record_presence_change)
+    await manager.connect_user(socket, user_id, uuid4(), 'android')
+
+    await manager.broadcast_to_user(user_id, {'event': 'test'})
+
+    assert manager.active_platforms(user_id) == []
+    assert presence_changes == [(user_id, True)]
 
 
 @pytest.mark.anyio

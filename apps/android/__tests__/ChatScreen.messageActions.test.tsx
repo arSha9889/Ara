@@ -572,15 +572,18 @@ test('selects an item from the internal media library into a private draft', asy
     'READ_MEDIA_VISUAL_USER_SELECTED',
   ]);
   expect(mockGetRecentChatMedia).toHaveBeenCalledWith();
-  expect(component.root.findByProps({ accessibilityLabel: 'chatPhoto: photo.jpg' })).toBeDefined();
+  expect(component.root.findByProps({ accessibilityLabel: 'chatPhoto' })).toBeDefined();
 
   await act(async () => {
-    component.root.findByProps({ accessibilityLabel: 'chatPhoto: photo.jpg' }).props.onPress();
+    component.root.findByProps({ accessibilityLabel: 'chatPhoto' }).props.onPress();
     await settleAsyncWork();
   });
 
   expect(mockSelectChatMediaFromLibrary).toHaveBeenCalledWith(libraryItem.uri);
   expect(component.root.findByProps({ accessibilityLabel: 'sendAttachment' })).toBeDefined();
+  expect(
+    component.root.findAll(node => String(node.props.accessibilityLabel ?? '').includes('photo.jpg')),
+  ).toHaveLength(0);
 
   await act(async () => {
     component.unmount();
@@ -719,6 +722,36 @@ test('sends a text reply with the selected source message ID', async () => {
   expect(mockSendTextMessage).toHaveBeenCalledWith('chat-1', 'Ответ', {
     replyToMessageId: 'message-1',
   });
+
+  await act(async () => {
+    component.unmount();
+  });
+});
+
+test('uses a friendly attachment label in a reply instead of the technical file name', async () => {
+  const technicalVoiceName = 'voice-1791120270447.m4a';
+  const voiceMessage: ChatMessage = {
+    ...ownTextMessage('voice-message', 'sent'),
+    type: 'voice',
+    payload: '',
+    media_url: '/api/media/voice-message',
+    media_name: technicalVoiceName,
+    media_mime_type: 'audio/mp4',
+    media_size_bytes: 12_288,
+    duration_seconds: 9,
+  };
+  const component = await renderChatScreen([voiceMessage]);
+  const message = component.root.findByProps({ accessibilityLabel: 'chatVoice' });
+
+  act(() => {
+    message.props.onLongPress();
+  });
+  act(() => {
+    component.root.findByProps({ accessibilityLabel: 'replyMessage' }).props.onPress();
+  });
+
+  expect(component.root.findByProps({ children: 'chatVoice' })).toBeDefined();
+  expect(() => component.root.findByProps({ children: technicalVoiceName })).toThrow();
 
   await act(async () => {
     component.unmount();

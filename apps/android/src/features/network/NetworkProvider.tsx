@@ -16,6 +16,8 @@ import {
   type NetworkConnection,
 } from './networkClient';
 
+const DISCONNECTION_CONFIRMATION_MS = 1_500;
+
 interface NetworkContextValue {
   connection: NetworkConnection;
 }
@@ -34,17 +36,64 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
     let active = true;
     let receivedNativeEvent = false;
+    let disconnectionTimer: ReturnType<typeof setTimeout> | null = null;
+    let connectionUpdateVersion = 0;
+
+    function clearDisconnectionTimer(): void {
+      if (disconnectionTimer) {
+        clearTimeout(disconnectionTimer);
+        disconnectionTimer = null;
+      }
+    }
+
+    function setNextConnection(nextConnection: NetworkConnection): void {
+      if (!active) {
+        return;
+      }
+      const updateVersion = ++connectionUpdateVersion;
+
+      if (nextConnection.state !== 'disconnected') {
+        clearDisconnectionTimer();
+        setConnection(nextConnection);
+        return;
+      }
+
+      setConnection(currentConnection => ({
+        state: 'connecting',
+        transport:
+          nextConnection.transport !== 'none'
+            ? nextConnection.transport
+            : currentConnection.transport !== 'none'
+              ? currentConnection.transport
+              : 'other',
+      }));
+      clearDisconnectionTimer();
+      disconnectionTimer = setTimeout(() => {
+        disconnectionTimer = null;
+        getNetworkConnection()
+          .then(confirmedConnection => {
+            if (!active || connectionUpdateVersion !== updateVersion) {
+              return;
+            }
+            setConnection(confirmedConnection);
+          })
+          .catch(() => {
+            if (active && connectionUpdateVersion === updateVersion) {
+              setConnection(UNAVAILABLE_NETWORK_CONNECTION);
+            }
+          });
+      }, DISCONNECTION_CONFIRMATION_MS);
+    }
+
     const unsubscribe = subscribeToNetworkConnection(nextConnection => {
       receivedNativeEvent = true;
-      if (active) {
-        setConnection(nextConnection);
-      }
+      setNextConnection(nextConnection);
     });
 
     getNetworkConnection()
       .then(nextConnection => {
         if (active && !receivedNativeEvent) {
-          setConnection(nextConnection);
+          setNextConnection(nextConnection);
         }
       })
       .catch(() => {
@@ -55,6 +104,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
+      clearDisconnectionTimer();
       unsubscribe();
     };
   }, []);

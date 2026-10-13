@@ -49,9 +49,14 @@ export function ChatsScreen() {
     attachment: t('chatsAttachment'),
     call: t('call'),
     directChat: t('chatsDirectFallback'),
+    file: t('chatFile'),
     noMessages: t('noMessages'),
+    photo: t('chatPhoto'),
     savedMessages: t('chatsSavedMessages'),
     youPrefix: t('youPrefix'),
+    video: t('chatVideo'),
+    videoNote: t('chatVideoNote'),
+    voice: t('chatVoice'),
   };
 
   const loadChats = useCallback(async ({ showLoading = true }: { showLoading?: boolean } = {}) => {

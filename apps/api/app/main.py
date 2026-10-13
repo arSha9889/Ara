@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -34,7 +35,14 @@ WEBSOCKET_AUTH_TIMEOUT_SECONDS = 10
 TYPING_EVENT_THROTTLE_SECONDS = 2
 ACCESS_TOKEN_EXPIRED_CLOSE_CODE = 4001
 CALL_EXPIRY_SWEEP_SECONDS = 1
+CLIENT_PLATFORMS = frozenset({'android', 'iphone', 'ipad', 'desktop', 'web'})
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class WebSocketAuthentication:
+    claims: AccessTokenClaims
+    client_platform: str | None
 
 
 @asynccontextmanager
@@ -95,9 +103,15 @@ def create_app() -> FastAPI:
         authentication = await _authenticate_websocket(websocket)
         if not authentication:
             return
-        user_id = authentication.user_id
-        was_offline = await realtime_manager.connect_user(websocket, user_id, authentication.session_id)
-        if was_offline:
+        user_id = authentication.claims.user_id
+        active_platforms_before_connection = realtime_manager.active_platforms(user_id)
+        was_offline = await realtime_manager.connect_user(
+            websocket,
+            user_id,
+            authentication.claims.session_id,
+            authentication.client_platform,
+        )
+        if was_offline or realtime_manager.active_platforms(user_id) != active_platforms_before_connection:
             await _broadcast_presence_to_user_chats(user_id, True)
         await _finalize_expired_calls()
         await _send_pending_call_invite(websocket, user_id)
@@ -105,7 +119,7 @@ def create_app() -> FastAPI:
         typing_started_at: dict[UUID, float] = {}
         try:
             while True:
-                remaining_token_lifetime = (authentication.expires_at - datetime.now(timezone.utc)).total_seconds()
+                remaining_token_lifetime = (authentication.claims.expires_at - datetime.now(timezone.utc)).total_seconds()
                 if remaining_token_lifetime <= 0:
                     await _safe_close_websocket(websocket, code=ACCESS_TOKEN_EXPIRED_CLOSE_CODE)
                     raise WebSocketDisconnect
@@ -140,6 +154,7 @@ def create_app() -> FastAPI:
                                 'user_id': str(user_id),
                                 'is_online': True,
                                 'last_seen_at': None,
+                                'active_platforms': realtime_manager.active_platforms(user_id),
                             },
                         )
                     continue
@@ -198,17 +213,13 @@ def create_app() -> FastAPI:
 
                 await _safe_send_json(websocket, {'event': 'error.validation_failed', 'reason': 'unsupported_event'})
         except (RuntimeError, WebSocketDisconnect):
-            disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
-            if disconnected_user_id and went_offline:
-                await _end_calls_for_disconnected_user(disconnected_user_id)
-                last_seen_at = await _mark_user_last_seen(disconnected_user_id)
-                await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
+            await _handle_realtime_disconnect(websocket)
             return
 
     return app
 
 
-async def _authenticate_websocket(websocket: WebSocket) -> AccessTokenClaims | None:
+async def _authenticate_websocket(websocket: WebSocket) -> WebSocketAuthentication | None:
     try:
         message = await asyncio.wait_for(websocket.receive_json(), timeout=WEBSOCKET_AUTH_TIMEOUT_SECONDS)
     except asyncio.TimeoutError:
@@ -241,7 +252,11 @@ async def _authenticate_websocket(websocket: WebSocket) -> AccessTokenClaims | N
 
     if not await _safe_send_json(websocket, {'event': 'connection.authenticated', 'user_id': str(claims.user_id)}):
         return None
-    return claims
+    client_platform = message.get('platform')
+    return WebSocketAuthentication(
+        claims=claims,
+        client_platform=client_platform if isinstance(client_platform, str) and client_platform in CLIENT_PLATFORMS else None,
+    )
 
 
 async def _reject_websocket_connection(websocket: WebSocket, reason: str) -> None:
@@ -311,6 +326,7 @@ async def _direct_peer_presence(user_id: UUID, chat_id: UUID) -> dict | None:
             'user_id': str(peer_user_id),
             'is_online': is_online,
             'last_seen_at': None if is_online or not peer.last_seen_at else peer.last_seen_at.isoformat(),
+            'active_platforms': realtime_manager.active_platforms(peer_user_id) if is_online else [],
         }
 
 
@@ -369,6 +385,7 @@ async def _broadcast_presence_to_user_chats(
             'user_id': str(user_id),
             'is_online': is_online,
             'last_seen_at': last_seen_at.isoformat() if last_seen_at else None,
+            'active_platforms': realtime_manager.active_platforms(user_id) if is_online else [],
         })
 
 
@@ -601,16 +618,25 @@ async def _end_calls_for_disconnected_user(user_id: UUID) -> None:
             await _create_and_broadcast_call_history(session, 'cancelled')
 
 
+async def _handle_realtime_disconnect(websocket: WebSocket) -> None:
+    await realtime_manager.disconnect_with_presence_update(websocket)
+
+
+async def _handle_realtime_presence_change(disconnected_user_id: UUID, went_offline: bool) -> None:
+    if went_offline:
+        await _end_calls_for_disconnected_user(disconnected_user_id)
+        last_seen_at = await _mark_user_last_seen(disconnected_user_id)
+        await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
+    else:
+        await _broadcast_presence_to_user_chats(disconnected_user_id, True)
+
+
 async def _safe_send_json(websocket: WebSocket, payload: dict) -> bool:
     try:
         await websocket.send_json(payload)
         return True
     except WebSocketDisconnect:
-        disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
-        if disconnected_user_id and went_offline:
-            await _end_calls_for_disconnected_user(disconnected_user_id)
-            last_seen_at = await _mark_user_last_seen(disconnected_user_id)
-            await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
+        await _handle_realtime_disconnect(websocket)
         return False
 
 
@@ -618,18 +644,11 @@ async def _safe_close_websocket(websocket: WebSocket, code: int = 1000) -> None:
     try:
         await websocket.close(code=code)
     except (RuntimeError, WebSocketDisconnect):
-        disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
-        if disconnected_user_id and went_offline:
-            await _end_calls_for_disconnected_user(disconnected_user_id)
-            last_seen_at = await _mark_user_last_seen(disconnected_user_id)
-            await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
+        await _handle_realtime_disconnect(websocket)
     except RuntimeError:
-        disconnected_user_id, went_offline = await realtime_manager.disconnect(websocket)
-        if disconnected_user_id and went_offline:
-            await _end_calls_for_disconnected_user(disconnected_user_id)
-            last_seen_at = await _mark_user_last_seen(disconnected_user_id)
-            await _broadcast_presence_to_user_chats(disconnected_user_id, False, last_seen_at)
+        await _handle_realtime_disconnect(websocket)
         return False
 
 
+realtime_manager.set_presence_change_handler(_handle_realtime_presence_change)
 app = create_app()

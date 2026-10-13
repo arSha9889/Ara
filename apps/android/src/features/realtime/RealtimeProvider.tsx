@@ -244,7 +244,7 @@ export function RealtimeProvider({ accessToken, children }: { accessToken: strin
         if (socketRef.current !== socket) {
           return;
         }
-        sendPayload(socket, { event: 'connection.authenticate', token: accessToken });
+        sendPayload(socket, { event: 'connection.authenticate', token: accessToken, platform: 'android' });
       };
 
       socket.onmessage = messageEvent => {

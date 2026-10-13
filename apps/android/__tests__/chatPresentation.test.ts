@@ -5,9 +5,14 @@ const copy = {
   attachment: 'Attachment',
   call: 'Call',
   directChat: 'Direct chat',
+  file: 'Document',
   noMessages: 'No messages',
+  photo: 'Photo',
   savedMessages: 'Saved messages',
   youPrefix: 'You',
+  video: 'Video',
+  videoNote: 'Video note',
+  voice: 'Voice message',
 };
 
 const chat: Chat = {
@@ -55,9 +60,24 @@ test('labels the current user in a text-message preview', () => {
   expect(chatPreview(message, 'user-1', copy)).toBe('You: Привет');
 });
 
-test('uses a local attachment label when a media preview has no name', () => {
-  expect(chatPreview({ ...message, type: 'photo', payload: '', media_name: null }, 'user-2', copy)).toBe(
-    'Attachment',
+test('uses a local attachment type instead of a technical media name', () => {
+  expect(
+    chatPreview(
+      { ...message, type: 'voice', payload: '', media_name: 'voice-1791120270447.m4a' },
+      'user-2',
+      copy,
+    ),
+  ).toBe('Voice message');
+});
+
+test.each([
+  ['photo', 'Photo'],
+  ['video', 'Video'],
+  ['video_note', 'Video note'],
+  ['file', 'Document'],
+])('uses the user-facing %s label for a media preview', (type, expected) => {
+  expect(chatPreview({ ...message, type, payload: '', media_name: 'technical-name.bin' }, 'user-2', copy)).toBe(
+    expected,
   );
 });
 

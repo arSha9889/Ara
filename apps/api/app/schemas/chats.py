@@ -71,6 +71,7 @@ class ChatPeerOut(BaseModel):
     avatar_ref: str
     is_online: bool = False
     last_seen_at: datetime | None = None
+    active_platforms: list[str] = Field(default_factory=list)
     is_official: bool = False
 
 

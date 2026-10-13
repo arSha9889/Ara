@@ -62,6 +62,7 @@ import {
 } from '../media/mediaClient';
 import { videoNoteRecordingErrorKey } from '../media/mediaError';
 import { callHistoryStatusKey, parseCallHistoryEvent } from '../callHistory';
+import { attachmentLabel, type AttachmentPresentationCopy } from '../chatPresentation';
 import { mergeChatMessages, upsertChatMessage } from '../messageState';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
@@ -165,6 +166,14 @@ export function ChatScreen({ navigation, route }: Props) {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [isTargetMessageUnavailable, setIsTargetMessageUnavailable] = useState(false);
   const composerShowsSend = Boolean(text.trim() || selectedAttachment);
+  const attachmentCopy: AttachmentPresentationCopy = {
+    attachment: t('chatsAttachment'),
+    file: t('chatFile'),
+    photo: t('chatPhoto'),
+    video: t('chatVideo'),
+    videoNote: t('chatVideoNote'),
+    voice: t('chatVoice'),
+  };
 
   const clearTargetHighlightTimer = useCallback((): void => {
     if (highlightedMessageTimer.current) {
@@ -1243,7 +1252,7 @@ export function ChatScreen({ navigation, route }: Props) {
     const replyAuthor = replyTo?.sender_id === session?.user.id ? t('youPrefix') : route.params.title;
     const replyText = replyTo?.deleted_at
       ? t('messageDeleted')
-      : replyTo?.payload || replyTo?.media_name || t('chatsAttachment');
+      : replyTo?.payload || attachmentLabel(replyTo?.type ?? '', attachmentCopy);
     const reactions = item.reactions ?? [];
     const delivery = isOwn ? deliveryPresentation(item.delivery_status, t) : null;
     const isPhoto = !item.deleted_at && item.type === 'photo' && Boolean(item.media_url);
@@ -1253,7 +1262,7 @@ export function ChatScreen({ navigation, route }: Props) {
     const isVideoNote =
       !item.deleted_at && item.type === 'video_note' && Boolean(item.media_url);
     const messageAccessibilityLabel =
-      messageText || (isVoice ? t('chatVoice') : isVideoNote ? t('chatVideoNote') : t('chatsAttachment'));
+      messageText || attachmentLabel(item.type, attachmentCopy);
 
     return (
       <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
@@ -1312,7 +1321,6 @@ export function ChatScreen({ navigation, route }: Props) {
             ) : null}
             {isPhoto && item.media_url ? (
               <ChatPhotoAttachment
-                mediaName={item.media_name}
                 mediaUrl={item.media_url}
                 mimeType={item.media_mime_type}
                 onOpen={(uri, name) => setPhotoViewer({ uri, name })}
@@ -1320,7 +1328,6 @@ export function ChatScreen({ navigation, route }: Props) {
             ) : null}
             {isFile && item.media_url ? (
               <ChatFileAttachment
-                mediaName={item.media_name}
                 mediaSizeBytes={item.media_size_bytes}
                 mediaUrl={item.media_url}
                 mimeType={item.media_mime_type}
@@ -1328,7 +1335,6 @@ export function ChatScreen({ navigation, route }: Props) {
             ) : null}
             {isVideo && item.media_url ? (
               <ChatVideoAttachment
-                mediaName={item.media_name}
                 mediaSizeBytes={item.media_size_bytes}
                 mediaUrl={item.media_url}
                 mimeType={item.media_mime_type}
@@ -1545,7 +1551,7 @@ export function ChatScreen({ navigation, route }: Props) {
             accessibilityHint={t('openPinnedMessage')}
             accessibilityLabel={`${t('pinnedMessage')}: ${
               pinnedMessage.sender_id === session?.user.id ? t('youPrefix') : route.params.title
-            }. ${pinnedMessage.payload || pinnedMessage.media_name || t('chatsAttachment')}`}
+            }. ${pinnedMessage.payload || attachmentLabel(pinnedMessage.type, attachmentCopy)}`}
             accessibilityRole="button"
             onPress={() => openMessageTarget(pinnedMessage.id)}
             style={({ pressed }) => [
@@ -1562,7 +1568,7 @@ export function ChatScreen({ navigation, route }: Props) {
                 {t('pinnedMessage')}
               </Text>
               <Text numberOfLines={1} style={styles.pinnedMessageText}>
-                {pinnedMessage.payload || pinnedMessage.media_name || t('chatsAttachment')}
+                {pinnedMessage.payload || attachmentLabel(pinnedMessage.type, attachmentCopy)}
               </Text>
             </View>
           </Pressable>
@@ -1671,14 +1677,12 @@ export function ChatScreen({ navigation, route }: Props) {
             )}
             <View style={styles.attachmentDraftDetails}>
               <Text numberOfLines={1} style={styles.attachmentDraftName}>
-                {selectedAttachment.name}
+                {selectedAttachmentTypeLabel}
               </Text>
               <Text style={styles.attachmentDraftMeta}>
-                {selectedAttachmentTypeLabel}
                 {selectedAttachment.durationSeconds
-                  ? ` · ${formatDuration(selectedAttachment.durationSeconds)}`
+                  ? `${formatDuration(selectedAttachment.durationSeconds)} · `
                   : ''}
-                {' · '}
                 {formatAttachmentSize(selectedAttachment.sizeBytes)}
               </Text>
               {isSending ? (
@@ -1726,7 +1730,7 @@ export function ChatScreen({ navigation, route }: Props) {
                     : route.params.title)}
               </Text>
               <Text numberOfLines={1} style={styles.replyComposerText}>
-                {replyToMessage.payload || replyToMessage.media_name || t('chatsAttachment')}
+                {replyToMessage.payload || attachmentLabel(replyToMessage.type, attachmentCopy)}
               </Text>
             </View>
             <IconButton
@@ -2290,7 +2294,7 @@ export function ChatScreen({ navigation, route }: Props) {
               >
                 {mediaLibraryItems.map(item => (
                   <Pressable
-                    accessibilityLabel={`${item.mimeType.startsWith('video/') ? t('chatVideo') : t('chatPhoto')}: ${item.name}`}
+                    accessibilityLabel={item.mimeType.startsWith('video/') ? t('chatVideo') : t('chatPhoto')}
                     accessibilityRole="button"
                     disabled={isPickingAttachment}
                     key={item.uri}
@@ -2311,7 +2315,7 @@ export function ChatScreen({ navigation, route }: Props) {
                       <View style={styles.mediaLibraryVideoPlaceholder}>
                         <Icon color={colors.primary} name="video" size={26} />
                         <Text numberOfLines={2} style={styles.mediaLibraryVideoName}>
-                          {item.name}
+                          {t('chatVideo')}
                         </Text>
                       </View>
                     )}
