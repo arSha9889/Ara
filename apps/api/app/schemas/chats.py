@@ -38,6 +38,10 @@ class ChatWallpaperUpdateRequest(BaseModel):
     wallpaper_id: Literal['default', 'grid', 'waves', 'aurora', 'paper', 'night']
 
 
+class ChatBulkHideOut(BaseModel):
+    hidden_count: int
+
+
 class ChatE2eeKeyOut(BaseModel):
     user_id: UUID
     device_id: str

@@ -20,7 +20,11 @@ export function RegisterScreen({ language, t, onNavigate, onOpenLegal, onAuthent
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const steps = t('auth.steps');
+  const steps = [
+    t('auth.steps.email'),
+    t('auth.steps.profile'),
+    t('auth.steps.security'),
+  ];
 
   function update(name, value) {
     setForm((current) => ({ ...current, [name]: value }));

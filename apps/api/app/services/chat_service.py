@@ -142,6 +142,21 @@ async def hide_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> None
     await session.commit()
 
 
+async def hide_all_direct_chats(session: AsyncSession, user_id: UUID) -> int:
+    result = await session.execute(
+        update(ChatParticipant)
+        .where(
+            ChatParticipant.user_id == user_id,
+            ChatParticipant.role != 'pending',
+            ChatParticipant.hidden_at.is_(None),
+            ChatParticipant.chat_id.in_(select(Chat.id).where(Chat.type == 'direct')),
+        )
+        .values(hidden_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+    return max(result.rowcount or 0, 0)
+
+
 async def restore_chat(session: AsyncSession, user_id: UUID, chat_id: UUID) -> ChatOut:
     chat = await session.get(Chat, chat_id)
     if not chat or chat.type != 'direct':

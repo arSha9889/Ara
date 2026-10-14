@@ -259,11 +259,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .workspace-list-header h1 { margin: 0; font-family: 'Onest', 'Manrope', sans-serif; font-size: 23px; line-height: 1.05; letter-spacing: -.05em; }
 .workspace-list-header p { margin: 5px 0 0; color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: .035em; text-transform: uppercase; }
 .workspace-list-actions { display: flex; align-items: center; gap: 7px; }
-.workspace-new-chat, .workspace-list-refresh { display: grid; place-items: center; width: 31px; height: 31px; flex: 0 0 auto; padding: 0; color: #fff; border: 1px solid color-mix(in srgb, var(--purple-soft) 60%, transparent); border-radius: 10px; background: var(--purple); box-shadow: 0 7px 15px color-mix(in srgb, var(--purple) 25%, transparent); transition: transform .17s ease, background .17s ease, box-shadow .17s ease; }
+.workspace-new-chat, .workspace-list-refresh, .workspace-list-clear { display: grid; place-items: center; width: 31px; height: 31px; flex: 0 0 auto; padding: 0; color: #fff; border: 1px solid color-mix(in srgb, var(--purple-soft) 60%, transparent); border-radius: 10px; background: var(--purple); box-shadow: 0 7px 15px color-mix(in srgb, var(--purple) 25%, transparent); transition: transform .17s ease, background .17s ease, box-shadow .17s ease; }
 .workspace-new-chat:hover { background: var(--purple-soft); box-shadow: 0 9px 18px color-mix(in srgb, var(--purple) 36%, transparent); }
 .workspace-new-chat:active { transform: scale(.94); }
 .workspace-new-chat svg { width: 17px; height: 17px; }
-.workspace-list-refresh { color: var(--purple-soft); border-color: var(--line); background: var(--surface-soft); box-shadow: none; }.workspace-list-refresh:hover:not(:disabled) { color: #fff; background: var(--purple); }.workspace-list-refresh:disabled { cursor: wait; opacity: .58; }
+.workspace-list-refresh { color: var(--purple-soft); border-color: var(--line); background: var(--surface-soft); box-shadow: none; }.workspace-list-refresh:hover:not(:disabled) { color: #fff; background: var(--purple); }.workspace-list-refresh:disabled { cursor: wait; opacity: .58; }.workspace-list-refresh.is-loading svg { animation: workspace-refresh-spin .8s linear infinite; }.workspace-list-clear { color: var(--coral); border-color: color-mix(in srgb, var(--coral) 34%, var(--line)); background: var(--surface-soft); box-shadow: none; }.workspace-list-clear:hover:not(:disabled) { color: #fff; background: var(--coral); }.workspace-list-clear:disabled { cursor: not-allowed; opacity: .42; }
 .workspace-search { display: flex; align-items: center; gap: 9px; height: 39px; margin: 0 18px 12px; padding: 0 10px; color: var(--text-muted); border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); transition: border-color .17s ease, background .17s ease; }
 .workspace-search:focus-within { border-color: color-mix(in srgb, var(--purple-soft) 72%, var(--line)); background: color-mix(in srgb, var(--purple) 8%, var(--surface-soft)); }
 .workspace-search input { min-width: 0; width: 100%; height: 100%; padding: 0; color: var(--text); font-size: 12px; border: 0; outline: 0; background: transparent; }
@@ -523,6 +523,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 @keyframes content-reveal { to { opacity: 1; transform: translateY(0); } }
 @keyframes exit-feather { from { opacity: 0; transform: translate(-30px, -14px) rotate(-24deg) scale(.6); } to { opacity: 1; transform: translate(160px, -170px) rotate(44deg) scale(1.08); } }
 @keyframes fade-away { to { opacity: 0; transform: scale(1.02); } }
+@keyframes workspace-refresh-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1060px) {
   .welcome-content { padding-right: 44px; padding-left: 44px; }

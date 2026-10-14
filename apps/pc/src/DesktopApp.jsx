@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { LegalDialog } from './components/LegalDialog.jsx';
 import { Titlebar } from './components/Titlebar.jsx';
+import { openLegalDocument } from './features/legal/openLegalDocument.js';
 import { translate } from './i18n/copy.js';
 import { usePreferences } from './hooks/usePreferences.js';
 import { useSession } from './hooks/useSession.js';
@@ -16,7 +16,6 @@ export function DesktopApp() {
   const [preferences, updatePreferences] = usePreferences();
   const { clearSession, getRefreshToken, isSessionLoading, saveSession, session, updateSessionUser } = useSession();
   const [route, setRoute] = useState('welcome');
-  const [legalDocument, setLegalDocument] = useState(null);
   const didRestoreRoute = useRef(false);
   const t = (path, variables) => translate(preferences.language, path, variables);
 
@@ -38,13 +37,17 @@ export function DesktopApp() {
     setRoute('login');
   }
 
+  function handleOpenLegalDocument(documentType) {
+    void openLegalDocument(documentType);
+  }
+
   function renderScreen() {
     if (isSessionLoading) {
       return <main className="session-loading" aria-live="polite">{t('auth.restoringSession')}</main>;
     }
 
     if (route === 'welcome') {
-      return <WelcomeScreen preferences={preferences} updatePreferences={updatePreferences} t={t} onNavigate={setRoute} onOpenLegal={setLegalDocument} />;
+      return <WelcomeScreen preferences={preferences} updatePreferences={updatePreferences} t={t} onNavigate={setRoute} onOpenLegal={handleOpenLegalDocument} />;
     }
 
     if (route === 'workspace') {
@@ -52,8 +55,8 @@ export function DesktopApp() {
     }
 
     const form = route === 'login'
-      ? <LoginScreen t={t} onNavigate={setRoute} onOpenLegal={setLegalDocument} onAuthenticated={handleAuthenticated} />
-      : <RegisterScreen language={preferences.language} t={t} onNavigate={setRoute} onOpenLegal={setLegalDocument} onAuthenticated={handleAuthenticated} />;
+      ? <LoginScreen t={t} onNavigate={setRoute} onOpenLegal={handleOpenLegalDocument} onAuthenticated={handleAuthenticated} />
+      : <RegisterScreen language={preferences.language} t={t} onNavigate={setRoute} onOpenLegal={handleOpenLegalDocument} onAuthenticated={handleAuthenticated} />;
 
     return (
       <AuthLayout preferences={preferences} updatePreferences={updatePreferences} t={t} onBack={() => setRoute('welcome')} variant={route}>
@@ -66,7 +69,6 @@ export function DesktopApp() {
     <div className="desktop-app">
       <Titlebar t={t} />
       <div className="desktop-content">{renderScreen()}</div>
-      <LegalDialog documentType={legalDocument} onClose={() => setLegalDocument(null)} t={t} />
     </div>
   );
 }

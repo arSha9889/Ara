@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { parrotIcon } from '../components/BrandMark.jsx';
 import { ThemeToggle } from '../components/ThemeLanguageControls.jsx';
 import { WorkspaceIcon as Icon } from '../components/WorkspaceIcon.jsx';
-import { getChat, getChatMessage, getChats } from '../features/chats/chatsApi.js';
+import { getChat, getChatMessage, getChats, hideAllDirectChats } from '../features/chats/chatsApi.js';
 import { isCallSignal, useDirectCall } from '../features/calls/useDirectCall.js';
 import { createRealtimeConnection } from '../features/chats/realtimeClient.js';
 import { showDesktopNotification, subscribeDesktopNotificationActions } from '../features/notifications/desktopNotifications.js';
@@ -114,7 +114,9 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const [contactMode, setContactMode] = useState('contacts');
   const [chats, setChats] = useState([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [isClearingChats, setIsClearingChats] = useState(false);
   const [chatsError, setChatsError] = useState('');
+  const [chatsNotice, setChatsNotice] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState('connecting');
   const [realtimeEvents, setRealtimeEvents] = useState([]);
   const [realtimeResyncVersion, setRealtimeResyncVersion] = useState(0);
@@ -146,23 +148,25 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   });
   const selectedChat = chats.find((chat) => chat.id === selectedChatId);
 
-  const loadChats = useCallback(async ({ showLoading = true } = {}) => {
+  const loadChats = useCallback(async ({ showLoading = true, showSuccess = false } = {}) => {
     if (!accessToken) return;
     const requestId = chatsRequestIdRef.current + 1;
     chatsRequestIdRef.current = requestId;
     if (showLoading) setIsLoadingChats(true);
     setChatsError('');
+    if (showSuccess) setChatsNotice('');
     try {
       const serverChats = await getChats(accessToken);
       if (chatsRequestIdRef.current === requestId) {
         setChats(Array.isArray(serverChats) ? serverChats.filter((chat) => chat.type === 'direct') : []);
+        if (showSuccess) setChatsNotice(t('workspace.chatsUpdated'));
       }
     } catch (requestError) {
       if (chatsRequestIdRef.current === requestId) setChatsError(requestError.message);
     } finally {
-      if (showLoading && chatsRequestIdRef.current === requestId) setIsLoadingChats(false);
+      if (chatsRequestIdRef.current === requestId) setIsLoadingChats(false);
     }
-  }, [accessToken]);
+  }, [accessToken, t]);
 
   chatsRef.current = chats;
   loadChatsRef.current = loadChats;
@@ -516,6 +520,30 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     setContactMode('new');
   }
 
+  async function clearAllChats() {
+    if (!chats.length || isClearingChats || isLoadingChats) return;
+    if (!window.confirm(t('workspace.clearChatsConfirmation'))) return;
+
+    chatsRequestIdRef.current += 1;
+    setChatsError('');
+    setChatsNotice('');
+    setIsClearingChats(true);
+    try {
+      const result = await hideAllDirectChats(accessToken);
+      const hiddenCount = Number(result?.hidden_count) || 0;
+      setChats([]);
+      setSelectedChatId(null);
+      setMessageFocus(null);
+      setQuery('');
+      setActiveSection('chats');
+      setChatsNotice(t('workspace.chatsCleared', { count: hiddenCount }));
+    } catch (requestError) {
+      setChatsError(requestError.message);
+    } finally {
+      setIsClearingChats(false);
+    }
+  }
+
   async function openNotification(notification) {
     if (!await openNotificationTarget(notification)) return;
     await markNotificationRead(notificationId(notification));
@@ -605,7 +633,8 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
           </div>
           <div className="workspace-list-actions">
             <ThemeToggle preferences={preferences} updatePreferences={updatePreferences} t={t} compact />
-            <button className="workspace-list-refresh" type="button" aria-label={t('workspace.refreshChats')} onClick={() => loadChats()} disabled={isLoadingChats}><Icon name="refresh" size={16} /></button>
+            <button className={`workspace-list-refresh ${isLoadingChats ? 'is-loading' : ''}`} type="button" aria-label={isLoadingChats ? t('workspace.refreshingChats') : t('workspace.refreshChats')} title={t('workspace.refreshChats')} onClick={() => loadChats({ showSuccess: true })} disabled={isLoadingChats || isClearingChats}><Icon name="refresh" size={16} /></button>
+            <button className="workspace-list-clear" type="button" aria-label={t('workspace.clearAllChats')} title={t('workspace.clearAllChats')} onClick={clearAllChats} disabled={!chats.length || isLoadingChats || isClearingChats}><Icon name="trash" size={16} /></button>
             <button className="workspace-new-chat" type="button" aria-label={t('workspace.newChat')} onClick={openNewChat}><Icon name="plus" /></button>
           </div>
         </div>
@@ -617,9 +646,10 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
           {query ? <button type="button" aria-label={t('workspace.clearSearch')} onClick={() => setQuery('')}><Icon name="close" size={15} /></button> : null}
         </label>
 
-        <div className="workspace-chat-list" aria-busy={isLoadingChats}>
+        {chatsNotice ? <p className="workspace-list-notice" role="status">{chatsNotice}</p> : null}
+        <div className="workspace-chat-list" aria-busy={isLoadingChats || isClearingChats}>
           {chatsError ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.chatsLoadError')}</strong><span>{chatsError}</span><button type="button" onClick={() => loadChats()}>{t('workspace.retry')}</button></div> : null}
-          {isLoadingChats ? <p className="workspace-list-status" role="status">{t('workspace.loadingChats')}</p> : chatsError ? null : visibleChats.length ? visibleChats.map((chat) => {
+          {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : visibleChats.length ? visibleChats.map((chat) => {
             const isSelected = selectedChatId === chat.id && activeSection === 'chats';
             const peer = chat.peer;
             const name = peer?.display_name || peer?.username || t('workspace.unknownUser');

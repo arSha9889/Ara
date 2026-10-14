@@ -10,11 +10,11 @@ from app.api.dependencies.auth import get_current_user
 from app.api.routes._responses import domain_error_response
 from app.db.session import get_db_session
 from app.models.chats import Chat, ChatParticipant
-from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, ChatE2eeKeyOut, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
+from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, ChatBulkHideOut, ChatE2eeKeyOut, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
-from app.services.chat_service import create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, get_chat as get_user_chat, hide_chat, restore_chat, update_chat_wallpaper
+from app.services.chat_service import create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, get_chat as get_user_chat, hide_all_direct_chats, hide_chat, restore_chat, update_chat_wallpaper
 from app.services.chat_service import delete_message as delete_chat_message
 from app.services.chat_service import edit_message as edit_chat_message
 from app.services.chat_service import get_message as get_chat_message
@@ -52,6 +52,14 @@ async def list_chats(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> list[ChatOut]:
     return await list_user_chats(session, current_user.id)
+
+
+@router.delete('', response_model=ChatBulkHideOut)
+async def hide_all_user_chats(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatBulkHideOut:
+    return ChatBulkHideOut(hidden_count=await hide_all_direct_chats(session, current_user.id))
 
 
 @router.post('/direct')

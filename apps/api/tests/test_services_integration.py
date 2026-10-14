@@ -22,7 +22,7 @@ from app.services.branch_comment_service import create_branch_comment, delete_br
 from app.services.branch_service import subscribe_to_branch, unsubscribe_from_branch
 from app.services.call_signaling import CallSession
 from app.services.call_history_service import finalize_call_record, list_call_history, start_call_record
-from app.services.chat_service import create_call_history_message, create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, delete_message, get_chat, get_message, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
+from app.services.chat_service import create_call_history_message, create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, delete_message, get_chat, get_message, hide_all_direct_chats, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
 from app.services.e2ee_service import E2EE_WEB_ALGORITHM, list_direct_chat_e2ee_keys, upsert_e2ee_web_key
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
@@ -101,6 +101,39 @@ def _encrypted_envelope(sender_id, sender_device_id: str, recipient_keys) -> str
         'recipients': recipients,
         'signature': base64.b64encode(b'2' * 64).decode(),
     })
+
+
+@pytest.mark.anyio
+async def test_hiding_all_direct_chats_only_hides_current_users_list() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        first_user, _, _ = await _create_user(session_factory, 'clearalice', '901')
+        second_user, _, _ = await _create_user(session_factory, 'clearbob', '902')
+        third_user, _, _ = await _create_user(session_factory, 'clearcara', '903')
+
+        async with session_factory() as session:
+            first_chat = await create_or_get_direct_chat_for_user(session, first_user.id, second_user.id)
+            second_chat = await create_or_get_direct_chat_for_user(session, first_user.id, third_user.id)
+            saved_chat = await create_or_get_saved_chat(session, first_user.id)
+
+            assert await hide_all_direct_chats(session, first_user.id) == 2
+            assert await hide_all_direct_chats(session, first_user.id) == 0
+
+            visible_chat_ids = {chat.id for chat in await list_chats(session, first_user.id)}
+            assert first_chat.id not in visible_chat_ids
+            assert second_chat.id not in visible_chat_ids
+            assert saved_chat.id in visible_chat_ids
+
+            second_user_participant = await session.get(ChatParticipant, {'chat_id': first_chat.id, 'user_id': second_user.id})
+            assert second_user_participant and second_user_participant.hidden_at is None
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.anyio

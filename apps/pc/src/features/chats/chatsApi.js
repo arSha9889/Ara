@@ -10,6 +10,13 @@ export function getChats(accessToken) {
   });
 }
 
+export function hideAllDirectChats(accessToken) {
+  return apiRequest('/api/chats', {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
 export function getChat(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}`, {
     headers: authorizationHeaders(accessToken),
