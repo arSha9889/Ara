@@ -6,9 +6,9 @@ import { useCall } from '../../../app/providers/CallProvider.jsx';
 import { useLayoutMode } from '../../../app/providers/LayoutModeProvider.jsx';
 import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
-import { useAuthenticatedMediaUrl } from '../../../shared/api/mediaUrl.js';
+import { useAuthenticatedMediaBlob, useAuthenticatedMediaUrl } from '../../../shared/api/mediaUrl.js';
 import { createRealtimeConnection } from '../../../shared/api/webSocketClient.js';
-import { decryptE2eeMessage, encryptE2eeText, isE2eeWebSupported, registerE2eeWebIdentity } from '../../../shared/crypto/e2eeWeb.js';
+import { decryptE2eeAttachment, decryptE2eeMessage, encryptE2eeText, isE2eeWebSupported, parseE2eeAttachmentDescriptor, registerE2eeWebIdentity } from '../../../shared/crypto/e2eeWeb.js';
 import { UserAvatar } from '../../../shared/ui/Avatar.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
@@ -80,13 +80,14 @@ function formatVoiceTime(value) {
   return `${minutes}:${rest}`;
 }
 
-function VoiceMessage({ message, t, accessToken }) {
+function VoiceMessage({ message, t, accessToken, mediaUrl = '' }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const duration = message.duration_seconds || audioRef.current?.duration || 0;
-  const { url: mediaUrl } = useAuthenticatedMediaUrl(message.media_url, accessToken);
+  const { url: authenticatedMediaUrl } = useAuthenticatedMediaUrl(mediaUrl ? null : message.media_url, accessToken);
+  const sourceUrl = mediaUrl || authenticatedMediaUrl;
 
   function togglePlayback() {
     const audio = audioRef.current;
@@ -129,17 +130,18 @@ function VoiceMessage({ message, t, accessToken }) {
           ))}
         </div>
       </div>
-      <audio ref={audioRef} src={mediaUrl} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+      <audio ref={audioRef} src={sourceUrl} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
     </div>
   );
 }
 
-function VideoNoteMessage({ message, t, accessToken }) {
+function VideoNoteMessage({ message, t, accessToken, mediaUrl = '' }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const duration = message.duration_seconds || videoRef.current?.duration || 0;
-  const { url: mediaUrl } = useAuthenticatedMediaUrl(message.media_url, accessToken);
+  const { url: authenticatedMediaUrl } = useAuthenticatedMediaUrl(mediaUrl ? null : message.media_url, accessToken);
+  const sourceUrl = mediaUrl || authenticatedMediaUrl;
 
   function togglePlayback() {
     const video = videoRef.current;
@@ -166,7 +168,7 @@ function VideoNoteMessage({ message, t, accessToken }) {
 
   return (
     <button className={`video-note ${isPlaying ? 'is-playing' : ''}`} type="button" onClick={togglePlayback} aria-label={isPlaying ? t('messages.pauseVideoNote') : t('messages.playVideoNote')} style={{ '--video-note-progress': progress }}>
-      <video ref={videoRef} src={mediaUrl} playsInline preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+      <video ref={videoRef} src={sourceUrl} playsInline preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
       <span className="video-note-ring" aria-hidden="true" />
       <span className="video-note-play" aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span>
       <span className="video-note-duration">{formatVoiceTime(duration)}</span>
@@ -174,15 +176,67 @@ function VideoNoteMessage({ message, t, accessToken }) {
   );
 }
 
+function EncryptedAttachmentMessage({ message, chatId, t, accessToken }) {
+  const descriptor = message.e2ee_attachment;
+  const { blob: ciphertext, error: loadError, isLoading } = useAuthenticatedMediaBlob(message.media_url, accessToken);
+  const [state, setState] = useState({ url: '', error: null });
+
+  useEffect(() => {
+    if (!ciphertext || !descriptor) {
+      setState({ url: '', error: null });
+      return undefined;
+    }
+
+    let active = true;
+    let objectUrl = '';
+    void (async () => {
+      try {
+        const plaintext = await decryptE2eeAttachment({
+          ciphertext,
+          descriptor,
+          chatId,
+          senderId: String(message.sender_id),
+        });
+        objectUrl = URL.createObjectURL(plaintext);
+        if (active) setState({ url: objectUrl, error: null });
+      } catch {
+        if (active) setState({ url: '', error: new Error('Encrypted attachment could not be decrypted') });
+      }
+    })();
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [chatId, ciphertext, descriptor, message.sender_id]);
+
+  if (isLoading) return <span className="encrypted-message-unavailable" role="status">{t('common.loading')}</span>;
+  if (loadError || state.error || !state.url || !descriptor) return <span className="encrypted-message-unavailable">{t('messages.encryptedUnavailable')}</span>;
+  if (descriptor.media_kind === 'voice') {
+    return <><VoiceMessage message={{ ...message, duration_seconds: descriptor.duration_seconds }} t={t} accessToken={accessToken} mediaUrl={state.url} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  }
+  if (descriptor.media_kind === 'video_note') {
+    return <><VideoNoteMessage message={{ ...message, duration_seconds: descriptor.duration_seconds }} t={t} accessToken={accessToken} mediaUrl={state.url} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  }
+  if (descriptor.mime_type.startsWith('image/')) return <img className="message-media" src={state.url} alt={descriptor.name || t('messages.photoAlt')} />;
+  if (descriptor.mime_type.startsWith('video/')) return <video className="message-media" src={state.url} controls playsInline />;
+  if (descriptor.mime_type.startsWith('audio/')) return <audio controls src={state.url} />;
+  return <a className="file-message" href={state.url} download={descriptor.name}>📎 {descriptor.name || t('messages.file')}</a>;
+}
+
 function MessageContent({ message, t, onOpenMedia, accessToken }) {
   const displayType = displayMessageType(message);
-  const needsMedia = !message.deleted_at && ['photo', 'video', 'file'].includes(displayType);
+  const isEncryptedAttachment = message.encryption_state === 'e2ee_web_v1' && ['file', 'voice', 'video_note'].includes(message.type);
+  const needsMedia = !message.deleted_at && !isEncryptedAttachment && ['photo', 'video', 'file'].includes(displayType);
   const { url: mediaUrl } = useAuthenticatedMediaUrl(needsMedia ? message.media_url : null, accessToken);
   if (message.deleted_at) {
     return <span className="deleted-message-text">{t('messages.deleted')}</span>;
   }
   if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
     return <span className="encrypted-message-unavailable">{t('messages.encryptedUnavailable')}</span>;
+  }
+  if (isEncryptedAttachment) {
+    return <EncryptedAttachmentMessage message={message} chatId={message.chat_id} t={t} accessToken={accessToken} />;
   }
   if (displayType === 'photo') {
     return (
@@ -394,6 +448,13 @@ function messageTypeForFile(file) {
 }
 
 function displayMessageType(message) {
+  if (message.e2ee_attachment) {
+    if (message.e2ee_attachment.media_kind) return message.e2ee_attachment.media_kind;
+    if (message.e2ee_attachment.mime_type.startsWith('image/')) return 'photo';
+    if (message.e2ee_attachment.mime_type.startsWith('video/')) return 'video';
+    if (message.e2ee_attachment.mime_type.startsWith('audio/')) return 'voice';
+    return 'file';
+  }
   if (message.type !== 'file') return message.type;
   if (message.media_mime_type?.startsWith('image/')) return 'photo';
   if (message.media_mime_type?.startsWith('video/')) return 'video';
@@ -708,7 +769,7 @@ export function ChatPage() {
   const usesFocusedMobileWorkspace = isDirectChat || isSavedChat;
   const canPost = !isPublicBranch || chat?.can_post;
   const currentDraftStorageKey = draftStorageKey(session.user?.id, chatId);
-  const mediaMessages = messages.filter((message) => !message.deleted_at && ['photo', 'video'].includes(displayMessageType(message)) && message.media_url);
+  const mediaMessages = messages.filter((message) => !message.deleted_at && message.encryption_state !== 'e2ee_web_v1' && ['photo', 'video'].includes(displayMessageType(message)) && message.media_url);
   const mediaViewerIndex = mediaViewerMessage ? mediaMessages.findIndex((message) => message.id === mediaViewerMessage.id) : -1;
   const mediaViewerType = mediaViewerMessage ? displayMessageType(mediaViewerMessage) : null;
   const { url: mediaViewerUrl } = useAuthenticatedMediaUrl(mediaViewerMessage?.media_url, session.accessToken);
@@ -730,13 +791,24 @@ export function ChatPage() {
     async function decryptOne(item) {
       if (item.encryption_state !== 'e2ee_web_v1') return { ...item, e2ee_status: 'plain' };
       if (!identity || !session.user?.id) return { ...item, payload: '', e2ee_status: 'unavailable' };
-      return decryptE2eeMessage({
+      const decrypted = await decryptE2eeMessage({
         message: item,
         chatId,
         currentUserId: String(session.user.id),
         identity,
         chatKeys: keys,
       });
+      if (!['file', 'voice', 'video_note'].includes(decrypted.type) || !['verified', 'unverified', 'key_changed'].includes(decrypted.e2ee_status)) {
+        return decrypted;
+      }
+      const attachment = parseE2eeAttachmentDescriptor(decrypted.payload);
+      const messageTypeMatchesAttachment = (
+        (decrypted.type === 'file' && attachment && !attachment.media_kind)
+        || (['voice', 'video_note'].includes(decrypted.type) && attachment?.media_kind === decrypted.type)
+      );
+      return messageTypeMatchesAttachment
+        ? { ...decrypted, payload: attachment.caption, e2ee_attachment: attachment }
+        : { ...decrypted, payload: '', e2ee_status: 'unavailable' };
     }
 
     const decrypted = await decryptOne(message);

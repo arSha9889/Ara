@@ -1,6 +1,8 @@
 import { getDeviceId } from '../device/deviceId.js';
 
 export const E2EE_WEB_ALGORITHM = 'ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256';
+export const E2EE_ATTACHMENT_MIME_TYPE = 'application/vnd.arachat.e2ee-attachment';
+export const E2EE_ATTACHMENT_FILENAME = 'encrypted-attachment.arachat';
 
 const DATABASE_NAME = 'arachat-e2ee-desktop-v1';
 const DATABASE_VERSION = 1;
@@ -8,6 +10,13 @@ const IDENTITY_STORE = 'identities';
 const TRUST_STORE = 'trusted-peer-signing-keys';
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder('utf-8', { fatal: true });
+const E2EE_ENVELOPE_PLAINTEXT_MAX_BYTES = 16_368;
+const E2EE_ATTACHMENT_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/avif',
+  'video/mp4', 'video/webm', 'video/quicktime',
+  'audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm',
+  'application/pdf', 'text/plain', 'application/octet-stream',
+]);
 const identityPromises = new Map();
 
 export function isE2eeDesktopSupported() {
@@ -156,6 +165,17 @@ function additionalData(chatId, senderId, recipientId) {
   return TEXT_ENCODER.encode(`AraChat E2EE Web v1|${chatId}|${senderId}|${recipientId}`);
 }
 
+function attachmentAdditionalData(chatId, senderId) {
+  return TEXT_ENCODER.encode(`AraChat E2EE attachment v1|${chatId}|${senderId}`);
+}
+
+function payloadToBytes(payload) {
+  if (typeof payload === 'string') return TEXT_ENCODER.encode(payload);
+  if (payload instanceof ArrayBuffer) return new Uint8Array(payload);
+  if (ArrayBuffer.isView(payload)) return new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
+  throw new Error('Некорректные данные для шифрования сообщения.');
+}
+
 async function deriveMessageKey(privateKey, publicKey, salt, chatId, senderId, recipientId) {
   const sharedSecret = await window.crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, privateKey, 256);
   const inputKey = await window.crypto.subtle.importKey('raw', sharedSecret, 'HKDF', false, ['deriveKey']);
@@ -220,10 +240,11 @@ function recipientKeyId(key) {
   return `${key.user_id}:${key.device_id}`;
 }
 
-export async function encryptE2eeText({ text, chatId, senderId, recipientKeys, identity }) {
-  const normalizedText = text.trim();
-  if (!normalizedText) throw new Error('Текст сообщения не может быть пустым.');
-  if (normalizedText.length > 4000) throw new Error('Сообщение слишком длинное.');
+export async function encryptE2eePayload({ payload, chatId, senderId, recipientKeys, identity }) {
+  const plaintext = payloadToBytes(payload);
+  if (!plaintext.byteLength || plaintext.byteLength > E2EE_ENVELOPE_PLAINTEXT_MAX_BYTES) {
+    throw new Error('Данные зашифрованного сообщения слишком велики.');
+  }
   const keysByRecipientId = new Map(recipientKeys.map((key) => [recipientKeyId(key), key]));
   const participantIds = new Set(recipientKeys.map((key) => String(key.user_id)));
   const currentDeviceId = getDeviceId();
@@ -237,7 +258,6 @@ export async function encryptE2eeText({ text, chatId, senderId, recipientKeys, i
 
   const ephemeralKeyPair = await window.crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
   const senderEphemeralPublicKey = await exportPublicKey(ephemeralKeyPair.publicKey);
-  const plaintext = TEXT_ENCODER.encode(normalizedText);
   const recipients = {};
 
   await Promise.all([...keysByRecipientId.entries()].map(async ([recipientId, recipientKey]) => {
@@ -278,6 +298,143 @@ export async function encryptE2eeText({ text, chatId, senderId, recipientKeys, i
   return JSON.stringify({ ...unsignedEnvelope, signature: bytesToBase64(new Uint8Array(signature)) });
 }
 
+export async function encryptE2eeText({ text, chatId, senderId, recipientKeys, identity }) {
+  const normalizedText = text.trim();
+  if (!normalizedText) throw new Error('Текст сообщения не может быть пустым.');
+  if (normalizedText.length > 4000) throw new Error('Сообщение слишком длинное.');
+  return encryptE2eePayload({
+    payload: normalizedText,
+    chatId,
+    senderId,
+    recipientKeys,
+    identity,
+  });
+}
+
+export async function encryptE2eeAttachment({
+  file,
+  chatId,
+  senderId,
+  caption = '',
+  mediaKind = null,
+  durationSeconds = null,
+}) {
+  if (!file || typeof file.arrayBuffer !== 'function' || !Number.isFinite(file.size) || file.size < 0) {
+    throw new Error('Не удалось прочитать файл для шифрования.');
+  }
+  if (typeof caption !== 'string' || caption.length > 4000) {
+    throw new Error('Подпись к файлу слишком длинная.');
+  }
+  if (mediaKind !== null && !['voice', 'video_note'].includes(mediaKind)) {
+    throw new Error('Некорректный тип записанного сообщения.');
+  }
+  if (
+    (mediaKind !== null && (!Number.isSafeInteger(durationSeconds) || durationSeconds <= 0))
+    || (mediaKind === null && durationSeconds !== null)
+  ) {
+    throw new Error('Некорректная длительность записанного сообщения.');
+  }
+
+  const [fileKey, iv, source] = await Promise.all([
+    window.crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']),
+    window.crypto.getRandomValues(new Uint8Array(12)),
+    file.arrayBuffer(),
+  ]);
+  const ciphertext = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: attachmentAdditionalData(chatId, senderId) },
+    fileKey,
+    source,
+  );
+  const rawKey = new Uint8Array(await window.crypto.subtle.exportKey('raw', fileKey));
+  const name = typeof file.name === 'string' && file.name.trim() ? file.name.slice(0, 255) : 'attachment';
+  const declaredMimeType = typeof file.type === 'string' ? file.type.split(';', 1)[0].trim().toLowerCase() : '';
+  const mimeType = E2EE_ATTACHMENT_MIME_TYPES.has(declaredMimeType) ? declaredMimeType : 'application/octet-stream';
+
+  return {
+    encryptedFile: new File([ciphertext], E2EE_ATTACHMENT_FILENAME, { type: E2EE_ATTACHMENT_MIME_TYPE }),
+    descriptor: {
+      kind: 'attachment',
+      version: 1,
+      name,
+      mime_type: mimeType,
+      size_bytes: file.size,
+      file_key: bytesToBase64(rawKey),
+      file_iv: bytesToBase64(iv),
+      caption: caption.trim(),
+      ...(mediaKind ? { media_kind: mediaKind, duration_seconds: durationSeconds } : {}),
+    },
+  };
+}
+
+export function parseE2eeAttachmentDescriptor(payload) {
+  try {
+    const descriptor = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    if (
+      !descriptor
+      || descriptor.kind !== 'attachment'
+      || descriptor.version !== 1
+      || typeof descriptor.name !== 'string'
+      || !descriptor.name
+      || descriptor.name.length > 255
+      || typeof descriptor.mime_type !== 'string'
+      || !descriptor.mime_type
+      || descriptor.mime_type.length > 128
+      || !E2EE_ATTACHMENT_MIME_TYPES.has(descriptor.mime_type)
+      || !Number.isSafeInteger(descriptor.size_bytes)
+      || descriptor.size_bytes < 0
+      || typeof descriptor.file_key !== 'string'
+      || typeof descriptor.file_iv !== 'string'
+      || (descriptor.caption !== undefined && (typeof descriptor.caption !== 'string' || descriptor.caption.length > 4000))
+      || (descriptor.media_kind !== undefined && !['voice', 'video_note'].includes(descriptor.media_kind))
+      || (
+        descriptor.media_kind !== undefined
+        && (!Number.isSafeInteger(descriptor.duration_seconds) || descriptor.duration_seconds <= 0)
+      )
+      || (descriptor.media_kind === undefined && descriptor.duration_seconds !== undefined)
+    ) {
+      return null;
+    }
+    if (base64ToBytes(descriptor.file_key).byteLength !== 32 || base64ToBytes(descriptor.file_iv).byteLength !== 12) {
+      return null;
+    }
+    return {
+      kind: 'attachment',
+      version: 1,
+      name: descriptor.name,
+      mime_type: descriptor.mime_type,
+      size_bytes: descriptor.size_bytes,
+      file_key: descriptor.file_key,
+      file_iv: descriptor.file_iv,
+      caption: descriptor.caption || '',
+      media_kind: descriptor.media_kind || null,
+      duration_seconds: descriptor.media_kind ? descriptor.duration_seconds : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function decryptE2eeAttachment({ ciphertext, descriptor, chatId, senderId }) {
+  const attachment = parseE2eeAttachmentDescriptor(descriptor);
+  if (!attachment || !ciphertext || typeof ciphertext.arrayBuffer !== 'function') {
+    throw new Error('Некорректное зашифрованное вложение.');
+  }
+  const [fileKey, source] = await Promise.all([
+    window.crypto.subtle.importKey('raw', base64ToBytes(attachment.file_key), { name: 'AES-GCM' }, false, ['decrypt']),
+    ciphertext.arrayBuffer(),
+  ]);
+  const plaintext = await window.crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: base64ToBytes(attachment.file_iv),
+      additionalData: attachmentAdditionalData(chatId, senderId),
+    },
+    fileKey,
+    source,
+  );
+  return new Blob([plaintext], { type: attachment.mime_type });
+}
+
 async function readTrustedPeerSigningKey(userId, peerUserId, peerDeviceId) {
   return withStore(TRUST_STORE, 'readonly', (store, resolve, reject) => {
     const request = store.get(`${userId}:${peerUserId}:${peerDeviceId}`);
@@ -294,8 +451,7 @@ async function trustPeerSigningKey(userId, peerUserId, peerDeviceId, signingPubl
   });
 }
 
-export async function decryptE2eeMessage({ message, chatId, currentUserId, identity, chatKeys }) {
-  if (message.encryption_state !== 'e2ee_web_v1') return { ...message, e2ee_status: 'plain' };
+export async function decryptE2eePayload({ message, chatId, currentUserId, identity, chatKeys }) {
   try {
     const envelope = parseEnvelope(message.payload);
     const signatureKey = await importSigningPublicKey(envelope.sender_signing_public_key);
@@ -340,7 +496,24 @@ export async function decryptE2eeMessage({ message, chatId, currentUserId, ident
       messageKey,
       base64ToBytes(recipient.ciphertext),
     );
-    return { ...message, payload: TEXT_DECODER.decode(plaintext), e2ee_status: verificationStatus };
+    return { plaintext: new Uint8Array(plaintext), e2ee_status: verificationStatus };
+  } catch {
+    return { plaintext: null, e2ee_status: 'unavailable' };
+  }
+}
+
+export async function decryptE2eeMessage({ message, chatId, currentUserId, identity, chatKeys }) {
+  if (message.encryption_state !== 'e2ee_web_v1') return { ...message, e2ee_status: 'plain' };
+  const { plaintext, e2ee_status: e2eeStatus } = await decryptE2eePayload({
+    message,
+    chatId,
+    currentUserId,
+    identity,
+    chatKeys,
+  });
+  if (!plaintext) return { ...message, payload: '', e2ee_status: e2eeStatus };
+  try {
+    return { ...message, payload: TEXT_DECODER.decode(plaintext), e2ee_status: e2eeStatus };
   } catch {
     return { ...message, payload: '', e2ee_status: 'unavailable' };
   }

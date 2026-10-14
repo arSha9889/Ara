@@ -11,13 +11,19 @@ import {
   reactToMessage,
   sendMessage,
   uploadChatMedia,
+  uploadE2eeAttachment,
 } from '../../features/chats/chatsApi.js';
+import { RECORDING_OPTIONS, useMediaRecorder } from '../../features/chats/useMediaRecorder.js';
 import { saveE2eeWebKey } from '../../features/security/securityApi.js';
-import { useAuthenticatedMediaUrl } from '../../shared/api/authenticatedMedia.js';
+import { useAuthenticatedMediaBlob, useAuthenticatedMediaUrl } from '../../shared/api/authenticatedMedia.js';
 import {
+  decryptE2eeAttachment,
   decryptE2eeMessage,
+  encryptE2eeAttachment,
+  encryptE2eePayload,
   encryptE2eeText,
   isE2eeDesktopSupported,
+  parseE2eeAttachmentDescriptor,
   registerE2eeDesktopIdentity,
 } from '../../shared/crypto/e2eeDesktop.js';
 
@@ -49,6 +55,11 @@ function formatFileSize(value) {
   if (!Number.isFinite(value) || value < 1) return '';
   if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`;
   return `${(value / (1024 * 1024)).toFixed(value >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+function formatDuration(value) {
+  const totalSeconds = Math.max(0, Math.round(Number(value) || 0));
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
 function deliveryStatusLabel(status, t) {
@@ -107,6 +118,13 @@ function syncPinnedState(messages, pinnedMessageId) {
 }
 
 function displayMessageType(message) {
+  if (message.e2ee_attachment) {
+    if (message.e2ee_attachment.media_kind) return message.e2ee_attachment.media_kind;
+    if (message.e2ee_attachment.mime_type.startsWith('image/')) return 'photo';
+    if (message.e2ee_attachment.mime_type.startsWith('video/')) return 'video';
+    if (message.e2ee_attachment.mime_type.startsWith('audio/')) return 'audio';
+    return 'file';
+  }
   if (message.type !== 'file') return message.type;
   if (message.media_mime_type?.startsWith('image/')) return 'photo';
   if (message.media_mime_type?.startsWith('video/')) return 'video';
@@ -122,7 +140,7 @@ function messageTypeForUpload(upload) {
 
 function messageTypeLabel(message, t) {
   const key = {
-    photo: 'photo', video: 'video', audio: 'audio', voice: 'audio', file: 'file', sticker: 'sticker', emoji: 'emoji',
+    photo: 'photo', video: 'video', video_note: 'videoNote', audio: 'audio', voice: 'voice', file: 'file', sticker: 'sticker', emoji: 'emoji',
   }[displayMessageType(message)];
   return key ? t(`workspace.chatPanel.type${key[0].toUpperCase()}${key.slice(1)}`) : message.payload;
 }
@@ -155,13 +173,24 @@ async function decryptChatMessage(message, { chatId, currentUserId, identity, ch
   async function decryptOne(item) {
     if (item.encryption_state !== 'e2ee_web_v1') return { ...item, e2ee_status: 'plain' };
     if (!identity || !currentUserId) return { ...item, payload: '', e2ee_status: 'unavailable' };
-    return decryptE2eeMessage({
+    const decrypted = await decryptE2eeMessage({
       message: item,
       chatId,
       currentUserId: String(currentUserId),
       identity,
       chatKeys,
     });
+    if (!['file', 'voice', 'video_note'].includes(decrypted.type) || !['verified', 'unverified', 'key_changed'].includes(decrypted.e2ee_status)) {
+      return decrypted;
+    }
+    const attachment = parseE2eeAttachmentDescriptor(decrypted.payload);
+    const messageTypeMatchesAttachment = (
+      (decrypted.type === 'file' && attachment && !attachment.media_kind)
+      || (['voice', 'video_note'].includes(decrypted.type) && attachment?.media_kind === decrypted.type)
+    );
+    return messageTypeMatchesAttachment
+      ? { ...decrypted, payload: attachment.caption, e2ee_attachment: attachment }
+      : { ...decrypted, payload: '', e2ee_status: 'unavailable' };
   }
 
   const decrypted = await decryptOne(message);
@@ -184,6 +213,66 @@ function peerPresence(peer, t) {
   return t('workspace.chatPanel.lastSeen', { date: new Intl.DateTimeFormat(locale(), { dateStyle: 'short', timeStyle: 'short' }).format(lastSeen) });
 }
 
+function VoiceMessage({ durationSeconds, url, t }) {
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const duration = Number(durationSeconds) || audioRef.current?.duration || 0;
+
+  function togglePlayback() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      void audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      return;
+    }
+    audio.pause();
+    setIsPlaying(false);
+  }
+
+  function handleTimeUpdate() {
+    setCurrentTime(audioRef.current?.currentTime || 0);
+  }
+
+  function handleEnded() {
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }
+
+  return <div className={`chat-voice-message ${isPlaying ? 'is-playing' : ''}`}>
+    <button type="button" className="chat-media-play" onClick={togglePlayback} aria-label={isPlaying ? t('workspace.chatPanel.pauseVoice') : t('workspace.chatPanel.playVoice')} title={isPlaying ? t('workspace.chatPanel.pauseVoice') : t('workspace.chatPanel.playVoice')}><Icon name={isPlaying ? 'pause' : 'play'} size={16} /></button>
+    <div className="chat-voice-message-body">
+      <span>{t('workspace.chatPanel.typeVoice')}</span>
+      <div className="chat-voice-wave" aria-hidden="true">{Array.from({ length: 18 }).map((_, index) => <i key={index} style={{ '--voice-bar': index }} />)}</div>
+    </div>
+    <time>{formatDuration(isPlaying ? currentTime : duration)}</time>
+    <audio ref={audioRef} src={url} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+  </div>;
+}
+
+function VideoNoteMessage({ durationSeconds, url, t }) {
+  const videoRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const duration = Number(durationSeconds) || videoRef.current?.duration || 0;
+
+  function togglePlayback() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      void video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      return;
+    }
+    video.pause();
+    setIsPlaying(false);
+  }
+
+  return <button className={`chat-video-note ${isPlaying ? 'is-playing' : ''}`} type="button" onClick={togglePlayback} aria-label={isPlaying ? t('workspace.chatPanel.pauseVideoNote') : t('workspace.chatPanel.playVideoNote')} title={isPlaying ? t('workspace.chatPanel.pauseVideoNote') : t('workspace.chatPanel.playVideoNote')}>
+    <video ref={videoRef} src={url} playsInline preload="metadata" onEnded={() => setIsPlaying(false)} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+    <span className="chat-video-note-play" aria-hidden="true"><Icon name={isPlaying ? 'pause' : 'play'} size={18} /></span>
+    <time>{formatDuration(duration)}</time>
+  </button>;
+}
+
 function MediaMessage({ accessToken, message, t }) {
   const displayType = displayMessageType(message);
   const { error, isLoading, url } = useAuthenticatedMediaUrl(message.deleted_at ? null : message.media_url, accessToken);
@@ -191,6 +280,8 @@ function MediaMessage({ accessToken, message, t }) {
   if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
   if (isLoading) return <p className="chat-media-status" role="status">{t('workspace.chatPanel.loadingMedia')}</p>;
   if (error || !url) return <p className="chat-media-status is-error">{t('workspace.chatPanel.mediaLoadError')}</p>;
+  if (message.type === 'voice') return <><VoiceMessage durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
+  if (message.type === 'video_note') return <><VideoNoteMessage durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'photo') return <><img className="chat-media-image" src={url} alt={message.media_name || t('workspace.chatPanel.photoAlt')} />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'video') return <><video className="chat-media-video" src={url} controls preload="metadata" />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'audio' || displayType === 'voice') return <><audio className="chat-media-audio" src={url} controls preload="metadata" />{message.payload ? <p>{message.payload}</p> : null}</>;
@@ -198,12 +289,71 @@ function MediaMessage({ accessToken, message, t }) {
   return <p className="chat-unsupported-message">{t('workspace.chatPanel.unsupportedMessage')}</p>;
 }
 
-function MessageContent({ accessToken, message, t }) {
+function AttachmentPreview({ descriptor, url, t }) {
+  if (descriptor.media_kind === 'voice') return <><VoiceMessage durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  if (descriptor.media_kind === 'video_note') return <><VideoNoteMessage durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  const displayType = descriptor.mime_type.startsWith('image/')
+    ? 'photo'
+    : descriptor.mime_type.startsWith('video/')
+      ? 'video'
+      : descriptor.mime_type.startsWith('audio/')
+        ? 'audio'
+        : 'file';
+  if (displayType === 'photo') return <><img className="chat-media-image" src={url} alt={descriptor.name || t('workspace.chatPanel.photoAlt')} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  if (displayType === 'video') return <><video className="chat-media-video" src={url} controls preload="metadata" />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  if (displayType === 'audio') return <><audio className="chat-media-audio" src={url} controls preload="metadata" />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  return <><a className="chat-file-link" href={url} download={descriptor.name}><Icon name="document" size={20} /><span><strong>{descriptor.name}</strong><small>{descriptor.mime_type || formatFileSize(descriptor.size_bytes)}</small></span></a>{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+}
+
+function EncryptedAttachmentMessage({ accessToken, chatId, message, t }) {
+  const { blob: ciphertext, error: loadError, isLoading } = useAuthenticatedMediaBlob(message.deleted_at ? null : message.media_url, accessToken);
+  const [state, setState] = useState({ url: '', error: null });
+  const descriptor = message.e2ee_attachment;
+
+  useEffect(() => {
+    if (!ciphertext || !descriptor) {
+      setState({ url: '', error: null });
+      return undefined;
+    }
+
+    let active = true;
+    let objectUrl = '';
+    void (async () => {
+      try {
+        const plaintext = await decryptE2eeAttachment({
+          ciphertext,
+          descriptor,
+          chatId,
+          senderId: String(message.sender_id),
+        });
+        objectUrl = URL.createObjectURL(plaintext);
+        if (active) setState({ url: objectUrl, error: null });
+      } catch {
+        if (active) setState({ url: '', error: new Error('Encrypted attachment could not be decrypted') });
+      }
+    })();
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [chatId, ciphertext, descriptor, message.sender_id]);
+
+  if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
+  if (isLoading) return <p className="chat-media-status" role="status">{t('workspace.chatPanel.loadingMedia')}</p>;
+  if (loadError || state.error || !state.url) return <p className="chat-media-status is-error">{t('workspace.chatPanel.encryptedAttachmentLoadError')}</p>;
+  return <AttachmentPreview descriptor={descriptor} url={state.url} t={t} />;
+}
+
+function MessageContent({ accessToken, chatId, message, t }) {
   if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
   if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
     return <p className="chat-encrypted-unavailable">{t('workspace.chatPanel.encryptedMessageUnavailable')}</p>;
   }
   if (message.type === 'text' || message.type === 'emoji') return <p>{message.payload}</p>;
+  if (message.encryption_state === 'e2ee_web_v1' && ['file', 'voice', 'video_note'].includes(message.type)) {
+    return <EncryptedAttachmentMessage accessToken={accessToken} chatId={chatId} message={message} t={t} />;
+  }
   if (message.type === 'call') return <p>{t('workspace.calls')}</p>;
   return <MediaMessage accessToken={accessToken} message={message} t={t} />;
 }
@@ -222,6 +372,7 @@ export function ChatPanel({
   onRealtimeSend,
   onStartCall,
   canStartCall,
+  callState = 'idle',
   realtimeEvents,
   realtimeResyncVersion,
   realtimeStatus,
@@ -257,11 +408,15 @@ export function ChatPanel({
   const focusedRequestIdRef = useRef(0);
   const focusHighlightTimerRef = useRef(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [recordedMedia, setRecordedMedia] = useState(null);
+  const { recording, start: startRecording, stop: stopRecording, cancel: cancelRecording } = useMediaRecorder();
+  const recordingVideoRef = useRef(null);
   const peer = chatState.peer;
   const peerName = peer?.display_name || peer?.username || t('workspace.unknownUser');
   const peerUsername = peer?.username || '';
   const isDirectChat = chat.type === 'direct';
   const isE2eeReady = isDirectChat && e2eeStatus === 'ready';
+  const isRecording = recording.status !== 'idle';
   const participantIdsKey = (chat.participant_ids || []).map(String).sort().join(':');
 
   messagesRef.current = messages;
@@ -365,11 +520,6 @@ export function ChatPanel({
   }, [chat]);
 
   useEffect(() => {
-    if (!isE2eeReady || !selectedFile) return;
-    setSelectedFile(null);
-  }, [isE2eeReady, selectedFile]);
-
-  useEffect(() => {
     isCurrentRef.current = true;
     void loadMessages();
     return () => {
@@ -381,6 +531,20 @@ export function ChatPanel({
       onRealtimeSend?.({ event: 'typing.stopped', chat_id: chat.id });
     };
   }, [chat.id, loadMessages, onRealtimeSend]);
+
+  useEffect(() => {
+    const preview = recordingVideoRef.current;
+    if (!preview) return undefined;
+    preview.srcObject = recording.kind === 'video_note' ? recording.stream : null;
+    if (recording.stream) void preview.play().catch(() => undefined);
+    return () => {
+      preview.srcObject = null;
+    };
+  }, [recording.kind, recording.stream]);
+
+  useEffect(() => {
+    if (callState !== 'idle' && isRecording) void cancelRecording();
+  }, [callState, cancelRecording, isRecording]);
 
   useEffect(() => {
     if (!focusMessage || !focusMessageId || !focusRequestId) return undefined;
@@ -541,22 +705,60 @@ export function ChatPanel({
   }
 
   async function sendMediaMessage() {
-    if (!selectedFile) return;
-    if (isE2eeReady) throw new Error(t('workspace.chatPanel.encryptedAttachmentsUnavailable'));
-    onRealtimeSend?.({ event: 'file.uploading', chat_id: chat.id });
-    const uploadedMedia = await uploadChatMedia(accessToken, selectedFile);
+    const mediaDraft = recordedMedia || (selectedFile ? { file: selectedFile, kind: null, durationSeconds: null } : null);
+    if (!mediaDraft) return;
+    const { file, kind, durationSeconds } = mediaDraft;
+    onRealtimeSend?.({ event: kind === 'voice' ? 'voice.uploading' : 'file.uploading', chat_id: chat.id });
+    if (isE2eeReady) {
+      const attachment = await encryptE2eeAttachment({
+        file,
+        chatId: chat.id,
+        senderId: String(currentUserId),
+        caption: draft,
+        mediaKind: kind,
+        durationSeconds,
+      });
+      const encryptedPayload = await encryptE2eePayload({
+        payload: JSON.stringify(attachment.descriptor),
+        chatId: chat.id,
+        senderId: String(currentUserId),
+        recipientKeys: e2eeCryptoRef.current.keys,
+        identity: e2eeCryptoRef.current.identity,
+      });
+      const uploadedMedia = await uploadE2eeAttachment(accessToken, attachment.encryptedFile);
+      const message = await sendMessage(accessToken, chat.id, {
+        type: kind || 'file',
+        text: encryptedPayload,
+        reply_to_message_id: replyingTo?.id ?? null,
+        media_url: uploadedMedia.media_url,
+        encryption_state: 'e2ee_web_v1',
+      });
+      const decryptedMessage = await decryptWithCurrentCrypto(message);
+      setMessages((current) => upsertMessage(current, decryptedMessage));
+      setDraft('');
+      setSelectedFile(null);
+      setRecordedMedia(null);
+      setReplyingTo(null);
+      stopTyping();
+      void onMessageSent?.();
+      return;
+    }
+    const uploadedMedia = await uploadChatMedia(accessToken, file);
+    const messageType = kind || messageTypeForUpload(uploadedMedia);
     const message = await sendMessage(accessToken, chat.id, {
-      type: messageTypeForUpload(uploadedMedia),
+      type: messageType,
       text: draft.trim(),
       reply_to_message_id: replyingTo?.id ?? null,
       media_url: uploadedMedia.media_url,
       media_name: uploadedMedia.media_name,
       media_mime_type: uploadedMedia.media_mime_type,
       media_size_bytes: uploadedMedia.media_size_bytes,
+      duration_seconds: ['voice', 'video_note'].includes(messageType) ? durationSeconds : null,
     });
     setMessages((current) => upsertMessage(current, message));
     setDraft('');
     setSelectedFile(null);
+    setRecordedMedia(null);
     setReplyingTo(null);
     stopTyping();
     void onMessageSent?.();
@@ -566,7 +768,7 @@ export function ChatPanel({
     event.preventDefault();
     if (isSending || isLoadingMessages) return;
     const text = (editingMessage ? editText : draft).trim();
-    if (!editingMessage && !selectedFile && !text) return;
+    if (!editingMessage && !selectedFile && !recordedMedia && !text) return;
     if (editingMessage && !text) return;
 
     setComposerError('');
@@ -577,7 +779,7 @@ export function ChatPanel({
         setMessages((current) => upsertMessage(current, message));
         setEditingMessage(null);
         setEditText('');
-      } else if (selectedFile) {
+      } else if (selectedFile || recordedMedia) {
         await sendMediaMessage();
       } else {
         const encryptedPayload = isE2eeReady
@@ -652,12 +854,27 @@ export function ChatPanel({
     const file = event.target.files?.[0] ?? null;
     event.target.value = '';
     if (!file) return;
-    if (isE2eeReady) {
-      setComposerError(t('workspace.chatPanel.encryptedAttachmentsUnavailable'));
-      return;
-    }
     setComposerError('');
+    setRecordedMedia(null);
     setSelectedFile(file);
+  }
+
+  function startMediaRecording(kind) {
+    if (isLoadingMessages || isSending || editingMessage || selectedFile || recordedMedia || callState !== 'idle') return;
+    setComposerError('');
+    stopTyping();
+    void startRecording(kind)
+      .then(({ media, error }) => {
+        if (error) {
+          setComposerError(error.message);
+          return;
+        }
+        if (media) {
+          setSelectedFile(null);
+          setRecordedMedia(media);
+        }
+      })
+      .catch((error) => setComposerError(error.message));
   }
 
   function startEditing(message) {
@@ -665,6 +882,7 @@ export function ChatPanel({
     setEditingMessage(message);
     setEditText(message.payload || '');
     setSelectedFile(null);
+    setRecordedMedia(null);
     setReplyingTo(null);
     setOpenReactionPickerMessageId(null);
   }
@@ -679,6 +897,7 @@ export function ChatPanel({
   const composerValue = editingMessage ? editText : draft;
   const composerPlaceholder = editingMessage ? t('workspace.chatPanel.editPlaceholder') : t('workspace.chatPanel.composerPlaceholder');
   const directChatEncryption = directChatEncryptionLabel(isDirectChat ? e2eeStatus : 'inactive', t);
+  const canRecordMedia = !isLoadingMessages && !isSending && !editingMessage && !selectedFile && !recordedMedia && callState === 'idle';
 
   return (
     <section className="workspace-chat-panel" aria-labelledby="chat-title">
@@ -689,8 +908,8 @@ export function ChatPanel({
           <div><h1 id="chat-title">{peerName}</h1><span>{activity || `${peerUsername ? `@${peerUsername} · ` : ''}${peerPresence(peer, t)}`}</span>{isDirectChat ? <span className={`chat-e2ee-chat-status is-${directChatEncryption.tone}`} title={directChatEncryption.label}><Icon name="shield" size={12} />{directChatEncryption.label}</span> : null}</div>
         </div>
         <div className="chat-header-actions" aria-label={t('workspace.chatPanel.actionsLabel')}>
-          <button type="button" title={canStartCall ? t('workspace.chatPanel.startAudio') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startAudio')} onClick={() => void onStartCall?.(chat, 'audio')} disabled={!canStartCall}><Icon name="calls" size={18} /></button>
-          <button type="button" title={canStartCall ? t('workspace.chatPanel.startVideo') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startVideo')} onClick={() => void onStartCall?.(chat, 'video')} disabled={!canStartCall}><Icon name="video" size={18} /></button>
+          <button type="button" title={canStartCall && !isRecording ? t('workspace.chatPanel.startAudio') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startAudio')} onClick={() => void onStartCall?.(chat, 'audio')} disabled={!canStartCall || isRecording}><Icon name="calls" size={18} /></button>
+          <button type="button" title={canStartCall && !isRecording ? t('workspace.chatPanel.startVideo') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startVideo')} onClick={() => void onStartCall?.(chat, 'video')} disabled={!canStartCall || isRecording}><Icon name="video" size={18} /></button>
           <button type="button" aria-label={t('workspace.chatPanel.refreshHistory')} onClick={() => loadMessages()} disabled={isLoadingMessages || isSending}><Icon name="refresh" size={18} /></button>
         </div>
       </header>
@@ -709,7 +928,7 @@ export function ChatPanel({
             }} className={`chat-message ${isMine ? 'is-mine' : ''} ${message.is_pinned ? 'is-pinned' : ''} ${highlightedMessageId === message.id ? 'is-notification-target' : ''}`} key={message.id}>
             <div className="chat-message-bubble">
               {message.reply_to ? <div className="chat-reply-preview"><span>{message.reply_to.sender_id === currentUserId ? t('workspace.chatPanel.you') : peerName}</span><small>{replyPreview(message.reply_to, t)}</small></div> : null}
-              <MessageContent accessToken={accessToken} message={message} t={t} />
+              <MessageContent accessToken={accessToken} chatId={chat.id} message={message} t={t} />
               {!message.deleted_at && message.reactions?.length ? <div className="chat-reactions">{message.reactions.map((reaction) => <button type="button" key={reaction.emoji} aria-pressed={reaction.reacted_by_me} onClick={() => handleReaction(message, reaction.emoji)}>{reaction.emoji}<span>{reaction.count}</span></button>)}</div> : null}
               {!message.deleted_at ? <div className="chat-message-actions">
                 <button type="button" onClick={() => setReplyingTo(message)}><Icon name="reply" size={14} />{t('workspace.chatPanel.reply')}</button>
@@ -729,15 +948,24 @@ export function ChatPanel({
         {composerError ? <p className="chat-composer-error" id="chat-message-error" role="alert">{composerError}</p> : null}
         {replyingTo ? <div className="chat-composer-context"><Icon name="reply" size={15} /><span><strong>{t('workspace.chatPanel.replyingTo')}</strong><small>{replyPreview(replyingTo, t)}</small></span><button type="button" aria-label={t('workspace.chatPanel.cancelReply')} onClick={() => setReplyingTo(null)}><Icon name="close" size={15} /></button></div> : null}
         {editingMessage ? <div className="chat-composer-context"><Icon name="edit" size={15} /><span><strong>{t('workspace.chatPanel.editingMessage')}</strong><small>{t('workspace.chatPanel.editHint')}</small></span><button type="button" aria-label={t('workspace.chatPanel.cancelEdit')} onClick={() => { setEditingMessage(null); setEditText(''); }}><Icon name="close" size={15} /></button></div> : null}
-        {selectedFile ? <div className="chat-draft-type"><span><Icon name={selectedFile.type.startsWith('image/') ? 'image' : selectedFile.type.startsWith('video/') ? 'video' : 'document'} size={16} /></span><div><strong>{t('workspace.chatPanel.attachmentReady')}</strong><small>{selectedFile.name}{formatFileSize(selectedFile.size) ? ` · ${formatFileSize(selectedFile.size)}` : ''}</small></div><button type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setSelectedFile(null)}><Icon name="close" size={15} /></button></div> : null}
-        <form className={`chat-composer ${isE2eeReady ? 'is-text-only' : ''}`} onSubmit={submitMessage}>
-          <input ref={fileInputRef} className="sr-only" type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileSelected} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isE2eeReady} />
-          <button className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.attachFile')} title={isE2eeReady ? t('workspace.chatPanel.encryptedAttachmentsUnavailable') : t('workspace.chatPanel.attachFile')} onClick={() => fileInputRef.current?.click()} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isE2eeReady}><Icon name="attachment" size={18} /></button>
+        {recordedMedia ? <div className="chat-draft-type"><span><Icon name={recordedMedia.kind === 'voice' ? 'mic' : 'video'} size={16} /></span><div><strong>{recordedMedia.kind === 'voice' ? t('workspace.chatPanel.voiceDraftReady') : t('workspace.chatPanel.videoNoteDraftReady')}</strong><small>{formatDuration(recordedMedia.durationSeconds)} · {formatFileSize(recordedMedia.file.size)}</small></div><button type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setRecordedMedia(null)} disabled={isSending}><Icon name="close" size={15} /></button></div> : null}
+        {selectedFile ? <div className="chat-draft-type"><span><Icon name={selectedFile.type.startsWith('image/') ? 'image' : selectedFile.type.startsWith('video/') ? 'video' : 'document'} size={16} /></span><div><strong>{t('workspace.chatPanel.attachmentReady')}</strong><small>{selectedFile.name}{formatFileSize(selectedFile.size) ? ` · ${formatFileSize(selectedFile.size)}` : ''}</small></div><button type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setSelectedFile(null)} disabled={isSending}><Icon name="close" size={15} /></button></div> : null}
+        {isRecording ? <div className="chat-recording-panel" role="status" aria-live="polite">
+          {recording.kind === 'video_note' ? <video className="chat-recording-preview" ref={recordingVideoRef} muted playsInline /> : <span className="chat-recording-mark"><Icon name="mic" size={19} /></span>}
+          <span className="chat-recording-copy"><strong>{recording.kind === 'video_note' ? t('workspace.chatPanel.recordingVideoNote') : t('workspace.chatPanel.recordingVoice')}</strong><small>{recording.status === 'requesting' ? t('workspace.chatPanel.requestingMediaAccess') : `${formatDuration(recording.elapsedSeconds)} / ${formatDuration(RECORDING_OPTIONS[recording.kind].maxDurationSeconds)}`}</small></span>
+          <button type="button" className="chat-recording-cancel" onClick={() => void cancelRecording()} aria-label={t('workspace.chatPanel.cancelRecording')} title={t('workspace.chatPanel.cancelRecording')}><Icon name="close" size={16} /></button>
+          <button type="button" className="chat-recording-stop" onClick={() => void stopRecording()} disabled={recording.status !== 'recording'} aria-label={t('workspace.chatPanel.stopRecording')} title={t('workspace.chatPanel.stopRecording')}><Icon name="pause" size={16} /></button>
+        </div> : null}
+        <form className="chat-composer" onSubmit={submitMessage}>
+          <input ref={fileInputRef} className="sr-only" type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileSelected} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isRecording || Boolean(recordedMedia)} />
+          <button className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.attachFile')} title={t('workspace.chatPanel.attachFile')} onClick={() => fileInputRef.current?.click()} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isRecording || Boolean(recordedMedia)}><Icon name="attachment" size={18} /></button>
+          <button className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.recordVoice')} title={t('workspace.chatPanel.recordVoice')} onClick={() => startMediaRecording('voice')} disabled={!canRecordMedia}><Icon name="mic" size={18} /></button>
+          <button className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.recordVideoNote')} title={t('workspace.chatPanel.recordVideoNote')} onClick={() => startMediaRecording('video_note')} disabled={!canRecordMedia}><Icon name="video" size={18} /></button>
           <label className="sr-only" htmlFor="chat-message-input">{t('workspace.chatPanel.composerLabel')}</label>
-          <textarea id="chat-message-input" value={composerValue} onChange={(event) => editingMessage ? setEditText(event.target.value) : updateDraft(event.target.value)} onKeyDown={submitOnEnter} rows="1" maxLength="4000" placeholder={composerPlaceholder} aria-invalid={Boolean(composerError)} aria-describedby={composerError ? 'chat-message-error' : undefined} disabled={isLoadingMessages || isSending} />
-          <button className="chat-send-button" type="submit" disabled={(!composerValue.trim() && !selectedFile) || isLoadingMessages || isSending || (isDirectChat && e2eeStatus === 'checking')} aria-label={isSending ? t('workspace.chatPanel.sending') : editingMessage ? t('workspace.chatPanel.saveEdit') : t('workspace.chatPanel.send')}><Icon name={editingMessage ? 'save' : 'send'} size={18} /></button>
+          <textarea id="chat-message-input" value={composerValue} onChange={(event) => editingMessage ? setEditText(event.target.value) : updateDraft(event.target.value)} onKeyDown={submitOnEnter} rows="1" maxLength="4000" placeholder={composerPlaceholder} aria-invalid={Boolean(composerError)} aria-describedby={composerError ? 'chat-message-error' : undefined} disabled={isLoadingMessages || isSending || isRecording} />
+          <button className="chat-send-button" type="submit" disabled={(!composerValue.trim() && !selectedFile && !recordedMedia) || isLoadingMessages || isSending || isRecording || (isDirectChat && e2eeStatus === 'checking')} aria-label={isSending ? t('workspace.chatPanel.sending') : editingMessage ? t('workspace.chatPanel.saveEdit') : t('workspace.chatPanel.send')}><Icon name={editingMessage ? 'save' : 'send'} size={18} /></button>
         </form>
-        <p className="chat-composer-hint">{editingMessage ? t('workspace.chatPanel.editHint') : t('workspace.chatPanel.composerHint')}<br />{isE2eeReady ? t('workspace.chatPanel.encryptedAttachmentsUnavailable') : t('workspace.chatPanel.attachmentsHint')}</p>
+        <p className="chat-composer-hint">{editingMessage ? t('workspace.chatPanel.editHint') : t('workspace.chatPanel.composerHint')}<br />{isE2eeReady ? t('workspace.chatPanel.encryptedAttachmentsHint') : t('workspace.chatPanel.attachmentsHint')}</p>
       </div>
     </section>
   );

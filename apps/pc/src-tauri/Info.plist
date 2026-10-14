@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
   <key>NSCameraUsageDescription</key>
-  <string>AraChat needs camera access for video calls.</string>
+  <string>AraChat needs camera access for video calls and video notes.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>AraChat needs microphone access for audio and video calls.</string>
+  <string>AraChat needs microphone access for calls, voice messages, and video notes.</string>
 </dict>
 </plist>

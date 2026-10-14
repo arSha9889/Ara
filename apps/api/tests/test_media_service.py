@@ -12,7 +12,10 @@ from app.models.safety import UserBlock
 from app.models.storage import StoredObject
 from app.models.support import SupportMessage, SupportTicket
 from app.models.users import User, UserProfile
+from app.services.auth_service import AuthError
 from app.services.media_service import MediaAccessError, get_private_media, get_public_avatar
+from app.services.storage_service import E2EE_ATTACHMENT_FILENAME, E2EE_ATTACHMENT_MIME_TYPE, E2EE_ATTACHMENT_PURPOSE
+from app.services.stored_object_service import attach_upload_to_message
 
 
 async def _make_session_factory():
@@ -105,6 +108,123 @@ async def test_message_attachment_is_available_only_to_chat_participants(anyio_b
             await session.flush()
             with pytest.raises(MediaAccessError):
                 await get_private_media(session, participant.id, stored_object.id)
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_e2ee_attachment_uses_neutral_delivery_metadata(anyio_backend) -> None:
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+    engine, session_factory = await _make_session_factory()
+
+    try:
+        async with session_factory() as session:
+            sender = _add_user(session, number=1, username='sender')
+            participant = _add_user(session, number=2, username='participant')
+            chat = Chat(type='direct')
+            session.add(chat)
+            await session.flush()
+            session.add_all([
+                ChatParticipant(chat_id=chat.id, user_id=sender.id),
+                ChatParticipant(chat_id=chat.id, user_id=participant.id),
+            ])
+            message = Message(
+                chat_id=chat.id,
+                sender_id=sender.id,
+                type='file',
+                payload='encrypted-envelope',
+                encryption_state='e2ee_web_v1',
+            )
+            session.add(message)
+            await session.flush()
+            stored_object = _stored_object(
+                owner_user_id=sender.id,
+                storage_name='attachment.arachat',
+                purpose=E2EE_ATTACHMENT_PURPOSE,
+                status='attached_message',
+                message_id=message.id,
+            )
+            session.add(stored_object)
+            await session.commit()
+
+            media = await get_private_media(session, participant.id, stored_object.id)
+            assert media.mime_type == E2EE_ATTACHMENT_MIME_TYPE
+            assert media.filename == E2EE_ATTACHMENT_FILENAME
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_e2ee_attachment_cannot_attach_a_regular_or_external_upload(anyio_backend) -> None:
+    if anyio_backend != 'asyncio':
+        pytest.skip('asyncio only')
+    pytest.importorskip('aiosqlite')
+    engine, session_factory = await _make_session_factory()
+
+    try:
+        async with session_factory() as session:
+            sender = _add_user(session, number=1, username='sender')
+            participant = _add_user(session, number=2, username='participant')
+            chat = Chat(type='direct')
+            session.add(chat)
+            await session.flush()
+            session.add_all([
+                ChatParticipant(chat_id=chat.id, user_id=sender.id),
+                ChatParticipant(chat_id=chat.id, user_id=participant.id),
+            ])
+            message = Message(
+                chat_id=chat.id,
+                sender_id=sender.id,
+                type='file',
+                payload='encrypted-envelope',
+                encryption_state='e2ee_web_v1',
+            )
+            regular_upload = _stored_object(
+                owner_user_id=sender.id,
+                storage_name='regular.pdf',
+                purpose='message',
+                status='pending',
+            )
+            e2ee_upload = _stored_object(
+                owner_user_id=sender.id,
+                storage_name='attachment.arachat',
+                purpose=E2EE_ATTACHMENT_PURPOSE,
+                status='pending',
+            )
+            session.add_all([message, regular_upload, e2ee_upload])
+            await session.flush()
+
+            with pytest.raises(AuthError, match='Uploaded file is not available'):
+                await attach_upload_to_message(
+                    session,
+                    sender.id,
+                    message.id,
+                    regular_upload.public_url,
+                    required_purpose=E2EE_ATTACHMENT_PURPOSE,
+                    require_registered_upload=True,
+                )
+            with pytest.raises(AuthError, match='Encrypted attachment upload is not available'):
+                await attach_upload_to_message(
+                    session,
+                    sender.id,
+                    message.id,
+                    '/api/media/00000000-0000-0000-0000-000000000001',
+                    required_purpose=E2EE_ATTACHMENT_PURPOSE,
+                    require_registered_upload=True,
+                )
+
+            await attach_upload_to_message(
+                session,
+                sender.id,
+                message.id,
+                e2ee_upload.public_url,
+                required_purpose=E2EE_ATTACHMENT_PURPOSE,
+                require_registered_upload=True,
+            )
+            assert e2ee_upload.status == 'attached_message'
+            assert e2ee_upload.message_id == message.id
     finally:
         await engine.dispose()
 

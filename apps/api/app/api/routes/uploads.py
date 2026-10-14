@@ -9,7 +9,13 @@ from app.db.session import get_db_session
 from app.schemas.uploads import UploadOut
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
-from app.services.storage_service import AVATAR_MAX_SIZE_BYTES, delete_storage_object, save_upload_file
+from app.services.storage_service import (
+    AVATAR_MAX_SIZE_BYTES,
+    E2EE_ATTACHMENT_PURPOSE,
+    delete_storage_object,
+    save_e2ee_attachment_file,
+    save_upload_file,
+)
 from app.services.stored_object_service import register_pending_upload
 
 router = APIRouter()
@@ -27,6 +33,27 @@ async def upload_file(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     stored_object = await _register_upload_or_raise(session, current_user.id, stored, 'message')
+    return UploadOut(
+        media_url=stored_object.public_url,
+        media_name=stored.original_name,
+        media_mime_type=stored.mime_type,
+        media_size_bytes=stored.size_bytes,
+        suggested_message_type=stored.suggested_message_type,
+    )
+
+
+@router.post('/e2ee', response_model=UploadOut)
+async def upload_e2ee_attachment(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    file: Annotated[UploadFile, File()],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UploadOut:
+    try:
+        stored = await save_e2ee_attachment_file(file, current_user.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    stored_object = await _register_upload_or_raise(session, current_user.id, stored, E2EE_ATTACHMENT_PURPOSE)
     return UploadOut(
         media_url=stored_object.public_url,
         media_name=stored.original_name,

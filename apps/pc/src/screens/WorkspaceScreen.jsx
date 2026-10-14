@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { parrotIcon } from '../components/BrandMark.jsx';
-import { ThemeLanguageControls } from '../components/ThemeLanguageControls.jsx';
+import { ThemeToggle } from '../components/ThemeLanguageControls.jsx';
 import { WorkspaceIcon as Icon } from '../components/WorkspaceIcon.jsx';
 import { getChat, getChatMessage, getChats } from '../features/chats/chatsApi.js';
 import { isCallSignal, useDirectCall } from '../features/calls/useDirectCall.js';
@@ -560,7 +560,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     }
 
     if (selectedChat) {
-      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={() => loadChats({ showLoading: false })} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} />;
+      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={() => loadChats({ showLoading: false })} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
     }
 
     return (
@@ -604,7 +604,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
             <p>{t('workspace.chatsIntro')}</p>
           </div>
           <div className="workspace-list-actions">
-            <ThemeLanguageControls preferences={preferences} updatePreferences={updatePreferences} t={t} compact />
+            <ThemeToggle preferences={preferences} updatePreferences={updatePreferences} t={t} compact />
             <button className="workspace-list-refresh" type="button" aria-label={t('workspace.refreshChats')} onClick={() => loadChats()} disabled={isLoadingChats}><Icon name="refresh" size={16} /></button>
             <button className="workspace-new-chat" type="button" aria-label={t('workspace.newChat')} onClick={openNewChat}><Icon name="plus" /></button>
           </div>

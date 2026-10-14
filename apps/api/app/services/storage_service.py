@@ -18,6 +18,9 @@ from app.services.auth_service import AuthError
 API_ROOT = Path(__file__).resolve().parents[2]
 CHUNK_SIZE = 1024 * 1024
 AVATAR_MAX_SIZE_BYTES = 30 * 1024 * 1024
+E2EE_ATTACHMENT_MIME_TYPE = 'application/vnd.arachat.e2ee-attachment'
+E2EE_ATTACHMENT_FILENAME = 'encrypted-attachment.arachat'
+E2EE_ATTACHMENT_PURPOSE = 'e2ee_attachment'
 
 
 class StorageObjectNotFoundError(AuthError):
@@ -63,6 +66,7 @@ EXTENSIONS_BY_MIME_TYPE = {
     'audio/webm': '.webm',
     'application/pdf': '.pdf',
     'text/plain': '.txt',
+    E2EE_ATTACHMENT_MIME_TYPE: '.arachat',
 }
 
 
@@ -94,12 +98,19 @@ def get_s3_client():
     )
 
 
-async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: int | None = None) -> StoredUpload:
+async def save_upload_file(
+    upload: UploadFile,
+    user_id: UUID,
+    max_size_bytes: int | None = None,
+    *,
+    allowed_mime_types: set[str] | None = None,
+    original_name: str | None = None,
+) -> StoredUpload:
     mime_type = _normalize_mime_type(upload.content_type)
-    if mime_type not in ALLOWED_MIME_TYPES:
+    if mime_type not in (allowed_mime_types or ALLOWED_MIME_TYPES):
         raise AuthError('Unsupported upload type')
 
-    original_name = _clean_filename(upload.filename or 'upload')
+    original_name = _clean_filename(original_name if original_name is not None else upload.filename or 'upload')
     extension = EXTENSIONS_BY_MIME_TYPE[mime_type]
     stored_name = f'{uuid4().hex}{extension}'
     is_s3 = settings.storage_backend == 's3'
@@ -127,6 +138,8 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
                 if size_bytes > (max_size_bytes or settings.upload_max_size_bytes):
                     raise AuthError('Upload is too large')
                 output.write(chunk)
+        if not header:
+            raise AuthError('Upload is empty')
         if is_s3:
             await _upload_to_s3(target_path, object_key, mime_type)
     except Exception:
@@ -148,6 +161,15 @@ async def save_upload_file(upload: UploadFile, user_id: UUID, max_size_bytes: in
         mime_type=mime_type,
         size_bytes=size_bytes,
         suggested_message_type=_suggest_message_type(mime_type),
+    )
+
+
+async def save_e2ee_attachment_file(upload: UploadFile, user_id: UUID) -> StoredUpload:
+    return await save_upload_file(
+        upload,
+        user_id,
+        allowed_mime_types={E2EE_ATTACHMENT_MIME_TYPE},
+        original_name=E2EE_ATTACHMENT_FILENAME,
     )
 
 

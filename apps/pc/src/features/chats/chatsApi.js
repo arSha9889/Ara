@@ -93,6 +93,16 @@ export function uploadChatMedia(accessToken, file) {
   });
 }
 
+export function uploadE2eeAttachment(accessToken, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiRequest('/api/uploads/e2ee', {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: formData,
+  });
+}
+
 export function markMessagesRead(accessToken, chatId, messageIds) {
   return apiRequest(`/api/chats/${chatId}/read`, {
     method: 'POST',

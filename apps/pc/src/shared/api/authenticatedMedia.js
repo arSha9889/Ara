@@ -16,23 +16,22 @@ export function mediaUrlForDesktop(mediaUrl) {
   }
 }
 
-export function useAuthenticatedMediaUrl(mediaUrl, accessToken) {
-  const [state, setState] = useState({ url: '', isLoading: false, error: null });
+export function useAuthenticatedMediaBlob(mediaUrl, accessToken) {
+  const [state, setState] = useState({ blob: null, isLoading: false, error: null });
 
   useEffect(() => {
     if (!PRIVATE_MEDIA_PATH.test(mediaUrl || '')) {
-      setState({ url: mediaUrlForDesktop(mediaUrl), isLoading: false, error: null });
+      setState({ blob: null, isLoading: false, error: null });
       return undefined;
     }
     if (!accessToken) {
-      setState({ url: '', isLoading: false, error: new Error('Authentication is required') });
+      setState({ blob: null, isLoading: false, error: new Error('Authentication is required') });
       return undefined;
     }
 
     const controller = new AbortController();
-    let objectUrl = '';
     let active = true;
-    setState({ url: '', isLoading: true, error: null });
+    setState({ blob: null, isLoading: true, error: null });
 
     async function loadMedia() {
       try {
@@ -41,10 +40,10 @@ export function useAuthenticatedMediaUrl(mediaUrl, accessToken) {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`Media request failed: ${response.status}`);
-        objectUrl = URL.createObjectURL(await response.blob());
-        if (active) setState({ url: objectUrl, isLoading: false, error: null });
+        const blob = await response.blob();
+        if (active) setState({ blob, isLoading: false, error: null });
       } catch (error) {
-        if (active && error.name !== 'AbortError') setState({ url: '', isLoading: false, error });
+        if (active && error.name !== 'AbortError') setState({ blob: null, isLoading: false, error });
       }
     }
 
@@ -52,9 +51,30 @@ export function useAuthenticatedMediaUrl(mediaUrl, accessToken) {
     return () => {
       active = false;
       controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [accessToken, mediaUrl]);
 
   return state;
+}
+
+export function useAuthenticatedMediaUrl(mediaUrl, accessToken) {
+  const { blob, isLoading, error } = useAuthenticatedMediaBlob(mediaUrl, accessToken);
+  const [url, setUrl] = useState('');
+
+  useEffect(() => {
+    if (!PRIVATE_MEDIA_PATH.test(mediaUrl || '')) {
+      setUrl(mediaUrlForDesktop(mediaUrl));
+      return undefined;
+    }
+    if (!blob) {
+      setUrl('');
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(blob);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [blob, mediaUrl]);
+
+  return { url, isLoading, error };
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { SUPPORTED_LANGUAGES } from '../../i18n/copy.js';
 import { getDeviceId } from '../../shared/device/deviceId.js';
 import {
   confirmEmailChange,
@@ -58,6 +59,14 @@ function formatDate(value) {
 function SecurityFormNotice({ error, notice }) {
   if (!error && !notice) return null;
   return <p className={`workspace-form-notice ${error ? 'is-error' : ''}`} role={error ? 'alert' : 'status'}>{error ? <Icon name="warning" size={16} /> : <Icon name="check" size={16} />}{error || notice}</p>;
+}
+
+function LanguageFlag({ flag }) {
+  if (flag === 'ru') {
+    return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#fff" d="M0 0h30v6.67H0z" /><path fill="#1f57a6" d="M0 6.67h30v6.66H0z" /><path fill="#d9444c" d="M0 13.33h30V20H0z" /></svg>;
+  }
+
+  return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#012169" d="M0 0h30v20H0z" /><path stroke="#fff" strokeWidth="4" d="m0 0 30 20M30 0 0 20" /><path stroke="#c8102e" strokeWidth="2" d="m0 0 30 20M30 0 0 20" /><path stroke="#fff" strokeWidth="5" d="M15 0v20M0 10h30" /><path stroke="#c8102e" strokeWidth="3" d="M15 0v20M0 10h30" /></svg>;
 }
 
 export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, onLogout, preferences, updatePreferences, t }) {
@@ -375,7 +384,23 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
               {['light', 'dark'].map((theme) => <button className={`theme-choice theme-choice-${theme} ${preferences.theme === theme ? 'is-selected' : ''}`} type="button" key={theme} aria-pressed={preferences.theme === theme} onClick={() => updatePreferences({ theme })}><span aria-hidden="true" /><b>{t(`common.${theme}`)}</b><i><Icon name="check" size={13} /></i></button>)}
             </div>
           </div>
-          <label className="workspace-field settings-language-field"><span>{t('workspace.settingsPanel.language')}</span><select value={preferences.language} onChange={(event) => updatePreferences({ language: event.target.value })}><option value="ru">Русский</option><option value="en">English</option></select></label>
+          <fieldset className="setting-control-block language-choice-group">
+            <legend>{t('workspace.settingsPanel.language')}</legend>
+            <p id="language-choice-description">{t('workspace.settingsPanel.languageText')}</p>
+            <div className="language-choice-list">
+              {SUPPORTED_LANGUAGES.map((language) => {
+                const isSelected = preferences.language === language.id;
+                return (
+                  <label className={`language-choice ${isSelected ? 'is-selected' : ''}`} key={language.id}>
+                    <input type="radio" name="language" value={language.id} checked={isSelected} onChange={() => updatePreferences({ language: language.id })} aria-describedby="language-choice-description" />
+                    <span className="language-choice-flag"><LanguageFlag flag={language.flag} /></span>
+                    <span className="language-choice-copy"><strong>{language.label}</strong><small>{language.id.toUpperCase()}</small></span>
+                    <span className="language-choice-state" aria-hidden="true"><Icon name="check" size={15} /></span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
         </div>
         <div className="workspace-section-card">
           <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.densityTitle')}</h2><p>{t('workspace.settingsPanel.densityText')}</p></div></div>

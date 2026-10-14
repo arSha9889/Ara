@@ -71,6 +71,71 @@ def test_clients_cannot_create_call_history_messages() -> None:
         _validate_message_request(MessageCreateRequest(type='call', text='{"outcome":"cancelled"}'))
 
 
+@pytest.mark.parametrize('message_type', ['file', 'voice', 'video_note'])
+def test_e2ee_attachment_requires_an_opaque_message_shape(message_type: str) -> None:
+    encrypted_payload = '{"encrypted":"attachment-descriptor"}'
+    _validate_message_request(MessageCreateRequest(
+        type=message_type,
+        text=encrypted_payload,
+        media_url='/api/media/00000000-0000-0000-0000-000000000001',
+        encryption_state='e2ee_web_v1',
+    ))
+
+    with pytest.raises(AuthError, match='text messages and encrypted attachments'):
+        _validate_message_request(MessageCreateRequest(
+            type='photo',
+            text=encrypted_payload,
+            media_url='/api/media/00000000-0000-0000-0000-000000000001',
+            encryption_state='e2ee_web_v1',
+        ))
+    with pytest.raises(AuthError, match='Encrypted attachment requires media_url'):
+        _validate_message_request(MessageCreateRequest(
+            type=message_type,
+            text=encrypted_payload,
+            encryption_state='e2ee_web_v1',
+        ))
+    with pytest.raises(AuthError, match='metadata must be inside'):
+        _validate_message_request(MessageCreateRequest(
+            type=message_type,
+            text=encrypted_payload,
+            media_url='/api/media/00000000-0000-0000-0000-000000000001',
+            media_name='private-photo.png',
+            encryption_state='e2ee_web_v1',
+        ))
+    with pytest.raises(AuthError, match='metadata must be inside'):
+        _validate_message_request(MessageCreateRequest(
+            type=message_type,
+            text=encrypted_payload,
+            media_url='/api/media/00000000-0000-0000-0000-000000000001',
+            duration_seconds=9,
+            encryption_state='e2ee_web_v1',
+        ))
+    with pytest.raises(AuthError, match='Encrypted text messages cannot contain media'):
+        _validate_message_request(MessageCreateRequest(
+            type='text',
+            text=encrypted_payload,
+            media_url='/api/media/00000000-0000-0000-0000-000000000001',
+            encryption_state='e2ee_web_v1',
+        ))
+
+
+@pytest.mark.parametrize('message_type', ['voice', 'video_note'])
+def test_plain_timed_media_requires_a_positive_duration(message_type: str) -> None:
+    _validate_message_request(MessageCreateRequest(
+        type=message_type,
+        media_url='/api/media/00000000-0000-0000-0000-000000000001',
+        duration_seconds=1,
+    ))
+
+    for duration_seconds in (None, 0):
+        with pytest.raises(AuthError, match='Timed media message requires duration_seconds'):
+            _validate_message_request(MessageCreateRequest(
+                type=message_type,
+                media_url='/api/media/00000000-0000-0000-0000-000000000001',
+                duration_seconds=duration_seconds,
+            ))
+
+
 def test_public_user_output_exposes_only_allowed_profile_data() -> None:
     user = User(id=uuid4(), nexus_id='1234567890123456', telegram_id='telegram-private-id')
     user.profile = UserProfile(

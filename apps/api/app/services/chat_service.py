@@ -16,9 +16,11 @@ from app.services.media_service import media_url_for_message
 from app.services.phone_verification_service import PhoneVerificationError, normalize_phone
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import ensure_chat_interaction_allowed, ensure_direct_interaction_allowed, is_user_interaction_blocked
+from app.services.storage_service import E2EE_ATTACHMENT_PURPOSE
 from app.services.stored_object_service import attach_upload_to_message, schedule_message_upload_deletion
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'sticker', 'file'}
+E2EE_ATTACHMENT_MESSAGE_TYPES = frozenset({'file', 'voice', 'video_note'})
 STICKER_IDS = frozenset({
     'ara-alt', 'ara-solidity', 'ara-school-holiday', 'ara-aksakal-approves',
     'ara-sigma', 'ara-our-elephant', 'ara-civilization', 'ara-sakhavud',
@@ -238,7 +240,18 @@ async def create_message(
     )
     session.add(message)
     await session.flush()
-    await attach_upload_to_message(session, user_id, message.id, request.media_url)
+    is_e2ee_attachment = (
+        request.encryption_state == 'e2ee_web_v1'
+        and request.type in E2EE_ATTACHMENT_MESSAGE_TYPES
+    )
+    await attach_upload_to_message(
+        session,
+        user_id,
+        message.id,
+        request.media_url,
+        required_purpose=E2EE_ATTACHMENT_PURPOSE if is_e2ee_attachment else 'message',
+        require_registered_upload=is_e2ee_attachment,
+    )
     await _create_delivery_receipts(session, message)
     chat.last_message_id = message.id
     await _activate_direct_chat_participants(session, chat_id)
@@ -542,13 +555,28 @@ def _validate_message_request(request: MessageCreateRequest) -> None:
         if request.media_url or request.media_name or request.media_mime_type or request.media_size_bytes or request.duration_seconds:
             raise AuthError('Sticker messages cannot contain media')
     if request.encryption_state == 'e2ee_web_v1':
-        if request.type != 'text' or not request.text.strip():
-            raise AuthError('End-to-end encryption is available only for text messages')
-        if request.media_url or request.media_name or request.media_mime_type or request.media_size_bytes or request.duration_seconds:
-            raise AuthError('Encrypted messages cannot contain media')
+        if request.type not in {'text', *E2EE_ATTACHMENT_MESSAGE_TYPES} or not request.text.strip():
+            raise AuthError('End-to-end encryption is available only for text messages and encrypted attachments')
+        has_public_attachment_metadata = any(value is not None for value in (
+            request.media_name,
+            request.media_mime_type,
+            request.media_size_bytes,
+            request.duration_seconds,
+        ))
+        if request.type == 'text' and (request.media_url or has_public_attachment_metadata):
+            raise AuthError('Encrypted text messages cannot contain media')
+        if request.type in E2EE_ATTACHMENT_MESSAGE_TYPES:
+            if not request.media_url:
+                raise AuthError('Encrypted attachment requires media_url')
+            if has_public_attachment_metadata:
+                raise AuthError('Encrypted attachment metadata must be inside the encrypted message')
     if request.type in {'photo', 'video', 'video_note', 'voice', 'file'} and not request.media_url:
         raise AuthError('Media message requires media_url')
-    if request.type in {'voice', 'video_note'} and not request.duration_seconds:
+    if (
+        request.encryption_state != 'e2ee_web_v1'
+        and request.type in {'voice', 'video_note'}
+        and (not isinstance(request.duration_seconds, int) or request.duration_seconds <= 0)
+    ):
         raise AuthError('Timed media message requires duration_seconds')
 
 

@@ -10,7 +10,13 @@ from fastapi import UploadFile
 from app.core.config import settings
 from app.services.auth_service import AuthError
 from app.services import storage_service
-from app.services.storage_service import delete_storage_object, save_upload_file
+from app.services.storage_service import (
+    E2EE_ATTACHMENT_FILENAME,
+    E2EE_ATTACHMENT_MIME_TYPE,
+    delete_storage_object,
+    save_e2ee_attachment_file,
+    save_upload_file,
+)
 
 
 WEBM_BYTES = b'\x1a\x45\xdf\xa3webm-data'
@@ -92,6 +98,26 @@ async def test_save_upload_file_rejects_content_type_spoofing(tmp_path, monkeypa
         await save_upload_file(_upload('photo.png', 'image/png', b'MZ-not-a-real-png'), uuid4())
 
     assert not list(tmp_path.rglob('*.*'))
+
+
+@pytest.mark.anyio
+async def test_e2ee_attachment_upload_accepts_only_the_dedicated_mime_type(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(settings, 'storage_backend', 'local')
+    monkeypatch.setattr(settings, 'upload_dir', str(tmp_path))
+    monkeypatch.setattr(settings, 'storage_public_url_prefix', '/storage/uploads')
+    ciphertext = b'\x00\xffencrypted-payload-with-auth-tag'
+
+    stored = await save_e2ee_attachment_file(
+        _upload('private-photo.png', E2EE_ATTACHMENT_MIME_TYPE, ciphertext),
+        uuid4(),
+    )
+
+    assert stored.original_name == E2EE_ATTACHMENT_FILENAME
+    assert stored.mime_type == E2EE_ATTACHMENT_MIME_TYPE
+    assert stored.suggested_message_type == 'file'
+    assert stored.storage_key.endswith('.arachat')
+    with pytest.raises(AuthError, match='Unsupported upload type'):
+        await save_upload_file(_upload('ciphertext.arachat', E2EE_ATTACHMENT_MIME_TYPE, ciphertext), uuid4())
 
 
 @pytest.mark.anyio

@@ -10,7 +10,7 @@ from app.models.support import SupportMessage, SupportTicket
 from app.services.admin_service import AdminError, require_admin
 from app.services.auth_service import AuthError
 from app.services.safety_service import ensure_chat_interaction_allowed
-from app.services.storage_service import private_media_url_for
+from app.services.storage_service import E2EE_ATTACHMENT_FILENAME, E2EE_ATTACHMENT_MIME_TYPE, E2EE_ATTACHMENT_PURPOSE, private_media_url_for
 
 
 class MediaAccessError(AuthError):
@@ -28,7 +28,7 @@ async def get_private_media(session: AsyncSession, user_id: UUID, object_id: UUI
     stored_object = await session.get(StoredObject, object_id)
     if not stored_object:
         raise MediaAccessError('Media not found')
-    if stored_object.purpose == 'message' and stored_object.status == 'attached_message':
+    if stored_object.purpose in {'message', E2EE_ATTACHMENT_PURPOSE} and stored_object.status == 'attached_message':
         return await _message_media(session, user_id, stored_object)
     if stored_object.purpose == 'support' and stored_object.status == 'attached_support_message':
         return await _support_media(session, user_id, stored_object)
@@ -52,7 +52,7 @@ async def media_url_for_message(session: AsyncSession, message: Message) -> str 
     stored_object = await session.scalar(
         select(StoredObject.id).where(
             StoredObject.message_id == message.id,
-            StoredObject.purpose == 'message',
+            StoredObject.purpose.in_({'message', E2EE_ATTACHMENT_PURPOSE}),
             StoredObject.status == 'attached_message',
         ).limit(1)
     )
@@ -89,8 +89,8 @@ async def _message_media(session: AsyncSession, user_id: UUID, stored_object: St
             raise MediaAccessError('Media not found') from exc
     return MediaDelivery(
         stored_object=stored_object,
-        mime_type=message.media_mime_type,
-        filename=message.media_name,
+        mime_type=E2EE_ATTACHMENT_MIME_TYPE if stored_object.purpose == E2EE_ATTACHMENT_PURPOSE else message.media_mime_type,
+        filename=E2EE_ATTACHMENT_FILENAME if stored_object.purpose == E2EE_ATTACHMENT_PURPOSE else message.media_name,
     )
 
 

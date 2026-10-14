@@ -2,6 +2,13 @@ import { getDeviceId } from '../device/deviceId.js';
 
 export const E2EE_WEB_ALGORITHM = 'ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256';
 
+const E2EE_ATTACHMENT_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/avif',
+  'video/mp4', 'video/webm', 'video/quicktime',
+  'audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm',
+  'application/pdf', 'text/plain', 'application/octet-stream',
+]);
+
 const DATABASE_NAME = 'arachat-e2ee-web-v1';
 const DATABASE_VERSION = 1;
 const IDENTITY_STORE = 'identities';
@@ -154,6 +161,10 @@ async function importSigningPublicKey(value) {
 
 function additionalData(chatId, senderId, recipientId) {
   return TEXT_ENCODER.encode(`AraChat E2EE Web v1|${chatId}|${senderId}|${recipientId}`);
+}
+
+function attachmentAdditionalData(chatId, senderId) {
+  return TEXT_ENCODER.encode(`AraChat E2EE attachment v1|${chatId}|${senderId}`);
 }
 
 async function deriveMessageKey(privateKey, publicKey, salt, chatId, senderId, recipientId) {
@@ -344,6 +355,75 @@ export async function decryptE2eeMessage({ message, chatId, currentUserId, ident
   } catch {
     return { ...message, payload: '', e2ee_status: 'unavailable' };
   }
+}
+
+export function parseE2eeAttachmentDescriptor(payload) {
+  try {
+    const descriptor = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    if (
+      !descriptor
+      || descriptor.kind !== 'attachment'
+      || descriptor.version !== 1
+      || typeof descriptor.name !== 'string'
+      || !descriptor.name
+      || descriptor.name.length > 255
+      || typeof descriptor.mime_type !== 'string'
+      || !descriptor.mime_type
+      || descriptor.mime_type.length > 128
+      || !E2EE_ATTACHMENT_MIME_TYPES.has(descriptor.mime_type)
+      || !Number.isSafeInteger(descriptor.size_bytes)
+      || descriptor.size_bytes < 0
+      || typeof descriptor.file_key !== 'string'
+      || typeof descriptor.file_iv !== 'string'
+      || (descriptor.caption !== undefined && (typeof descriptor.caption !== 'string' || descriptor.caption.length > 4000))
+      || (descriptor.media_kind !== undefined && !['voice', 'video_note'].includes(descriptor.media_kind))
+      || (
+        descriptor.media_kind !== undefined
+        && (!Number.isSafeInteger(descriptor.duration_seconds) || descriptor.duration_seconds <= 0)
+      )
+      || (descriptor.media_kind === undefined && descriptor.duration_seconds !== undefined)
+    ) {
+      return null;
+    }
+    if (base64ToBytes(descriptor.file_key).byteLength !== 32 || base64ToBytes(descriptor.file_iv).byteLength !== 12) {
+      return null;
+    }
+    return {
+      kind: 'attachment',
+      version: 1,
+      name: descriptor.name,
+      mime_type: descriptor.mime_type,
+      size_bytes: descriptor.size_bytes,
+      file_key: descriptor.file_key,
+      file_iv: descriptor.file_iv,
+      caption: descriptor.caption || '',
+      media_kind: descriptor.media_kind || null,
+      duration_seconds: descriptor.media_kind ? descriptor.duration_seconds : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function decryptE2eeAttachment({ ciphertext, descriptor, chatId, senderId }) {
+  const attachment = parseE2eeAttachmentDescriptor(descriptor);
+  if (!attachment || !ciphertext || typeof ciphertext.arrayBuffer !== 'function') {
+    throw new Error('Некорректное зашифрованное вложение.');
+  }
+  const [fileKey, source] = await Promise.all([
+    window.crypto.subtle.importKey('raw', base64ToBytes(attachment.file_key), { name: 'AES-GCM' }, false, ['decrypt']),
+    ciphertext.arrayBuffer(),
+  ]);
+  const plaintext = await window.crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: base64ToBytes(attachment.file_iv),
+      additionalData: attachmentAdditionalData(chatId, senderId),
+    },
+    fileKey,
+    source,
+  );
+  return new Blob([plaintext], { type: attachment.mime_type });
 }
 
 export async function signingKeyFingerprint(signingPublicKey) {

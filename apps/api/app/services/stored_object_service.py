@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.storage import StoredObject
+from app.services.auth_service import AuthError
 from app.services.storage_service import StoredUpload, private_media_url_for, public_avatar_url_for
 
 
@@ -38,6 +39,9 @@ async def attach_upload_to_message(
     owner_user_id: UUID,
     message_id: UUID,
     public_url: str | None,
+    *,
+    required_purpose: str = 'message',
+    require_registered_upload: bool = False,
 ) -> None:
     if not public_url:
         return
@@ -46,15 +50,17 @@ async def attach_upload_to_message(
         select(StoredObject).where(StoredObject.public_url == public_url).limit(1).with_for_update()
     )
     if not stored_object:
+        if require_registered_upload:
+            raise AuthError('Encrypted attachment upload is not available for this message')
         # URLs created before the upload registry or external media remain
         # readable, but are deliberately excluded from automatic deletion.
         return
     if (
         stored_object.owner_user_id != owner_user_id
-        or stored_object.purpose != 'message'
+        or stored_object.purpose != required_purpose
         or stored_object.status != 'pending'
     ):
-        raise ValueError('Uploaded file is not available for this message')
+        raise AuthError('Uploaded file is not available for this message')
 
     stored_object.status = 'attached_message'
     stored_object.message_id = message_id
