@@ -115,9 +115,12 @@ class ChatOut(BaseModel):
     description: str | None = None
     avatar_ref: str | None = None
     is_official: bool = False
+    is_private: bool = False
     is_subscribed: bool = True
     subscriber_count: int = 0
     can_post: bool = False
+    current_role: Literal['owner', 'admin', 'member'] | None = None
+    notifications_enabled: bool = True
     wallpaper_id: str = 'default'
 
 
@@ -126,6 +129,53 @@ class PublicBranchCreateRequest(BaseModel):
     slug: str = Field(pattern=r'^[a-z0-9-]{3,64}$')
     description: str = Field(default='', max_length=500)
     avatar_ref: str | None = Field(default=None, max_length=255)
+
+
+class PrivateBranchCreateRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=120)
+    description: str = Field(default='', max_length=500)
+    avatar_ref: str | None = Field(default=None, max_length=255)
+
+
+class PrivateBranchUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    avatar_ref: str | None = Field(default=None, max_length=255)
+
+
+class BranchInviteJoinRequest(BaseModel):
+    invite_token: str = Field(min_length=20, max_length=256)
+
+
+class BranchInviteOut(BaseModel):
+    invite_link: str
+
+
+class BranchInviteStateOut(BaseModel):
+    is_active: bool
+
+
+class PrivateBranchCreateOut(BaseModel):
+    chat: ChatOut
+    invite: BranchInviteOut
+
+
+class BranchMemberUpdateRequest(BaseModel):
+    role: Literal['owner', 'admin', 'member']
+
+
+class BranchMemberOut(BaseModel):
+    user_id: UUID
+    display_name: str
+    username: str
+    avatar_type: str
+    avatar_ref: str
+    role: Literal['owner', 'admin', 'member']
+    joined_at: datetime
+
+
+class BranchNotificationsUpdateRequest(BaseModel):
+    enabled: bool
 
 
 class MessageOut(BaseModel):
@@ -145,6 +195,7 @@ class MessageOut(BaseModel):
     reply_to: MessageReplyOut | None = None
     reactions: list[MessageReactionOut]
     comment_count: int = 0
+    comments_enabled: bool = True
     created_at: datetime
     edited_at: datetime | None
     deleted_at: datetime | None
@@ -157,6 +208,10 @@ class BranchCommentCreateRequest(BaseModel):
 
 class BranchCommentUpdateRequest(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
+
+
+class BranchPostCommentsUpdateRequest(BaseModel):
+    comments_enabled: bool
 
 
 class BranchCommentOut(BaseModel):

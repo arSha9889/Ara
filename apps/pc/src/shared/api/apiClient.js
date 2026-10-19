@@ -108,6 +108,34 @@ const ERROR_MESSAGES = {
   },
 };
 
+const KAZAKH_ERROR_MESSAGES = {
+  'Invalid login identifier or password': 'E-mail немесе құпиясөз қате.',
+  'Login identifier is required': 'E-mail мекенжайын енгізіңіз.',
+  'Email is already registered': 'Бұл e-mail бұрын тіркелген.',
+  'Email verification request not found': 'E-mail растау сұрауы табылмады. Кодты қайта сұратыңыз.',
+  'Email verification request is already used': 'Бұл код бұрын қолданылған. Жаңасын сұратыңыз.',
+  'Email verification request is expired': 'Кодтың жарамдылық мерзімі аяқталды. Жаңасын сұратыңыз.',
+  'Invalid e-mail confirmation code': 'Хаттағы код қате.',
+  'E-mail confirmation code is not available': 'Растау коды қолжетімсіз. Жаңасын сұратыңыз.',
+  'E-mail verification is not available on this device': 'E-mail мекенжайын код сұратылған құрылғыда растаңыз.',
+  'Too many e-mail verification requests. Try again later': 'Код сұраулары тым көп. Кейінірек қайталап көріңіз.',
+  'Too many authentication requests. Try again later': 'Әрекеттер тым көп. Кейінірек қайталап көріңіз.',
+  'SMTP e-mail delivery is not configured': 'Серверде e-mail жеткізу әлі бапталмаған.',
+  'Could not deliver verification e-mail': 'Коды бар хатты жіберу мүмкін болмады. Кейінірек қайталап көріңіз.',
+  'Этот username уже занят': 'Бұл username бос емес.',
+  'Username должен содержать только латинские буквы и цифры, от 3 до 32 символов': 'Username 3-тен 32-ге дейін тек латын әріптері мен сандарынан тұруы керек.',
+  'Пароль должен содержать только латинские буквы и цифры, от 5 до 30 символов': 'Құпиясөз 5-тен 30-ға дейін тек латын әріптері мен сандарынан тұруы керек.',
+  'Для регистрации нужно принять Политику конфиденциальности и Пользовательское соглашение': 'Тіркелу үшін Құпиялылық саясаты мен Пайдалану шарттарын қабылдаңыз.',
+  'Invalid refresh token': 'Сессия мерзімі аяқталды. Қайта кіріңіз.',
+  'Display name is required': 'Көрсетілетін атты енгізіңіз.',
+  'User not found': 'Пайдаланушы табылмады.',
+  'Cannot create direct chat with yourself': 'Өзіңізбен жеке чат ашу мүмкін емес.',
+  'This interaction is unavailable.': 'Бұл әрекет қолжетімсіз.',
+  'Chat not found': 'Чат табылмады немесе енді қолжетімсіз.',
+  'Text message cannot be empty': 'Хабарлама мәтіні бос болмауы керек.',
+  'Text message is too long': 'Хабарлама мәтіні 4 000 таңбадан аспауы керек.',
+};
+
 export class ApiRequestError extends Error {
   constructor(message, status = 0) {
     super(message);
@@ -117,28 +145,38 @@ export class ApiRequestError extends Error {
 }
 
 function currentLanguage() {
-  return document.documentElement.lang === 'en' ? 'en' : 'ru';
+  const language = document.documentElement.lang;
+  return ['en', 'kk'].includes(language) ? language : 'ru';
 }
 
 function translateApiError(detail, status) {
   const language = currentLanguage();
-  if (typeof detail === 'string') return ERROR_MESSAGES[detail]?.[language] ?? detail;
-  if (Array.isArray(detail)) {
-    return language === 'en'
-      ? 'Check the form: one or more fields have an invalid format.'
-      : 'Проверьте форму: один или несколько полей заполнены неверно.';
+  if (typeof detail === 'string') {
+    if (language === 'kk') return KAZAKH_ERROR_MESSAGES[detail] ?? detail;
+    return ERROR_MESSAGES[detail]?.[language] ?? detail;
   }
-  return language === 'en'
-    ? `The server returned an error (${status}).`
-    : `Сервер вернул ошибку (${status}).`;
+  if (Array.isArray(detail)) {
+    return {
+      en: 'Check the form: one or more fields have an invalid format.',
+      kk: 'Пішінді тексеріңіз: бір немесе бірнеше өріс қате толтырылған.',
+      ru: 'Проверьте форму: один или несколько полей заполнены неверно.',
+    }[language];
+  }
+  return {
+    en: `The server returned an error (${status}).`,
+    kk: `Сервер қатені қайтарды (${status}).`,
+    ru: `Сервер вернул ошибку (${status}).`,
+  }[language];
 }
 
 export function apiUrlFor(path) {
   if (!API_BASE_URL) {
     throw new ApiRequestError(
-      currentLanguage() === 'en'
-        ? 'The AraChat API address is not configured for this build.'
-        : 'Адрес API AraChat не настроен для этой сборки.',
+      {
+        en: 'The AraChat API address is not configured for this build.',
+        kk: 'AraChat API мекенжайы бұл жинақ үшін бапталмаған.',
+        ru: 'Адрес API AraChat не настроен для этой сборки.',
+      }[currentLanguage()],
     );
   }
   return `${API_BASE_URL}${path}`;
@@ -161,9 +199,11 @@ export async function apiRequest(path, options = {}) {
   } catch (error) {
     if (error instanceof ApiRequestError) throw error;
     throw new ApiRequestError(
-      currentLanguage() === 'en'
-        ? 'Could not connect to the AraChat server. Check your connection and try again.'
-        : 'Не удалось подключиться к серверу AraChat. Проверьте подключение и повторите попытку.',
+      {
+        en: 'Could not connect to the AraChat server. Check your connection and try again.',
+        kk: 'AraChat серверіне қосылу мүмкін болмады. Қосылымды тексеріп, қайталап көріңіз.',
+        ru: 'Не удалось подключиться к серверу AraChat. Проверьте подключение и повторите попытку.',
+      }[currentLanguage()],
     );
   }
 
@@ -172,5 +212,6 @@ export async function apiRequest(path, options = {}) {
     throw new ApiRequestError(translateApiError(responseBody?.detail, response.status), response.status);
   }
 
+  if (response.status === 204) return undefined;
   return response.json();
 }

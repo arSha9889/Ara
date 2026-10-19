@@ -30,6 +30,106 @@ export function createDirectChatForUser(accessToken, userId) {
   });
 }
 
+export function getPublicChannels(accessToken) {
+  return apiRequest('/api/chats/branches/public', {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function subscribeToPublicChannel(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}/subscribe`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function unsubscribeFromPublicChannel(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}/subscribe`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function createPrivateChannel(accessToken, payload) {
+  return apiRequest('/api/chats/branches/private', {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function joinPrivateChannel(accessToken, inviteToken) {
+  return apiRequest('/api/chats/branches/join', {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: { invite_token: inviteToken },
+  });
+}
+
+export function updatePrivateChannel(accessToken, channelId, payload) {
+  return apiRequest(`/api/chats/branches/${channelId}`, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function leavePrivateChannel(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}/leave`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function getChannelInviteState(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}/invite`, {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function generateChannelInvite(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}/invite`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function revokeChannelInvite(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}/invite`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function getChannelMembers(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}/members`, {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function updateChannelMemberRole(accessToken, channelId, userId, role) {
+  return apiRequest(`/api/chats/branches/${channelId}/members/${userId}`, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken),
+    body: { role },
+  });
+}
+
+export function removeChannelMember(accessToken, channelId, userId) {
+  return apiRequest(`/api/chats/branches/${channelId}/members/${userId}`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function updateChannelNotifications(accessToken, channelId, enabled) {
+  return apiRequest(`/api/chats/branches/${channelId}/notifications`, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken),
+    body: { enabled },
+  });
+}
+
 export function getChatMessages(accessToken, chatId) {
   return apiRequest(`/api/chats/${chatId}/messages`, {
     headers: authorizationHeaders(accessToken),
@@ -90,10 +190,57 @@ export function reactToMessage(accessToken, chatId, messageId, emoji) {
   });
 }
 
+export function setChannelPostCommentsEnabled(accessToken, channelId, postId, commentsEnabled) {
+  return apiRequest(`/api/chats/branches/${channelId}/messages/${postId}/comments-enabled`, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken),
+    body: { comments_enabled: commentsEnabled },
+  });
+}
+
+export function getChannelPostComments(accessToken, channelId, postId) {
+  return apiRequest(`/api/chats/${channelId}/messages/${postId}/comments`, {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function createChannelPostComment(accessToken, channelId, postId, text) {
+  return apiRequest(`/api/chats/${channelId}/messages/${postId}/comments`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: { text },
+  });
+}
+
+export function updateChannelPostComment(accessToken, channelId, commentId, text) {
+  return apiRequest(`/api/chats/${channelId}/comments/${commentId}`, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken),
+    body: { text },
+  });
+}
+
+export function deleteChannelPostComment(accessToken, channelId, commentId) {
+  return apiRequest(`/api/chats/${channelId}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
 export function uploadChatMedia(accessToken, file) {
   const formData = new FormData();
   formData.append('file', file);
   return apiRequest('/api/uploads', {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: formData,
+  });
+}
+
+export function uploadChannelAvatar(accessToken, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiRequest('/api/uploads/avatar', {
     method: 'POST',
     headers: authorizationHeaders(accessToken),
     body: formData,

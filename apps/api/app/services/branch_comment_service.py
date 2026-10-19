@@ -23,6 +23,7 @@ async def list_branch_comments(
     cursor: datetime | None = None,
     limit: int = 50,
 ) -> list[BranchCommentOut]:
+    await _ensure_can_view_branch(session, user_id, branch_id)
     await _ensure_branch_post(session, branch_id, post_id)
     statement = select(BranchComment).where(BranchComment.branch_id == branch_id, BranchComment.post_id == post_id)
     if cursor:
@@ -40,7 +41,10 @@ async def create_branch_comment(
     post_id: UUID,
     text: str,
 ) -> tuple[BranchCommentOut, int]:
-    await _ensure_branch_post(session, branch_id, post_id)
+    await _ensure_can_view_branch(session, user_id, branch_id)
+    post = await _ensure_branch_post(session, branch_id, post_id)
+    if not post.comments_enabled:
+        raise AuthError('Comments are disabled for this post')
     participant = await session.get(ChatParticipant, {'chat_id': branch_id, 'user_id': user_id})
     if not participant or participant.role not in COMMENTING_ROLES:
         raise AuthError('Subscribe to this branch to comment')
@@ -70,6 +74,7 @@ async def update_branch_comment(
     comment_id: UUID,
     text: str,
 ) -> BranchCommentOut:
+    await _ensure_can_view_branch(session, user_id, branch_id)
     comment = await _comment_in_branch(session, branch_id, comment_id)
     if comment.author_id != user_id:
         raise AuthError('Only the author can edit this comment')
@@ -90,6 +95,7 @@ async def delete_branch_comment(
     branch_id: UUID,
     comment_id: UUID,
 ) -> tuple[BranchCommentOut, int]:
+    await _ensure_can_view_branch(session, user_id, branch_id)
     comment = await _comment_in_branch(session, branch_id, comment_id)
     if comment.author_id != user_id and not await _can_moderate(session, user_id, branch_id):
         raise AuthError('Only the author or a branch administrator can delete this comment')
@@ -103,6 +109,15 @@ async def delete_branch_comment(
 async def get_branch_post_author_id(session: AsyncSession, branch_id: UUID, post_id: UUID) -> UUID:
     post = await _ensure_branch_post(session, branch_id, post_id)
     return post.sender_id
+
+
+async def _ensure_can_view_branch(session: AsyncSession, user_id: UUID, branch_id: UUID) -> Chat:
+    branch = await session.get(Chat, branch_id)
+    if not branch or branch.type != 'branch' or branch.is_archived:
+        raise AuthError('Branch not found')
+    if branch.is_private and not await session.get(ChatParticipant, {'chat_id': branch_id, 'user_id': user_id}):
+        raise AuthError('Branch not found')
+    return branch
 
 
 async def _ensure_branch_post(session: AsyncSession, branch_id: UUID, post_id: UUID) -> Message:

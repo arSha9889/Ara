@@ -40,7 +40,7 @@ async def get_public_avatar(session: AsyncSession, object_id: UUID) -> MediaDeli
     if (
         not stored_object
         or stored_object.purpose != 'avatar'
-        or stored_object.status != 'attached_avatar'
+        or stored_object.status not in {'attached_avatar', 'attached_channel_avatar'}
     ):
         raise MediaAccessError('Avatar not found')
     return MediaDelivery(stored_object=stored_object)
@@ -79,7 +79,7 @@ async def _message_media(session: AsyncSession, user_id: UUID, stored_object: St
     chat = await session.get(Chat, message.chat_id)
     if not chat or chat.is_archived:
         raise MediaAccessError('Media not found')
-    if chat.type != 'branch':
+    if chat.type != 'branch' or chat.is_private:
         participant = await session.get(ChatParticipant, {'chat_id': chat.id, 'user_id': user_id})
         if not participant:
             raise MediaAccessError('Media not found')

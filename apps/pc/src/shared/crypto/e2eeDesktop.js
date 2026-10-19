@@ -451,6 +451,27 @@ async function trustPeerSigningKey(userId, peerUserId, peerDeviceId, signingPubl
   });
 }
 
+async function messageVerificationStatus({ envelope, message, currentUserId, chatKeys }) {
+  const senderId = String(message.sender_id);
+  const senderKey = chatKeys.find((key) => (
+    String(key.user_id) === senderId && key.device_id === envelope.sender_device_id
+  ));
+  let verificationStatus = senderKey?.signing_public_key === envelope.sender_signing_public_key ? 'verified' : 'unverified';
+  if (senderId === String(currentUserId)) return verificationStatus;
+
+  try {
+    const trustedKey = await readTrustedPeerSigningKey(String(currentUserId), senderId, envelope.sender_device_id);
+    if (trustedKey && trustedKey !== envelope.sender_signing_public_key) {
+      verificationStatus = 'key_changed';
+    } else if (!trustedKey) {
+      await trustPeerSigningKey(String(currentUserId), senderId, envelope.sender_device_id, envelope.sender_signing_public_key);
+    }
+  } catch {
+    verificationStatus = verificationStatus === 'verified' ? 'unverified' : verificationStatus;
+  }
+  return verificationStatus;
+}
+
 export async function decryptE2eePayload({ message, chatId, currentUserId, identity, chatKeys }) {
   try {
     const envelope = parseEnvelope(message.payload);
@@ -464,19 +485,6 @@ export async function decryptE2eePayload({ message, chatId, currentUserId, ident
     if (!signatureValid) throw new Error('Подпись сообщения не прошла проверку.');
 
     const senderId = String(message.sender_id);
-    const senderKey = chatKeys.find((key) => (
-      String(key.user_id) === senderId && key.device_id === envelope.sender_device_id
-    ));
-    let verificationStatus = senderKey?.signing_public_key === envelope.sender_signing_public_key ? 'verified' : 'unverified';
-    if (senderId !== String(currentUserId)) {
-      const trustedKey = await readTrustedPeerSigningKey(String(currentUserId), senderId, envelope.sender_device_id);
-      if (trustedKey && trustedKey !== envelope.sender_signing_public_key) {
-        verificationStatus = 'key_changed';
-      } else if (!trustedKey) {
-        await trustPeerSigningKey(String(currentUserId), senderId, envelope.sender_device_id, envelope.sender_signing_public_key);
-      }
-    }
-
     const recipient = envelope.recipients[`${currentUserId}:${getDeviceId()}`];
     if (!recipient?.ciphertext || !recipient.iv || !recipient.salt) {
       throw new Error('На этом устройстве нет ключа для расшифрования сообщения.');
@@ -496,6 +504,7 @@ export async function decryptE2eePayload({ message, chatId, currentUserId, ident
       messageKey,
       base64ToBytes(recipient.ciphertext),
     );
+    const verificationStatus = await messageVerificationStatus({ envelope, message, currentUserId, chatKeys });
     return { plaintext: new Uint8Array(plaintext), e2ee_status: verificationStatus };
   } catch {
     return { plaintext: null, e2ee_status: 'unavailable' };

@@ -11,7 +11,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.chats import Chat, ChatParticipant, Message, MobilePushToken, Notification, PushSubscription, SystemAnnouncement
+from app.models.chats import Chat, ChatParticipant, ChatPreference, Message, MobilePushToken, Notification, PushSubscription, SystemAnnouncement
 from app.models.users import User, UserProfile
 from app.schemas.chats import (
     MessageOut,
@@ -206,6 +206,14 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
             recipient_id for recipient_id in recipients
             if not await is_user_interaction_blocked(session, message.sender_id, recipient_id)
         ]
+    elif chat and chat.type == 'branch':
+        muted_recipient_ids = set((await session.execute(
+            select(ChatPreference.user_id).where(
+                ChatPreference.chat_id == message.chat_id,
+                ChatPreference.notifications_enabled.is_(False),
+            )
+        )).scalars())
+        recipients = [recipient_id for recipient_id in recipients if recipient_id not in muted_recipient_ids]
     if not recipients:
         return
 

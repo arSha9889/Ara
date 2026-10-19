@@ -11,10 +11,15 @@ const SECURE_STORAGE_MESSAGES = {
     load_refresh_token: 'Системное защищённое хранилище недоступно. Не удалось восстановить сохранённую сессию.',
     save_refresh_token: 'Системное защищённое хранилище недоступно. Сессия не была сохранена на этом устройстве.',
   },
+  kk: {
+    clear_refresh_token: 'Жүйелік қорғалған қойма қолжетімсіз. Сақталған сессияны осы құрылғыдан жою мүмкін болмады.',
+    load_refresh_token: 'Жүйелік қорғалған қойма қолжетімсіз. Сақталған сессияны қалпына келтіру мүмкін болмады.',
+    save_refresh_token: 'Жүйелік қорғалған қойма қолжетімсіз. Сессия осы құрылғыда сақталмады.',
+  },
 };
 
 function secureStorageError(command) {
-  const language = document.documentElement.lang === 'en' ? 'en' : 'ru';
+  const language = ['en', 'kk'].includes(document.documentElement.lang) ? document.documentElement.lang : 'ru';
   return new Error(SECURE_STORAGE_MESSAGES[language][command]);
 }
 

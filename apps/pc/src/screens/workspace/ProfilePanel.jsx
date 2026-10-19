@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
-import { getCurrentUser, updateCurrentProfile } from '../../features/users/usersApi.js';
+import { getCurrentUser, updateCurrentProfile, uploadProfileAvatar } from '../../features/users/usersApi.js';
+import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9]{3,32}$/;
 
@@ -15,12 +16,14 @@ function initials(displayName) {
     .toUpperCase();
 }
 
-export function ProfilePanel({ accessToken, t }) {
+export function ProfilePanel({ accessToken, onCurrentUserUpdated, t }) {
   const [user, setUser] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const avatarInputRef = useRef(null);
 
   useEffect(() => {
     let isCurrent = true;
@@ -65,11 +68,15 @@ export function ProfilePanel({ accessToken, t }) {
     setError('');
     setFeedback('');
     try {
+      const avatar = avatarFile ? await uploadProfileAvatar(accessToken, avatarFile) : null;
       const updatedUser = await updateCurrentProfile(accessToken, {
         display_name: user.profile.display_name.trim(),
         username: user.profile.username,
+        ...(avatar ? { avatar_type: 'uploaded', avatar_ref: avatar.media_url } : {}),
       });
       setUser(updatedUser);
+      setAvatarFile(null);
+      onCurrentUserUpdated?.(updatedUser);
       setFeedback(t('workspace.profilePanel.saved'));
     } catch (requestError) {
       setError(requestError.message);
@@ -81,6 +88,7 @@ export function ProfilePanel({ accessToken, t }) {
   const profile = user?.profile;
   const displayName = profile?.display_name ?? '';
   const username = profile?.username ?? '';
+  const avatarUrl = mediaUrlForDesktop(profile?.avatar_ref);
 
   return (
     <section className="workspace-detail-panel workspace-profile-panel" aria-labelledby="profile-title">
@@ -94,15 +102,25 @@ export function ProfilePanel({ accessToken, t }) {
       </header>
 
       <div className="profile-identity-card">
-        <span className="profile-avatar" aria-hidden="true">{initials(displayName) || 'AR'}</span>
+        <div className="profile-avatar">
+          {avatarUrl ? <img src={avatarUrl} alt={displayName || t('workspace.profilePanel.defaultName')} /> : initials(displayName) || 'AR'}
+          <button className="profile-avatar-edit" type="button" aria-label={t('workspace.profilePanel.changeAvatar')} title={t('workspace.profilePanel.changeAvatar')} onClick={() => avatarInputRef.current?.click()} disabled={isLoading || isSaving}><Icon name="image" size={13} /></button>
+        </div>
         <div className="profile-identity-copy">
           <strong>{displayName || t('workspace.profilePanel.defaultName')}</strong>
           <span>@{username || '—'}</span>
+          {avatarFile ? <small>{avatarFile.name}</small> : null}
         </div>
         <div className="profile-server-mark"><span aria-hidden="true" />{t('workspace.profilePanel.serverMark')}</div>
       </div>
 
       <form className="profile-editor" onSubmit={saveProfile} noValidate>
+        <input ref={avatarInputRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,image/avif" onChange={(event) => {
+          setAvatarFile(event.target.files?.[0] ?? null);
+          event.target.value = '';
+          setFeedback('');
+          setError('');
+        }} disabled={isLoading || isSaving} />
         <div className="workspace-section-card">
           <div className="workspace-section-heading">
             <div><h2>{t('workspace.profilePanel.personalTitle')}</h2><p>{t('workspace.profilePanel.personalText')}</p></div>

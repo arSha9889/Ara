@@ -4,10 +4,12 @@ import { API_BASE_URL, apiUrlFor } from './apiClient.js';
 
 const LOCAL_UPLOAD_PATH = '/storage/uploads/';
 const PRIVATE_MEDIA_PATH = /^\/api\/media\/[0-9a-f-]{36}$/i;
+const PUBLIC_AVATAR_PATH = /^\/api\/media\/avatars\/[0-9a-f-]{36}$/i;
 
 export function mediaUrlForDesktop(mediaUrl) {
   if (!mediaUrl) return '';
   if (mediaUrl.startsWith(LOCAL_UPLOAD_PATH)) return API_BASE_URL ? `${API_BASE_URL}${mediaUrl}` : '';
+  if (PUBLIC_AVATAR_PATH.test(mediaUrl)) return API_BASE_URL ? `${API_BASE_URL}${mediaUrl}` : mediaUrl;
 
   try {
     return new URL(mediaUrl).toString();

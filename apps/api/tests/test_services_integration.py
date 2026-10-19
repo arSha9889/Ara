@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app import models  # noqa: F401
 from app.db.base import Base
 from app.models.chats import Chat, ChatParticipant, Message
+from app.models.storage import StoredObject
 from app.models.safety import UserBlock
 from app.models.verification import EmailVerification
 from app.models.users import UserProfile
@@ -19,10 +20,11 @@ from app.schemas.chats import MessageCreateRequest, MessageOut
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, list_branch_comments, update_branch_comment
-from app.services.branch_service import subscribe_to_branch, unsubscribe_from_branch
+from app.services.branch_service import create_private_branch, generate_private_branch_invite, join_private_branch_by_invite, leave_private_branch, list_public_branches, remove_private_branch_member, revoke_private_branch_invite, subscribe_to_branch, unsubscribe_from_branch, update_branch_notifications, update_private_branch_member
 from app.services.call_signaling import CallSession
 from app.services.call_history_service import finalize_call_record, list_call_history, start_call_record
-from app.services.chat_service import create_call_history_message, create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, delete_message, get_chat, get_message, hide_all_direct_chats, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, toggle_reaction, update_chat_wallpaper
+from app.services.chat_service import create_call_history_message, create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, delete_message, get_chat, get_message, hide_all_direct_chats, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, set_branch_post_comments_enabled, toggle_reaction, update_chat_wallpaper
+from app.services.media_service import MediaAccessError, get_private_media
 from app.services.e2ee_service import E2EE_WEB_ALGORITHM, list_direct_chat_e2ee_keys, upsert_e2ee_web_key
 from app.services.notification_service import create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
@@ -526,5 +528,119 @@ async def test_public_branch_subscriptions_and_comments() -> None:
             unsubscribed_branch = await get_chat(session, subscriber.id, branch.id)
             assert not unsubscribed_branch.is_subscribed
             assert unsubscribed_branch.subscriber_count == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_private_branch_invites_access_roles_and_comments() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        owner, _, _ = await _create_user(session_factory, 'privateowner', '301')
+        reader, _, _ = await _create_user(session_factory, 'privatereader', '302')
+        outsider, _, _ = await _create_user(session_factory, 'privateoutsider', '303')
+
+        async with session_factory() as session:
+            branch, first_invite = await create_private_branch(
+                session,
+                owner.id,
+                'Приватные новости',
+                'Только для приглашённых',
+                None,
+            )
+            assert branch.is_private
+            assert branch.invite_token_hash != first_invite
+            assert branch.id not in {item.id for item in await list_public_branches(session, owner.id)}
+
+            post = await create_message(session, owner.id, branch.id, MessageCreateRequest(text='Закрытая публикация'))
+            stored_object = StoredObject(
+                owner_user_id=owner.id,
+                message_id=post.id,
+                storage_key=f'test-private-media/{uuid4()}',
+                public_url='https://storage.example.test/private-media',
+                purpose='message',
+                status='attached_message',
+                size_bytes=1,
+            )
+            session.add(stored_object)
+            await session.commit()
+
+            with pytest.raises(AuthError, match='Chat not found'):
+                await get_chat(session, outsider.id, branch.id)
+            with pytest.raises(AuthError, match='Chat not found'):
+                await list_messages(session, outsider.id, branch.id)
+            with pytest.raises(AuthError, match='Branch not found'):
+                await list_branch_comments(session, outsider.id, branch.id, post.id)
+            with pytest.raises(MediaAccessError, match='Media not found'):
+                await get_private_media(session, outsider.id, stored_object.id)
+
+            joined = await join_private_branch_by_invite(session, reader.id, first_invite)
+            assert joined.id == branch.id
+            assert (await get_chat(session, reader.id, branch.id)).current_role == 'member'
+            comment, count = await create_branch_comment(session, reader.id, branch.id, post.id, 'Прочитано')
+            assert count == 1
+
+            disabled_post = await set_branch_post_comments_enabled(session, owner.id, branch.id, post.id, False)
+            assert not disabled_post.comments_enabled
+            assert [item.id for item in await list_branch_comments(session, reader.id, branch.id, post.id)] == [comment.id]
+            with pytest.raises(AuthError, match='Comments are disabled'):
+                await create_branch_comment(session, reader.id, branch.id, post.id, 'Ещё один комментарий')
+
+            await revoke_private_branch_invite(session, owner.id, branch.id)
+            with pytest.raises(AuthError, match='Invite link is invalid or revoked'):
+                await join_private_branch_by_invite(session, outsider.id, first_invite)
+            regenerated_invite = await generate_private_branch_invite(session, owner.id, branch.id)
+            await join_private_branch_by_invite(session, outsider.id, regenerated_invite)
+
+            with pytest.raises(AuthError, match='Transfer channel ownership before leaving'):
+                await leave_private_branch(session, owner.id, branch.id)
+            await update_private_branch_member(session, owner.id, branch.id, reader.id, 'owner')
+            assert (await session.get(ChatParticipant, {'chat_id': branch.id, 'user_id': owner.id})).role == 'admin'
+            assert (await session.get(ChatParticipant, {'chat_id': branch.id, 'user_id': reader.id})).role == 'owner'
+
+            await update_private_branch_member(session, reader.id, branch.id, outsider.id, 'admin')
+            with pytest.raises(AuthError, match='Administrators can remove members only'):
+                await remove_private_branch_member(session, owner.id, branch.id, outsider.id)
+            await update_private_branch_member(session, reader.id, branch.id, outsider.id, 'member')
+            await remove_private_branch_member(session, owner.id, branch.id, outsider.id)
+            with pytest.raises(AuthError, match='Chat not found'):
+                await get_chat(session, outsider.id, branch.id)
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_private_branch_muted_members_do_not_receive_post_notifications() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        owner, _, _ = await _create_user(session_factory, 'notifyowner', '401')
+        member, _, _ = await _create_user(session_factory, 'notifymember', '402')
+
+        async with session_factory() as session:
+            branch, invite = await create_private_branch(session, owner.id, 'Уведомления', '', None)
+            await join_private_branch_by_invite(session, member.id, invite)
+            await update_branch_notifications(session, member.id, branch.id, False)
+
+            muted_post = await create_message(session, owner.id, branch.id, MessageCreateRequest(text='Без уведомления'))
+            await create_message_notifications(session, muted_post)
+            assert await list_notifications(session, member.id) == []
+
+            await update_branch_notifications(session, member.id, branch.id, True)
+            notified_post = await create_message(session, owner.id, branch.id, MessageCreateRequest(text='С уведомлением'))
+            await create_message_notifications(session, notified_post)
+            notifications = await list_notifications(session, member.id)
+            assert [notification.message_id for notification in notifications] == [notified_post.id]
     finally:
         await engine.dispose()

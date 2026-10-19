@@ -10,7 +10,7 @@ from app.api.dependencies.auth import get_current_user
 from app.api.routes._responses import domain_error_response
 from app.db.session import get_db_session
 from app.models.chats import Chat, ChatParticipant
-from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, ChatBulkHideOut, ChatE2eeKeyOut, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, MessageOut, PublicBranchCreateRequest
+from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, BranchInviteJoinRequest, BranchInviteOut, BranchInviteStateOut, BranchMemberOut, BranchMemberUpdateRequest, BranchNotificationsUpdateRequest, BranchPostCommentsUpdateRequest, ChatBulkHideOut, ChatE2eeKeyOut, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageOut, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, PrivateBranchCreateOut, PrivateBranchCreateRequest, PrivateBranchUpdateRequest, PublicBranchCreateRequest
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
@@ -20,10 +20,10 @@ from app.services.chat_service import edit_message as edit_chat_message
 from app.services.chat_service import get_message as get_chat_message
 from app.services.chat_service import list_chats as list_user_chats
 from app.services.chat_service import list_messages as list_chat_messages
-from app.services.chat_service import mark_messages_read, toggle_pin_message, toggle_reaction
+from app.services.chat_service import mark_messages_read, set_branch_post_comments_enabled, toggle_pin_message, toggle_reaction
 from app.services.e2ee_service import list_direct_chat_e2ee_keys
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, get_branch_post_author_id, list_branch_comments, update_branch_comment
-from app.services.branch_service import create_public_branch, list_public_branches, subscribe_to_branch, unsubscribe_from_branch
+from app.services.branch_service import create_private_branch, create_public_branch, generate_private_branch_invite, join_private_branch_by_invite, leave_private_branch, list_private_branch_members, list_public_branches, private_branch_invite_is_active, private_branch_invite_link, remove_private_branch_member, revoke_private_branch_invite, subscribe_to_branch, unsubscribe_from_branch, update_branch_notifications, update_private_branch, update_private_branch_member
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import is_user_interaction_blocked
 from app.services.notification_service import create_branch_comment_notification, create_message_notifications
@@ -126,6 +126,168 @@ async def create_branch(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@router.post('/branches/private', response_model=PrivateBranchCreateOut)
+async def create_private_channel(
+    request: PrivateBranchCreateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PrivateBranchCreateOut:
+    try:
+        branch, invite_token = await create_private_branch(
+            session,
+            current_user.id,
+            request.title,
+            request.description,
+            request.avatar_ref,
+        )
+        return PrivateBranchCreateOut(
+            chat=await get_user_chat(session, current_user.id, branch.id),
+            invite=BranchInviteOut(invite_link=private_branch_invite_link(invite_token)),
+        )
+    except (AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/branches/join')
+async def join_private_channel(
+    request: BranchInviteJoinRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        branch = await join_private_branch_by_invite(session, current_user.id, request.invite_token)
+        return await get_user_chat(session, current_user.id, branch.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch('/branches/{chat_id}')
+async def update_private_channel(
+    chat_id: UUID,
+    request: PrivateBranchUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        branch = await update_private_branch(
+            session,
+            current_user.id,
+            chat_id,
+            title=request.title,
+            description=request.description,
+            avatar_ref=request.avatar_ref,
+            update_avatar='avatar_ref' in request.model_fields_set,
+        )
+        return await get_user_chat(session, current_user.id, branch.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/branches/{chat_id}/leave', status_code=status.HTTP_204_NO_CONTENT)
+async def leave_private_channel(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        await leave_private_branch(session, current_user.id, chat_id)
+        await realtime_manager.unsubscribe_users_from_chats({current_user.id}, [chat_id])
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get('/branches/{chat_id}/invite', response_model=BranchInviteStateOut)
+async def private_channel_invite_state(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BranchInviteStateOut:
+    try:
+        return BranchInviteStateOut(is_active=await private_branch_invite_is_active(session, current_user.id, chat_id))
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post('/branches/{chat_id}/invite', response_model=BranchInviteOut)
+async def generate_private_channel_invite(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BranchInviteOut:
+    try:
+        token = await generate_private_branch_invite(session, current_user.id, chat_id)
+        return BranchInviteOut(invite_link=private_branch_invite_link(token))
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete('/branches/{chat_id}/invite', response_model=BranchInviteStateOut)
+async def revoke_private_channel_invite(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BranchInviteStateOut:
+    try:
+        await revoke_private_branch_invite(session, current_user.id, chat_id)
+        return BranchInviteStateOut(is_active=False)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get('/branches/{chat_id}/members', response_model=list[BranchMemberOut])
+async def list_private_channel_members(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[BranchMemberOut]:
+    try:
+        return [BranchMemberOut(**member) for member in await list_private_branch_members(session, current_user.id, chat_id)]
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch('/branches/{chat_id}/members/{member_user_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def update_private_channel_member(
+    chat_id: UUID,
+    member_user_id: UUID,
+    request: BranchMemberUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        await update_private_branch_member(session, current_user.id, chat_id, member_user_id, request.role)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete('/branches/{chat_id}/members/{member_user_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def remove_private_channel_member(
+    chat_id: UUID,
+    member_user_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        await remove_private_branch_member(session, current_user.id, chat_id, member_user_id)
+        await realtime_manager.unsubscribe_users_from_chats({member_user_id}, [chat_id])
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.patch('/branches/{chat_id}/notifications')
+async def update_channel_notifications(
+    chat_id: UUID,
+    request: BranchNotificationsUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        branch = await update_branch_notifications(session, current_user.id, chat_id, request.enabled)
+        return await get_user_chat(session, current_user.id, branch.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @router.post('/branches/{chat_id}/subscribe')
 async def subscribe_branch(
     chat_id: UUID,
@@ -147,9 +309,38 @@ async def unsubscribe_branch(
 ) -> ChatOut:
     try:
         branch = await unsubscribe_from_branch(session, current_user.id, chat_id)
-        return await get_user_chat(session, current_user.id, branch.id)
+        chat = await get_user_chat(session, current_user.id, branch.id)
+        if not chat.is_subscribed:
+            await realtime_manager.unsubscribe_users_from_chats({current_user.id}, [chat_id])
+        return chat
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch('/branches/{branch_id}/messages/{post_id}/comments-enabled', response_model=MessageOut)
+async def update_branch_post_comments(
+    branch_id: UUID,
+    post_id: UUID,
+    request: BranchPostCommentsUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MessageOut:
+    try:
+        message = await set_branch_post_comments_enabled(
+            session,
+            current_user.id,
+            branch_id,
+            post_id,
+            request.comments_enabled,
+        )
+    except AuthError as exc:
+        return domain_error_response(exc, status.HTTP_400_BAD_REQUEST)
+    await _broadcast_chat_event(
+        session,
+        branch_id,
+        {'event': 'message.updated', 'chat_id': str(branch_id), 'message': message.model_dump(mode='json')},
+    )
+    return message
 
 
 @router.get('/{chat_id}')

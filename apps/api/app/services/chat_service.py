@@ -346,6 +346,25 @@ async def edit_message(session: AsyncSession, user_id: UUID, chat_id: UUID, mess
     return await _message_out(session, message, user_id)
 
 
+async def set_branch_post_comments_enabled(
+    session: AsyncSession,
+    user_id: UUID,
+    chat_id: UUID,
+    message_id: UUID,
+    comments_enabled: bool,
+) -> MessageOut:
+    chat = await session.get(Chat, chat_id)
+    if not chat or chat.type != 'branch':
+        raise AuthError('Branch post not found')
+    await _ensure_can_post(session, user_id, chat)
+    message = await session.get(Message, message_id)
+    if not message or message.chat_id != chat_id or message.deleted_at:
+        raise AuthError('Branch post not found')
+    message.comments_enabled = comments_enabled
+    await session.commit()
+    return await _message_out(session, message, user_id)
+
+
 async def delete_message(session: AsyncSession, user_id: UUID, chat_id: UUID, message_id: UUID) -> MessageOut:
     chat = await session.get(Chat, chat_id)
     if not chat:
@@ -517,7 +536,9 @@ async def _ensure_participant(session: AsyncSession, user_id: UUID, chat_id: UUI
 async def _ensure_can_view(session: AsyncSession, user_id: UUID, chat: Chat) -> None:
     if chat.type == 'branch':
         if chat.is_archived:
-            raise AuthError('Public branch not found')
+            raise AuthError('Branch not found')
+        if chat.is_private:
+            await _ensure_participant(session, user_id, chat.id)
         return
     await _ensure_participant(session, user_id, chat.id)
     await ensure_chat_interaction_allowed(session, user_id, chat)
@@ -637,9 +658,12 @@ async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | N
         description=chat.description,
         avatar_ref=chat.avatar_ref,
         is_official=chat.is_official,
+        is_private=chat.is_private,
         is_subscribed=bool(current_user_id and await session.get(ChatParticipant, {'chat_id': chat.id, 'user_id': current_user_id})),
         subscriber_count=await _subscriber_count(session, chat.id) if chat.type == 'branch' else 0,
         can_post=bool(current_user_id and await can_post_to_branch(session, current_user_id, chat.id)) if chat.type == 'branch' else True,
+        current_role=(await _current_participant_role(session, chat.id, current_user_id)) if current_user_id and chat.type == 'branch' else None,
+        notifications_enabled=await _notifications_enabled(session, chat.id, current_user_id),
         wallpaper_id=wallpaper_id,
     )
 
@@ -717,6 +741,7 @@ async def _message_out(session: AsyncSession, message: Message, current_user_id:
         reply_to=await _message_reply_out(session, message.reply_to_message_id),
         reactions=await _reaction_summary(session, message.id, current_user_id),
         comment_count=await _comment_count(session, message.id) if chat and chat.type == 'branch' else 0,
+        comments_enabled=message.comments_enabled,
         created_at=message.created_at,
         edited_at=message.edited_at,
         deleted_at=message.deleted_at,
@@ -799,6 +824,20 @@ async def _subscriber_count(session: AsyncSession, chat_id: UUID) -> int:
         )
     )
     return int(result.scalar_one())
+
+
+async def _current_participant_role(session: AsyncSession, chat_id: UUID, user_id: UUID | None) -> str | None:
+    if not user_id:
+        return None
+    participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
+    return participant.role if participant and participant.role in {'owner', 'admin', 'member'} else None
+
+
+async def _notifications_enabled(session: AsyncSession, chat_id: UUID, user_id: UUID | None) -> bool:
+    if not user_id:
+        return True
+    preference = await session.get(ChatPreference, {'chat_id': chat_id, 'user_id': user_id})
+    return preference.notifications_enabled if preference else True
 
 
 async def _comment_count(session: AsyncSession, post_id: UUID) -> int:

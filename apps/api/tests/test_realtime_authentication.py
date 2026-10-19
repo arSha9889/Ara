@@ -292,6 +292,31 @@ async def test_chat_broadcast_can_exclude_all_connections_for_the_sender() -> No
 
 
 @pytest.mark.anyio
+async def test_unsubscribing_users_from_chats_removes_all_of_their_connections_only() -> None:
+    manager = RealtimeManager()
+    chat_id = uuid4()
+    departed_user_id = uuid4()
+    remaining_user_id = uuid4()
+    first_departed_socket = BroadcastWebSocketStub()
+    second_departed_socket = BroadcastWebSocketStub()
+    remaining_socket = BroadcastWebSocketStub()
+
+    await manager.connect_user(first_departed_socket, departed_user_id, uuid4())
+    await manager.connect_user(second_departed_socket, departed_user_id, uuid4())
+    await manager.connect_user(remaining_socket, remaining_user_id, uuid4())
+    await manager.subscribe(first_departed_socket, chat_id)
+    await manager.subscribe(second_departed_socket, chat_id)
+    await manager.subscribe(remaining_socket, chat_id)
+
+    await manager.unsubscribe_users_from_chats({departed_user_id}, [chat_id])
+    await manager.broadcast_to_chat(chat_id, {'event': 'message.created'})
+
+    assert first_departed_socket.sent == []
+    assert second_departed_socket.sent == []
+    assert remaining_socket.sent == [{'event': 'message.created'}]
+
+
+@pytest.mark.anyio
 async def test_offline_call_invite_is_queued_and_sent_as_a_mobile_push(monkeypatch: pytest.MonkeyPatch) -> None:
     caller_id = uuid4()
     callee_id = uuid4()

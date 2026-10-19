@@ -333,7 +333,7 @@ async def _direct_peer_presence(user_id: UUID, chat_id: UUID) -> dict | None:
 async def _can_subscribe_to_chat(user_id: UUID, chat_id: UUID) -> bool:
     async with AsyncSessionLocal() as session:
         chat = await session.get(Chat, chat_id)
-        if chat and chat.type == 'branch':
+        if chat and chat.type == 'branch' and not chat.is_private and not chat.is_archived:
             return True
         participant = await session.get(ChatParticipant, {'chat_id': chat_id, 'user_id': user_id})
         return bool(chat and participant and await _can_interact_with_chat(session, user_id, chat))

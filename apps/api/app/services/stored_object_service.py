@@ -115,6 +115,38 @@ async def replace_uploaded_avatar(
         stored_object.attached_at = now
 
 
+async def attach_uploaded_channel_avatar(
+    session: AsyncSession,
+    owner_user_id: UUID,
+    chat_id: UUID,
+    public_url: str,
+) -> None:
+    """Attach a pending avatar upload to one channel without touching profile avatars."""
+    now = datetime.now(timezone.utc)
+    stored_object = await session.scalar(
+        select(StoredObject).where(StoredObject.public_url == public_url).limit(1).with_for_update()
+    )
+    if not stored_object or (
+        stored_object.owner_user_id != owner_user_id
+        or stored_object.purpose != 'avatar'
+        or stored_object.status != 'pending'
+    ):
+        raise ValueError('Uploaded avatar is not available for this channel')
+
+    await session.execute(
+        update(StoredObject)
+        .where(
+            StoredObject.chat_id == chat_id,
+            StoredObject.purpose == 'avatar',
+            StoredObject.status == 'attached_channel_avatar',
+        )
+        .values(status='orphaned', delete_after=now + timedelta(days=settings.upload_orphan_retention_days))
+    )
+    stored_object.status = 'attached_channel_avatar'
+    stored_object.chat_id = chat_id
+    stored_object.attached_at = now
+
+
 async def retire_uploaded_avatars(session: AsyncSession, owner_user_id: UUID) -> None:
     await _retire_uploaded_avatars(session, owner_user_id, datetime.now(timezone.utc))
 

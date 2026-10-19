@@ -50,7 +50,7 @@ function SettingToggle({ checked, onChange, label, description }) {
 function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en' : 'ru', {
+  return new Intl.DateTimeFormat(document.documentElement.lang || 'ru', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
@@ -64,6 +64,10 @@ function SecurityFormNotice({ error, notice }) {
 function LanguageFlag({ flag }) {
   if (flag === 'ru') {
     return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#fff" d="M0 0h30v6.67H0z" /><path fill="#1f57a6" d="M0 6.67h30v6.66H0z" /><path fill="#d9444c" d="M0 13.33h30V20H0z" /></svg>;
+  }
+
+  if (flag === 'kz') {
+    return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#00afca" d="M0 0h30v20H0z" /><circle cx="16" cy="10" r="4.2" fill="#f9d648" /><path fill="#f9d648" d="M0 0h2v20H0zm3 0h1v20H3zM5 0h1v20H5z" /></svg>;
   }
 
   return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#012169" d="M0 0h30v20H0z" /><path stroke="#fff" strokeWidth="4" d="m0 0 30 20M30 0 0 20" /><path stroke="#c8102e" strokeWidth="2" d="m0 0 30 20M30 0 0 20" /><path stroke="#fff" strokeWidth="5" d="M15 0v20M0 10h30" /><path stroke="#c8102e" strokeWidth="3" d="M15 0v20M0 10h30" /></svg>;

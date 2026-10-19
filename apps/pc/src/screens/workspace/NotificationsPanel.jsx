@@ -3,7 +3,7 @@ import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 function formatNotificationTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en' : 'ru', {
+  return new Intl.DateTimeFormat(document.documentElement.lang || 'ru', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);

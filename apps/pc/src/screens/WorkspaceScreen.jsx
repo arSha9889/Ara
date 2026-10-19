@@ -9,9 +9,11 @@ import { createRealtimeConnection } from '../features/chats/realtimeClient.js';
 import { showDesktopNotification, subscribeDesktopNotificationActions } from '../features/notifications/desktopNotifications.js';
 import { getNotifications, markNotificationsRead } from '../features/notifications/notificationsApi.js';
 import { notificationId, notificationTarget } from '../features/notifications/notificationTarget.js';
+import { mediaUrlForDesktop } from '../shared/api/authenticatedMedia.js';
 import { CallOverlay } from './workspace/CallOverlay.jsx';
 import { CallsPanel } from './workspace/CallsPanel.jsx';
 import { ChatPanel } from './workspace/ChatPanel.jsx';
+import { ChannelsPanel } from './workspace/ChannelsPanel.jsx';
 import { ContactsPanel } from './workspace/ContactsPanel.jsx';
 import { NotificationsPanel } from './workspace/NotificationsPanel.jsx';
 import { ProfilePanel } from './workspace/ProfilePanel.jsx';
@@ -19,6 +21,7 @@ import { SettingsPanel } from './workspace/SettingsPanel.jsx';
 
 const NAVIGATION_ITEMS = [
   { id: 'chats', icon: 'chats' },
+  { id: 'channels', icon: 'channels' },
   { id: 'calls', icon: 'calls' },
   { id: 'contacts', icon: 'contacts' },
 ];
@@ -67,7 +70,7 @@ function avatarTone(value) {
 }
 
 function locale() {
-  return document.documentElement.lang === 'en' ? 'en' : 'ru';
+  return document.documentElement.lang || 'ru';
 }
 
 function formatChatTime(value) {
@@ -106,6 +109,13 @@ function chatPreview(lastMessage, t) {
   return t('workspace.chatPanel.typeFile');
 }
 
+function ChatListAvatar({ chat, name, username }) {
+  const avatarRef = chat.type === 'branch' ? chat.avatar_ref : chat.peer?.avatar_ref;
+  const avatarUrl = mediaUrlForDesktop(avatarRef);
+  if (avatarUrl) return <span className="workspace-avatar"><img src={avatarUrl} alt="" /></span>;
+  return <span className={`workspace-avatar is-${avatarTone(chat.peer?.id || chat.id)}`} aria-hidden="true">{initials(name, username)}</span>;
+}
+
 export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCurrentUserUpdated, onLogout, preferences, updatePreferences, t }) {
   const [activeSection, setActiveSection] = useState('chats');
   const [query, setQuery] = useState('');
@@ -115,6 +125,8 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const [chats, setChats] = useState([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [isClearingChats, setIsClearingChats] = useState(false);
+  const [isDirectChatsExpanded, setIsDirectChatsExpanded] = useState(true);
+  const [isChannelChatsExpanded, setIsChannelChatsExpanded] = useState(true);
   const [chatsError, setChatsError] = useState('');
   const [chatsNotice, setChatsNotice] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState('connecting');
@@ -143,9 +155,15 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleChats = chats.filter((chat) => {
     const peer = chat.peer;
-    const searchable = `${peer?.display_name ?? ''} ${peer?.username ?? ''} ${chat.last_message?.payload ?? ''}`;
+    const searchable = `${peer?.display_name ?? ''} ${peer?.username ?? ''} ${chat.title ?? ''} ${chat.description ?? ''} ${chat.last_message?.payload ?? ''}`;
     return searchable.toLocaleLowerCase().includes(normalizedQuery);
   });
+  const visibleDirectChats = visibleChats.filter((chat) => chat.type === 'direct');
+  const visibleChannelChats = visibleChats.filter((chat) => chat.type === 'branch');
+  const directChatCount = chats.filter((chat) => chat.type === 'direct').length;
+  const channelChatCount = chats.filter((chat) => chat.type === 'branch').length;
+  const directUnreadCount = chats.filter((chat) => chat.type === 'direct').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
+  const channelUnreadCount = chats.filter((chat) => chat.type === 'branch').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
   const selectedChat = chats.find((chat) => chat.id === selectedChatId);
 
   const loadChats = useCallback(async ({ showLoading = true, showSuccess = false } = {}) => {
@@ -158,7 +176,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     try {
       const serverChats = await getChats(accessToken);
       if (chatsRequestIdRef.current === requestId) {
-        setChats(Array.isArray(serverChats) ? serverChats.filter((chat) => chat.type === 'direct') : []);
+        setChats(Array.isArray(serverChats) ? serverChats.filter((chat) => ['direct', 'branch'].includes(chat.type)) : []);
         if (showSuccess) setChatsNotice(t('workspace.chatsUpdated'));
       }
     } catch (requestError) {
@@ -176,7 +194,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     if (!connection) return;
 
     chatsRef.current.forEach((chat) => {
-      if (chat.type !== 'direct' || subscribedChatIdsRef.current.has(chat.id)) return;
+      if ((chat.type !== 'direct' && (chat.type !== 'branch' || !chat.is_subscribed)) || subscribedChatIdsRef.current.has(chat.id)) return;
       if (connection.send({ event: 'chat.subscribe', chat_id: chat.id })) {
         subscribedChatIdsRef.current.add(chat.id);
       }
@@ -254,13 +272,13 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
       try {
         if (!chat) {
           chat = await getChat(accessToken, target.chat_id);
-          if (chat?.type !== 'direct') {
+          if (!['direct', 'branch'].includes(chat?.type)) {
             setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
             return false;
           }
           setChats((current) => current.some((item) => item.id === chat.id) ? current : [chat, ...current]);
         }
-        if (chat?.type !== 'direct') {
+        if (!['direct', 'branch'].includes(chat?.type)) {
           setNotificationsError(t('workspace.notificationsPanel.targetUnavailable'));
           return false;
         }
@@ -270,7 +288,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
         return false;
       }
 
-      setActiveSection('chats');
+      setActiveSection(chat.type === 'branch' ? 'channels' : 'chats');
       setSelectedChatId(chat.id);
       if (targetMessage) {
         const didFocusMessage = await focusMessage(targetMessage);
@@ -399,6 +417,9 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
       'message.read',
       'message.reactions_updated',
       'message.pin_updated',
+      'branch_comment.created',
+      'branch_comment.updated',
+      'branch_comment.deleted',
       'typing.started',
       'typing.stopped',
       'file.uploading',
@@ -410,7 +431,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     const eventId = realtimeEventIdRef.current + 1;
     realtimeEventIdRef.current = eventId;
     setRealtimeEvents((current) => [...current.slice(-199), { id: eventId, payload }]);
-    if (payload.event.startsWith('message.')) scheduleChatsRefresh();
+    if (payload.event.startsWith('message.') || payload.event.startsWith('branch_comment.')) scheduleChatsRefresh();
   };
 
   useEffect(() => {
@@ -508,9 +529,11 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     if (section === 'contacts') setContactMode('contacts');
   }
 
-  function openChat(chatId) {
-    setActiveSection('chats');
-    setSelectedChatId(chatId);
+  function openChat(chatOrId, explicitChat = null) {
+    const chat = explicitChat || (typeof chatOrId === 'object' ? chatOrId : chatsRef.current.find((item) => item.id === chatOrId));
+    if (!chat) return;
+    setActiveSection(chat.type === 'branch' ? 'channels' : 'chats');
+    setSelectedChatId(chat.id);
     setMessageFocus(null);
   }
 
@@ -521,7 +544,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   }
 
   async function clearAllChats() {
-    if (!chats.length || isClearingChats || isLoadingChats) return;
+    if (!directChatCount || isClearingChats || isLoadingChats) return;
     if (!window.confirm(t('workspace.clearChatsConfirmation'))) return;
 
     chatsRequestIdRef.current += 1;
@@ -531,7 +554,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     try {
       const result = await hideAllDirectChats(accessToken);
       const hiddenCount = Number(result?.hidden_count) || 0;
-      setChats([]);
+      setChats((current) => current.filter((chat) => chat.type !== 'direct'));
       setSelectedChatId(null);
       setMessageFocus(null);
       setQuery('');
@@ -571,11 +594,50 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   function handleChatCreated(chat) {
     setChats((current) => [chat, ...current.filter((item) => item.id !== chat.id)]);
     setQuery('');
-    openChat(chat.id);
+    openChat(chat);
+  }
+
+  function handleChannelChanged(channel) {
+    if (channel.type === 'branch' && !channel.is_private && !channel.is_subscribed) {
+      subscribedChatIdsRef.current.delete(channel.id);
+      setChats((current) => current.filter((item) => item.id !== channel.id));
+      return;
+    }
+    setChats((current) => [channel, ...current.filter((item) => item.id !== channel.id)]);
+  }
+
+  function handleChannelLeft(channelId) {
+    subscribedChatIdsRef.current.delete(channelId);
+    setChats((current) => current.filter((chat) => chat.id !== channelId));
+    setSelectedChatId((current) => current === channelId ? null : current);
+    setMessageFocus(null);
+    setActiveSection('channels');
+  }
+
+  function renderChatRow(chat) {
+    const isSelected = selectedChatId === chat.id && activeSection === (chat.type === 'branch' ? 'channels' : 'chats');
+    const peer = chat.peer;
+    const name = chat.type === 'branch'
+      ? chat.title || t('workspace.channels.untitled')
+      : peer?.display_name || peer?.username || t('workspace.unknownUser');
+    const username = chat.type === 'branch' ? chat.slug || '' : peer?.username || '';
+    const preview = chatPreview(chat.last_message, t);
+    const timestamp = formatChatTime(chat.last_message?.created_at || chat.updated_at);
+    return <button className={`workspace-chat-row ${isSelected ? 'is-selected' : ''}`} type="button" key={chat.id} onClick={() => openChat(chat)} aria-pressed={isSelected}>
+      <ChatListAvatar chat={chat} name={name} username={username} />
+      <span className="workspace-chat-copy">
+        <span className="workspace-chat-name">{name}</span>
+        <span className="workspace-chat-preview">{preview}</span>
+      </span>
+      <span className="workspace-chat-meta">
+        {timestamp ? <time>{timestamp}</time> : null}
+        {chat.unread_count ? <span className="workspace-unread" aria-label={t('workspace.unread', { count: chat.unread_count })}>{chat.unread_count}</span> : null}
+      </span>
+    </button>;
   }
 
   const renderMainContent = () => {
-    if (activeSection === 'profile') return <ProfilePanel accessToken={accessToken} t={t} />;
+    if (activeSection === 'profile') return <ProfilePanel accessToken={accessToken} onCurrentUserUpdated={onCurrentUserUpdated} t={t} />;
     if (activeSection === 'calls') return <CallsPanel call={call} t={t} />;
     if (activeSection === 'notifications') {
       return <NotificationsPanel error={notificationsError} isLoading={isLoadingNotifications} isUpdating={isUpdatingNotifications} notifications={notifications} onMarkAllRead={markAllNotificationsRead} onOpenNotification={openNotification} onRetry={() => loadNotifications()} t={t} />;
@@ -587,8 +649,12 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
       return <ContactsPanel accessToken={accessToken} currentUserId={currentUserId} mode={contactMode} onChatCreated={handleChatCreated} t={t} />;
     }
 
+    if (activeSection === 'channels' && !selectedChat) {
+      return <ChannelsPanel accessToken={accessToken} channels={chats.filter((chat) => chat.type === 'branch')} onChannelChanged={handleChannelChanged} onOpenChannel={(channelId, channel) => openChat(channelId, channel)} t={t} />;
+    }
+
     if (selectedChat) {
-      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={() => loadChats({ showLoading: false })} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
+      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={() => loadChats({ showLoading: false })} onChannelLeft={handleChannelLeft} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
     }
 
     return (
@@ -612,7 +678,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
           <div className="workspace-nav-group">
             {NAVIGATION_ITEMS.map((item) => {
               const isActive = activeSection === item.id;
-              return <button className={`workspace-nav-button ${isActive ? 'is-active' : ''}`} type="button" key={item.id} aria-label={t(`workspace.${item.id}`)} aria-current={isActive ? 'page' : undefined} onClick={() => openSection(item.id)}><Icon name={item.icon} /></button>;
+              return <button className={`workspace-nav-button ${isActive ? 'is-active' : ''}`} type="button" key={item.id} aria-label={t(`workspace.${item.id}`)} title={t(`workspace.${item.id}`)} aria-current={isActive ? 'page' : undefined} onClick={() => openSection(item.id)}><Icon name={item.icon} /></button>;
             })}
           </div>
           <div className="workspace-nav-separator" />
@@ -634,7 +700,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
           <div className="workspace-list-actions">
             <ThemeToggle preferences={preferences} updatePreferences={updatePreferences} t={t} compact />
             <button className={`workspace-list-refresh ${isLoadingChats ? 'is-loading' : ''}`} type="button" aria-label={isLoadingChats ? t('workspace.refreshingChats') : t('workspace.refreshChats')} title={t('workspace.refreshChats')} onClick={() => loadChats({ showSuccess: true })} disabled={isLoadingChats || isClearingChats}><Icon name="refresh" size={16} /></button>
-            <button className="workspace-list-clear" type="button" aria-label={t('workspace.clearAllChats')} title={t('workspace.clearAllChats')} onClick={clearAllChats} disabled={!chats.length || isLoadingChats || isClearingChats}><Icon name="trash" size={16} /></button>
+            <button className="workspace-list-clear" type="button" aria-label={t('workspace.clearAllChats')} title={t('workspace.clearAllChats')} onClick={clearAllChats} disabled={!directChatCount || isLoadingChats || isClearingChats}><Icon name="trash" size={16} /></button>
             <button className="workspace-new-chat" type="button" aria-label={t('workspace.newChat')} onClick={openNewChat}><Icon name="plus" /></button>
           </div>
         </div>
@@ -649,33 +715,23 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
         {chatsNotice ? <p className="workspace-list-notice" role="status">{chatsNotice}</p> : null}
         <div className="workspace-chat-list" aria-busy={isLoadingChats || isClearingChats}>
           {chatsError ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.chatsLoadError')}</strong><span>{chatsError}</span><button type="button" onClick={() => loadChats()}>{t('workspace.retry')}</button></div> : null}
-          {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : visibleChats.length ? visibleChats.map((chat) => {
-            const isSelected = selectedChatId === chat.id && activeSection === 'chats';
-            const peer = chat.peer;
-            const name = peer?.display_name || peer?.username || t('workspace.unknownUser');
-            const preview = chatPreview(chat.last_message, t);
-            const timestamp = formatChatTime(chat.last_message?.created_at || chat.updated_at);
-            return (
-              <button className={`workspace-chat-row ${isSelected ? 'is-selected' : ''}`} type="button" key={chat.id} onClick={() => openChat(chat.id)} aria-pressed={isSelected}>
-                <span className={`workspace-avatar is-${avatarTone(peer?.id || chat.id)}`} aria-hidden="true">{initials(name, peer?.username)}</span>
-                <span className="workspace-chat-copy">
-                  <span className="workspace-chat-name">{name}</span>
-                  <span className="workspace-chat-preview">{preview}</span>
-                </span>
-                <span className="workspace-chat-meta">
-                  {timestamp ? <time>{timestamp}</time> : null}
-                  {chat.unread_count ? <span className="workspace-unread" aria-label={t('workspace.unread', { count: chat.unread_count })}>{chat.unread_count}</span> : null}
-                </span>
-              </button>
-            );
-          }) : (
+          {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : visibleChats.length ? <>
+            <section className="workspace-chat-group" aria-labelledby="direct-chats-heading">
+              <button className="workspace-chat-group-toggle" type="button" id="direct-chats-heading" aria-expanded={isDirectChatsExpanded} onClick={() => setIsDirectChatsExpanded((current) => !current)}><Icon name="chevron-right" size={15} /><span>{t('workspace.directChatsSection')}</span>{directUnreadCount ? <em>{directUnreadCount}</em> : <small>{directChatCount}</small>}</button>
+              {isDirectChatsExpanded ? <div>{visibleDirectChats.map(renderChatRow)}</div> : null}
+            </section>
+            <section className="workspace-chat-group" aria-labelledby="channel-chats-heading">
+              <button className="workspace-chat-group-toggle" type="button" id="channel-chats-heading" aria-expanded={isChannelChatsExpanded} onClick={() => setIsChannelChatsExpanded((current) => !current)}><Icon name="chevron-right" size={15} /><span>{t('workspace.channels')}</span>{channelUnreadCount ? <em>{channelUnreadCount}</em> : <small>{channelChatCount}</small>}</button>
+              {isChannelChatsExpanded ? <div>{visibleChannelChats.map(renderChatRow)}</div> : null}
+            </section>
+          </> : (
             <div className="workspace-no-results"><strong>{normalizedQuery ? t('workspace.noSearchResults') : t('workspace.noChatsTitle')}</strong><span>{normalizedQuery ? t('workspace.noSearchResultsText') : t('workspace.noChatsText')}</span>{normalizedQuery ? null : <button className="workspace-list-empty-action" type="button" onClick={openNewChat}>{t('workspace.findUser')}</button>}</div>
           )}
         </div>
-        <p className="workspace-list-footer">{t('workspace.directChatsOnly')}</p>
+        <p className="workspace-list-footer">{t('workspace.chatListFooter')}</p>
       </aside>
 
-      <div className={`workspace-main ${selectedChat && activeSection === 'chats' ? 'is-chat-open' : ''}`}>
+      <div className={`workspace-main ${selectedChat && ['chats', 'channels'].includes(activeSection) ? 'is-chat-open' : ''}`}>
         {renderMainContent()}
       </div>
       <CallOverlay call={call} peer={activeCallChat?.peer} t={t} />

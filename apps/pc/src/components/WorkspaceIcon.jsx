@@ -12,6 +12,7 @@ export function WorkspaceIcon({ name, size = 20 }) {
   };
 
   if (name === 'chats') return <svg {...commonProps}><path d="M20 11.5a7.3 7.3 0 0 1-7.7 7.2 8.6 8.6 0 0 1-3.5-.7L4 20l1.4-4a7 7 0 0 1-1.2-4c0-4 3.5-7.2 7.8-7.2s8 3 8 6.7Z" /><path d="M8.4 11.7h.1M12.1 11.7h.1M15.8 11.7h.1" /></svg>;
+  if (name === 'channels') return <svg {...commonProps}><path d="M4 12.2V9.8l11-4.3v11L4 12.2Z" /><path d="M15 8.2c2.3.7 3.7 2 3.7 3.8S17.3 15.1 15 15.8M6.4 13.2l1.3 5.1h3.1l-1-4" /><path d="M20.2 8.3c1.2 1 1.8 2.2 1.8 3.7s-.6 2.7-1.8 3.7" /></svg>;
   if (name === 'calls') return <svg {...commonProps}><path d="M7.8 4.3 10.4 8 8.9 9.8a12.7 12.7 0 0 0 5.3 5.3l1.8-1.5 3.7 2.6-1 3.1a2.5 2.5 0 0 1-2.8 1.6C9.5 19.7 4.3 14.5 3.1 8.1a2.5 2.5 0 0 1 1.6-2.8l3.1-1Z" /></svg>;
   if (name === 'contacts') return <svg {...commonProps}><circle cx="12" cy="8" r="3.2" /><path d="M5.2 20c.7-3.5 3.2-5.3 6.8-5.3s6.1 1.8 6.8 5.3" /><path d="M19.2 7.2h2.2M20.3 6.1v2.2" /></svg>;
   if (name === 'profile') return <svg {...commonProps}><circle cx="12" cy="8" r="3.2" /><path d="M5.1 20c.7-3.5 3.2-5.3 6.9-5.3s6.2 1.8 6.9 5.3" /></svg>;
@@ -34,6 +35,7 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'check') return <svg {...commonProps}><path d="m5 12.5 4.3 4.3L19.5 6.6" /></svg>;
   if (name === 'check-double') return <svg {...commonProps}><path d="m2.8 12.4 3.8 3.8 6.2-7M9.5 12.4l3.8 3.8 7.1-8.1" /></svg>;
   if (name === 'attachment') return <svg {...commonProps}><path d="m20 11.4-7.7 7.7a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 1 1 4.8 4.8L10 16.8a1.8 1.8 0 0 1-2.5-2.5l7.4-7.4" /></svg>;
+  if (name === 'link') return <svg {...commonProps}><path d="M10.2 13.8a4.1 4.1 0 0 0 5.8 0l2.7-2.7a4.1 4.1 0 0 0-5.8-5.8L11.3 7" /><path d="M13.8 10.2a4.1 4.1 0 0 0-5.8 0l-2.7 2.7a4.1 4.1 0 0 0 5.8 5.8l1.6-1.6" /></svg>;
   if (name === 'send') return <svg {...commonProps}><path d="m21 3-7.7 18-3.1-7-7.2-3L21 3Z" /><path d="m10.2 14 4.2-4.2" /></svg>;
   if (name === 'refresh') return <svg {...commonProps}><path d="M20 7v5h-5" /><path d="M4 17v-5h5" /><path d="M6.1 9a7 7 0 0 1 11.8-2L20 9M4 15l2.1 2a7 7 0 0 0 11.8-2" /></svg>;
   if (name === 'image') return <svg {...commonProps}><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="8.5" cy="9" r="1.6" /><path d="m4.5 18 5.2-5.1 3.6 3 2.2-2 4 4.1" /></svg>;
