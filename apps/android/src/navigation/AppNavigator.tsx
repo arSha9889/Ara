@@ -49,9 +49,9 @@ const navigationTheme = {
   colors: {
     ...DarkTheme.colors,
     background: colors.canvas,
-    border: colors.glassBorder,
-    card: colors.canvasMuted,
-    primary: colors.primary,
+    border: colors.borderSubtle,
+    card: colors.surface,
+    primary: colors.accent,
     text: colors.text,
   },
 };

@@ -24,38 +24,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .desktop-app {
-  --canvas: #11121f;
-  --canvas-deep: #0d0e18;
-  --surface: rgba(31, 32, 52, .74);
-  --surface-strong: #24263d;
-  --surface-soft: rgba(255, 255, 255, .065);
-  --text: #f7f7ff;
-  --text-muted: #a9abc2;
-  --line: rgba(255, 255, 255, .11);
-  --purple: #814bda;
-  --purple-soft: #a576eb;
-  --coral: #ed5f55;
-  --yellow: #ffc644;
-  --shadow: rgba(13, 8, 34, .42);
   min-height: 100vh;
   color: var(--text);
   background: var(--canvas);
-}
-
-:root[data-theme='light'] .desktop-app {
-  --canvas: #f5f6ff;
-  --canvas-deep: #e9edfc;
-  --surface: rgba(255, 255, 255, .78);
-  --surface-strong: #fff;
-  --surface-soft: rgba(64, 48, 121, .07);
-  --text: #1d1a34;
-  --text-muted: #66677d;
-  --line: rgba(46, 39, 83, .13);
-  --purple: #6640bf;
-  --purple-soft: #754bd1;
-  --coral: #c94d4d;
-  --yellow: #a76c00;
-  --shadow: rgba(52, 42, 105, .16);
 }
 
 .titlebar {
@@ -323,6 +294,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .workspace-panel-heading p { margin: 0 0 9px; color: var(--coral); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .workspace-panel-heading h1 { margin: 0; font-family: 'Onest', 'Manrope', sans-serif; font-size: clamp(31px, 3.5vw, 41px); line-height: 1.04; letter-spacing: -.055em; }
 .workspace-panel-heading > div > span { display: block; max-width: 520px; margin-top: 12px; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.workspace-panel-actions { display: flex; align-items: flex-start; gap: 8px; flex: 0 0 auto; }
 .workspace-panel-icon { display: grid; place-items: center; flex: 0 0 auto; width: 51px; height: 51px; color: var(--purple-soft); border: 1px solid color-mix(in srgb, var(--purple-soft) 35%, transparent); border-radius: 18px; background: color-mix(in srgb, var(--purple) 10%, transparent); }
 .workspace-section-card { padding: 20px; border: 1px solid var(--line); border-radius: 19px; background: color-mix(in srgb, var(--surface-strong) 58%, var(--canvas)); box-shadow: 0 12px 26px color-mix(in srgb, var(--shadow) 11%, transparent); }
 .workspace-section-card + .workspace-section-card { margin-top: 14px; }
@@ -397,7 +369,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .language-choice { position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 58px; padding: 9px; color: var(--text); cursor: pointer; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); transition: border-color .17s ease, background .17s ease; }
 .language-choice:hover { border-color: color-mix(in srgb, var(--purple-soft) 52%, var(--line)); }
 .language-choice.is-selected { border-color: var(--purple-soft); background: color-mix(in srgb, var(--purple) 10%, var(--surface-soft)); }
-.language-choice:has(input:focus-visible) { outline: 3px solid #ffbf38; outline-offset: 3px; }
+.language-choice:has(input:focus-visible) { outline: 3px solid var(--desktop-focus); outline-offset: 3px; }
 .language-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .language-choice-flag { display: block; overflow: hidden; width: 38px; height: 26px; border: 1px solid color-mix(in srgb, #fff 34%, var(--line)); border-radius: 8px; box-shadow: 0 3px 7px color-mix(in srgb, var(--shadow) 22%, transparent); }
 .language-choice-flag svg { display: block; width: 100%; height: 100%; }
@@ -511,6 +483,22 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .workspace-screen { grid-template-columns: 64px 286px minmax(0, 1fr); }
   .workspace-nav { padding-right: 8px; padding-left: 8px; }
   .workspace-nav-button { width: 42px; height: 42px; }
+  .desktop-app .workspace-nav-groups { margin-top: 24px; }
+  .desktop-app .workspace-nav-separator { width: 24px; margin-bottom: 12px; }
+  .desktop-app .workspace-nav .workspace-nav-button.is-active::before { background: var(--ara-text); }
+  .desktop-app .workspace-nav .workspace-nav-button.is-active:hover:not(:disabled) {
+    color: var(--ara-on-accent);
+    border-color: var(--ara-accent-hover);
+    background: var(--ara-accent-hover);
+  }
+  .desktop-app .workspace-nav .workspace-nav-button:disabled {
+    color: var(--ara-text-muted);
+    border-color: transparent;
+    background: transparent;
+    cursor: not-allowed;
+    opacity: .48;
+  }
+  .desktop-app .workspace-nav .workspace-nav-button:focus-visible { outline-color: var(--ara-focus); }
   .workspace-list-header { padding-right: 13px; padding-left: 15px; }
   .workspace-list-actions .preference-controls { display: none; }
   .workspace-detail-panel { padding-right: 34px; padding-left: 34px; }
@@ -608,6 +596,8 @@ button.channel-card { cursor: pointer; }
 .channel-subscribe-button { min-height: 30px; padding: 0 9px; color: var(--purple-soft); font-size: 9px; font-weight: 800; border: 1px solid color-mix(in srgb, var(--purple-soft) 38%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--purple) 8%, var(--surface-soft)); }
 .channel-subscribe-button:hover:not(:disabled) { color: #fff; border-color: var(--purple); background: var(--purple); }
 .channel-form { display: grid; gap: 14px; max-width: 660px; }
+.channel-form-close { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; color: var(--text-muted); border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); transition: color .17s ease, border-color .17s ease, background .17s ease; }
+.channel-form-close:hover:not(:disabled) { color: var(--purple-soft); border-color: color-mix(in srgb, var(--purple-soft) 35%, var(--line)); background: color-mix(in srgb, var(--purple) 9%, var(--surface-soft)); }
 .channel-form label, .channel-details-form > label { display: grid; gap: 7px; }
 .channel-form label > span, .channel-details-form label > span { color: var(--text); font-size: 11px; font-weight: 800; }
 .channel-form input, .channel-form textarea, .channel-details-form input, .channel-details-form textarea, .channel-comment-composer textarea { width: 100%; padding: 10px 11px; resize: vertical; color: var(--text); font-size: 12px; line-height: 1.45; border: 1px solid var(--line); border-radius: 11px; outline: none; background: var(--surface-soft); }
@@ -649,4 +639,1862 @@ button.channel-card { cursor: pointer; }
 
 @media (max-width: 760px) {
   .channel-member { grid-template-columns: 32px minmax(0, 1fr) auto; }.channel-member-remove { grid-column: 3; }.channel-member select, .channel-member-role { grid-column: 2 / -1; justify-self: start; }.channel-preferences-card, .channel-leave-card { align-items: flex-start; flex-direction: column; }.channel-info-card { grid-template-columns: 50px minmax(0, 1fr); }.channel-details-avatar { width: 50px; height: 50px; border-radius: 16px; }
+}
+
+/* Ara Shift tokens and legacy aliases keep every Desktop surface in one visual system. */
+:root { --desktop-focus: #e8ff78; }
+:root[data-theme='light'] { --desktop-focus: #405a00; }
+
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline-color: var(--desktop-focus);
+}
+
+.desktop-app {
+  --ara-canvas: #0c0e0b;
+  --ara-surface: #171b16;
+  --ara-surface-elevated: #22271f;
+  --ara-text: #f4f6ed;
+  --ara-text-muted: #a5ad9b;
+  --ara-border-subtle: #353c30;
+  --ara-border-interactive: #697160;
+  --ara-border-strong: #879178;
+  --ara-accent: #d7ff35;
+  --ara-accent-hover: #e2ff6c;
+  --ara-on-accent: #171a14;
+  --ara-error: #ff6b68;
+  --ara-warning: #e1b800;
+  --ara-focus: var(--desktop-focus);
+  --ara-shadow: rgba(0, 0, 0, .28);
+  --ara-radius-control: 10px;
+  --ara-radius-panel: 14px;
+  --ara-motion-fast: 150ms ease;
+  --canvas: var(--ara-canvas);
+  --canvas-deep: color-mix(in srgb, var(--ara-canvas) 95%, #000);
+  --surface: var(--ara-surface);
+  --surface-strong: var(--ara-surface-elevated);
+  --surface-soft: color-mix(in srgb, var(--ara-surface-elevated) 72%, var(--ara-surface));
+  --text: var(--ara-text);
+  --text-muted: var(--ara-text-muted);
+  --line: var(--ara-border-subtle);
+  --purple: var(--ara-accent);
+  --purple-soft: var(--ara-accent-hover);
+  --coral: var(--ara-error);
+  --yellow: var(--ara-warning);
+  --shadow: var(--ara-shadow);
+}
+
+:root[data-theme='light'] .desktop-app {
+  --ara-canvas: #f4f5ee;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #e8ebdd;
+  --ara-text: #171a14;
+  --ara-text-muted: #5d6555;
+  --ara-border-subtle: #d5d9cc;
+  --ara-border-interactive: #77816f;
+  --ara-border-strong: #65705d;
+  --ara-accent: #527000;
+  --ara-accent-hover: #405a00;
+  --ara-on-accent: #ffffff;
+  --ara-error: #b4232b;
+  --ara-warning: #8a5d00;
+  --ara-shadow: rgba(44, 52, 38, .13);
+  --canvas: var(--ara-canvas);
+  --canvas-deep: color-mix(in srgb, var(--ara-canvas) 95%, #000);
+  --surface: var(--ara-surface);
+  --surface-strong: var(--ara-surface-elevated);
+  --surface-soft: color-mix(in srgb, var(--ara-surface-elevated) 72%, var(--ara-surface));
+  --text: var(--ara-text);
+  --text-muted: var(--ara-text-muted);
+  --line: var(--ara-border-subtle);
+  --purple: var(--ara-accent);
+  --purple-soft: var(--ara-accent-hover);
+  --coral: var(--ara-error);
+  --yellow: var(--ara-warning);
+  --shadow: var(--ara-shadow);
+}
+
+.desktop-app .titlebar {
+  color: var(--ara-text-muted);
+  border-bottom-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .titlebar-name { color: var(--ara-text-muted); }
+.desktop-app .window-control { color: var(--ara-text); }
+.desktop-app .window-control:hover { background: var(--ara-surface-elevated); }
+.desktop-app .is-windows .close:hover { color: #fff; background: var(--ara-error); }
+.desktop-app .brand-mark { color: var(--ara-text); }
+.desktop-app .brand-mark img { box-shadow: none; }
+
+.desktop-app .workspace-screen {
+  color: var(--ara-text);
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-nav {
+  border-right-color: var(--ara-border-subtle);
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-logo img {
+  border-radius: var(--ara-radius-control);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-logo:hover img {
+  box-shadow: none;
+}
+
+.desktop-app .workspace-nav-separator { background: var(--ara-border-subtle); }
+
+.desktop-app .workspace-nav-button {
+  color: var(--ara-text-muted);
+  border-radius: var(--ara-radius-control);
+  transition-duration: var(--ara-motion-fast);
+}
+
+.desktop-app .workspace-nav-button:hover {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-nav-button.is-active {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-nav-button.is-active::before { background: var(--ara-accent); }
+
+.desktop-app .workspace-list {
+  border-right-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-list-header h1,
+.desktop-app .workspace-chat-name { color: var(--ara-text); }
+
+.desktop-app .workspace-list-header p,
+.desktop-app .workspace-chat-preview,
+.desktop-app .workspace-chat-meta time,
+.desktop-app .workspace-list-footer { color: var(--ara-text-muted); }
+
+.desktop-app .workspace-list-footer { border-top-color: var(--ara-border-subtle); }
+
+.desktop-app .workspace-list .theme-toggle {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: transparent;
+}
+
+.desktop-app .workspace-list .theme-toggle:hover {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-new-chat,
+.desktop-app .workspace-list-refresh,
+.desktop-app .workspace-list-clear {
+  border-radius: var(--ara-radius-control);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-new-chat {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-new-chat:hover {
+  background: var(--ara-accent-hover);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-list-refresh {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: transparent;
+}
+
+.desktop-app .workspace-list-refresh:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-list-clear {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 42%, var(--ara-border-subtle));
+  background: transparent;
+}
+
+.desktop-app .workspace-list-clear:hover:not(:disabled) {
+  color: #fff;
+  border-color: var(--ara-error);
+  background: var(--ara-error);
+}
+
+.desktop-app .workspace-search {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-search:focus-within {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 38%, transparent);
+}
+
+.desktop-app .workspace-search input { color: var(--ara-text); }
+.desktop-app .workspace-search input::placeholder { color: var(--ara-text-muted); }
+.desktop-app .workspace-search button { color: var(--ara-text-muted); }
+.desktop-app .workspace-search button:hover { color: var(--ara-text); background: color-mix(in srgb, var(--ara-text) 7%, transparent); }
+
+.desktop-app .workspace-list-notice {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 45%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-chat-group-toggle {
+  color: var(--ara-text-muted);
+  border-radius: var(--ara-radius-control);
+}
+
+.desktop-app .workspace-chat-group-toggle:hover {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-group-toggle em,
+.desktop-app .workspace-chat-group-toggle small {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-chat-group-toggle em {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-chat-row {
+  color: var(--ara-text);
+  border-radius: var(--ara-radius-panel);
+  transition-duration: var(--ara-motion-fast);
+}
+
+.desktop-app .workspace-chat-row:hover { background: var(--ara-surface-elevated); }
+
+.desktop-app .workspace-chat-row.is-selected {
+  border-color: var(--ara-border-interactive);
+  background: color-mix(in srgb, var(--ara-accent) 12%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-unread {
+  color: var(--ara-on-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-list .workspace-avatar,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .workspace-avatar {
+  color: var(--ara-on-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 45%, transparent);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-list .workspace-avatar.is-violet,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .workspace-avatar.is-violet { background: linear-gradient(145deg, #59653a, #9cab5d); }
+.desktop-app .workspace-list .workspace-avatar.is-coral,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .workspace-avatar.is-coral { background: linear-gradient(145deg, #6b6441, #aba461); }
+.desktop-app .workspace-list .workspace-avatar.is-yellow,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .workspace-avatar.is-yellow { color: var(--ara-on-accent); background: linear-gradient(145deg, #84924c, #c0d36c); }
+.desktop-app .workspace-list .workspace-avatar.is-blue,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .workspace-avatar.is-blue { background: linear-gradient(145deg, #49635b, #7d9d7b); }
+
+.desktop-app .workspace-list-status,
+.desktop-app .workspace-list-error {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-list-error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+}
+
+.desktop-app .workspace-list-error strong,
+.desktop-app .workspace-no-results strong { color: var(--ara-text); }
+
+.desktop-app .workspace-list-error button,
+.desktop-app .workspace-list-empty-action {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-list-error button:hover,
+.desktop-app .workspace-list-empty-action:hover { background: var(--ara-accent-hover); }
+.desktop-app .workspace-no-results { color: var(--ara-text-muted); }
+
+.desktop-app .workspace-main {
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-main::before { display: none; }
+
+.desktop-app .workspace-empty-state > p {
+  color: var(--ara-accent);
+}
+
+.desktop-app .workspace-empty-state h1 { color: var(--ara-text); }
+.desktop-app .workspace-empty-state > span { color: var(--ara-text-muted); }
+.desktop-app .empty-cloud { fill: var(--ara-surface); stroke: var(--ara-border-interactive); }
+.desktop-app .empty-line { stroke: var(--ara-accent); }
+.desktop-app .empty-bubble { fill: var(--ara-accent); stroke: var(--ara-accent); }
+.desktop-app .empty-dot { fill: var(--ara-on-accent); }
+.desktop-app .empty-orbit { border-color: color-mix(in srgb, var(--ara-accent) 60%, transparent); }
+.desktop-app .empty-orbit-two { border-color: color-mix(in srgb, var(--ara-border-strong) 75%, transparent); }
+.desktop-app .empty-feather { background: var(--ara-accent); box-shadow: none; }
+
+.desktop-app .workspace-empty-state .workspace-outline-button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-empty-state .workspace-outline-button:hover {
+  border-color: var(--ara-accent-hover);
+  background: var(--ara-accent-hover);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) { background: var(--ara-canvas); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-header {
+  border-bottom-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-back-button { color: var(--ara-text-muted); border-radius: var(--ara-radius-control); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-back-button:hover { color: var(--ara-text); background: var(--ara-surface-elevated); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-contact-heading h1 { color: var(--ara-text); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-contact-heading div > span { color: var(--ara-text-muted); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-header-actions button,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-icon {
+  color: var(--ara-text-muted);
+  border-radius: var(--ara-radius-control);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-header-actions button:hover:not(:disabled),
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-icon:hover:not(:disabled) {
+  color: var(--ara-accent);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history { background: var(--ara-canvas); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-server-notice {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 45%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface));
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-server-notice svg { color: var(--ara-accent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-server-notice.is-reconnecting { color: var(--ara-text); border-color: color-mix(in srgb, var(--ara-warning) 52%, var(--ara-border-subtle)); background: color-mix(in srgb, var(--ara-warning) 10%, var(--ara-surface)); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-server-notice.is-reconnecting svg { color: var(--ara-warning); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-server-notice.is-disconnected { color: var(--ara-text); border-color: color-mix(in srgb, var(--ara-error) 54%, var(--ara-border-subtle)); background: color-mix(in srgb, var(--ara-error) 9%, var(--ara-surface)); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-server-notice.is-disconnected svg { color: var(--ara-error); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-date-divider { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-date-divider::before,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-date-divider::after { background: var(--ara-border-subtle); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-bubble {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: 5px var(--ara-radius-panel) var(--ara-radius-panel) var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-bubble {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: var(--ara-radius-panel) 5px var(--ara-radius-panel) var(--ara-radius-panel);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-notification-target .chat-message-bubble {
+  outline-color: var(--ara-focus);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message footer { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message footer svg,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message footer span { color: var(--ara-accent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine footer { color: color-mix(in srgb, var(--ara-on-accent) 66%, var(--ara-accent)); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine footer svg,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine footer span { color: var(--ara-accent); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-pinned-message,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-context {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 42%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-pinned-message strong,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-context strong { color: var(--ara-text); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-pinned-message small,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-context small { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-pinned-message button,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-context button { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-pinned-message button:hover,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-context button:hover { color: var(--ara-text); background: color-mix(in srgb, var(--ara-text) 7%, transparent); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reply-preview {
+  border-left-color: var(--ara-accent);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reply-preview span { color: var(--ara-accent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reply-preview small { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-reply-preview { border-left-color: var(--ara-on-accent); background: color-mix(in srgb, var(--ara-on-accent) 9%, transparent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-reply-preview span,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-reply-preview small { color: var(--ara-on-accent); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reactions button,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reaction-picker button {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reactions button[aria-pressed='true'] {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: color-mix(in srgb, var(--ara-accent) 14%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-reactions button {
+  color: var(--ara-on-accent);
+  border-color: color-mix(in srgb, var(--ara-on-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--ara-on-accent) 11%, transparent);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-actions button { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-actions button:hover,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-actions button[aria-pressed='true'] { color: var(--ara-accent); background: var(--ara-surface-elevated); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-actions button.is-danger:hover { color: var(--ara-error); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-actions button { color: color-mix(in srgb, var(--ara-on-accent) 72%, transparent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-actions button:hover,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-actions button[aria-pressed='true'] { color: var(--ara-on-accent); background: color-mix(in srgb, var(--ara-on-accent) 13%, transparent); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reaction-picker { border-top-color: color-mix(in srgb, var(--ara-on-accent) 25%, transparent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-reaction-picker button { color: var(--ara-on-accent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-reaction-picker button:hover { border-color: var(--ara-border-interactive); background: color-mix(in srgb, var(--ara-accent) 12%, var(--ara-surface-elevated)); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-media-image,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-media-video { background: var(--ara-surface-elevated); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-media-status { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-media-status.is-error { color: var(--ara-error); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-file-link > svg,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-attachment-art { color: var(--ara-accent); background: color-mix(in srgb, var(--ara-accent) 12%, var(--ara-surface-elevated)); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-file-link small { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-file-link > svg,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-media-play { color: var(--ara-on-accent); background: color-mix(in srgb, var(--ara-on-accent) 13%, transparent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-file-link small { color: color-mix(in srgb, var(--ara-on-accent) 72%, transparent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-media-play { color: var(--ara-on-accent); background: var(--ara-accent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-voice-wave i { background: color-mix(in srgb, var(--ara-on-accent) 52%, transparent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-voice-message.is-playing .chat-voice-wave i { background: var(--ara-on-accent); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-empty-history { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-empty-history strong { color: var(--ara-text); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history-status,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history-error {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history-error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history-error strong { color: var(--ara-text); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history-error button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history-error button:hover { background: var(--ara-accent-hover); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-area {
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer:focus-within {
+  border-color: var(--ara-border-interactive);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 38%, transparent);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer textarea { color: var(--ara-text); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer textarea::placeholder { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-send-button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-send-button:hover:not(:disabled) { background: var(--ara-accent-hover); box-shadow: none; }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-send-button:disabled { color: color-mix(in srgb, var(--ara-on-accent) 62%, transparent); background: color-mix(in srgb, var(--ara-accent) 52%, var(--ara-surface-elevated)); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-hint { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-composer-error { color: var(--ara-error); border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle)); background: color-mix(in srgb, var(--ara-error) 9%, var(--ara-surface-elevated)); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-draft-type {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-draft-type > span { color: var(--ara-accent); background: color-mix(in srgb, var(--ara-accent) 12%, transparent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-draft-type small { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-draft-type button { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-draft-type button:hover { color: var(--ara-error); background: color-mix(in srgb, var(--ara-error) 10%, transparent); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-recording-panel {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-error) 50%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-error) 8%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-recording-mark,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-recording-preview { color: #fff; background: var(--ara-error); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-recording-copy small { color: var(--ara-text-muted); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-recording-cancel { color: var(--ara-text-muted); border-color: var(--ara-border-subtle); background: var(--ara-surface); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-recording-cancel:hover { color: var(--ara-error); border-color: var(--ara-error); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-recording-stop { color: #fff; border-color: var(--ara-error); background: var(--ara-error); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-e2ee-chat-status.is-ready,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-e2ee-status.is-verified { color: var(--ara-accent); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-e2ee-chat-status.is-checking,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-e2ee-status.is-unverified { color: var(--ara-warning); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-e2ee-chat-status.is-unavailable,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-e2ee-status.is-unavailable,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-e2ee-status.is-key-changed,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-encrypted-unavailable { color: var(--ara-error); }
+
+.desktop-app .workspace-chat-list,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-history {
+  scrollbar-color: var(--ara-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+/* Ara Shift: Channels. Keep this layer scoped while legacy workspace sections
+   complete their own migrations. */
+.desktop-app .channels-panel { color: var(--ara-text); }
+
+.desktop-app .channels-panel .workspace-panel-heading > p { color: var(--ara-accent); }
+.desktop-app .channels-panel .workspace-panel-heading h1 { color: var(--ara-text); }
+.desktop-app .channels-panel .workspace-panel-heading > div > span { color: var(--ara-text-muted); }
+.desktop-app .channels-panel .workspace-panel-icon {
+  color: var(--ara-accent);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface));
+}
+
+.desktop-app .channels-panel .channel-form-close {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface);
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+
+.desktop-app .channels-panel .channel-form-close:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channels-panel .channel-primary-button,
+.desktop-app .channel-comments-panel .channel-primary-button,
+.desktop-app .channel-details-panel .channel-primary-button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-accent);
+  box-shadow: none;
+  transition: background var(--ara-motion-fast), border-color var(--ara-motion-fast), color var(--ara-motion-fast);
+}
+
+.desktop-app .channels-panel .channel-primary-button:hover:not(:disabled),
+.desktop-app .channel-comments-panel .channel-primary-button:hover:not(:disabled),
+.desktop-app .channel-details-panel .channel-primary-button:hover:not(:disabled) {
+  background: var(--ara-accent-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+.desktop-app .channels-panel .channel-primary-button:disabled,
+.desktop-app .channel-comments-panel .channel-primary-button:disabled,
+.desktop-app .channel-details-panel .channel-primary-button:disabled {
+  color: color-mix(in srgb, var(--ara-on-accent) 58%, transparent);
+  border-color: color-mix(in srgb, var(--ara-accent) 48%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 50%, var(--ara-surface-elevated));
+  opacity: 1;
+}
+
+.desktop-app .channels-panel .workspace-outline-button,
+.desktop-app .channel-details-panel .workspace-outline-button {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface);
+  box-shadow: none;
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+
+.desktop-app .channels-panel .workspace-outline-button:hover:not(:disabled),
+.desktop-app .channel-details-panel .workspace-outline-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channels-panel .workspace-section-card,
+.desktop-app .channel-details-panel .workspace-section-card {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .channels-panel .channel-section-heading h2,
+.desktop-app .channel-details-panel .workspace-section-heading h2,
+.desktop-app .channel-details-panel .channel-info-card h2 { color: var(--ara-text); }
+.desktop-app .channels-panel .channel-section-heading > span,
+.desktop-app .channel-details-panel .workspace-section-heading > span { color: var(--ara-text-muted); }
+.desktop-app .channels-panel .channel-section-heading > button {
+  color: var(--ara-text-muted);
+  border-color: transparent;
+  border-radius: var(--ara-radius-control);
+}
+
+.desktop-app .channels-panel .channel-section-heading > button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channels-panel .channel-card {
+  color: var(--ara-text);
+  border-color: transparent;
+  border-radius: var(--ara-radius-control);
+  background: transparent;
+  transition: border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+
+.desktop-app .channels-panel .channel-card:hover,
+.desktop-app .channels-panel .channel-card:has(.channel-card-main:hover) {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channels-panel .channel-card strong { color: var(--ara-text); }
+.desktop-app .channels-panel .channel-card small,
+.desktop-app .channels-panel .channel-empty { color: var(--ara-text-muted); }
+.desktop-app .channels-panel .channel-avatar {
+  color: var(--ara-on-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 54%, var(--ara-border-subtle));
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .channels-panel .channel-subscribe-button {
+  color: var(--ara-accent);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface));
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+
+.desktop-app .channels-panel .channel-subscribe-button:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .channels-panel .channel-subscribe-button:disabled { color: var(--ara-text-muted); opacity: .56; }
+
+.desktop-app .channels-panel .channel-form label > span,
+.desktop-app .channel-details-panel .channel-details-form label > span { color: var(--ara-text); }
+
+.desktop-app .channels-panel .channel-form input,
+.desktop-app .channels-panel .channel-form textarea,
+.desktop-app .channel-details-panel .channel-details-form input,
+.desktop-app .channel-details-panel .channel-details-form textarea,
+.desktop-app .channel-comments-panel .channel-comment-composer textarea {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  transition: border-color var(--ara-motion-fast), box-shadow var(--ara-motion-fast);
+}
+
+.desktop-app .channels-panel .channel-form input::placeholder,
+.desktop-app .channels-panel .channel-form textarea::placeholder,
+.desktop-app .channel-details-panel .channel-details-form input::placeholder,
+.desktop-app .channel-details-panel .channel-details-form textarea::placeholder,
+.desktop-app .channel-comments-panel .channel-comment-composer textarea::placeholder { color: var(--ara-text-muted); }
+
+.desktop-app .channels-panel .channel-form input:focus,
+.desktop-app .channels-panel .channel-form textarea:focus,
+.desktop-app .channel-details-panel .channel-details-form input:focus,
+.desktop-app .channel-details-panel .channel-details-form textarea:focus,
+.desktop-app .channel-comments-panel .channel-comment-composer textarea:focus {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 38%, transparent);
+}
+
+.desktop-app .channels-panel .channel-avatar-upload,
+.desktop-app .channel-details-panel .channel-avatar-upload {
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 7%, var(--ara-surface-elevated));
+}
+
+.desktop-app .channels-panel .channel-avatar-upload > span,
+.desktop-app .channel-details-panel .channel-avatar-upload > span {
+  color: var(--ara-accent);
+  background: color-mix(in srgb, var(--ara-accent) 12%, transparent);
+}
+
+.desktop-app .channels-panel .channel-avatar-upload strong,
+.desktop-app .channel-details-panel .channel-avatar-upload strong { color: var(--ara-text); }
+.desktop-app .channels-panel .channel-avatar-upload small,
+.desktop-app .channel-details-panel .channel-avatar-upload small { color: var(--ara-text-muted); }
+.desktop-app .channels-panel .channel-avatar-upload button,
+.desktop-app .channel-details-panel .channel-avatar-upload button { color: var(--ara-accent); }
+.desktop-app .channels-panel .channel-avatar-upload button:hover,
+.desktop-app .channel-details-panel .channel-avatar-upload button:hover { color: var(--ara-accent-hover); }
+.desktop-app .channels-panel .channel-form-error { color: var(--ara-error); }
+
+.desktop-app .channels-panel .workspace-list-error,
+.desktop-app .channel-details-panel .workspace-list-error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-error) 8%, var(--ara-surface));
+}
+
+.desktop-app .channels-panel .workspace-list-error strong,
+.desktop-app .channel-details-panel .workspace-list-error strong { color: var(--ara-text); }
+.desktop-app .channels-panel .workspace-list-error button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .channels-panel .workspace-list-error button:hover { background: var(--ara-accent-hover); }
+
+.desktop-app .workspace-chat-panel.channel-chat-panel,
+.desktop-app .workspace-chat-panel.channel-comments-panel,
+.desktop-app .workspace-chat-panel.channel-details-panel {
+  color: var(--ara-text);
+  background: var(--ara-canvas);
+}
+
+.desktop-app .channel-chat-panel .chat-header,
+.desktop-app .channel-comments-panel .chat-header,
+.desktop-app .channel-details-panel .chat-header {
+  border-bottom-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .channel-chat-panel .chat-back-button,
+.desktop-app .channel-comments-panel .chat-back-button,
+.desktop-app .channel-details-panel .chat-back-button { color: var(--ara-text-muted); border-radius: var(--ara-radius-control); }
+
+.desktop-app .channel-chat-panel .chat-back-button:hover,
+.desktop-app .channel-comments-panel .chat-back-button:hover,
+.desktop-app .channel-details-panel .chat-back-button:hover { color: var(--ara-text); background: var(--ara-surface-elevated); }
+
+.desktop-app .channel-chat-panel .chat-contact-heading h1,
+.desktop-app .channel-comments-panel .channel-comments-heading h1,
+.desktop-app .channel-details-panel .channel-details-title h1 { color: var(--ara-text); }
+.desktop-app .channel-chat-panel .chat-contact-heading div > span,
+.desktop-app .channel-comments-panel .channel-comments-heading span,
+.desktop-app .channel-details-panel .channel-details-title span { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .channel-contact-heading div > small { color: var(--ara-accent); }
+.desktop-app .channel-chat-panel .workspace-avatar.channel-header-avatar {
+  color: var(--ara-on-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 54%, var(--ara-border-subtle));
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .channel-chat-panel .chat-header-actions button,
+.desktop-app .channel-comments-panel .channel-header-action,
+.desktop-app .channel-details-panel .channel-header-action,
+.desktop-app .channel-chat-panel .chat-composer-icon {
+  color: var(--ara-text-muted);
+  border-color: transparent;
+  border-radius: var(--ara-radius-control);
+  background: transparent;
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+
+.desktop-app .channel-chat-panel .chat-header-actions button:hover:not(:disabled),
+.desktop-app .channel-comments-panel .channel-header-action:hover:not(:disabled),
+.desktop-app .channel-details-panel .channel-header-action:hover:not(:disabled),
+.desktop-app .channel-chat-panel .chat-composer-icon:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channel-chat-panel .chat-header-actions button:disabled,
+.desktop-app .channel-comments-panel .channel-header-action:disabled,
+.desktop-app .channel-details-panel .channel-header-action:disabled,
+.desktop-app .channel-chat-panel .chat-composer-icon:disabled { opacity: .48; }
+
+.desktop-app .channel-chat-panel .channel-post-history,
+.desktop-app .channel-comments-panel .channel-comments-history,
+.desktop-app .channel-details-panel .channel-details-content {
+  scrollbar-color: var(--ara-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.desktop-app .channel-chat-panel .chat-server-notice {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 44%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .channel-chat-panel .chat-server-notice svg { color: var(--ara-accent); }
+.desktop-app .channel-chat-panel .chat-server-notice.is-reconnecting {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-warning) 50%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-warning) 10%, var(--ara-surface-elevated));
+}
+.desktop-app .channel-chat-panel .chat-server-notice.is-reconnecting svg { color: var(--ara-warning); }
+.desktop-app .channel-chat-panel .chat-server-notice.is-disconnected {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-error) 50%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .channel-chat-panel .chat-server-notice.is-disconnected svg { color: var(--ara-error); }
+
+.desktop-app .channel-chat-panel .chat-history-status,
+.desktop-app .channel-comments-panel .chat-history-status,
+.desktop-app .channel-chat-panel .chat-history-error,
+.desktop-app .channel-comments-panel .chat-history-error {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channel-chat-panel .chat-history-error,
+.desktop-app .channel-comments-panel .chat-history-error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+}
+
+.desktop-app .channel-chat-panel .chat-history-error strong,
+.desktop-app .channel-comments-panel .chat-history-error strong { color: var(--ara-text); }
+.desktop-app .channel-chat-panel .chat-history-error button,
+.desktop-app .channel-comments-panel .chat-history-error button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .channel-chat-panel .chat-history-error button:hover,
+.desktop-app .channel-comments-panel .chat-history-error button:hover { background: var(--ara-accent-hover); }
+
+.desktop-app .channel-chat-panel .channel-post .chat-message-bubble {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+}
+
+.desktop-app .channel-chat-panel .channel-post.is-mine .chat-message-bubble {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channel-chat-panel .channel-post.is-notification-target .chat-message-bubble {
+  outline-color: var(--ara-accent);
+}
+
+.desktop-app .channel-chat-panel .channel-post-author strong { color: var(--ara-accent); }
+.desktop-app .channel-chat-panel .channel-post-author span,
+.desktop-app .channel-chat-panel .channel-post footer,
+.desktop-app .channel-chat-panel .channel-post.is-mine footer { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .channel-post footer span { color: var(--ara-accent); }
+.desktop-app .channel-chat-panel .channel-post-actions { border-top-color: var(--ara-border-subtle); }
+.desktop-app .channel-chat-panel .channel-post-actions button { color: var(--ara-text-muted); border-radius: 8px; }
+.desktop-app .channel-chat-panel .channel-post-actions button:hover:not(:disabled) {
+  color: var(--ara-text);
+  background: var(--ara-surface);
+}
+.desktop-app .channel-chat-panel .channel-post-actions button[aria-pressed='true'] {
+  color: var(--ara-on-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .channel-chat-panel .channel-post-actions button.is-danger:hover:not(:disabled) {
+  color: var(--ara-error);
+  background: color-mix(in srgb, var(--ara-error) 10%, transparent);
+}
+.desktop-app .channel-chat-panel .channel-post-actions button:disabled { opacity: .5; }
+
+.desktop-app .channel-chat-panel .chat-media-image,
+.desktop-app .channel-chat-panel .chat-media-video,
+.desktop-app .channel-comments-panel .chat-media-image,
+.desktop-app .channel-comments-panel .chat-media-video { background: var(--ara-surface); }
+.desktop-app .channel-chat-panel .chat-media-status,
+.desktop-app .channel-comments-panel .chat-media-status { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .chat-media-status.is-error,
+.desktop-app .channel-comments-panel .chat-media-status.is-error,
+.desktop-app .channel-chat-panel .chat-encrypted-unavailable,
+.desktop-app .channel-comments-panel .chat-encrypted-unavailable { color: var(--ara-error); }
+.desktop-app .channel-chat-panel .chat-file-link > svg,
+.desktop-app .channel-comments-panel .chat-file-link > svg {
+  color: var(--ara-accent);
+  background: color-mix(in srgb, var(--ara-accent) 12%, var(--ara-surface));
+}
+.desktop-app .channel-chat-panel .chat-file-link small,
+.desktop-app .channel-comments-panel .chat-file-link small { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .chat-media-play,
+.desktop-app .channel-comments-panel .chat-media-play { color: var(--ara-on-accent); background: var(--ara-accent); }
+.desktop-app .channel-chat-panel .chat-voice-message.is-playing .chat-voice-wave i,
+.desktop-app .channel-comments-panel .chat-voice-message.is-playing .chat-voice-wave i { background: var(--ara-accent); }
+
+.desktop-app .channel-chat-panel .chat-empty-history { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .chat-empty-history strong { color: var(--ara-text); }
+.desktop-app .channel-chat-panel .chat-empty-history .workspace-avatar {
+  color: var(--ara-on-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 54%, var(--ara-border-subtle));
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .channel-chat-panel .channel-composer-area {
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+.desktop-app .channel-chat-panel .channel-post-composer {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .channel-chat-panel .channel-post-composer:focus-within {
+  border-color: var(--ara-border-interactive);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 38%, transparent);
+}
+.desktop-app .channel-chat-panel .channel-post-composer textarea { color: var(--ara-text); }
+.desktop-app .channel-chat-panel .channel-post-composer textarea::placeholder { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .chat-send-button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+.desktop-app .channel-chat-panel .chat-send-button:hover:not(:disabled) { background: var(--ara-accent-hover); box-shadow: none; }
+.desktop-app .channel-chat-panel .chat-send-button:disabled {
+  color: color-mix(in srgb, var(--ara-on-accent) 58%, transparent);
+  background: color-mix(in srgb, var(--ara-accent) 50%, var(--ara-surface-elevated));
+}
+.desktop-app .channel-chat-panel .chat-composer-hint { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .chat-composer-error,
+.desktop-app .channel-comments-panel .chat-composer-error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .channel-chat-panel .chat-draft-type {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .channel-chat-panel .chat-draft-type > span { color: var(--ara-accent); background: color-mix(in srgb, var(--ara-accent) 12%, transparent); }
+.desktop-app .channel-chat-panel .chat-draft-type small { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .chat-draft-type button { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .chat-draft-type button:hover { color: var(--ara-error); background: color-mix(in srgb, var(--ara-error) 10%, transparent); }
+.desktop-app .channel-chat-panel .channel-composer-context { color: var(--ara-accent); }
+.desktop-app .channel-chat-panel .channel-composer-context small { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .channel-composer-context button { color: var(--ara-text-muted); }
+.desktop-app .channel-chat-panel .channel-composer-context button:hover { color: var(--ara-text); background: var(--ara-surface-elevated); }
+.desktop-app .channel-chat-panel .channel-readonly-notice {
+  color: var(--ara-text-muted);
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+.desktop-app .channel-chat-panel .channel-readonly-notice svg { color: var(--ara-accent); }
+
+.desktop-app .channel-comments-panel .channel-comments-history,
+.desktop-app .channel-details-panel .channel-details-content { background: var(--ara-canvas); }
+.desktop-app .channel-comments-panel .channel-comment-source {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-accent) 7%, var(--ara-surface));
+}
+.desktop-app .channel-comments-panel .channel-comment-source > span { color: var(--ara-accent); }
+.desktop-app .channel-comments-panel .channel-comment {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface);
+}
+.desktop-app .channel-comments-panel .channel-comment.is-deleted { color: var(--ara-text-muted); }
+.desktop-app .channel-comments-panel .channel-comment time { color: var(--ara-text-muted); }
+.desktop-app .channel-comments-panel .channel-comment footer button { color: var(--ara-text-muted); }
+.desktop-app .channel-comments-panel .channel-comment footer button:hover:not(:disabled) { color: var(--ara-text); background: var(--ara-surface-elevated); }
+.desktop-app .channel-comments-panel .channel-comment footer .is-danger:hover:not(:disabled) { color: var(--ara-error); background: color-mix(in srgb, var(--ara-error) 10%, transparent); }
+.desktop-app .channel-comments-panel .channel-comments-empty { color: var(--ara-text-muted); }
+.desktop-app .channel-comments-panel .channel-comments-empty strong { color: var(--ara-text); }
+.desktop-app .channel-comments-panel .channel-comment-composer {
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+.desktop-app .channel-comments-panel .channel-comment-composer > div:last-child > span { color: var(--ara-text-muted); }
+.desktop-app .channel-comments-panel .channel-composer-context { color: var(--ara-accent); }
+.desktop-app .channel-comments-panel .channel-composer-context button { color: var(--ara-text-muted); }
+.desktop-app .channel-comments-panel .channel-composer-context button:hover { color: var(--ara-text); background: var(--ara-surface-elevated); }
+.desktop-app .channel-comments-panel .channel-comment-closed {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .channel-details-panel .channel-info-card {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+.desktop-app .channel-details-panel .channel-details-avatar,
+.desktop-app .channel-details-panel .channel-member-avatar {
+  color: var(--ara-on-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .channel-details-panel .channel-info-card p,
+.desktop-app .channel-details-panel .channel-details-form .workspace-section-heading p,
+.desktop-app .channel-details-panel .channel-invite-card .workspace-section-heading p,
+.desktop-app .channel-details-panel .channel-members-card .workspace-section-heading p,
+.desktop-app .channel-details-panel .channel-preferences-card p,
+.desktop-app .channel-details-panel .channel-leave-card p { color: var(--ara-text-muted); }
+.desktop-app .channel-details-panel .channel-info-card span { color: var(--ara-accent); }
+.desktop-app .channel-details-panel .channel-invite-link {
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 7%, var(--ara-surface-elevated));
+}
+.desktop-app .channel-details-panel .channel-invite-link code { color: var(--ara-accent); }
+.desktop-app .channel-details-panel .channel-invite-link button {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  border-radius: 8px;
+  background: var(--ara-surface);
+}
+.desktop-app .channel-details-panel .channel-invite-link button:hover { border-color: var(--ara-border-strong); background: var(--ara-surface-elevated); }
+.desktop-app .channel-details-panel .channel-member { border-top-color: var(--ara-border-subtle); }
+.desktop-app .channel-details-panel .channel-member strong { color: var(--ara-text); }
+.desktop-app .channel-details-panel .channel-member small { color: var(--ara-text-muted); }
+.desktop-app .channel-details-panel .channel-member select {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .channel-details-panel .channel-member-role {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .channel-details-panel .channel-member-remove { color: var(--ara-text-muted); }
+.desktop-app .channel-details-panel .channel-member-remove:hover:not(:disabled) { color: var(--ara-error); background: color-mix(in srgb, var(--ara-error) 10%, transparent); }
+.desktop-app .channel-details-panel .channel-member-remove:disabled { opacity: .48; }
+.desktop-app .channel-details-panel .channel-notification-toggle {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .channel-details-panel .channel-notification-toggle i { background: var(--ara-border-strong); }
+.desktop-app .channel-details-panel .channel-notification-toggle i::after { background: var(--ara-surface); }
+.desktop-app .channel-details-panel .channel-notification-toggle.is-enabled {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 54%, var(--ara-border-interactive));
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+.desktop-app .channel-details-panel .channel-notification-toggle.is-enabled i { background: var(--ara-accent); }
+.desktop-app .channel-details-panel .channel-notification-toggle:disabled { opacity: .52; }
+.desktop-app .channel-details-panel .channel-leave-card {
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-error) 8%, var(--ara-surface));
+}
+.desktop-app .channel-details-panel .channel-leave-card h2 { color: var(--ara-text); }
+.desktop-app .channel-details-panel .channel-leave-card button {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 52%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: transparent;
+}
+.desktop-app .channel-details-panel .channel-leave-card button:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-error);
+  background: var(--ara-error);
+}
+.desktop-app .channel-details-panel .channel-leave-card button:disabled { color: var(--ara-text-muted); border-color: var(--ara-border-subtle); opacity: .6; }
+
+.desktop-app .channel-chat-panel .chat-voice-wave i,
+.desktop-app .channel-comments-panel .chat-voice-wave i {
+  background: color-mix(in srgb, var(--ara-accent) 58%, var(--ara-text-muted));
+}
+.desktop-app .channel-chat-panel .chat-video-note,
+.desktop-app .channel-comments-panel .chat-video-note {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .channel-chat-panel .chat-video-note::after,
+.desktop-app .channel-comments-panel .chat-video-note::after { border-color: var(--ara-border-strong); }
+.desktop-app .channel-chat-panel .chat-video-note-play,
+.desktop-app .channel-comments-panel .chat-video-note-play {
+  color: var(--ara-on-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+.desktop-app .channel-chat-panel .chat-video-note time,
+.desktop-app .channel-comments-panel .chat-video-note time {
+  color: var(--ara-text);
+  background: color-mix(in srgb, var(--ara-canvas) 82%, transparent);
+}
+.desktop-app .channel-chat-panel .chat-deleted-message,
+.desktop-app .channel-chat-panel .chat-unsupported-message,
+.desktop-app .channel-comments-panel .chat-deleted-message,
+.desktop-app .channel-comments-panel .chat-unsupported-message { color: var(--ara-text-muted); }
+
+.desktop-app .channel-details-panel .channel-empty { color: var(--ara-text-muted); }
+.desktop-app .channel-details-panel .channel-member select:disabled { color: var(--ara-text-muted); opacity: .58; }
+
+/* Ara Shift: Settings and Profile. Keep shared workspace controls scoped until
+   every remaining Desktop surface has migrated. */
+.desktop-app .workspace-settings-panel,
+.desktop-app .workspace-profile-panel { color: var(--ara-text); }
+
+.desktop-app .workspace-settings-panel .workspace-panel-heading > p,
+.desktop-app .workspace-profile-panel .workspace-panel-heading > p { color: var(--ara-accent); }
+.desktop-app .workspace-settings-panel .workspace-panel-heading h1,
+.desktop-app .workspace-profile-panel .workspace-panel-heading h1 { color: var(--ara-text); }
+.desktop-app .workspace-settings-panel .workspace-panel-heading > div > span,
+.desktop-app .workspace-profile-panel .workspace-panel-heading > div > span { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .workspace-panel-icon,
+.desktop-app .workspace-profile-panel .workspace-panel-icon {
+  color: var(--ara-accent);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface));
+}
+
+.desktop-app .workspace-settings-panel .workspace-section-card,
+.desktop-app .workspace-profile-panel .workspace-section-card {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-settings-panel .workspace-section-heading h2,
+.desktop-app .workspace-profile-panel .workspace-section-heading h2 { color: var(--ara-text); }
+.desktop-app .workspace-settings-panel .workspace-section-heading p,
+.desktop-app .workspace-profile-panel .workspace-section-heading p { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .workspace-section-icon,
+.desktop-app .workspace-profile-panel .workspace-section-icon {
+  color: var(--ara-accent);
+  background: color-mix(in srgb, var(--ara-accent) 11%, transparent);
+}
+
+.desktop-app .workspace-settings-panel .workspace-primary-button,
+.desktop-app .workspace-profile-panel .workspace-primary-button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-accent);
+  box-shadow: none;
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+
+.desktop-app .workspace-settings-panel .workspace-primary-button:hover:not(:disabled),
+.desktop-app .workspace-profile-panel .workspace-primary-button:hover:not(:disabled) {
+  background: var(--ara-accent-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+.desktop-app .workspace-settings-panel .workspace-primary-button:disabled,
+.desktop-app .workspace-profile-panel .workspace-primary-button:disabled {
+  color: color-mix(in srgb, var(--ara-on-accent) 58%, transparent);
+  border-color: color-mix(in srgb, var(--ara-accent) 48%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 50%, var(--ara-surface-elevated));
+  opacity: 1;
+}
+
+.desktop-app .workspace-settings-panel .workspace-outline-button,
+.desktop-app .workspace-profile-panel .workspace-outline-button {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface);
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+
+.desktop-app .workspace-settings-panel .workspace-outline-button:hover:not(:disabled),
+.desktop-app .workspace-profile-panel .workspace-outline-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  background: var(--ara-surface-elevated);
+  transform: none;
+}
+
+.desktop-app .workspace-settings-panel .workspace-outline-button:disabled,
+.desktop-app .workspace-profile-panel .workspace-outline-button:disabled {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+  opacity: .62;
+}
+
+.desktop-app .workspace-settings-panel .workspace-field > span,
+.desktop-app .workspace-profile-panel .workspace-field > span,
+.desktop-app .workspace-settings-panel .setting-control-block > strong { color: var(--ara-text); }
+.desktop-app .workspace-settings-panel .workspace-field input,
+.desktop-app .workspace-settings-panel .workspace-field textarea,
+.desktop-app .workspace-settings-panel .workspace-field select,
+.desktop-app .workspace-profile-panel .workspace-field input,
+.desktop-app .workspace-profile-panel .workspace-field textarea,
+.desktop-app .workspace-profile-panel .workspace-field select {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  transition: border-color var(--ara-motion-fast), box-shadow var(--ara-motion-fast);
+}
+
+.desktop-app .workspace-settings-panel .workspace-field input::placeholder,
+.desktop-app .workspace-settings-panel .workspace-field textarea::placeholder,
+.desktop-app .workspace-profile-panel .workspace-field input::placeholder,
+.desktop-app .workspace-profile-panel .workspace-field textarea::placeholder { color: var(--ara-text-muted); }
+
+.desktop-app .workspace-settings-panel .workspace-field input:focus,
+.desktop-app .workspace-settings-panel .workspace-field textarea:focus,
+.desktop-app .workspace-settings-panel .workspace-field select:focus,
+.desktop-app .workspace-profile-panel .workspace-field input:focus,
+.desktop-app .workspace-profile-panel .workspace-field textarea:focus,
+.desktop-app .workspace-profile-panel .workspace-field select:focus {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 38%, transparent);
+}
+
+.desktop-app .workspace-settings-panel .workspace-field input:disabled,
+.desktop-app .workspace-settings-panel .workspace-field textarea:disabled,
+.desktop-app .workspace-settings-panel .workspace-field select:disabled,
+.desktop-app .workspace-profile-panel .workspace-field input:disabled,
+.desktop-app .workspace-profile-panel .workspace-field textarea:disabled,
+.desktop-app .workspace-profile-panel .workspace-field select:disabled {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+  opacity: .62;
+}
+
+.desktop-app .workspace-settings-panel .workspace-field small,
+.desktop-app .workspace-profile-panel .workspace-field small { color: var(--ara-text-muted); }
+.desktop-app .workspace-profile-panel .workspace-input-prefix {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  transition: border-color var(--ara-motion-fast), box-shadow var(--ara-motion-fast);
+}
+.desktop-app .workspace-profile-panel .workspace-input-prefix:focus-within {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 38%, transparent);
+}
+.desktop-app .workspace-profile-panel .workspace-input-prefix > span { color: var(--ara-text-muted); }
+.desktop-app .workspace-profile-panel .workspace-input-prefix input,
+.desktop-app .workspace-profile-panel .workspace-input-prefix input:focus { color: var(--ara-text); background: transparent; box-shadow: none; }
+
+.desktop-app .workspace-settings-panel .workspace-form-notice,
+.desktop-app .workspace-profile-panel .workspace-form-notice {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 46%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .workspace-form-notice > svg,
+.desktop-app .workspace-profile-panel .workspace-form-notice > svg { color: var(--ara-accent); }
+.desktop-app .workspace-settings-panel .workspace-form-notice.is-error,
+.desktop-app .workspace-profile-panel .workspace-form-notice.is-error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .workspace-form-notice.is-error > svg,
+.desktop-app .workspace-profile-panel .workspace-form-notice.is-error > svg { color: var(--ara-error); }
+
+.desktop-app .workspace-settings-panel .settings-tabs {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface);
+}
+.desktop-app .workspace-settings-panel .settings-tabs button {
+  color: var(--ara-text-muted);
+  border-radius: 8px;
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+.desktop-app .workspace-settings-panel .settings-tabs button:hover { color: var(--ara-text); background: var(--ara-surface-elevated); }
+.desktop-app .workspace-settings-panel .settings-tabs button.is-active {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-settings-panel .theme-choice,
+.desktop-app .workspace-settings-panel .language-choice,
+.desktop-app .workspace-settings-panel .density-choices > button {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  transition: border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+.desktop-app .workspace-settings-panel .theme-choice:hover,
+.desktop-app .workspace-settings-panel .language-choice:hover,
+.desktop-app .workspace-settings-panel .density-choices > button:hover {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface);
+}
+.desktop-app .workspace-settings-panel .theme-choice.is-selected,
+.desktop-app .workspace-settings-panel .language-choice.is-selected,
+.desktop-app .workspace-settings-panel .density-choices > button.is-selected {
+  border-color: var(--ara-accent);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .theme-choice > span {
+  border-color: var(--ara-border-interactive);
+  background: linear-gradient(135deg, var(--ara-surface) 50%, var(--ara-surface-elevated) 50%);
+}
+.desktop-app .workspace-settings-panel .theme-choice-dark > span { background: linear-gradient(135deg, var(--ara-canvas) 50%, var(--ara-surface) 50%); }
+.desktop-app .workspace-settings-panel .theme-choice i,
+.desktop-app .workspace-settings-panel .language-choice-state { color: transparent; }
+.desktop-app .workspace-settings-panel .theme-choice.is-selected i,
+.desktop-app .workspace-settings-panel .language-choice.is-selected .language-choice-state {
+  color: var(--ara-on-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .workspace-settings-panel .language-choice-group legend { color: var(--ara-text); }
+.desktop-app .workspace-settings-panel .language-choice-group > p,
+.desktop-app .workspace-settings-panel .language-choice-copy small { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .language-choice:has(input:focus-visible) {
+  outline-color: var(--ara-focus);
+  outline-offset: 3px;
+}
+.desktop-app .workspace-settings-panel .language-choice-flag {
+  border-color: var(--ara-border-interactive);
+  box-shadow: none;
+}
+.desktop-app .workspace-settings-panel .density-choices small { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .density-choices > button > svg { color: transparent; }
+.desktop-app .workspace-settings-panel .density-choices > button.is-selected > svg { color: var(--ara-accent); }
+.desktop-app .workspace-settings-panel .density-preview { background: var(--ara-surface); }
+.desktop-app .workspace-settings-panel .density-preview i { background: var(--ara-accent); }
+
+.desktop-app .workspace-settings-panel .setting-toggle-row { border-top-color: var(--ara-border-subtle); }
+.desktop-app .workspace-settings-panel .setting-toggle-row strong { color: var(--ara-text); }
+.desktop-app .workspace-settings-panel .setting-toggle-row span { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .setting-switch {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .workspace-settings-panel .setting-switch span { background: var(--ara-border-strong); }
+.desktop-app .workspace-settings-panel .setting-switch.is-on {
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .workspace-settings-panel .setting-switch.is-on span { background: var(--ara-on-accent); }
+.desktop-app .workspace-settings-panel .workspace-backend-note {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-warning) 48%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-warning) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .workspace-backend-note span {
+  background: var(--ara-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ara-warning) 16%, transparent);
+}
+
+.desktop-app .workspace-settings-panel .security-status {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-warning) 48%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-warning) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .security-status > span {
+  color: var(--ara-warning);
+  background: color-mix(in srgb, var(--ara-warning) 13%, transparent);
+}
+.desktop-app .workspace-settings-panel .security-status p { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .workspace-icon-button {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+.desktop-app .workspace-settings-panel .workspace-icon-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface);
+}
+.desktop-app .workspace-settings-panel .workspace-icon-button:disabled { color: var(--ara-text-muted); opacity: .48; }
+.desktop-app .workspace-settings-panel .security-loading,
+.desktop-app .workspace-settings-panel .security-empty { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .security-device-row,
+.desktop-app .workspace-settings-panel .security-history-row { border-top-color: var(--ara-border-subtle); }
+.desktop-app .workspace-settings-panel .security-device-row strong,
+.desktop-app .workspace-settings-panel .security-history-row strong { color: var(--ara-text); }
+.desktop-app .workspace-settings-panel .security-device-row span:not(.workspace-section-icon),
+.desktop-app .workspace-settings-panel .security-history-row span:not(.workspace-section-icon),
+.desktop-app .workspace-settings-panel .security-device-row small { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .security-device-row em,
+.desktop-app .workspace-settings-panel .security-history-row em {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .workspace-settings-panel .security-device-row em.is-current,
+.desktop-app .workspace-settings-panel .security-history-row em.is-success {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 52%, var(--ara-border-interactive));
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .security-history-row em.is-failed {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .security-logout-button {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 50%, var(--ara-border-subtle));
+  background: transparent;
+}
+.desktop-app .workspace-settings-panel .security-logout-button:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-error);
+  background: var(--ara-error);
+}
+.desktop-app .workspace-settings-panel .workspace-list-error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-error) 8%, var(--ara-surface));
+}
+.desktop-app .workspace-settings-panel .workspace-list-error strong { color: var(--ara-text); }
+.desktop-app .workspace-settings-panel .workspace-list-error button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .workspace-settings-panel .workspace-list-error button:hover { background: var(--ara-accent-hover); }
+.desktop-app .workspace-settings-panel .settings-disabled-rows button { color: var(--ara-text-muted); border-top-color: var(--ara-border-subtle); }
+.desktop-app .workspace-settings-panel .settings-disabled-rows button > span { color: var(--ara-text-muted); background: var(--ara-surface-elevated); }
+.desktop-app .workspace-settings-panel .settings-disabled-rows strong { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .settings-disabled-rows > button > svg { color: color-mix(in srgb, var(--ara-text-muted) 55%, transparent); }
+
+.desktop-app .workspace-profile-panel .profile-identity-card {
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface));
+}
+.desktop-app .workspace-profile-panel .profile-avatar {
+  color: var(--ara-on-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 58%, var(--ara-border-subtle));
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+.desktop-app .workspace-profile-panel .profile-avatar-edit {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-surface);
+  background: var(--ara-accent);
+}
+.desktop-app .workspace-profile-panel .profile-avatar-edit:hover:not(:disabled) { background: var(--ara-accent-hover); }
+.desktop-app .workspace-profile-panel .profile-avatar-edit:disabled { opacity: .52; }
+.desktop-app .workspace-profile-panel .profile-identity-copy strong { color: var(--ara-text); }
+.desktop-app .workspace-profile-panel .profile-identity-copy > span,
+.desktop-app .workspace-profile-panel .profile-identity-copy small { color: var(--ara-text-muted); }
+.desktop-app .workspace-profile-panel .profile-server-mark {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .workspace-profile-panel .profile-server-mark span { background: var(--ara-accent); }
+.desktop-app .workspace-profile-panel .profile-arachat-id {
+  color: var(--ara-accent);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-profile-panel .profile-id-card > small { color: var(--ara-text-muted); }
+
+/* Ara Shift: calls and screen-share UI. Call signaling, media and device state stay untouched. */
+.desktop-app .workspace-calls-panel .call-start-card {
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-panel);
+  background: color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface));
+}
+.desktop-app .workspace-calls-panel .call-start-icon {
+  color: var(--ara-accent);
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 42%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 12%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .call-start-card h2,
+.desktop-app .workspace-calls-panel .workspace-section-heading h2,
+.desktop-app .workspace-calls-panel .call-readiness-list strong { color: var(--ara-text); }
+.desktop-app .workspace-calls-panel .call-start-card p,
+.desktop-app .workspace-calls-panel .workspace-section-heading p,
+.desktop-app .workspace-calls-panel .call-readiness-list li > div > span { color: var(--ara-text-muted); }
+.desktop-app .workspace-calls-panel .workspace-section-card {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+.desktop-app .workspace-calls-panel .call-readiness-list li { border-top-color: var(--ara-border-subtle); }
+.desktop-app .workspace-calls-panel .readiness-icon {
+  color: var(--ara-accent);
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 32%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .call-readiness-list em {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .workspace-calls-panel .call-readiness-list em.is-ready {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 48%, var(--ara-border-interactive));
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .call-readiness-list em.is-unavailable {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 46%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 8%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .call-active-notice {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 48%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface));
+}
+.desktop-app .workspace-calls-panel .call-active-notice strong { color: var(--ara-text); }
+.desktop-app .workspace-calls-panel .call-active-notice span { color: var(--ara-text-muted); }
+
+.desktop-app .desktop-call-overlay {
+  background: rgb(0 0 0 / .68);
+  backdrop-filter: blur(16px);
+}
+.desktop-app .desktop-call-dialog {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  border-radius: calc(var(--ara-radius-panel) + 6px);
+  background: var(--ara-surface);
+  box-shadow: 0 26px 70px var(--ara-shadow);
+}
+.desktop-app .desktop-call-topbar {
+  border-bottom-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+.desktop-app .desktop-call-topbar time { color: var(--ara-text-muted); }
+.desktop-app .desktop-call-live-dot { background: var(--ara-warning); }
+.desktop-app .desktop-call-live-dot.is-active {
+  background: var(--ara-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ara-accent) 18%, transparent);
+}
+.desktop-app .desktop-call-media {
+  background:
+    radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--ara-accent) 17%, transparent), transparent 42%),
+    radial-gradient(circle at 82% 85%, color-mix(in srgb, var(--ara-error) 11%, transparent), transparent 44%),
+    var(--ara-canvas);
+}
+.desktop-app .desktop-call-media.has-remote-video::after {
+  background: linear-gradient(180deg, transparent 32%, rgb(0 0 0 / .68) 100%);
+}
+.desktop-app .desktop-call-remote-video { background: var(--ara-canvas); }
+.desktop-app .desktop-call-avatar-stage .workspace-avatar {
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 48%, var(--ara-border-strong));
+  box-shadow: 0 16px 38px var(--ara-shadow);
+}
+.desktop-app .desktop-call-avatar-orbit { border-color: color-mix(in srgb, var(--ara-accent) 48%, transparent); }
+.desktop-app .desktop-call-avatar-orbit.two { border-color: color-mix(in srgb, var(--ara-warning) 54%, transparent); }
+.desktop-app .desktop-call-peer-copy h1 { color: var(--ara-text); }
+.desktop-app .desktop-call-peer-copy > span,
+.desktop-app .desktop-call-peer-copy p { color: var(--ara-text-muted); }
+.desktop-app .desktop-call-media.has-remote-video .desktop-call-peer-copy {
+  bottom: 16px;
+  left: 16px;
+  max-width: calc(100% - 32px);
+  padding: 10px 12px;
+  color: var(--ara-text);
+  text-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--ara-border-strong) 68%, transparent);
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-canvas) 90%, transparent);
+}
+.desktop-app .desktop-call-media.has-remote-video .desktop-call-peer-copy > span,
+.desktop-app .desktop-call-media.has-remote-video .desktop-call-peer-copy p { color: var(--ara-text-muted); }
+.desktop-app .desktop-call-local-video {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-canvas) 88%, transparent);
+  box-shadow: 0 10px 25px var(--ara-shadow);
+}
+.desktop-app .desktop-call-local-video small {
+  color: var(--ara-text);
+  background: color-mix(in srgb, var(--ara-canvas) 88%, transparent);
+}
+.desktop-app .desktop-call-controls {
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+.desktop-app .desktop-call-control {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast), transform var(--ara-motion-fast);
+}
+.desktop-app .desktop-call-control:hover:not(:disabled) {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface);
+}
+.desktop-app .desktop-call-control[aria-pressed='true']:not([data-share-trigger]),
+.desktop-app .desktop-call-control.is-decline,
+.desktop-app .desktop-call-control.is-end {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-error);
+  background: var(--ara-error);
+}
+.desktop-app .desktop-call-control[data-share-trigger][aria-pressed='true'],
+.desktop-app .desktop-call-control.is-accept {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .desktop-call-control:disabled {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+  cursor: not-allowed;
+  opacity: .48;
+}
+.desktop-app .desktop-call-error {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-error) 52%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface);
+  box-shadow: 0 12px 30px var(--ara-shadow);
+}
+.desktop-app .desktop-call-error > svg { color: var(--ara-error); }
+.desktop-app .desktop-call-error button {
+  color: var(--ara-text-muted);
+  border-radius: var(--ara-radius-control);
+}
+.desktop-app .desktop-call-error button:hover { color: var(--ara-text); background: var(--ara-surface-elevated); }
+
+.desktop-app .desktop-share-waiting-stage { color: var(--ara-text); }
+.desktop-app .desktop-share-waiting-stage > svg { color: var(--ara-accent); }
+.desktop-app .desktop-share-waiting-stage span { color: var(--ara-text-muted); }
+.desktop-app .desktop-share-remote-chip,
+.desktop-app .desktop-share-local-preview {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  background: color-mix(in srgb, var(--ara-canvas) 88%, transparent);
+  box-shadow: 0 10px 25px var(--ara-shadow);
+}
+.desktop-app .desktop-share-remote-chip { border-radius: var(--ara-radius-control); }
+.desktop-app .desktop-share-remote-chip > svg:first-child { color: var(--ara-accent); }
+.desktop-app .desktop-share-local-preview { border-radius: var(--ara-radius-control); }
+.desktop-app .desktop-share-local-preview > span {
+  color: var(--ara-text);
+  background: color-mix(in srgb, var(--ara-canvas) 88%, transparent);
+}
+.desktop-app .desktop-share-console {
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .desktop-share-console-source strong { color: var(--ara-text); }
+.desktop-app .desktop-share-console-source small,
+.desktop-app .desktop-share-console-volume,
+.desktop-app .desktop-share-console-volume output { color: var(--ara-text-muted); }
+.desktop-app .desktop-share-console-icon {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 36%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface));
+}
+.desktop-app .desktop-share-console-action,
+.desktop-app .desktop-share-console-stop {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface);
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+.desktop-app .desktop-share-console-action:hover:not(:disabled) {
+  border-color: var(--ara-border-interactive);
+  background: color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface));
+}
+.desktop-app .desktop-share-console-stop {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-error);
+  background: var(--ara-error);
+}
+.desktop-app .desktop-share-console-stop:hover:not(:disabled) { background: color-mix(in srgb, var(--ara-error) 88%, #000); }
+.desktop-app .desktop-share-console-volume input { accent-color: var(--ara-accent); }
+.desktop-app .desktop-share-console-notice {
+  color: var(--ara-warning);
+  border-color: color-mix(in srgb, var(--ara-warning) 42%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-warning) 9%, var(--ara-surface));
+}
+
+.desktop-app .desktop-share-studio {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  border-radius: calc(var(--ara-radius-panel) + 6px);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface)), var(--ara-surface) 38%);
+  box-shadow: 0 28px 88px var(--ara-shadow);
+}
+.desktop-app .desktop-share-studio-header { border-bottom-color: var(--ara-border-subtle); }
+.desktop-app .desktop-share-studio-mark {
+  color: var(--ara-on-accent);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+.desktop-app .desktop-share-studio-header h2 { color: var(--ara-text); }
+.desktop-app .desktop-share-studio-header p { color: var(--ara-text-muted); }
+.desktop-app .desktop-share-studio-header button {
+  color: var(--ara-text-muted);
+  border-radius: var(--ara-radius-control);
+}
+.desktop-app .desktop-share-studio-header button:hover:not(:disabled) { color: var(--ara-text); background: var(--ara-surface-elevated); }
+.desktop-app .desktop-share-source-options legend { color: var(--ara-text-muted); }
+.desktop-app .desktop-share-source-option {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+  transition: border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+.desktop-app .desktop-share-source-option > svg:first-child { color: var(--ara-text-muted); }
+.desktop-app .desktop-share-source-option strong { color: var(--ara-text); }
+.desktop-app .desktop-share-source-option small { color: var(--ara-text-muted); }
+.desktop-app .desktop-share-source-option:hover:not(:disabled) { border-color: var(--ara-border-interactive); }
+.desktop-app .desktop-share-source-option.is-selected {
+  border-color: var(--ara-accent);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+.desktop-app .desktop-share-source-option.is-selected > svg:first-child,
+.desktop-app .desktop-share-source-option.is-selected > svg:last-child { color: var(--ara-accent); }
+.desktop-app .desktop-share-source-option:disabled,
+.desktop-app .desktop-share-studio-header button:disabled,
+.desktop-app .desktop-share-studio-footer button:disabled,
+.desktop-app .desktop-share-audio-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: .48;
+}
+.desktop-app .desktop-share-audio-option {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .desktop-share-audio-option input { accent-color: var(--ara-accent); }
+.desktop-app .desktop-share-audio-option > span:nth-child(2) {
+  color: var(--ara-warning);
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-warning) 12%, var(--ara-surface));
+}
+.desktop-app .desktop-share-audio-option strong { color: var(--ara-text); }
+.desktop-app .desktop-share-audio-option small { color: var(--ara-text-muted); }
+.desktop-app .desktop-share-studio-notice {
+  color: var(--ara-warning);
+  border-color: color-mix(in srgb, var(--ara-warning) 44%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-warning) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .desktop-share-studio-footer .button-secondary {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .desktop-share-studio-footer .button-secondary:hover:not(:disabled) { background: var(--ara-surface); }
+.desktop-app .desktop-share-studio-footer .button-primary {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-accent);
+}
+.desktop-app .desktop-share-studio-footer .button-primary:hover:not(:disabled) { background: var(--ara-accent-hover); }
+
+.desktop-app .desktop-call-overlay :is(button, input):focus-visible,
+.desktop-app .desktop-call-error button:focus-visible {
+  outline: 2px solid var(--ara-focus);
+  outline-offset: 3px;
+}
+.desktop-app .desktop-share-audio-option:has(input:focus-visible) {
+  outline: 2px solid var(--ara-focus);
+  outline-offset: 3px;
 }

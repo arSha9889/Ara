@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     position: 'relative',
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   onlineDot: {
     backgroundColor: colors.success,
-    borderColor: colors.canvas,
+    borderColor: colors.surface,
     borderRadius: 6,
     borderWidth: 2,
     bottom: -1,

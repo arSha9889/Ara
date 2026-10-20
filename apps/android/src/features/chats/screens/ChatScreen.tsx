@@ -1239,7 +1239,7 @@ export function ChatScreen({ navigation, route }: Props) {
               pressed && canCallBack && !call && styles.callHistoryCallbackPressed,
             ]}
           >
-            <Icon color={colors.primary} name={callHistory?.callType === 'video' ? 'video' : 'call'} size={18} />
+            <Icon color={colors.accent} name={callHistory?.callType === 'video' ? 'video' : 'call'} size={18} />
             <Text style={styles.callHistoryCallbackLabel}>{t('callCallback')}</Text>
           </Pressable>
         </View>
@@ -1299,10 +1299,11 @@ export function ChatScreen({ navigation, route }: Props) {
                 onPress={() => openMessageTarget(replyTo.id)}
                 style={({ pressed }) => [
                   styles.replyPreview,
+                  isOwn && styles.replyPreviewOwn,
                   pressed && styles.replyPreviewPressed,
                 ]}
               >
-                <Icon color={isOwn ? colors.canvas : colors.primary} name="reply" size={16} />
+                <Icon color={isOwn ? colors.onAccent : colors.accent} name="reply" size={16} />
                 <View style={styles.replyPreviewCopy}>
                   <Text
                     numberOfLines={1}
@@ -1358,6 +1359,7 @@ export function ChatScreen({ navigation, route }: Props) {
               <Text
                 style={[
                   styles.messageText,
+                  isOwn && styles.messageTextOwn,
                   (isPhoto || isVideo || isFile || isVoice || isVideoNote) &&
                     styles.messageAttachmentCaption,
                   item.deleted_at && styles.deletedMessageText,
@@ -1561,7 +1563,7 @@ export function ChatScreen({ navigation, route }: Props) {
             ]}
           >
             <View style={styles.pinnedMessageIcon}>
-              <Icon color={colors.primary} name="pin" size={20} />
+              <Icon color={colors.accent} name="pin" size={20} />
             </View>
             <View style={styles.pinnedMessageCopy}>
               <Text numberOfLines={1} style={styles.pinnedMessageTitle}>
@@ -1582,7 +1584,7 @@ export function ChatScreen({ navigation, route }: Props) {
 
         {isLoading && messages.length === 0 ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.accent} />
             <Text style={styles.loadingLabel}>{t('messagesLoading')}</Text>
           </View>
         ) : (
@@ -1661,7 +1663,7 @@ export function ChatScreen({ navigation, route }: Props) {
             ) : (
               <View style={styles.attachmentDraftFileIcon}>
                 <Icon
-                  color={colors.primary}
+                  color={colors.accent}
                   name={
                     selectedAttachment.messageType === 'voice'
                       ? 'microphone'
@@ -1687,7 +1689,7 @@ export function ChatScreen({ navigation, route }: Props) {
               </Text>
               {isSending ? (
                 <View style={styles.attachmentUploading}>
-                  <ActivityIndicator color={colors.primary} size="small" />
+                  <ActivityIndicator color={colors.accent} size="small" />
                   <Text style={styles.attachmentUploadingLabel}>
                     {t('attachmentUploading')}
                   </Text>
@@ -1719,7 +1721,7 @@ export function ChatScreen({ navigation, route }: Props) {
             }`}
             style={[sharedStyles.glassCard, styles.replyComposer]}
           >
-            <Icon color={colors.primary} name="reply" size={20} />
+            <Icon color={colors.accent} name="reply" size={20} />
             <View style={styles.replyComposerCopy}>
               <Text numberOfLines={1} style={styles.replyComposerTitle}>
                 {t('replyingTo')}{' '}
@@ -1802,9 +1804,9 @@ export function ChatScreen({ navigation, route }: Props) {
               ]}
             >
               {isPickingAttachment ? (
-                <ActivityIndicator color={colors.primary} size="small" />
+                <ActivityIndicator color={colors.accent} size="small" />
               ) : (
-                <Icon color={colors.primary} name="plus" size={22} />
+                <Icon color={colors.accent} name="plus" size={22} />
               )}
             </Pressable>
             <TextInput
@@ -1877,16 +1879,16 @@ export function ChatScreen({ navigation, route }: Props) {
                   ]}
                 >
                   {isSending ? (
-                    <ActivityIndicator color={colors.canvas} size="small" />
+                    <ActivityIndicator color={colors.onAccent} size="small" />
                   ) : (
                     <View style={styles.composerPrimaryButtonContent}>
                       <Icon
-                        color={colors.canvas}
+                        color={colors.onAccent}
                         name={composerShowsSend ? 'send' : 'microphone'}
                         size={20}
                       />
                       {!composerShowsSend ? (
-                        <Icon color={colors.canvas} name="chevronDown" size={14} />
+                        <Icon color={colors.onAccent} name="chevronDown" size={14} />
                       ) : null}
                     </View>
                   )}
@@ -2165,7 +2167,7 @@ export function ChatScreen({ navigation, route }: Props) {
                   ]}
                 >
                   <View style={styles.attachmentPickerTileIcon}>
-                    <Icon color={colors.primary} name="photo" size={23} />
+                    <Icon color={colors.accent} name="photo" size={23} />
                   </View>
                   <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
                     {t('attachmentMedia')}
@@ -2191,7 +2193,7 @@ export function ChatScreen({ navigation, route }: Props) {
                   ]}
                 >
                   <View style={styles.attachmentPickerTileIcon}>
-                    <Icon color={colors.primary} name="videoNote" size={23} />
+                    <Icon color={colors.accent} name="videoNote" size={23} />
                   </View>
                   <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
                     {t('attachmentVideoNote')}
@@ -2218,7 +2220,7 @@ export function ChatScreen({ navigation, route }: Props) {
                 ]}
               >
                 <View style={styles.attachmentPickerTileIcon}>
-                  <Icon color={colors.primary} name="file" size={23} />
+                  <Icon color={colors.accent} name="file" size={23} />
                 </View>
                 <View style={styles.attachmentPickerFileCopy}>
                   <Text
@@ -2274,7 +2276,7 @@ export function ChatScreen({ navigation, route }: Props) {
 
             {isMediaLibraryLoading ? (
               <View style={styles.mediaLibraryState}>
-                <ActivityIndicator color={colors.primary} />
+                <ActivityIndicator color={colors.accent} />
                 <Text style={styles.mediaLibraryStateLabel}>{t('mediaLibraryLoading')}</Text>
               </View>
             ) : mediaLibraryError ? (
@@ -2313,7 +2315,7 @@ export function ChatScreen({ navigation, route }: Props) {
                       <Image source={{ uri: item.uri }} style={styles.mediaLibraryImage} />
                     ) : (
                       <View style={styles.mediaLibraryVideoPlaceholder}>
-                        <Icon color={colors.primary} name="video" size={26} />
+                        <Icon color={colors.accent} name="video" size={26} />
                         <Text numberOfLines={2} style={styles.mediaLibraryVideoName}>
                           {t('chatVideo')}
                         </Text>
@@ -2338,7 +2340,7 @@ export function ChatScreen({ navigation, route }: Props) {
                   pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
                 ]}
               >
-                <Icon color={colors.primary} name="photo" size={20} />
+                <Icon color={colors.accent} name="photo" size={20} />
                 <Text style={styles.mediaLibraryFallbackLabel}>{t('attachmentPhoto')}</Text>
               </Pressable>
               <Pressable
@@ -2354,7 +2356,7 @@ export function ChatScreen({ navigation, route }: Props) {
                   pressed && !isPickingAttachment && styles.attachmentPickerTilePressed,
                 ]}
               >
-                <Icon color={colors.primary} name="video" size={20} />
+                <Icon color={colors.accent} name="video" size={20} />
                 <Text style={styles.mediaLibraryFallbackLabel}>{t('attachmentVideo')}</Text>
               </Pressable>
             </View>
@@ -2402,7 +2404,7 @@ export function ChatScreen({ navigation, route }: Props) {
                 ]}
               >
                 <View style={styles.attachmentPickerTileIcon}>
-                  <Icon color={colors.primary} name="microphone" size={23} />
+                  <Icon color={colors.accent} name="microphone" size={23} />
                 </View>
                 <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
                   {t('attachmentVoice')}
@@ -2429,7 +2431,7 @@ export function ChatScreen({ navigation, route }: Props) {
                 ]}
               >
                 <View style={styles.attachmentPickerTileIcon}>
-                  <Icon color={colors.primary} name="videoNote" size={23} />
+                  <Icon color={colors.accent} name="videoNote" size={23} />
                 </View>
                 <Text numberOfLines={2} style={styles.attachmentPickerTileTitle}>
                   {t('attachmentVideoNote')}
@@ -2579,10 +2581,15 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSubtle,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     justifyContent: 'space-between',
     marginBottom: spacing.md,
+    padding: spacing.xs,
   },
   title: {
     color: colors.text,
@@ -2608,7 +2615,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   peerStatusTyping: {
-    color: colors.primary,
+    color: colors.accent,
     fontWeight: '600',
   },
   typingDots: {
@@ -2618,7 +2625,7 @@ const styles = StyleSheet.create({
     height: 16,
   },
   typingDot: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: 2,
     height: 4,
     width: 4,
@@ -2634,8 +2641,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   messagesList: {
-    gap: spacing.xs,
-    paddingBottom: spacing.md,
+    gap: spacing.sm,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.xs,
   },
   emptyMessages: {
     flexGrow: 1,
@@ -2656,7 +2664,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -2666,7 +2674,7 @@ const styles = StyleSheet.create({
   },
   callHistoryIcon: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 156, 173, 0.12)',
+    backgroundColor: colors.dangerSubtle,
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',
@@ -2694,8 +2702,8 @@ const styles = StyleSheet.create({
   },
   callHistoryCallback: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.12)',
-    borderColor: colors.primary,
+    backgroundColor: colors.accentSubtle,
+    borderColor: colors.accent,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -2708,25 +2716,25 @@ const styles = StyleSheet.create({
     opacity: 0.46,
   },
   callHistoryCallbackPressed: {
-    backgroundColor: 'rgba(140, 201, 255, 0.24)',
+    backgroundColor: colors.accentSelected,
   },
   callHistoryCallbackLabel: {
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
   },
   messageBubble: {
-    borderRadius: 18,
+    borderRadius: 20,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
   },
   messageBubbleOwn: {
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
     borderBottomRightRadius: 4,
   },
   messageBubblePeer: {
-    backgroundColor: colors.surface,
-    borderColor: colors.glassBorder,
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.borderSubtle,
     borderBottomLeftRadius: 4,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -2734,17 +2742,17 @@ const styles = StyleSheet.create({
     opacity: 0.76,
   },
   messageBubbleTarget: {
-    borderColor: colors.primary,
+    borderColor: colors.accent,
     borderWidth: 1,
     elevation: 3,
-    shadowColor: colors.primary,
+    shadowColor: colors.accent,
     shadowOpacity: 0.34,
     shadowRadius: 7,
   },
   replyPreview: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.1)',
-    borderLeftColor: colors.primary,
+    backgroundColor: colors.accentSubtle,
+    borderLeftColor: colors.accent,
     borderLeftWidth: 3,
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
@@ -2754,22 +2762,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   replyPreviewOwn: {
-    backgroundColor: 'rgba(140, 201, 255, 0.22)',
+    backgroundColor: colors.onAccentSubtle,
   },
   replyPreviewPressed: {
-    backgroundColor: 'rgba(140, 201, 255, 0.18)',
+    backgroundColor: colors.accentSelected,
   },
   replyPreviewCopy: {
     flex: 1,
     minWidth: 0,
   },
   replyPreviewAuthor: {
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
   },
   replyPreviewAuthorOwn: {
-    color: colors.canvas,
+    color: colors.onAccent,
   },
   replyPreviewText: {
     color: colors.textMuted,
@@ -2778,12 +2786,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   replyPreviewTextOwn: {
-    color: 'rgba(9, 18, 31, 0.74)',
+    color: colors.onAccentMuted,
   },
   messageText: {
     color: colors.text,
     fontSize: 16,
     lineHeight: 22,
+  },
+  messageTextOwn: {
+    color: colors.onAccent,
   },
   messageAttachmentCaption: {
     marginTop: spacing.xs,
@@ -2805,7 +2816,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   messageMetaTextOwn: {
-    color: 'rgba(9, 18, 31, 0.68)',
+    color: colors.onAccentFaint,
   },
   messageDeliveryRead: {
     color: colors.deliveryRead,
@@ -2822,8 +2833,8 @@ const styles = StyleSheet.create({
   },
   reactionChip: {
     alignItems: 'center',
-    backgroundColor: colors.glassStrong,
-    borderColor: colors.glassBorder,
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
@@ -2832,8 +2843,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   reactionChipSelected: {
-    backgroundColor: 'rgba(67, 182, 255, 0.24)',
-    borderColor: colors.primary,
+    backgroundColor: colors.accentSelected,
+    borderColor: colors.accent,
   },
   reactionChipPending: {
     opacity: 0.5,
@@ -2868,7 +2879,7 @@ const styles = StyleSheet.create({
   },
   pinnedMessageIcon: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    backgroundColor: colors.accentSubtle,
     borderRadius: 12,
     height: 48,
     justifyContent: 'center',
@@ -2879,7 +2890,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   pinnedMessageTitle: {
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -2906,7 +2917,7 @@ const styles = StyleSheet.create({
     minWidth: 48,
   },
   retryLabel: {
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -2918,14 +2929,14 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   attachmentDraftPreview: {
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     height: 56,
     width: 56,
   },
   attachmentDraftFileIcon: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    backgroundColor: colors.accentSubtle,
     borderRadius: 12,
     height: 56,
     justifyContent: 'center',
@@ -2952,7 +2963,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   attachmentUploadingLabel: {
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -2978,7 +2989,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   replyComposerTitle: {
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -3042,7 +3053,7 @@ const styles = StyleSheet.create({
   attachmentButton: {
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     flexShrink: 0,
@@ -3080,7 +3091,7 @@ const styles = StyleSheet.create({
   },
   composerPrimaryButton: {
     alignItems: 'center',
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
     borderRadius: 24,
     height: 48,
     justifyContent: 'center',
@@ -3090,7 +3101,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   composerPrimaryButtonPressed: {
-    backgroundColor: colors.primaryPressed,
+    backgroundColor: colors.accentPressed,
   },
   sheetOverlay: {
     flex: 1,
@@ -3100,7 +3111,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetBackdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.54)',
+    backgroundColor: colors.overlay,
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -3174,7 +3185,7 @@ const styles = StyleSheet.create({
   mediaLibraryTile: {
     aspectRatio: 1,
     backgroundColor: colors.surfaceRaised,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
@@ -3206,7 +3217,7 @@ const styles = StyleSheet.create({
   },
   mediaLibraryFallbackButton: {
     alignItems: 'center',
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flex: 1,
@@ -3237,7 +3248,7 @@ const styles = StyleSheet.create({
   attachmentPickerTile: {
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     gap: spacing.xs,
@@ -3266,7 +3277,7 @@ const styles = StyleSheet.create({
   },
   attachmentPickerTileIcon: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    backgroundColor: colors.accentSubtle,
     borderRadius: 12,
     height: 48,
     justifyContent: 'center',
@@ -3338,7 +3349,7 @@ const styles = StyleSheet.create({
   reactionPickerButton: {
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     height: 48,
@@ -3346,8 +3357,8 @@ const styles = StyleSheet.create({
     width: 48,
   },
   reactionPickerButtonSelected: {
-    backgroundColor: 'rgba(67, 182, 255, 0.24)',
-    borderColor: colors.primary,
+    backgroundColor: colors.accentSelected,
+    borderColor: colors.accent,
   },
   reactionPickerButtonPressed: {
     backgroundColor: colors.surfacePressed,
@@ -3370,7 +3381,7 @@ const styles = StyleSheet.create({
   },
   secondaryActionButton: {
     alignItems: 'center',
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flex: 1,
@@ -3380,7 +3391,7 @@ const styles = StyleSheet.create({
   },
   safetyActionButton: {
     alignItems: 'center',
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
@@ -3389,7 +3400,7 @@ const styles = StyleSheet.create({
   },
   primaryActionButton: {
     alignItems: 'center',
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
     borderRadius: 14,
     flex: 1,
     justifyContent: 'center',
@@ -3397,10 +3408,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   primaryActionButtonDisabled: {
-    backgroundColor: 'rgba(74, 168, 240, 0.32)',
+    backgroundColor: colors.accentDisabled,
   },
   primaryActionButtonPressed: {
-    backgroundColor: colors.primaryPressed,
+    backgroundColor: colors.accentPressed,
   },
   actionButtonPressed: {
     backgroundColor: colors.surfacePressed,
@@ -3411,12 +3422,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryActionLabel: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 15,
     fontWeight: '700',
   },
   deleteActionButton: {
-    borderColor: 'rgba(255, 158, 175, 0.44)',
+    borderColor: colors.danger,
   },
   deleteActionLabel: {
     color: colors.danger,
@@ -3429,7 +3440,7 @@ const styles = StyleSheet.create({
   },
   editInput: {
     backgroundColor: colors.input,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     color: colors.text,
@@ -3451,7 +3462,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   photoViewer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.94)',
+    backgroundColor: colors.mediaViewer,
     flex: 1,
   },
   photoViewerBackdrop: {

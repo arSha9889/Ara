@@ -36,20 +36,20 @@ export function PrimaryButton({
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
     borderRadius: 14,
     justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 20,
   },
   disabled: {
-    backgroundColor: 'rgba(74, 168, 240, 0.32)',
+    backgroundColor: colors.accentDisabled,
   },
   pressed: {
-    backgroundColor: colors.primaryPressed,
+    backgroundColor: colors.accentPressed,
   },
   label: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },

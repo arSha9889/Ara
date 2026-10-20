@@ -52,7 +52,7 @@ export function MainTabs() {
       screenOptions={{
         headerShown: false,
         sceneStyle: styles.scene,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textFaint,
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     backgroundColor: colors.glass,
-    borderTopColor: colors.glassBorder,
+    borderTopColor: colors.borderSubtle,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 0,
   },

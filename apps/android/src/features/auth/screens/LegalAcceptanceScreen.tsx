@@ -104,7 +104,7 @@ function ConsentCheck({
       style={({ pressed }) => [styles.consent, pressed && styles.pressed]}
       >
         <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked ? <Icon color={colors.canvas} name="check" size={16} /> : null}
+        {checked ? <Icon color={colors.onAccent} name="check" size={16} /> : null}
       </View>
       <Text style={styles.consentLabel}>{label}</Text>
     </Pressable>
@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     width: 22,
   },
   checkboxChecked: {
-    backgroundColor: colors.primaryStrong,
-    borderColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   consentLabel: {
     color: colors.textMuted,

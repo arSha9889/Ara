@@ -235,7 +235,7 @@ export function ChatsScreen() {
           style={({ pressed }) => [sharedStyles.elevatedCard, styles.updateBanner, pressed && styles.updateBannerPressed]}
           testID="app-update-banner"
         >
-          <Icon color={colors.primary} name="download" size={22} />
+          <Icon color={colors.accent} name="download" size={22} />
           <View style={styles.updateBannerCopy}>
             <Text numberOfLines={1} style={styles.updateBannerTitle}>{t('appUpdateAvailable')}</Text>
             <Text numberOfLines={1} style={styles.updateBannerDescription}>
@@ -270,7 +270,7 @@ export function ChatsScreen() {
 
       {isLoading && chats.length === 0 ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={colors.accent} />
           <Text style={styles.loadingLabel}>{t('chatsLoading')}</Text>
         </View>
       ) : (
@@ -283,12 +283,12 @@ export function ChatsScreen() {
           }
           refreshControl={
             <RefreshControl
-              colors={[colors.primary]}
+              colors={[colors.accent]}
               onRefresh={() => {
                 loadChats().catch(() => undefined);
               }}
               refreshing={isLoading}
-              tintColor={colors.primary}
+              tintColor={colors.accent}
             />
           }
           renderItem={renderChat}
@@ -301,7 +301,7 @@ export function ChatsScreen() {
         onPress={openNewChat}
         style={({ pressed }) => [styles.newChatButton, pressed && styles.newChatButtonPressed]}
       >
-        <Icon color={colors.canvas} name="compose" size={20} />
+        <Icon color={colors.onAccent} name="compose" size={20} />
         <Text style={styles.newChatLabel}>{t('newChat')}</Text>
       </Pressable>
     </AppScreen>
@@ -310,7 +310,7 @@ export function ChatsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
   },
   heading: {
     alignItems: 'center',
@@ -352,22 +352,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   list: {
-    paddingBottom: spacing.md,
+    gap: spacing.xs,
+    paddingBottom: spacing.xl,
+    paddingTop: spacing.xs,
   },
   emptyList: {
     flex: 1,
   },
   chatRow: {
     alignItems: 'center',
-    borderBottomColor: colors.divider,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSubtle,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 80,
+    minHeight: 84,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
   chatRowPressed: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfacePressed,
   },
   chatCopy: {
     flex: 1,
@@ -400,7 +405,7 @@ const styles = StyleSheet.create({
   },
   unreadBadge: {
     alignItems: 'center',
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
     borderRadius: 11,
     justifyContent: 'center',
     minWidth: 24,
@@ -408,7 +413,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   unreadLabel: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -428,16 +433,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryLabel: {
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 15,
     fontWeight: '700',
   },
   newChatButton: {
     alignItems: 'center',
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
     borderRadius: 24,
+    borderWidth: 1,
     bottom: spacing.md,
-    elevation: 3,
+    elevation: 5,
     flexDirection: 'row',
     gap: spacing.xs,
     minHeight: 48,
@@ -446,10 +453,11 @@ const styles = StyleSheet.create({
     right: spacing.md,
   },
   newChatButtonPressed: {
-    backgroundColor: colors.primaryPressed,
+    backgroundColor: colors.accentPressed,
+    borderColor: colors.accentPressed,
   },
   newChatLabel: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 14,
     fontWeight: '800',
   },

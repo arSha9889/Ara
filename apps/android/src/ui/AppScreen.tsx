@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topGlow: {
-    backgroundColor: 'rgba(74, 168, 240, 0.06)',
+    backgroundColor: colors.accentSubtle,
     borderRadius: 180,
     height: 240,
     position: 'absolute',

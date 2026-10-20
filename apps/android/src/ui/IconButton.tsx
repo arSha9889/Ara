@@ -36,7 +36,7 @@ export function IconButton({
         pressed && !disabled && (tone === 'primary' ? styles.primaryPressed : styles.pressed),
       ]}
     >
-      <Icon color={tone === 'primary' ? colors.canvas : colors.textMuted} name={icon} size={22} />
+      <Icon color={tone === 'primary' ? colors.onAccent : colors.textMuted} name={icon} size={22} />
     </Pressable>
   );
 }
@@ -45,18 +45,18 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
   },
   primary: {
-    backgroundColor: colors.primaryStrong,
-    borderColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   primaryPressed: {
-    backgroundColor: colors.primaryPressed,
-    borderColor: colors.primaryPressed,
+    backgroundColor: colors.accentPressed,
+    borderColor: colors.accentPressed,
   },
   disabled: {
     opacity: 0.45,

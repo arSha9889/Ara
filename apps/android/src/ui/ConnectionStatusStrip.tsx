@@ -82,7 +82,7 @@ function toneColor(tone: ConnectionStatusTone): string {
     case 'danger':
       return colors.danger;
     case 'primary':
-      return colors.primary;
+      return colors.accent;
   }
 }
 
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   containerPrimary: {
-    borderColor: colors.primaryStrong,
+    borderColor: colors.accent,
   },
   label: {
     flex: 1,

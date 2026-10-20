@@ -30,8 +30,8 @@ const styles = StyleSheet.create({
   },
   orb: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.12)',
-    borderColor: 'rgba(140, 201, 255, 0.32)',
+    backgroundColor: colors.accentSubtle,
+    borderColor: colors.borderInteractive,
     borderRadius: 22,
     borderWidth: 1,
     height: 44,

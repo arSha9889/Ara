@@ -148,7 +148,7 @@ export function ChannelsPanel({ accessToken, channels, onChannelChanged, onOpenC
     return <section className="workspace-detail-panel channels-panel" aria-labelledby="channel-create-title">
       <header className="workspace-panel-heading">
         <div><p>{t('workspace.channels.kicker')}</p><h1 id="channel-create-title">{t('workspace.channels.createTitle')}</h1><span>{t('workspace.channels.createIntro')}</span></div>
-        <span className="workspace-panel-icon"><Icon name="channels" size={25} /></span>
+        <div className="workspace-panel-actions"><span className="workspace-panel-icon"><Icon name="channels" size={25} /></span><button className="channel-form-close" type="button" aria-label={t('common.close')} title={t('common.close')} onClick={() => changeMode('list')}><Icon name="close" size={18} /></button></div>
       </header>
       <form className="workspace-section-card channel-form" onSubmit={createChannel}>
         <label><span>{t('workspace.channels.titleLabel')}</span><input value={title} onChange={(event) => setTitle(event.target.value)} minLength="2" maxLength="120" required autoFocus /></label>
@@ -165,7 +165,7 @@ export function ChannelsPanel({ accessToken, channels, onChannelChanged, onOpenC
     return <section className="workspace-detail-panel channels-panel" aria-labelledby="channel-join-title">
       <header className="workspace-panel-heading">
         <div><p>{t('workspace.channels.kicker')}</p><h1 id="channel-join-title">{t('workspace.channels.joinTitle')}</h1><span>{t('workspace.channels.joinIntro')}</span></div>
-        <span className="workspace-panel-icon"><Icon name="channels" size={25} /></span>
+        <div className="workspace-panel-actions"><span className="workspace-panel-icon"><Icon name="channels" size={25} /></span><button className="channel-form-close" type="button" aria-label={t('common.close')} title={t('common.close')} onClick={() => changeMode('list')}><Icon name="close" size={18} /></button></div>
       </header>
       <form className="workspace-section-card channel-form" onSubmit={joinByInvite}>
         <label><span>{t('workspace.channels.inviteLabel')}</span><textarea value={inviteValue} onChange={(event) => setInviteValue(event.target.value)} rows="3" placeholder={t('workspace.channels.invitePlaceholder')} required autoFocus /></label>

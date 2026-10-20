@@ -687,11 +687,11 @@ test('renders sent, delivered, and read message statuses like WhatsApp', async (
   const read = component.root.findByProps({ accessibilityLabel: 'messageRead' });
 
   expect(sent.children).toEqual(['✓']);
-  expect(flattenedStyle(sent.props.style).color).toBe('rgba(9, 18, 31, 0.68)');
+  expect(flattenedStyle(sent.props.style).color).toBe('rgba(23, 26, 20, 0.68)');
   expect(delivered.children).toEqual(['✓✓']);
-  expect(flattenedStyle(delivered.props.style).color).toBe('rgba(9, 18, 31, 0.68)');
+  expect(flattenedStyle(delivered.props.style).color).toBe('rgba(23, 26, 20, 0.68)');
   expect(read.children).toEqual(['✓✓']);
-  expect(flattenedStyle(read.props.style).color).toBe('#00396A');
+  expect(flattenedStyle(read.props.style).color).toBe('#3C5D68');
 
   await act(async () => {
     component.unmount();

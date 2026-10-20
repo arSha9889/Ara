@@ -68,7 +68,7 @@ export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
         <Text style={styles.triggerLabel}>
           {t(language === 'ru' ? 'languageRussian' : 'languageEnglish')}
         </Text>
-        <Icon color={colors.primary} name="chevronDown" size={18} />
+        <Icon color={colors.accent} name="chevronDown" size={18} />
       </Pressable>
 
       <Modal
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: colors.input,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   backdrop: {
-    backgroundColor: 'rgba(4, 10, 18, 0.34)',
+    backgroundColor: colors.overlay,
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   option: {
     alignItems: 'center',
     backgroundColor: colors.input,
-    borderColor: colors.glassBorder,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -212,8 +212,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   optionSelected: {
-    backgroundColor: 'rgba(74, 168, 240, 0.2)',
-    borderColor: colors.primaryStrong,
+    backgroundColor: colors.accentSelected,
+    borderColor: colors.accent,
   },
   optionPressed: {
     backgroundColor: colors.surfacePressed,
@@ -227,11 +227,11 @@ const styles = StyleSheet.create({
     width: 18,
   },
   radioSelected: {
-    borderColor: colors.primary,
+    borderColor: colors.accent,
   },
   radioDot: {
     alignSelf: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: 5,
     height: 10,
     width: 10,

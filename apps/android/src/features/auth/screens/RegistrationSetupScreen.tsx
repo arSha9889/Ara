@@ -99,7 +99,7 @@ export function RegistrationSetupScreen({ onBack, onContinue }: RegistrationSetu
                 <Text style={styles.countryName}>{t(option.labelKey)}</Text>
                 <Text style={styles.countryCode}>{option.code}</Text>
                 <View style={[styles.selectionMark, selected && styles.selectionMarkSelected]}>
-                  {selected ? <Icon color={colors.canvas} name="check" size={16} /> : null}
+                  {selected ? <Icon color={colors.onAccent} name="check" size={16} /> : null}
                 </View>
               </Pressable>
             );
@@ -227,8 +227,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   countryOptionSelected: {
-    backgroundColor: 'rgba(74, 168, 240, 0.12)',
-    borderColor: colors.primaryStrong,
+    backgroundColor: colors.accentSubtle,
+    borderColor: colors.accent,
   },
   countryOptionPressed: {
     backgroundColor: colors.surfacePressed,
@@ -255,8 +255,8 @@ const styles = StyleSheet.create({
     width: 24,
   },
   selectionMarkSelected: {
-    backgroundColor: colors.primaryStrong,
-    borderColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   languageOptions: {
     flexDirection: 'row',
@@ -277,8 +277,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   languageOptionSelected: {
-    backgroundColor: 'rgba(74, 168, 240, 0.12)',
-    borderColor: colors.primaryStrong,
+    backgroundColor: colors.accentSubtle,
+    borderColor: colors.accent,
   },
   languageOptionPressed: {
     backgroundColor: colors.surfacePressed,
@@ -292,11 +292,11 @@ const styles = StyleSheet.create({
     width: 16,
   },
   languageRadioSelected: {
-    borderColor: colors.primary,
+    borderColor: colors.accent,
   },
   languageRadioDot: {
     alignSelf: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: 4,
     height: 8,
     width: 8,

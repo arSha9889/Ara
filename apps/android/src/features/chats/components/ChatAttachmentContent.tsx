@@ -123,7 +123,7 @@ export function ChatPhotoAttachment({
         />
       ) : (
         <View style={styles.photoLoading}>
-          {isLoading ? <ActivityIndicator color={colors.primary} /> : null}
+          {isLoading ? <ActivityIndicator color={colors.accent} /> : null}
           <Text style={styles.loadingLabel}>{t('attachmentLoading')}</Text>
         </View>
       )}
@@ -179,9 +179,9 @@ export function ChatFileAttachment({
     >
       <View style={styles.fileIcon}>
         {isOpening ? (
-          <ActivityIndicator color={colors.primary} size="small" />
+          <ActivityIndicator color={colors.accent} size="small" />
         ) : (
-          <Icon color={colors.primary} name="file" size={22} />
+          <Icon color={colors.accent} name="file" size={22} />
         )}
       </View>
       <View style={styles.fileDetails}>
@@ -247,10 +247,10 @@ export function ChatVideoAttachment({
     >
       <View style={styles.videoPoster}>
         {isOpening ? (
-          <ActivityIndicator color={colors.primary} size="small" />
+          <ActivityIndicator color={colors.accent} size="small" />
         ) : (
           <View style={styles.videoPlayButton}>
-            <Icon color={colors.canvas} name="play" size={22} />
+            <Icon color={colors.onAccent} name="play" size={22} />
           </View>
         )}
       </View>
@@ -382,9 +382,9 @@ export function ChatVoiceAttachment({
     >
       <View style={styles.voicePlayButton}>
         {isLoading || isToggling ? (
-          <ActivityIndicator color={colors.canvas} size="small" />
+          <ActivityIndicator color={colors.onAccent} size="small" />
         ) : (
-          <Icon color={colors.canvas} name={playback.isPlaying ? 'pause' : 'play'} size={22} />
+          <Icon color={colors.onAccent} name={playback.isPlaying ? 'pause' : 'play'} size={22} />
         )}
       </View>
       <View style={styles.voiceDetails}>
@@ -450,9 +450,9 @@ export function ChatVideoNoteAttachment({
     >
       <View style={styles.videoNoteCircle}>
         {isOpening ? (
-          <ActivityIndicator color={colors.canvas} size="small" />
+          <ActivityIndicator color={colors.onAccent} size="small" />
         ) : (
-          <Icon color={colors.canvas} name="play" size={34} />
+          <Icon color={colors.onAccent} name="play" size={34} />
         )}
         <Text style={styles.videoNoteDuration}>{formatDuration(durationSeconds ?? 0)}</Text>
       </View>
@@ -495,13 +495,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   photo: {
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.surface,
     height: 208,
     width: 236,
   },
   photoLoading: {
     alignItems: 'center',
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.surface,
     gap: spacing.xs,
     height: 156,
     justifyContent: 'center',
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   unavailablePhoto: {
     alignItems: 'center',
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.surface,
     borderRadius: 14,
     gap: spacing.xs,
     height: 112,
@@ -526,8 +526,8 @@ const styles = StyleSheet.create({
   },
   fileCard: {
     alignItems: 'center',
-    backgroundColor: 'rgba(9, 18, 31, 0.16)',
-    borderColor: 'rgba(243, 247, 252, 0.18)',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   },
   fileIcon: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.12)',
+    backgroundColor: colors.accentSubtle,
     borderRadius: 12,
     height: 44,
     justifyContent: 'center',
@@ -569,8 +569,8 @@ const styles = StyleSheet.create({
   },
   videoCard: {
     alignItems: 'center',
-    backgroundColor: 'rgba(9, 18, 31, 0.16)',
-    borderColor: 'rgba(243, 247, 252, 0.18)',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -585,13 +585,13 @@ const styles = StyleSheet.create({
   videoPoster: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: colors.canvasMuted,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     width: 88,
   },
   videoPlayButton: {
     alignItems: 'center',
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
     borderRadius: 22,
     height: 44,
     justifyContent: 'center',
@@ -621,8 +621,8 @@ const styles = StyleSheet.create({
   },
   voiceCard: {
     alignItems: 'center',
-    backgroundColor: 'rgba(9, 18, 31, 0.16)',
-    borderColor: 'rgba(243, 247, 252, 0.18)',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.borderSubtle,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
   },
   voicePlayButton: {
     alignItems: 'center',
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: colors.accent,
     borderRadius: 24,
     height: 48,
     justifyContent: 'center',
@@ -663,14 +663,14 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   voiceProgressTrack: {
-    backgroundColor: 'rgba(243, 247, 252, 0.18)',
+    backgroundColor: colors.borderInteractive,
     borderRadius: 2,
     height: 4,
     marginTop: spacing.sm,
     overflow: 'hidden',
   },
   voiceProgressValue: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: 2,
     height: '100%',
   },
@@ -689,8 +689,8 @@ const styles = StyleSheet.create({
   },
   videoNoteCircle: {
     alignItems: 'center',
-    backgroundColor: colors.canvasMuted,
-    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+    borderColor: colors.accent,
     borderRadius: 82,
     borderWidth: 2,
     height: 164,
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     width: 164,
   },
   videoNoteDuration: {
-    backgroundColor: 'rgba(9, 18, 31, 0.72)',
+    backgroundColor: colors.overlay,
     borderRadius: 9,
     bottom: spacing.sm,
     color: colors.text,
