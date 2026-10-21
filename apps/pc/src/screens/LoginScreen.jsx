@@ -9,15 +9,18 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function LoginScreen({ t, onNavigate, onOpenLegal, onAuthenticated }) {
   const [form, setForm] = useState({ email: '', password: '', remember: true });
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   function update(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
     setError('');
+    setNotice('');
   }
 
   async function submit(event) {
     event.preventDefault();
+    setNotice('');
     if (!EMAIL_PATTERN.test(form.email)) {
       setError(t('auth.validation.email'));
       return;
@@ -57,11 +60,13 @@ export function LoginScreen({ t, onNavigate, onOpenLegal, onAuthenticated }) {
           <span>{t('auth.password')}</span>
           <input type="password" autoComplete="current-password" placeholder={t('auth.passwordHint')} value={form.password} onChange={(event) => update('password', event.target.value)} aria-invalid={Boolean(error)} disabled={isLoading} />
         </label>
+        <button className="auth-forgot-link" type="button" disabled={isLoading} onClick={() => { setError(''); setNotice(t('auth.forgot')); }}>{t('auth.forgotPassword')}</button>
         <label className="checkbox-row">
           <input type="checkbox" checked={form.remember} onChange={(event) => update('remember', event.target.checked)} disabled={isLoading} />
           <span>{t('auth.remember')}</span>
         </label>
         <Notice tone="error">{error}</Notice>
+        <Notice>{notice}</Notice>
         <button className="button button-primary button-full" type="submit" disabled={isLoading}>{isLoading ? t('auth.signingIn') : t('auth.signIn')}</button>
       </form>
       <p className="auth-switch">{t('auth.newAccount')} <button type="button" onClick={() => onNavigate('register')}>{t('auth.createAccount')}</button></p>

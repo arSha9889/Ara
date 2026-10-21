@@ -1,4 +1,28 @@
+import callsIcon from '../assets/button-icons/calls.png';
+import chatsIcon from '../assets/button-icons/chats.png';
+import contactsIcon from '../assets/button-icons/contacts.png';
+import micIcon from '../assets/button-icons/mic.png';
+import profileIcon from '../assets/button-icons/profile.png';
+import speakerIcon from '../assets/button-icons/speaker.png';
+import videoIcon from '../assets/button-icons/video.png';
+
+const BUTTON_ICON_ASSETS = {
+  calls: callsIcon,
+  camera: videoIcon,
+  chats: chatsIcon,
+  contacts: contactsIcon,
+  mic: micIcon,
+  profile: profileIcon,
+  speaker: speakerIcon,
+  video: videoIcon,
+};
+
 export function WorkspaceIcon({ name, size = 20 }) {
+  const asset = BUTTON_ICON_ASSETS[name];
+  if (asset) {
+    return <span aria-hidden="true" className="workspace-icon-asset" style={{ '--workspace-icon-mask': `url(${asset})`, width: size, height: size }} />;
+  }
+
   const commonProps = {
     width: size,
     height: size,
@@ -11,11 +35,7 @@ export function WorkspaceIcon({ name, size = 20 }) {
     'aria-hidden': true,
   };
 
-  if (name === 'chats') return <svg {...commonProps}><path d="M20 11.5a7.3 7.3 0 0 1-7.7 7.2 8.6 8.6 0 0 1-3.5-.7L4 20l1.4-4a7 7 0 0 1-1.2-4c0-4 3.5-7.2 7.8-7.2s8 3 8 6.7Z" /><path d="M8.4 11.7h.1M12.1 11.7h.1M15.8 11.7h.1" /></svg>;
   if (name === 'channels') return <svg {...commonProps}><path d="M4 12.2V9.8l11-4.3v11L4 12.2Z" /><path d="M15 8.2c2.3.7 3.7 2 3.7 3.8S17.3 15.1 15 15.8M6.4 13.2l1.3 5.1h3.1l-1-4" /><path d="M20.2 8.3c1.2 1 1.8 2.2 1.8 3.7s-.6 2.7-1.8 3.7" /></svg>;
-  if (name === 'calls') return <svg {...commonProps}><path d="M7.8 4.3 10.4 8 8.9 9.8a12.7 12.7 0 0 0 5.3 5.3l1.8-1.5 3.7 2.6-1 3.1a2.5 2.5 0 0 1-2.8 1.6C9.5 19.7 4.3 14.5 3.1 8.1a2.5 2.5 0 0 1 1.6-2.8l3.1-1Z" /></svg>;
-  if (name === 'contacts') return <svg {...commonProps}><circle cx="12" cy="8" r="3.2" /><path d="M5.2 20c.7-3.5 3.2-5.3 6.8-5.3s6.1 1.8 6.8 5.3" /><path d="M19.2 7.2h2.2M20.3 6.1v2.2" /></svg>;
-  if (name === 'profile') return <svg {...commonProps}><circle cx="12" cy="8" r="3.2" /><path d="M5.1 20c.7-3.5 3.2-5.3 6.9-5.3s6.2 1.8 6.9 5.3" /></svg>;
   if (name === 'settings') return <svg {...commonProps}><circle cx="12" cy="12" r="2.8" /><path d="M19.4 13.5a1.7 1.7 0 0 0 .3 1.9l.1.1-2.2 2.2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-3.2v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1-2.2-2.2.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1h-.2V9.3h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1L8.5 4l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h3.2v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.2 2.2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v3.2h-.2a1.7 1.7 0 0 0-1.6 1Z" /></svg>;
   if (name === 'search') return <svg {...commonProps}><circle cx="10.7" cy="10.7" r="5.7" /><path d="m15 15 4.2 4.2" /></svg>;
   if (name === 'plus') return <svg {...commonProps}><path d="M12 5v14M5 12h14" /></svg>;
@@ -23,10 +43,7 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'arrow-left') return <svg {...commonProps}><path d="m14.5 5-7 7 7 7M8 12h10" /></svg>;
   if (name === 'edit') return <svg {...commonProps}><path d="m5 19 3.4-.7L19 7.7a2.1 2.1 0 0 0-3-3L5.4 15.3 5 19Z" /><path d="m14.6 6.1 3.3 3.3" /></svg>;
   if (name === 'save') return <svg {...commonProps}><path d="M5 3h11l3 3v15H5V3Z" /><path d="M8 3v6h8V3M8 21v-7h8v7" /></svg>;
-  if (name === 'camera') return <svg {...commonProps}><path d="M4 7.5h10.5A2.5 2.5 0 0 1 17 10v7a2.5 2.5 0 0 1-2.5 2.5H4A2.5 2.5 0 0 1 1.5 17v-7A2.5 2.5 0 0 1 4 7.5Z" /><path d="m17 11 5-3v11l-5-3" /></svg>;
-  if (name === 'mic') return <svg {...commonProps}><rect x="8" y="3" width="8" height="12" rx="4" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7" /></svg>;
   if (name === 'mic-off') return <svg {...commonProps}><path d="m4 4 16 16" /><path d="M9 9v2a3 3 0 0 0 4.9 2.3M15 9V7a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11.7 5.2M12 18v3M8.5 21h7" /></svg>;
-  if (name === 'video') return <svg {...commonProps}><path d="M4 7.5h10.5A2.5 2.5 0 0 1 17 10v7a2.5 2.5 0 0 1-2.5 2.5H4A2.5 2.5 0 0 1 1.5 17v-7A2.5 2.5 0 0 1 4 7.5Z" /><path d="m17 11 5-3v11l-5-3" /></svg>;
   if (name === 'bell') return <svg {...commonProps}><path d="M18 10a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 22h4" /></svg>;
   if (name === 'palette') return <svg {...commonProps}><path d="M12 3a9 9 0 0 0 0 18h1.1a1.9 1.9 0 0 0 1.6-2.9 1.9 1.9 0 0 1 1.6-2.9h1.2A3.5 3.5 0 0 0 21 11.7C20.8 6.8 16.8 3 12 3Z" /><circle cx="7.5" cy="11" r=".7" fill="currentColor" /><circle cx="10" cy="7.7" r=".7" fill="currentColor" /><circle cx="14" cy="7.7" r=".7" fill="currentColor" /></svg>;
   if (name === 'shield') return <svg {...commonProps}><path d="M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Z" /><path d="m8.7 12 2.1 2.1 4.6-4.6" /></svg>;
@@ -44,7 +61,6 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'phone-outgoing') return <svg {...commonProps}><path d="M7.8 4.3 10.4 8 8.9 9.8a12.7 12.7 0 0 0 5.3 5.3l1.8-1.5 3.7 2.6-1 3.1a2.5 2.5 0 0 1-2.8 1.6C9.5 19.7 4.3 14.5 3.1 8.1a2.5 2.5 0 0 1 1.6-2.8l3.1-1Z" /><path d="M14 5h5v5M19 5l-6.2 6.2" /></svg>;
   if (name === 'phone-incoming') return <svg {...commonProps}><path d="M7.8 4.3 10.4 8 8.9 9.8a12.7 12.7 0 0 0 5.3 5.3l1.8-1.5 3.7 2.6-1 3.1a2.5 2.5 0 0 1-2.8 1.6C9.5 19.7 4.3 14.5 3.1 8.1a2.5 2.5 0 0 1 1.6-2.8l3.1-1Z" /><path d="M14 10h5V5M19 5l-6.2 6.2" /></svg>;
   if (name === 'phone-off') return <svg {...commonProps}><path d="m4 4 16 16" /><path d="m10.4 8.7-1.5 1.1a12.7 12.7 0 0 0 5.3 5.3l1.8-1.5 3.7 2.6-1 3.1a2.5 2.5 0 0 1-2.8 1.6 16.8 16.8 0 0 1-10.8-10.8 2.5 2.5 0 0 1 1.6-2.8l3.1-1 1.6 2.2" /></svg>;
-  if (name === 'speaker') return <svg {...commonProps}><path d="M4 10h4l5-4v12l-5-4H4v-4Z" /><path d="M16 9.2a4 4 0 0 1 0 5.6M18.5 6.8a7.4 7.4 0 0 1 0 10.4" /></svg>;
   if (name === 'speaker-off') return <svg {...commonProps}><path d="M4 10h4l5-4v12l-5-4H4v-4Z" /><path d="m17 9 4 4M21 9l-4 4" /></svg>;
   if (name === 'screen') return <svg {...commonProps}><rect x="3" y="4" width="18" height="13" rx="2.4" /><path d="M8 21h8M12 17v4" /></svg>;
   if (name === 'pause') return <svg {...commonProps}><path d="M8 5v14M16 5v14" /></svg>;

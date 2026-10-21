@@ -29,6 +29,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background: var(--canvas);
 }
 
+.workspace-icon-asset {
+  display: inline-block;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: var(--workspace-icon-mask) center / contain no-repeat;
+  -webkit-mask: var(--workspace-icon-mask) center / contain no-repeat;
+}
+
 .titlebar {
   height: 42px;
   display: grid;
@@ -3220,4 +3228,267 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .desktop-app .workspace-chat-panel .chat-header { min-height: 60px; }
   .desktop-app .workspace-chat-panel .chat-composer-area { padding-top: 8px; padding-bottom: 9px; }
   .desktop-app .workspace-detail-panel { padding-top: 26px; padding-bottom: 32px; }
+}
+
+/* Authentication is a standalone scene: the wallpaper stays dark in both themes,
+ * while the glass card adopts the selected interface theme. */
+.desktop-app .welcome-screen,
+.desktop-app .auth-scene {
+  --auth-card: rgba(19, 20, 49, .72);
+  --auth-card-border: rgba(220, 207, 255, .24);
+  --auth-control: rgba(255, 255, 255, .09);
+  --auth-control-hover: rgba(255, 255, 255, .15);
+  --auth-text: #f9f7ff;
+  --auth-muted: rgba(238, 233, 255, .7);
+  --auth-soft-muted: rgba(238, 233, 255, .54);
+  --auth-accent: #8751f7;
+  --auth-accent-hover: #9c70ff;
+  --auth-focus: #cdb9ff;
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 638px;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--auth-text);
+  background: #080913;
+}
+
+:root[data-theme='light'] .desktop-app .welcome-screen,
+:root[data-theme='light'] .desktop-app .auth-scene {
+  --auth-card: rgba(250, 249, 255, .79);
+  --auth-card-border: rgba(255, 255, 255, .76);
+  --auth-control: rgba(70, 53, 122, .08);
+  --auth-control-hover: rgba(70, 53, 122, .14);
+  --auth-text: #22203c;
+  --auth-muted: rgba(39, 35, 70, .72);
+  --auth-soft-muted: rgba(39, 35, 70, .58);
+  --auth-accent: #6730d5;
+  --auth-accent-hover: #5723c0;
+  --auth-focus: #6333c4;
+}
+
+.desktop-app .auth-wallpaper {
+  position: absolute;
+  z-index: -1;
+  inset: -2%;
+  overflow: hidden;
+  background:
+    linear-gradient(112deg, rgba(3, 5, 15, .44), rgba(5, 3, 18, .08) 52%, rgba(3, 4, 15, .42)),
+    url('../assets/auth-wallpaper.jpeg') center / cover no-repeat;
+  will-change: transform;
+  animation: auth-wallpaper-drift 22s ease-in-out infinite alternate;
+}
+
+.desktop-app .auth-wallpaper::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(180deg, rgba(1, 2, 8, .12), rgba(1, 2, 8, .27));
+}
+
+.desktop-app .welcome-utility-bar,
+.desktop-app .auth-scene-preferences {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  left: 20px;
+  right: auto;
+  display: block;
+}
+
+.desktop-app .preference-controls--auth { gap: 8px; }
+.desktop-app .preference-controls--auth .select-control { position: relative; }
+.desktop-app .preference-controls--auth .select-control select,
+.desktop-app .theme-toggle--auth {
+  height: 36px;
+  color: var(--auth-text);
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 12px;
+  background: rgba(11, 11, 28, .43);
+  box-shadow: 0 7px 24px rgba(1, 1, 14, .16);
+  backdrop-filter: blur(12px);
+}
+
+.desktop-app .preference-controls--auth .select-control select {
+  min-width: 108px;
+  padding: 0 25px 0 31px;
+  font-size: 11px;
+}
+
+.desktop-app .preference-controls--auth .select-control select:hover,
+.desktop-app .theme-toggle--auth:hover { background: rgba(25, 20, 61, .67); }
+.desktop-app .preference-controls--auth .select-control select:focus-visible,
+.desktop-app .theme-toggle--auth:focus-visible { outline-color: var(--auth-focus); }
+
+.desktop-app .language-flag {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 9px;
+  width: 15px;
+  height: 11px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .48);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .26);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.desktop-app .language-flag--ru { background: linear-gradient(#fff 0 33.33%, #1359bd 33.33% 66.66%, #da334b 66.66%); }
+.desktop-app .language-flag--kk { background: radial-gradient(circle at 36% 50%, #ffe66c 0 13%, transparent 15%), #4eb8cf; }
+.desktop-app .language-flag--en { background: linear-gradient(90deg, transparent 40%, #ed3f53 40% 60%, transparent 60%), linear-gradient(transparent 32%, #fff 32% 68%, transparent 68%), #28519e; }
+
+.desktop-app .theme-toggle--auth { display: grid; place-items: center; width: 36px; padding: 0; }
+.desktop-app .theme-toggle--auth .theme-toggle-swatch { width: 15px; height: 15px; border: 1px solid rgba(255, 255, 255, .64); border-radius: 50%; background: linear-gradient(135deg, #0d1235 46%, #b688ff 47% 64%, #efd1ff 65%); box-shadow: 0 0 12px rgba(180, 115, 255, .58); }
+:root[data-theme='light'] .desktop-app .theme-toggle--auth .theme-toggle-swatch { border-color: rgba(255, 255, 255, .86); background: linear-gradient(135deg, #ffef92 46%, #f3c85e 47% 64%, #fffdf4 65%); box-shadow: 0 0 12px rgba(255, 218, 106, .62); }
+
+.desktop-app .welcome-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  width: min(100% - 48px, 440px);
+  padding: 0;
+  color: var(--auth-text);
+  text-align: center;
+  background: transparent;
+  opacity: 0;
+}
+
+.desktop-app .welcome-hero .brand-mark { justify-content: center; color: var(--auth-text); font-size: 24px; }
+.desktop-app .welcome-hero .brand-mark img { width: 48px; height: 48px; border-radius: 15px; box-shadow: 0 16px 32px rgba(15, 7, 48, .42); }
+.desktop-app .welcome-hero .welcome-copy { max-width: 400px; margin-top: 26px; }
+.desktop-app .welcome-hero .welcome-copy h1 { max-width: none; color: var(--auth-text); font-size: clamp(34px, 4vw, 48px); letter-spacing: -.055em; }
+.desktop-app .welcome-hero .welcome-copy p { margin-top: 13px; color: var(--auth-muted); font-size: 15px; font-weight: 600; }
+.desktop-app .welcome-hero .welcome-actions { display: block; width: 100%; margin-top: 30px; }
+.desktop-app .welcome-hero .button-primary,
+.desktop-app .auth-glass-card .button-primary { color: #fff; border-color: rgba(193, 158, 255, .72); background: linear-gradient(110deg, #6e34de, var(--auth-accent)); box-shadow: 0 13px 28px rgba(64, 25, 150, .41); }
+.desktop-app .welcome-hero .button-primary:hover:not(:disabled),
+.desktop-app .auth-glass-card .button-primary:hover:not(:disabled) { background: linear-gradient(110deg, #7740e4, var(--auth-accent-hover)); box-shadow: 0 16px 33px rgba(64, 25, 150, .52); }
+.desktop-app .welcome-signin { margin: 15px 0 0; color: var(--auth-muted); font-size: 12px; }
+.desktop-app .welcome-signin button,
+.desktop-app .welcome-legal button,
+.desktop-app .auth-glass-card .auth-switch button,
+.desktop-app .auth-glass-card .auth-doc-links button,
+.desktop-app .auth-glass-card .legal-check button { color: #dbc7ff; }
+.desktop-app .welcome-signin button:hover,
+.desktop-app .welcome-legal button:hover,
+.desktop-app .auth-glass-card .auth-switch button:hover,
+.desktop-app .auth-glass-card .auth-doc-links button:hover,
+.desktop-app .auth-glass-card .legal-check button:hover { color: #fff; }
+.desktop-app .welcome-legal { max-width: 390px; margin-top: 24px; color: var(--auth-soft-muted); font-size: 10px; }
+.desktop-app .is-revealed .welcome-hero { opacity: 1; animation: auth-hero-arrival .54s cubic-bezier(.16, .9, .28, 1) both; }
+.desktop-app .is-leaving .welcome-hero { pointer-events: none; animation: auth-scene-exit .3s ease-in both; }
+
+.desktop-app .auth-glass-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(456px, calc(100% - 48px));
+  height: min(594px, calc(100% - 44px));
+  padding: 20px 18px 16px;
+  overflow: hidden;
+  color: var(--auth-text);
+  border: 1px solid var(--auth-card-border);
+  border-radius: 24px;
+  background: linear-gradient(140deg, color-mix(in srgb, var(--auth-card) 88%, rgba(255, 255, 255, .15)), var(--auth-card));
+  box-shadow: 0 30px 82px rgba(0, 0, 14, .42), inset 0 1px 0 rgba(255, 255, 255, .14);
+  backdrop-filter: blur(24px) saturate(130%);
+  animation: auth-card-arrival .48s cubic-bezier(.16, .9, .28, 1) both;
+}
+
+.desktop-app .auth-card-brand { display: flex; justify-content: center; min-height: 42px; padding: 2px 42px 12px; }
+.desktop-app .auth-card-brand .brand-mark { color: var(--auth-text); font-size: 18px; }
+.desktop-app .auth-card-brand .brand-mark img { width: 34px; height: 34px; border-radius: 11px; box-shadow: 0 9px 22px rgba(12, 5, 44, .28); }
+.desktop-app .auth-card-back { position: absolute; z-index: 2; top: 20px; left: 18px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: var(--auth-muted); border: 1px solid transparent; border-radius: 10px; background: transparent; transition: color .16s ease, border-color .16s ease, background .16s ease; }
+.desktop-app .auth-card-back:hover:not(:disabled) { color: var(--auth-text); border-color: rgba(255, 255, 255, .2); background: var(--auth-control); }
+.desktop-app .auth-card-back:disabled { opacity: .45; }
+.desktop-app .auth-card-back:focus-visible { outline-color: var(--auth-focus); }
+.desktop-app .auth-card-scroll { display: grid; min-height: 0; padding: 4px 10px 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: color-mix(in srgb, var(--auth-muted) 58%, transparent) transparent; }
+.desktop-app .auth-glass-card .auth-form-wrap { width: min(100%, 378px); margin: auto; padding: 0; }
+.desktop-app .auth-glass-card .register-form-wrap { align-self: start; padding-top: 3px; animation: auth-form-arrival .3s ease both; }
+.desktop-app .auth-glass-card .auth-heading { text-align: center; }
+.desktop-app .auth-glass-card .auth-heading p { margin-bottom: 8px; color: #c9aeff; font-size: 10px; letter-spacing: .1em; }
+.desktop-app .auth-glass-card .auth-heading h1 { max-width: none; color: var(--auth-text); font-size: clamp(27px, 3vw, 33px); line-height: 1.08; }
+.desktop-app .auth-glass-card .auth-heading > span { max-width: none; margin-top: 10px; color: var(--auth-muted); font-size: 12px; line-height: 1.52; }
+.desktop-app .auth-glass-card .auth-form { gap: 14px; margin-top: 24px; }
+.desktop-app .auth-glass-card .field { gap: 7px; text-align: left; }
+.desktop-app .auth-glass-card .field > span,
+.desktop-app .auth-glass-card .field > strong { color: var(--auth-text); font-size: 11px; }
+.desktop-app .auth-glass-card .field input,
+.desktop-app .auth-glass-card .field select { height: 44px; color: var(--auth-text); font-size: 12px; border-color: rgba(255, 255, 255, .15); border-radius: 11px; background: var(--auth-control); }
+.desktop-app .auth-glass-card .field input::placeholder { color: var(--auth-soft-muted); }
+.desktop-app .auth-glass-card .field input:hover,
+.desktop-app .auth-glass-card .field select:hover { border-color: rgba(214, 189, 255, .5); }
+.desktop-app .auth-glass-card .field input:focus,
+.desktop-app .auth-glass-card .field select:focus { border-color: var(--auth-focus); background: var(--auth-control-hover); }
+.desktop-app .auth-glass-card .field select option { color: var(--ara-text); background: var(--ara-surface); }
+.desktop-app .auth-glass-card .field small { color: var(--auth-soft-muted); font-size: 10px; }
+.desktop-app .auth-forgot-link { justify-self: start; margin-top: -6px; padding: 0; color: #dbc7ff; font-size: 10px; font-weight: 700; border: 0; background: transparent; }
+.desktop-app .auth-forgot-link:hover:not(:disabled) { color: #fff; text-decoration: underline; }
+.desktop-app .auth-glass-card .checkbox-row { color: var(--auth-muted); font-size: 10px; }
+.desktop-app .auth-glass-card .checkbox-row input { accent-color: var(--auth-accent); }
+.desktop-app .auth-glass-card .notice { color: var(--auth-text); font-size: 10px; border-color: rgba(203, 175, 255, .32); background: rgba(145, 86, 241, .14); }
+.desktop-app .auth-glass-card .notice-error { color: #ffd2d2; border-color: rgba(255, 132, 132, .44); background: rgba(213, 61, 80, .18); }
+.desktop-app .auth-glass-card .button { min-height: 44px; border-radius: 11px; font-size: 12px; }
+.desktop-app .auth-glass-card .button-secondary { color: var(--auth-text); border-color: rgba(255, 255, 255, .2); background: var(--auth-control); }
+.desktop-app .auth-glass-card .button-secondary:hover:not(:disabled) { border-color: rgba(219, 195, 255, .52); background: var(--auth-control-hover); }
+.desktop-app .auth-glass-card .auth-switch { margin-top: 20px; color: var(--auth-muted); font-size: 11px; }
+.desktop-app .auth-glass-card .auth-doc-links { color: var(--auth-soft-muted); font-size: 9px; }
+.desktop-app .auth-glass-card .registration-steps { margin-top: 21px; }
+.desktop-app .auth-glass-card .registration-steps li { color: var(--auth-soft-muted); font-size: 9px; }
+.desktop-app .auth-glass-card .registration-steps li span { color: var(--auth-soft-muted); border-color: rgba(255, 255, 255, .21); background: rgba(255, 255, 255, .04); }
+.desktop-app .auth-glass-card .registration-steps li.is-current,
+.desktop-app .auth-glass-card .registration-steps li.is-complete { color: var(--auth-text); }
+.desktop-app .auth-glass-card .registration-steps li.is-current span { color: #fff; border-color: transparent; background: var(--auth-accent); }
+.desktop-app .auth-glass-card .registration-steps li.is-complete span { color: #e8dfff; border-color: rgba(206, 181, 255, .47); background: rgba(142, 84, 244, .2); }
+.desktop-app .auth-glass-card .legal-check { color: var(--auth-muted); }
+.desktop-app .auth-glass-card .registration-actions { grid-template-columns: 1fr; }
+.desktop-app .auth-glass-card .registration-actions .button:only-child { grid-column: auto; }
+
+@keyframes auth-wallpaper-drift {
+  from { transform: translate3d(-.35%, -.2%, 0) scale(1.02); }
+  to { transform: translate3d(.35%, .2%, 0) scale(1.06); }
+}
+
+@keyframes auth-hero-arrival {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes auth-card-arrival {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes auth-form-arrival {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auth-scene-exit {
+  to { opacity: 0; transform: translateY(-8px) scale(1.01); }
+}
+
+@media (max-height: 720px) {
+  .desktop-app .welcome-utility-bar,
+  .desktop-app .auth-scene-preferences { top: 13px; left: 16px; }
+  .desktop-app .auth-glass-card { height: calc(100% - 28px); border-radius: 20px; }
+  .desktop-app .auth-card-brand { min-height: 38px; padding-bottom: 8px; }
+  .desktop-app .auth-card-back { top: 17px; }
+  .desktop-app .welcome-hero .welcome-copy { margin-top: 18px; }
+  .desktop-app .welcome-hero .welcome-actions { margin-top: 22px; }
+  .desktop-app .welcome-legal { margin-top: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-app .auth-wallpaper,
+  .desktop-app .auth-glass-card,
+  .desktop-app .is-revealed .welcome-hero,
+  .desktop-app .is-leaving .welcome-hero,
+  .desktop-app .auth-glass-card .register-form-wrap { animation: none; }
 }

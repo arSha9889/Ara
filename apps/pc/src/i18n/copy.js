@@ -30,6 +30,7 @@ export const COPY = {
     welcome: {
       greeting: 'Добро пожаловать в AraChat',
       subtitle: 'Общайтесь по всему миру.',
+      startChat: 'Начать общение',
       friendMessage: 'Ну что, чувствуется вайб? Тогда погнали.',
       logIn: 'Войти',
       createAccount: 'Создать аккаунт',
@@ -52,6 +53,7 @@ export const COPY = {
       signIn: 'Войти в AraChat',
       signingIn: 'Выполняем вход…',
       restoringSession: 'Восстанавливаем защищённую сессию…',
+      forgotPassword: 'Забыли пароль?',
       forgot: 'Восстановление доступа появится после подключения backend.',
       continueWith: 'Или войдите с помощью',
       yandex: 'Яндекс ID',
@@ -630,6 +632,7 @@ export const COPY = {
     welcome: {
       greeting: 'Welcome to AraChat',
       subtitle: 'Talk around the world.',
+      startChat: 'Start chatting',
       friendMessage: 'Feeling the vibe already? Let’s go.',
       logIn: 'Log in',
       createAccount: 'Create account',
@@ -652,6 +655,7 @@ export const COPY = {
       signIn: 'Log in to AraChat',
       signingIn: 'Signing in…',
       restoringSession: 'Restoring your secure session…',
+      forgotPassword: 'Forgot password?',
       forgot: 'Account recovery will be added after the backend is connected.',
       continueWith: 'Or continue with',
       yandex: 'Yandex ID',
@@ -1213,10 +1217,10 @@ export const COPY = {
       appName: 'AraChat', minimize: 'Терезені кішірейту', maximize: 'Терезені үлкейту', restore: 'Терезе өлшемін қалпына келтіру', close: 'Терезені жабу',
     },
     welcome: {
-      greeting: 'AraChat-қа қош келдіңіз', subtitle: 'Бүкіл әлеммен сөйлесіңіз.', friendMessage: 'Көңіл күй сезіле ме? Онда бастайық.', logIn: 'Кіру', createAccount: 'Аккаунт ашу', legalBefore: 'Жалғастыра отырып, сіз ', privacy: 'Құпиялылық саясатымен', legalJoin: ' және ', terms: 'Пайдалану шарттарымен', visualScene: 'AraChat брендтік көрінісі: ара белгісі мен айшықты қауырсын',
+      greeting: 'AraChat-қа қош келдіңіз', subtitle: 'Бүкіл әлеммен сөйлесіңіз.', startChat: 'Сөйлесуді бастау', friendMessage: 'Көңіл күй сезіле ме? Онда бастайық.', logIn: 'Кіру', createAccount: 'Аккаунт ашу', legalBefore: 'Жалғастыра отырып, сіз ', privacy: 'Құпиялылық саясатымен', legalJoin: ' және ', terms: 'Пайдалану шарттарымен', visualScene: 'AraChat брендтік көрінісі: ара белгісі мен айшықты қауырсын',
     },
     auth: {
-      returnToWelcome: 'Қош келу бетіне оралу', loginKicker: 'Қайта оралғаныңызға қуаныштымыз', loginTitle: 'Сөйлесу ырғағыңызға оралыңыз', loginText: 'AraChat аккаунтыңыздың e-mail мекенжайы мен құпиясөзін пайдаланыңыз.', email: 'E-mail', emailHint: 'name@example.com', password: 'Құпиясөз', passwordHint: 'Құпиясөзді енгізіңіз', remember: 'Осы құрылғыда жүйеде қалу', signIn: 'AraChat-қа кіру', signingIn: 'Кіру орындалуда…', restoringSession: 'Қорғалған сессия қалпына келтірілуде…', forgot: 'Қолжетімділікті қалпына келтіру backend қосылғаннан кейін пайда болады.', continueWith: 'Немесе мына арқылы кіріңіз', yandex: 'Яндекс ID', vk: 'VK ID', providerNotice: '{provider} арқылы кіру backend-ке OAuth қосылғаннан кейін қолжетімді болады.', newAccount: 'AraChat-та жаңасыз ба?', createAccount: 'Аккаунт ашу', registerKicker: 'Аккаунт ашу', registerTitle: 'Жақын әңгімелерге арналған кеңістігіңіз', registerText: 'AraChat-ыңызды ашуға бірнеше қысқа қадам керек.',
+      returnToWelcome: 'Қош келу бетіне оралу', loginKicker: 'Қайта оралғаныңызға қуаныштымыз', loginTitle: 'Сөйлесу ырғағыңызға оралыңыз', loginText: 'AraChat аккаунтыңыздың e-mail мекенжайы мен құпиясөзін пайдаланыңыз.', email: 'E-mail', emailHint: 'name@example.com', password: 'Құпиясөз', passwordHint: 'Құпиясөзді енгізіңіз', remember: 'Осы құрылғыда жүйеде қалу', signIn: 'AraChat-қа кіру', signingIn: 'Кіру орындалуда…', restoringSession: 'Қорғалған сессия қалпына келтірілуде…', forgotPassword: 'Құпиясөзді ұмыттыңыз ба?', forgot: 'Қолжетімділікті қалпына келтіру backend қосылғаннан кейін пайда болады.', continueWith: 'Немесе мына арқылы кіріңіз', yandex: 'Яндекс ID', vk: 'VK ID', providerNotice: '{provider} арқылы кіру backend-ке OAuth қосылғаннан кейін пайда болады.', newAccount: 'AraChat-та жаңасыз ба?', createAccount: 'Аккаунт ашу', registerKicker: 'Аккаунт ашу', registerTitle: 'Жақын әңгімелерге арналған кеңістігіңіз', registerText: 'AraChat-ыңызды ашуға бірнеше қысқа қадам керек.',
       steps: { email: 'Пошта', profile: 'Профиль', security: 'Қауіпсіздік' },
       verificationCode: 'Хаттағы код', codeHint: '6 сан', sendCode: 'Код жіберу', resendCode: 'Кодты қайта жіберу', registrationCountry: 'Тіркелу елі', selectCountry: 'Елді таңдаңыз', countries: { RU: 'Ресей', KZ: 'Қазақстан', KG: 'Қырғызстан', UA: 'Украина', BY: 'Беларусь', UZ: 'Өзбекстан' }, emailCodeSent: 'Код e-mail мекенжайына жіберілді. Ол {minutes} мин. жарамды.', emailConfirmed: 'E-mail расталды.', displayName: 'Достарыңыз сізді қалай көреді', displayNameHint: 'Мысалы, Лера', username: 'Username', usernameHint: 'Бос орынсыз, мысалы lera', usernameDescription: 'Іздеуге арналған ашық мекенжай: 3–32 латын әрпі немесе сан. Оны кейін өзгерте аласыз.', avatar: 'Аватар', uploadAvatar: 'Фотосурет таңдау', avatarDescription: 'JPG, PNG және WebP суреттеріне қолдау көрсетіледі.', passwordCreate: 'Құпиясөз ойлап табыңыз', passwordConfirm: 'Құпиясөзді қайталаңыз', passwordHelp: '5-тен 30-ға дейін латын әріптері не сандарын қолданыңыз — бұл сервердің қазіргі шектеуі.', privacyAcceptBefore: 'Мен оқыдым және қабылдаймын: ', termsAcceptBefore: 'Мен қабылдаймын: ', and: ' және ', create: 'Аккаунт ашу', already: 'Аккаунтыңыз бар ма?',
       validation: { email: 'Дұрыс e-mail мекенжайын енгізіңіз.', code: 'Код 6 саннан тұруы керек.', displayName: 'Көрсетілетін атты енгізіңіз.', country: 'Тіркелу елін таңдаңыз.', username: 'Username 3-тен 32-ге дейін латын әрпі не санынан тұруы керек.', password: 'Құпиясөз 5-тен 30-ға дейін латын әрпі не санынан тұруы керек.', passwordMatch: 'Құпиясөздер сәйкес келмейді.', legal: 'Тіркелу үшін екі құжатты да қабылдаңыз.' },

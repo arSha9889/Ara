@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Notice } from '../components/Notice.jsx';
 import {
@@ -13,7 +13,7 @@ const USERNAME_PATTERN = /^[a-zA-Z0-9]{3,32}$/;
 const PASSWORD_PATTERN = /^[a-zA-Z0-9]{5,30}$/;
 const COUNTRIES = ['RU', 'KZ', 'KG', 'UA', 'BY', 'UZ'];
 
-export function RegisterScreen({ language, t, onNavigate, onOpenLegal, onAuthenticated }) {
+export function RegisterScreen({ language, t, onNavigate, onOpenLegal, onAuthenticated, onCardBackChange }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({ email: '', code: '', verificationId: null, country: '', displayName: '', username: '', password: '', passwordConfirmation: '', privacy: false, terms: false });
   const [codeRequested, setCodeRequested] = useState(false);
@@ -38,6 +38,17 @@ export function RegisterScreen({ language, t, onNavigate, onOpenLegal, onAuthent
     setError('');
     setNotice('');
   }
+
+  const goBack = useCallback(() => {
+    setStep((current) => Math.max(0, current - 1));
+    setError('');
+    setNotice('');
+  }, []);
+
+  useEffect(() => {
+    onCardBackChange?.(step > 0 ? { disabled: isLoading, onClick: goBack } : null);
+    return () => onCardBackChange?.(null);
+  }, [goBack, isLoading, onCardBackChange, step]);
 
   async function requestCode() {
     if (!EMAIL_PATTERN.test(form.email)) {
@@ -173,7 +184,6 @@ export function RegisterScreen({ language, t, onNavigate, onOpenLegal, onAuthent
         <Notice tone="error">{error}</Notice>
         <Notice>{notice}</Notice>
         <div className="registration-actions">
-          {step > 0 ? <button className="button button-secondary" type="button" disabled={isLoading} onClick={() => { setStep((current) => current - 1); setError(''); setNotice(''); }}>{t('common.back')}</button> : null}
           <button className="button button-primary" type="submit" disabled={isLoading}>{isLoading ? t('common.loading') : step === 2 ? t('auth.create') : t('common.continue')}</button>
         </div>
       </form>
