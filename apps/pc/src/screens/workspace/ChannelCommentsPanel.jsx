@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import {
   createChannelPostComment,
@@ -139,29 +140,29 @@ export function ChannelCommentsPanel({
 
   return <section className="workspace-chat-panel channel-comments-panel" aria-labelledby="channel-comments-title">
     <header className="chat-header channel-comments-header">
-      <button className="chat-back-button" type="button" onClick={onBack}><Icon name="arrow-left" size={18} />{t('workspace.channels.backToPosts')}</button>
+      <AraButton className="chat-back-button" type="button" onClick={onBack} size="compact" variant="ghost"><Icon name="arrow-left" size={18} />{t('workspace.channels.backToPosts')}</AraButton>
       <div className="channel-comments-heading"><h1 id="channel-comments-title">{t('workspace.channels.commentsTitle')}</h1><span>{t('workspace.channels.commentsForPost')}</span></div>
-      <button className="channel-header-action" type="button" aria-label={t('workspace.chatPanel.refreshHistory')} title={t('workspace.chatPanel.refreshHistory')} onClick={() => void loadComments()} disabled={isLoading || isSaving}><Icon name="refresh" size={18} /></button>
+      <AraButton className="channel-header-action" type="button" aria-label={t('workspace.chatPanel.refreshHistory')} title={t('workspace.chatPanel.refreshHistory')} onClick={() => void loadComments()} disabled={isLoading || isSaving} size="icon" variant="ghost"><Icon name="refresh" size={18} /></AraButton>
     </header>
 
     <div className="channel-comments-history" aria-busy={isLoading}>
       <article className="channel-comment-source"><span>{t('workspace.channels.sourcePost')}</span><MessageContent accessToken={accessToken} chatId={channel.id} message={post} t={t} /></article>
-      {error ? <div className="chat-history-error" role="alert"><strong>{t('workspace.channels.commentsError')}</strong><span>{error}</span><button type="button" onClick={() => void loadComments()}>{t('workspace.retry')}</button></div> : null}
+      {error ? <div className="chat-history-error" role="alert"><strong>{t('workspace.channels.commentsError')}</strong><span>{error}</span><AraButton type="button" onClick={() => void loadComments()} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
       {isLoading ? <p className="chat-history-status" role="status">{t('workspace.channels.loadingComments')}</p> : comments.length ? <div className="channel-comment-list">{comments.map((comment) => {
         const isAuthor = String(comment.author_id) === String(currentUserId);
         const canDelete = isAuthor || comment.can_moderate;
         return <article className={`channel-comment ${comment.deleted_at ? 'is-deleted' : ''}`} key={comment.id}>
           <header><strong>{commentAuthorName(comment, t)}</strong><time dateTime={comment.created_at}>{formatCommentTime(comment.created_at)}</time></header>
           <p>{comment.deleted_at ? t('workspace.channels.deletedComment') : comment.text}</p>
-          {!comment.deleted_at && (isAuthor || canDelete) ? <footer>{isAuthor ? <button type="button" onClick={() => editComment(comment)} disabled={isSaving}><Icon name="edit" size={13} />{t('workspace.chatPanel.edit')}</button> : null}{canDelete ? <button className="is-danger" type="button" onClick={() => void removeComment(comment)} disabled={isSaving}><Icon name="trash" size={13} />{t('workspace.chatPanel.delete')}</button> : null}</footer> : null}
+          {!comment.deleted_at && (isAuthor || canDelete) ? <footer>{isAuthor ? <AraButton type="button" onClick={() => editComment(comment)} disabled={isSaving} size="compact" variant="ghost"><Icon name="edit" size={13} />{t('workspace.chatPanel.edit')}</AraButton> : null}{canDelete ? <AraButton className="is-danger" type="button" onClick={() => void removeComment(comment)} disabled={isSaving} size="compact" variant="ghost"><Icon name="trash" size={13} />{t('workspace.chatPanel.delete')}</AraButton> : null}</footer> : null}
         </article>;
       })}</div> : <div className="channel-comments-empty"><strong>{t('workspace.channels.noCommentsTitle')}</strong><span>{t('workspace.channels.noCommentsText')}</span></div>}
     </div>
 
     <form className="channel-comment-composer" onSubmit={submitComment}>
-      {editingComment ? <div className="channel-composer-context"><span>{t('workspace.channels.editingComment')}</span><button type="button" onClick={() => { setEditingComment(null); setDraft(''); }} aria-label={t('workspace.chatPanel.cancelEdit')}><Icon name="close" size={15} /></button></div> : null}
+      {editingComment ? <div className="channel-composer-context"><span>{t('workspace.channels.editingComment')}</span><AraButton type="button" onClick={() => { setEditingComment(null); setDraft(''); }} aria-label={t('workspace.chatPanel.cancelEdit')} size="icon" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
       {error ? <p className="chat-composer-error" role="alert">{error}</p> : null}
-      {canComment ? <><label className="sr-only" htmlFor="channel-comment-input">{t('workspace.channels.commentLabel')}</label><textarea id="channel-comment-input" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={submitOnEnter} rows="2" maxLength="2000" placeholder={t('workspace.channels.commentPlaceholder')} disabled={isSaving} /><div><span>{t('workspace.channels.commentHint')}</span><button className="channel-primary-button" type="submit" disabled={isSaving || !draft.trim()}>{isSaving ? t('workspace.channels.savingComment') : editingComment ? t('workspace.chatPanel.saveEdit') : t('workspace.channels.sendComment')}</button></div></> : <p className="channel-comment-closed">{post.comments_enabled ? t('workspace.channels.subscribeToComment') : t('workspace.channels.commentsDisabled')}</p>}
+      {canComment ? <><label className="sr-only" htmlFor="channel-comment-input">{t('workspace.channels.commentLabel')}</label><textarea id="channel-comment-input" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={submitOnEnter} rows="2" maxLength="2000" placeholder={t('workspace.channels.commentPlaceholder')} disabled={isSaving} /><div><span>{t('workspace.channels.commentHint')}</span><AraButton type="submit" variant="primary" disabled={isSaving || !draft.trim()}>{isSaving ? t('workspace.channels.savingComment') : editingComment ? t('workspace.chatPanel.saveEdit') : t('workspace.channels.sendComment')}</AraButton></div></> : <p className="channel-comment-closed">{post.comments_enabled ? t('workspace.channels.subscribeToComment') : t('workspace.channels.commentsDisabled')}</p>}
     </form>
   </section>;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import { getCurrentUser, updateCurrentProfile, uploadProfileAvatar } from '../../features/users/usersApi.js';
 import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
@@ -104,7 +105,7 @@ export function ProfilePanel({ accessToken, onCurrentUserUpdated, t }) {
       <div className="profile-identity-card">
         <div className="profile-avatar">
           {avatarUrl ? <img src={avatarUrl} alt={displayName || t('workspace.profilePanel.defaultName')} /> : initials(displayName) || 'AR'}
-          <button className="profile-avatar-edit" type="button" aria-label={t('workspace.profilePanel.changeAvatar')} title={t('workspace.profilePanel.changeAvatar')} onClick={() => avatarInputRef.current?.click()} disabled={isLoading || isSaving}><Icon name="image" size={13} /></button>
+          <AraButton className="profile-avatar-edit" size="icon" variant="primary" aria-label={t('workspace.profilePanel.changeAvatar')} title={t('workspace.profilePanel.changeAvatar')} onClick={() => avatarInputRef.current?.click()} disabled={isLoading || isSaving}><Icon name="image" size={13} /></AraButton>
         </div>
         <div className="profile-identity-copy">
           <strong>{displayName || t('workspace.profilePanel.defaultName')}</strong>
@@ -149,7 +150,7 @@ export function ProfilePanel({ accessToken, onCurrentUserUpdated, t }) {
 
         {error ? <p className="workspace-form-notice is-error" role="alert">{error}</p> : null}
         {feedback ? <p className="workspace-form-notice" role="status"><Icon name="check" size={16} />{feedback}</p> : null}
-        <button className="workspace-primary-button" type="submit" disabled={isLoading || isSaving || !profile}><Icon name="save" size={17} />{isLoading ? t('workspace.profilePanel.loading') : isSaving ? t('workspace.profilePanel.saving') : t('workspace.profilePanel.save')}</button>
+        <AraButton type="submit" variant="primary" disabled={isLoading || isSaving || !profile}><Icon name="save" size={17} />{isLoading ? t('workspace.profilePanel.loading') : isSaving ? t('workspace.profilePanel.saving') : t('workspace.profilePanel.save')}</AraButton>
       </form>
     </section>
   );

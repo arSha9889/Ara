@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { parrotIcon } from '../components/BrandMark.jsx';
-import { ThemeToggle } from '../components/ThemeLanguageControls.jsx';
-import { WorkspaceIcon as Icon } from '../components/WorkspaceIcon.jsx';
 import { getChat, getChatMessage, getChats, hideAllDirectChats } from '../features/chats/chatsApi.js';
 import { isCallSignal, useDirectCall } from '../features/calls/useDirectCall.js';
 import { createRealtimeConnection } from '../features/chats/realtimeClient.js';
 import { showDesktopNotification, subscribeDesktopNotificationActions } from '../features/notifications/desktopNotifications.js';
 import { getNotifications, markNotificationsRead } from '../features/notifications/notificationsApi.js';
 import { notificationId, notificationTarget } from '../features/notifications/notificationTarget.js';
-import { mediaUrlForDesktop } from '../shared/api/authenticatedMedia.js';
 import { CallOverlay } from './workspace/CallOverlay.jsx';
 import { CallsPanel } from './workspace/CallsPanel.jsx';
 import { ChatPanel } from './workspace/ChatPanel.jsx';
@@ -18,72 +14,11 @@ import { ContactsPanel } from './workspace/ContactsPanel.jsx';
 import { NotificationsPanel } from './workspace/NotificationsPanel.jsx';
 import { ProfilePanel } from './workspace/ProfilePanel.jsx';
 import { SettingsPanel } from './workspace/SettingsPanel.jsx';
-
-const NAVIGATION_ITEMS = [
-  { id: 'chats', icon: 'chats' },
-  { id: 'channels', icon: 'channels' },
-  { id: 'calls', icon: 'calls' },
-  { id: 'contacts', icon: 'contacts' },
-];
-
-const SECONDARY_NAVIGATION_ITEMS = [
-  { id: 'profile', icon: 'profile' },
-  { id: 'notifications', icon: 'bell' },
-  { id: 'settings', icon: 'settings' },
-];
-
-function EmptyIllustration() {
-  return (
-    <div className="workspace-empty-illustration" aria-hidden="true">
-      <span className="empty-orbit empty-orbit-one" />
-      <span className="empty-orbit empty-orbit-two" />
-      <svg viewBox="0 0 176 152" fill="none">
-        <path d="M42 103.5c-11.6 0-21-8.8-21-19.7 0-7.5 4.4-14.1 10.9-17.5-1.2-2.5-1.9-5.3-1.9-8.2 0-11.1 9.7-20.1 21.6-20.1 4.5 0 8.7 1.3 12.2 3.6C68.3 29.1 80.6 20 95 20c17.9 0 32.5 14 32.5 31.2 0 1.8-.2 3.5-.5 5.2 10.4 1.2 18.5 9.5 18.5 19.5 0 10.9-9.6 19.8-21.4 19.8H42Z" className="empty-cloud" />
-        <path d="M55 111.5h61M68 126.5h35" className="empty-line" />
-        <path d="M82.5 45.5c0-8.5 6.7-15.5 15-15.5h7.5c10.8 0 19.5 8.7 19.5 19.5S115.8 69 105 69h-8l-10.8 8 .7-10.5a20 20 0 0 1-4.4-12.5Z" className="empty-bubble" />
-        <circle cx="95" cy="49.5" r="2" className="empty-dot" />
-        <circle cx="103" cy="49.5" r="2" className="empty-dot" />
-        <circle cx="111" cy="49.5" r="2" className="empty-dot" />
-      </svg>
-      <span className="empty-feather empty-feather-one" />
-      <span className="empty-feather empty-feather-two" />
-    </div>
-  );
-}
-
-const AVATAR_TONES = ['violet', 'coral', 'yellow', 'blue'];
-
-function initials(displayName, username) {
-  const value = displayName || username || '?';
-  return value
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-}
-
-function avatarTone(value) {
-  const total = [...value].reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  return AVATAR_TONES[total % AVATAR_TONES.length];
-}
-
-function locale() {
-  return document.documentElement.lang || 'ru';
-}
-
-function formatChatTime(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-  return new Intl.DateTimeFormat(locale(), sameDay
-    ? { hour: '2-digit', minute: '2-digit' }
-    : { day: 'numeric', month: 'short' }).format(date);
-}
+import { WorkspaceCallError } from './workspace/WorkspaceCallError.jsx';
+import { WorkspaceChatList } from './workspace/WorkspaceChatList.jsx';
+import { WorkspaceEmptyState } from './workspace/WorkspaceEmptyState.jsx';
+import { WorkspaceNavigation } from './workspace/WorkspaceNavigation.jsx';
+import { WorkspaceShell } from './workspace/WorkspaceShell.jsx';
 
 function notificationTime(value) {
   const timestamp = Date.parse(value);
@@ -96,24 +31,6 @@ function sortNotifications(items) {
     if (item?.id) unique.set(item.id, item);
   });
   return [...unique.values()].sort((first, second) => notificationTime(second.created_at) - notificationTime(first.created_at));
-}
-
-function chatPreview(lastMessage, t) {
-  if (!lastMessage) return t('workspace.noMessagesPreview');
-  if (lastMessage.encryption_state === 'e2ee_web_v1') return t('workspace.chatPanel.encryptedMessage');
-  if (lastMessage.type === 'text' || lastMessage.type === 'emoji') return lastMessage.payload;
-  if (lastMessage.type === 'photo' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('image/'))) return t('workspace.chatPanel.typePhoto');
-  if (lastMessage.type === 'video' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('video/'))) return t('workspace.chatPanel.typeVideo');
-  if (lastMessage.type === 'voice' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('audio/'))) return t('workspace.chatPanel.typeAudio');
-  if (lastMessage.type === 'call') return t('workspace.calls');
-  return t('workspace.chatPanel.typeFile');
-}
-
-function ChatListAvatar({ chat, name, username }) {
-  const avatarRef = chat.type === 'branch' ? chat.avatar_ref : chat.peer?.avatar_ref;
-  const avatarUrl = mediaUrlForDesktop(avatarRef);
-  if (avatarUrl) return <span className="workspace-avatar"><img src={avatarUrl} alt="" /></span>;
-  return <span className={`workspace-avatar is-${avatarTone(chat.peer?.id || chat.id)}`} aria-hidden="true">{initials(name, username)}</span>;
 }
 
 export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCurrentUserUpdated, onLogout, preferences, updatePreferences, t }) {
@@ -152,18 +69,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const ownMessageIdsRef = useRef([]);
   const messageFocusRequestIdRef = useRef(0);
   const messageFocusResolversRef = useRef(new Map());
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleChats = chats.filter((chat) => {
-    const peer = chat.peer;
-    const searchable = `${peer?.display_name ?? ''} ${peer?.username ?? ''} ${chat.title ?? ''} ${chat.description ?? ''} ${chat.last_message?.payload ?? ''}`;
-    return searchable.toLocaleLowerCase().includes(normalizedQuery);
-  });
-  const visibleDirectChats = visibleChats.filter((chat) => chat.type === 'direct');
-  const visibleChannelChats = visibleChats.filter((chat) => chat.type === 'branch');
   const directChatCount = chats.filter((chat) => chat.type === 'direct').length;
-  const channelChatCount = chats.filter((chat) => chat.type === 'branch').length;
-  const directUnreadCount = chats.filter((chat) => chat.type === 'direct').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
-  const channelUnreadCount = chats.filter((chat) => chat.type === 'branch').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
   const selectedChat = chats.find((chat) => chat.id === selectedChatId);
 
   const loadChats = useCallback(async ({ showLoading = true, showSuccess = false } = {}) => {
@@ -614,28 +520,6 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     setActiveSection('channels');
   }
 
-  function renderChatRow(chat) {
-    const isSelected = selectedChatId === chat.id && activeSection === (chat.type === 'branch' ? 'channels' : 'chats');
-    const peer = chat.peer;
-    const name = chat.type === 'branch'
-      ? chat.title || t('workspace.channels.untitled')
-      : peer?.display_name || peer?.username || t('workspace.unknownUser');
-    const username = chat.type === 'branch' ? chat.slug || '' : peer?.username || '';
-    const preview = chatPreview(chat.last_message, t);
-    const timestamp = formatChatTime(chat.last_message?.created_at || chat.updated_at);
-    return <button className={`workspace-chat-row ${isSelected ? 'is-selected' : ''}`} type="button" key={chat.id} onClick={() => openChat(chat)} aria-pressed={isSelected}>
-      <ChatListAvatar chat={chat} name={name} username={username} />
-      <span className="workspace-chat-copy">
-        <span className="workspace-chat-name">{name}</span>
-        <span className="workspace-chat-preview">{preview}</span>
-      </span>
-      <span className="workspace-chat-meta">
-        {timestamp ? <time>{timestamp}</time> : null}
-        {chat.unread_count ? <span className="workspace-unread" aria-label={t('workspace.unread', { count: chat.unread_count })}>{chat.unread_count}</span> : null}
-      </span>
-    </button>;
-  }
-
   const renderMainContent = () => {
     if (activeSection === 'profile') return <ProfilePanel accessToken={accessToken} onCurrentUserUpdated={onCurrentUserUpdated} t={t} />;
     if (activeSection === 'calls') return <CallsPanel call={call} t={t} />;
@@ -657,85 +541,18 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
       return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={() => loadChats({ showLoading: false })} onChannelLeft={handleChannelLeft} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
     }
 
-    return (
-      <section className="workspace-empty-state" aria-labelledby="workspace-empty-title">
-        <EmptyIllustration />
-        <p>{t('workspace.emptyKicker')}</p>
-        <h1 id="workspace-empty-title">{t('workspace.emptyTitle')}</h1>
-        <span>{t('workspace.emptyText')}</span>
-        <button className="workspace-outline-button" type="button" onClick={openNewChat}><Icon name="plus" size={16} />{t('workspace.findUser')}</button>
-      </section>
-    );
+    return <WorkspaceEmptyState onNewChat={openNewChat} t={t} />;
   };
 
   return (
-    <main className={`workspace-screen density-${preferences.density ?? 'comfortable'}`}>
-      <aside className="workspace-nav" aria-label={t('workspace.navigation')}>
-        <button className="workspace-logo" type="button" aria-label={t('window.appName')} onClick={() => { openSection('chats'); setSelectedChatId(null); }}>
-          <img src={parrotIcon} alt="" />
-        </button>
-        <nav className="workspace-nav-groups">
-          <div className="workspace-nav-group">
-            {NAVIGATION_ITEMS.map((item) => {
-              const isActive = activeSection === item.id;
-              return <button className={`workspace-nav-button ${isActive ? 'is-active' : ''}`} type="button" key={item.id} aria-label={t(`workspace.${item.id}`)} title={t(`workspace.${item.id}`)} aria-current={isActive ? 'page' : undefined} onClick={() => openSection(item.id)}><Icon name={item.icon} /></button>;
-            })}
-          </div>
-          <div className="workspace-nav-separator" />
-          <div className="workspace-nav-group workspace-nav-group-bottom">
-            {SECONDARY_NAVIGATION_ITEMS.map((item) => {
-              const isActive = activeSection === item.id;
-              return <button className={`workspace-nav-button ${isActive ? 'is-active' : ''}`} type="button" key={item.id} aria-label={t(`workspace.${item.id}`)} aria-current={isActive ? 'page' : undefined} onClick={() => openSection(item.id)}><Icon name={item.icon} /></button>;
-            })}
-          </div>
-        </nav>
-      </aside>
-
-      <aside className="workspace-list" aria-label={t('workspace.chats')}>
-        <div className="workspace-list-header">
-          <div>
-            <h1>{t('workspace.chatsTitle')}</h1>
-            <p>{t('workspace.chatsIntro')}</p>
-          </div>
-          <div className="workspace-list-actions">
-            <ThemeToggle preferences={preferences} updatePreferences={updatePreferences} t={t} compact />
-            <button className={`workspace-list-refresh ${isLoadingChats ? 'is-loading' : ''}`} type="button" aria-label={isLoadingChats ? t('workspace.refreshingChats') : t('workspace.refreshChats')} title={t('workspace.refreshChats')} onClick={() => loadChats({ showSuccess: true })} disabled={isLoadingChats || isClearingChats}><Icon name="refresh" size={16} /></button>
-            <button className="workspace-list-clear" type="button" aria-label={t('workspace.clearAllChats')} title={t('workspace.clearAllChats')} onClick={clearAllChats} disabled={!directChatCount || isLoadingChats || isClearingChats}><Icon name="trash" size={16} /></button>
-            <button className="workspace-new-chat" type="button" aria-label={t('workspace.newChat')} onClick={openNewChat}><Icon name="plus" /></button>
-          </div>
-        </div>
-
-        <label className="workspace-search">
-          <Icon name="search" size={18} />
-          <span className="sr-only">{t('workspace.search')}</span>
-          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('workspace.searchPlaceholder')} />
-          {query ? <button type="button" aria-label={t('workspace.clearSearch')} onClick={() => setQuery('')}><Icon name="close" size={15} /></button> : null}
-        </label>
-
-        {chatsNotice ? <p className="workspace-list-notice" role="status">{chatsNotice}</p> : null}
-        <div className="workspace-chat-list" aria-busy={isLoadingChats || isClearingChats}>
-          {chatsError ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.chatsLoadError')}</strong><span>{chatsError}</span><button type="button" onClick={() => loadChats()}>{t('workspace.retry')}</button></div> : null}
-          {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : visibleChats.length ? <>
-            <section className="workspace-chat-group" aria-labelledby="direct-chats-heading">
-              <button className="workspace-chat-group-toggle" type="button" id="direct-chats-heading" aria-expanded={isDirectChatsExpanded} onClick={() => setIsDirectChatsExpanded((current) => !current)}><Icon name="chevron-right" size={15} /><span>{t('workspace.directChatsSection')}</span>{directUnreadCount ? <em>{directUnreadCount}</em> : <small>{directChatCount}</small>}</button>
-              {isDirectChatsExpanded ? <div>{visibleDirectChats.map(renderChatRow)}</div> : null}
-            </section>
-            <section className="workspace-chat-group" aria-labelledby="channel-chats-heading">
-              <button className="workspace-chat-group-toggle" type="button" id="channel-chats-heading" aria-expanded={isChannelChatsExpanded} onClick={() => setIsChannelChatsExpanded((current) => !current)}><Icon name="chevron-right" size={15} /><span>{t('workspace.channels')}</span>{channelUnreadCount ? <em>{channelUnreadCount}</em> : <small>{channelChatCount}</small>}</button>
-              {isChannelChatsExpanded ? <div>{visibleChannelChats.map(renderChatRow)}</div> : null}
-            </section>
-          </> : (
-            <div className="workspace-no-results"><strong>{normalizedQuery ? t('workspace.noSearchResults') : t('workspace.noChatsTitle')}</strong><span>{normalizedQuery ? t('workspace.noSearchResultsText') : t('workspace.noChatsText')}</span>{normalizedQuery ? null : <button className="workspace-list-empty-action" type="button" onClick={openNewChat}>{t('workspace.findUser')}</button>}</div>
-          )}
-        </div>
-        <p className="workspace-list-footer">{t('workspace.chatListFooter')}</p>
-      </aside>
-
-      <div className={`workspace-main ${selectedChat && ['chats', 'channels'].includes(activeSection) ? 'is-chat-open' : ''}`}>
-        {renderMainContent()}
-      </div>
-      <CallOverlay call={call} peer={activeCallChat?.peer} t={t} />
-      {callError && call.callState === 'idle' ? <div className="desktop-call-error" role="alert"><Icon name="warning" size={18} /><span>{callError}</span><button type="button" aria-label={t('common.close')} onClick={() => setCallError('')}><Icon name="close" size={15} /></button></div> : null}
-    </main>
+    <WorkspaceShell
+      chatList={<WorkspaceChatList activeSection={activeSection} chats={chats} chatsError={chatsError} chatsNotice={chatsNotice} directChatCount={directChatCount} isChannelChatsExpanded={isChannelChatsExpanded} isClearingChats={isClearingChats} isDirectChatsExpanded={isDirectChatsExpanded} isLoadingChats={isLoadingChats} onClearChats={clearAllChats} onNewChat={openNewChat} onOpenChat={openChat} onQueryChange={setQuery} onRefresh={() => loadChats({ showSuccess: true })} onRetry={() => loadChats()} onToggleChannelChats={() => setIsChannelChatsExpanded((current) => !current)} onToggleDirectChats={() => setIsDirectChatsExpanded((current) => !current)} preferences={preferences} query={query} selectedChatId={selectedChatId} t={t} updatePreferences={updatePreferences} />}
+      density={preferences.density ?? 'comfortable'}
+      isChatOpen={selectedChat && ['chats', 'channels'].includes(activeSection)}
+      navigation={<WorkspaceNavigation activeSection={activeSection} onHome={() => { openSection('chats'); setSelectedChatId(null); }} onSelect={openSection} t={t} />}
+      overlay={<><CallOverlay call={call} peer={activeCallChat?.peer} t={t} />{callError && call.callState === 'idle' ? <WorkspaceCallError message={callError} onClose={() => setCallError('')} t={t} /> : null}</>}
+    >
+      {renderMainContent()}
+    </WorkspaceShell>
   );
 }

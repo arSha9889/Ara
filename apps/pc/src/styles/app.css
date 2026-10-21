@@ -2983,6 +2983,201 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   box-shadow: none;
 }
 
+/* Shared controls own color, states and accessibility feedback. Panel classes
+ * only supplement the layout of compound rows and compact actions. */
+.desktop-app .ara-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 13px;
+  color: var(--ara-text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+  border: 1px solid var(--ara-border-interactive);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+  cursor: pointer;
+  transition: color var(--ara-motion-fast), border-color var(--ara-motion-fast), background var(--ara-motion-fast), opacity var(--ara-motion-fast);
+}
+
+.desktop-app .ara-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  background: var(--ara-surface);
+}
+
+.desktop-app .ara-button--primary {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .ara-button--primary:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent-hover);
+  background: var(--ara-accent-hover);
+}
+
+.desktop-app .ara-button--surface {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .ara-button--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.desktop-app .ara-button--ghost:hover:not(:disabled) {
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .ara-button--active,
+.desktop-app .ara-button--selected {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .ara-button--compact {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+
+.desktop-app .ara-button--icon {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.desktop-app .ara-button:disabled {
+  cursor: not-allowed;
+  opacity: .52;
+}
+
+.desktop-app .ara-button:focus-visible {
+  outline: 2px solid var(--ara-focus);
+  outline-offset: 3px;
+}
+
+.desktop-app .workspace-profile-panel .profile-avatar-edit.ara-button {
+  width: 25px;
+  min-width: 25px;
+  height: 25px;
+  min-height: 25px;
+}
+
+.desktop-app .workspace-logo.ara-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.desktop-app .workspace-nav-button.ara-button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+}
+
+.desktop-app .workspace-chat-group-toggle.ara-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 7px;
+  text-align: left;
+}
+
+.desktop-app .workspace-chat-row.ara-button {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px;
+  text-align: left;
+}
+
+.desktop-app .workspace-search .ara-button {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+}
+
+.desktop-app .workspace-empty-state .workspace-empty-action { margin-top: 20px; }
+
+.desktop-app .contacts-search-action { flex: 0 0 auto; }
+
+.desktop-app .workspace-contacts-panel .contact-result-row.ara-button {
+  display: grid;
+  grid-template-columns: 39px minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 57px;
+  padding: 8px;
+  text-align: left;
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row.ara-button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: start;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+}
+
+.desktop-app .channels-panel .channel-card.ara-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 62px;
+  padding: 7px;
+  text-align: left;
+}
+
+.desktop-app .channels-panel .channel-card-main.ara-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.desktop-app .channels-panel .channel-card-main.ara-button:disabled { cursor: default; }
+
+.desktop-app .channels-panel .channel-subscribe-button.ara-button--primary,
+.desktop-app .channels-panel .channel-subscribe-button.ara-button--primary:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-app .ara-button { transition: none; }
+}
+
 .desktop-app .channels-panel .workspace-section-card,
 .desktop-app .channel-details-panel .workspace-section-card,
 .desktop-app .workspace-settings-panel .workspace-section-card,

@@ -1,4 +1,5 @@
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { AraButton } from '../../components/AraButton.jsx';
 
 function formatNotificationTime(value) {
   const date = new Date(value);
@@ -21,15 +22,15 @@ export function NotificationsPanel({ error, isLoading, isUpdating, notifications
       <div className="workspace-section-card">
         <div className="workspace-section-heading">
           <div><h2>{t('workspace.notificationsPanel.inboxTitle')}</h2><p>{unreadCount ? t('workspace.notificationsPanel.unread', { count: unreadCount }) : t('workspace.notificationsPanel.allRead')}</p></div>
-          <button className="workspace-outline-button notification-mark-all" type="button" onClick={onMarkAllRead} disabled={!unreadCount || isLoading || isUpdating}>{t('workspace.notificationsPanel.markAllRead')}</button>
+          <AraButton className="notification-mark-all" type="button" onClick={onMarkAllRead} disabled={!unreadCount || isLoading || isUpdating} size="compact" variant="secondary">{t('workspace.notificationsPanel.markAllRead')}</AraButton>
         </div>
-        {error ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.notificationsPanel.loadError')}</strong><span>{error}</span><button type="button" onClick={onRetry}>{t('workspace.retry')}</button></div> : null}
+        {error ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.notificationsPanel.loadError')}</strong><span>{error}</span><AraButton type="button" onClick={onRetry} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
         {isLoading ? <p className="notification-list-status" role="status">{t('workspace.notificationsPanel.loading')}</p> : error ? null : notifications.length ? <div className="desktop-notification-list">
-          {notifications.map((notification) => <button className={`desktop-notification-row ${notification.read_at ? '' : 'is-unread'}`} type="button" key={notification.id} onClick={() => onOpenNotification(notification)}>
+          {notifications.map((notification) => <AraButton className={`desktop-notification-row ${notification.read_at ? '' : 'is-unread'}`} type="button" key={notification.id} onClick={() => onOpenNotification(notification)} variant="ghost">
             <span className="desktop-notification-icon"><Icon name="bell" size={17} /></span>
             <span><strong>{notification.title}</strong><small>{notification.body}</small><time dateTime={notification.created_at}>{formatNotificationTime(notification.created_at)}</time></span>
             {!notification.read_at ? <i aria-label={t('workspace.notificationsPanel.unreadIndicator')} /> : null}
-          </button>)}
+          </AraButton>)}
         </div> : <div className="notifications-empty"><span className="feature-state-icon"><Icon name="bell" size={24} /></span><strong>{t('workspace.notificationsPanel.emptyTitle')}</strong><p>{t('workspace.notificationsPanel.emptyText')}</p></div>}
       </div>
     </section>

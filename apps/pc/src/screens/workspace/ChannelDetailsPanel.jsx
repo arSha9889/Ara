@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import {
   generateChannelInvite,
@@ -229,9 +230,9 @@ export function ChannelDetailsPanel({ accessToken, channel, currentUserId, onBac
 
   return <section className="workspace-chat-panel channel-details-panel" aria-labelledby="channel-details-title">
     <header className="chat-header">
-      <button className="chat-back-button" type="button" onClick={onBack}><Icon name="arrow-left" size={18} />{t('workspace.channels.backToPosts')}</button>
+      <AraButton className="chat-back-button" type="button" onClick={onBack} size="compact" variant="ghost"><Icon name="arrow-left" size={18} />{t('workspace.channels.backToPosts')}</AraButton>
       <div className="channel-details-title"><h1 id="channel-details-title">{t('workspace.channels.channelInfo')}</h1><span>{channel.title}</span></div>
-      {canManage ? <button className="channel-header-action" type="button" title={t('workspace.channels.refreshManagement')} aria-label={t('workspace.channels.refreshManagement')} onClick={() => void loadManagementData()} disabled={isLoading || isSaving}><Icon name="refresh" size={18} /></button> : null}
+      {canManage ? <AraButton className="channel-header-action" type="button" title={t('workspace.channels.refreshManagement')} aria-label={t('workspace.channels.refreshManagement')} onClick={() => void loadManagementData()} disabled={isLoading || isSaving} size="icon" variant="ghost"><Icon name="refresh" size={18} /></AraButton> : null}
     </header>
 
     <div className="channel-details-content">
@@ -247,14 +248,14 @@ export function ChannelDetailsPanel({ accessToken, channel, currentUserId, onBac
         <label><span>{t('workspace.channels.titleLabel')}</span><input value={title} onChange={(event) => setTitle(event.target.value)} minLength="2" maxLength="120" required /></label>
         <label><span>{t('workspace.channels.descriptionLabel')}</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength="500" rows="3" /></label>
         <input className="sr-only" ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,image/avif" onChange={(event) => setAvatarFile(event.target.files?.[0] ?? null)} />
-        <div className="channel-avatar-upload"><span><Icon name="image" size={18} /></span><div><strong>{t('workspace.channels.avatarLabel')}</strong><small>{avatarFile?.name || t('workspace.channels.keepAvatar')}</small></div><button type="button" onClick={() => avatarInputRef.current?.click()}>{t('workspace.channels.chooseAvatar')}</button></div>
-        <button className="channel-primary-button" type="submit" disabled={isSaving || title.trim().length < 2}>{isSaving ? t('workspace.channels.savingChannel') : t('workspace.channels.saveChannel')}</button>
+        <div className="channel-avatar-upload"><span><Icon name="image" size={18} /></span><div><strong>{t('workspace.channels.avatarLabel')}</strong><small>{avatarFile?.name || t('workspace.channels.keepAvatar')}</small></div><AraButton type="button" onClick={() => avatarInputRef.current?.click()} size="compact" variant="ghost">{t('workspace.channels.chooseAvatar')}</AraButton></div>
+        <AraButton type="submit" variant="primary" disabled={isSaving || title.trim().length < 2}>{isSaving ? t('workspace.channels.savingChannel') : t('workspace.channels.saveChannel')}</AraButton>
       </form> : null}
 
       {canManage ? <section className="workspace-section-card channel-invite-card">
         <div className="workspace-section-heading"><div><h2>{t('workspace.channels.inviteTitle')}</h2><p>{inviteActive ? t('workspace.channels.inviteActive') : t('workspace.channels.inviteInactive')}</p></div></div>
-        {inviteLink ? <div className="channel-invite-link"><code>{inviteLink}</code><button type="button" onClick={() => void copyInvite()}><Icon name="link" size={15} />{t('workspace.channels.copyInvite')}</button></div> : null}
-        <div className="channel-inline-actions"><button className="channel-primary-button" type="button" onClick={() => void createInvite()} disabled={isSaving}>{inviteActive ? t('workspace.channels.regenerateInvite') : t('workspace.channels.generateInvite')}</button>{inviteActive ? <button className="workspace-outline-button" type="button" onClick={() => void revokeInvite()} disabled={isSaving}>{t('workspace.channels.revokeInvite')}</button> : null}</div>
+        {inviteLink ? <div className="channel-invite-link"><code>{inviteLink}</code><AraButton type="button" onClick={() => void copyInvite()} size="compact" variant="secondary"><Icon name="link" size={15} />{t('workspace.channels.copyInvite')}</AraButton></div> : null}
+        <div className="channel-inline-actions"><AraButton type="button" variant="primary" onClick={() => void createInvite()} disabled={isSaving}>{inviteActive ? t('workspace.channels.regenerateInvite') : t('workspace.channels.generateInvite')}</AraButton>{inviteActive ? <AraButton type="button" variant="secondary" onClick={() => void revokeInvite()} disabled={isSaving}>{t('workspace.channels.revokeInvite')}</AraButton> : null}</div>
       </section> : null}
 
       {canManage ? <section className="workspace-section-card channel-members-card">
@@ -267,14 +268,14 @@ export function ChannelDetailsPanel({ accessToken, channel, currentUserId, onBac
             <span className="channel-member-avatar">{mediaUrlForDesktop(member.avatar_ref) ? <img src={mediaUrlForDesktop(member.avatar_ref)} alt="" /> : initials(member.display_name || member.username)}</span>
             <div><strong>{member.display_name || member.username}</strong><small>{member.username ? `@${member.username}` : t(`workspace.channels.role${member.role[0].toUpperCase()}${member.role.slice(1)}`)}</small></div>
             {canChangeRole ? <select value={member.role} onChange={(event) => void changeRole(member, event.target.value)} disabled={isSaving} aria-label={t('workspace.channels.memberRoleLabel', { member: member.display_name || member.username })}><option value="member">{t('workspace.channels.roleMember')}</option><option value="admin">{t('workspace.channels.roleAdmin')}</option><option value="owner">{t('workspace.channels.roleOwner')}</option></select> : <span className="channel-member-role">{t(`workspace.channels.role${member.role[0].toUpperCase()}${member.role.slice(1)}`)}</span>}
-            {canRemove ? <button className="channel-member-remove" type="button" aria-label={t('workspace.channels.removeMemberLabel', { member: member.display_name || member.username })} title={t('workspace.channels.removeMember')} onClick={() => void removeMember(member)} disabled={isSaving}><Icon name="trash" size={15} /></button> : null}
+            {canRemove ? <AraButton className="channel-member-remove" type="button" aria-label={t('workspace.channels.removeMemberLabel', { member: member.display_name || member.username })} title={t('workspace.channels.removeMember')} onClick={() => void removeMember(member)} disabled={isSaving} size="icon" variant="ghost"><Icon name="trash" size={15} /></AraButton> : null}
           </article>;
         })}</div>}
       </section> : null}
 
       {channel.is_subscribed ? <section className="workspace-section-card channel-preferences-card"><div><h2>{t('workspace.channels.notificationsTitle')}</h2><p>{t('workspace.channels.notificationsHint')}</p></div><button className={`channel-notification-toggle ${notificationsEnabled ? 'is-enabled' : ''}`} type="button" role="switch" aria-checked={notificationsEnabled} onClick={() => void toggleNotifications()} disabled={isSaving}><span>{notificationsEnabled ? t('workspace.channels.notificationsOn') : t('workspace.channels.notificationsOff')}</span><i /></button></section> : null}
 
-      {isPrivate ? <section className="channel-leave-card"><div><h2>{t('workspace.channels.leaveTitle')}</h2><p>{role === 'owner' ? t('workspace.channels.ownerLeaveRestricted') : t('workspace.channels.leaveHint')}</p></div><button type="button" onClick={() => void leaveChannel()} disabled={isSaving || role === 'owner'}>{t('workspace.channels.leaveChannel')}</button></section> : null}
+      {isPrivate ? <section className="channel-leave-card"><div><h2>{t('workspace.channels.leaveTitle')}</h2><p>{role === 'owner' ? t('workspace.channels.ownerLeaveRestricted') : t('workspace.channels.leaveHint')}</p></div><AraButton type="button" onClick={() => void leaveChannel()} disabled={isSaving || role === 'owner'} variant="secondary">{t('workspace.channels.leaveChannel')}</AraButton></section> : null}
     </div>
   </section>;
 }
