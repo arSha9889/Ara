@@ -26,6 +26,7 @@ import {
   parseE2eeAttachmentDescriptor,
   registerE2eeDesktopIdentity,
 } from '../../shared/crypto/e2eeDesktop.js';
+import { formatFileSize } from '../../shared/format/fileSize.js';
 import { MessageContent, displayMessageType } from './MessageContent.jsx';
 
 const AVATAR_TONES = ['violet', 'coral', 'yellow', 'blue'];
@@ -50,12 +51,6 @@ function formatMessageTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(locale(), { hour: '2-digit', minute: '2-digit' }).format(date);
-}
-
-function formatFileSize(value) {
-  if (!Number.isFinite(value) || value < 1) return '';
-  if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(value >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
 }
 
 function formatDuration(value) {

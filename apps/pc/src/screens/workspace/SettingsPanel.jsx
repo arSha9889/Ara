@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
 
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'appearance', icon: 'palette' },
   { id: 'notifications', icon: 'bell' },
   { id: 'security', icon: 'shield' },
+  { id: 'about', icon: 'info' },
 ];
 
 const LOGIN_METHODS = {
@@ -38,6 +40,8 @@ const LOGIN_RESULTS = {
   success: 'loginResultSuccess',
   failed: 'loginResultFailed',
 };
+
+const COMPACT_SETTINGS_NAVIGATION_QUERY = '(max-width: 1060px)';
 
 function SettingToggle({ checked, onChange, label, description }) {
   return (
@@ -94,6 +98,11 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
   const [emailCode, setEmailCode] = useState('');
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState('loading');
+  const [appVersion, setAppVersion] = useState('');
+  const [isLoadingAppVersion, setIsLoadingAppVersion] = useState(false);
+  const [isCompactSettingsNavigation, setIsCompactSettingsNavigation] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia(COMPACT_SETTINGS_NAVIGATION_QUERY).matches
+  ));
   const density = preferences.density ?? 'comfortable';
   const currentDeviceId = getDeviceId();
   const activeDevices = devices.filter((device) => !device.revoked_at);
@@ -126,6 +135,37 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
       .then(setNotificationPermission)
       .catch(() => setNotificationPermission('unavailable'));
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'about') return undefined;
+
+    let isActive = true;
+    setIsLoadingAppVersion(true);
+    setAppVersion('');
+    void Promise.resolve()
+      .then(() => getVersion())
+      .then((version) => {
+        if (isActive) setAppVersion(version);
+      })
+      .catch(() => {
+        if (isActive) setAppVersion('');
+      })
+      .finally(() => {
+        if (isActive) setIsLoadingAppVersion(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(COMPACT_SETTINGS_NAVIGATION_QUERY);
+    const updateLayout = () => setIsCompactSettingsNavigation(mediaQuery.matches);
+    updateLayout();
+    mediaQuery.addEventListener('change', updateLayout);
+    return () => mediaQuery.removeEventListener('change', updateLayout);
+  }, []);
 
   function saveLocalSettings() {
     setFormError('');
@@ -314,11 +354,38 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
     else if (event.key === 'End') nextIndex = TABS.length - 1;
     else return;
     event.preventDefault();
-    setActiveTab(TABS[nextIndex].id);
+    selectTab(TABS[nextIndex].id);
     event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[nextIndex]?.focus();
   }
 
+  function selectTab(tabId) {
+    setActiveTab(tabId);
+    setNotice('');
+    setFormError('');
+  }
+
   const renderSettings = () => {
+    if (activeTab === 'about') {
+      const versionText = isLoadingAppVersion
+        ? t('workspace.settingsPanel.versionLoading')
+        : appVersion || t('workspace.settingsPanel.versionUnavailable');
+      return (
+        <div className="settings-content settings-about-content">
+          <section className="workspace-section-card settings-about-card" aria-labelledby="settings-about-title">
+            <div className="workspace-section-heading"><div><h2 id="settings-about-title">{t('workspace.settingsPanel.aboutTitle')}</h2><p>{t('workspace.settingsPanel.aboutText')}</p></div><span className="workspace-section-icon"><Icon name="info" size={18} /></span></div>
+            <div className="settings-about-version">
+              <span className="settings-about-icon" aria-hidden="true"><Icon name="info" size={19} /></span>
+              <div><strong>{t('workspace.settingsPanel.version')}</strong><output aria-live="polite">{versionText}</output></div>
+            </div>
+          </section>
+          <section className="workspace-section-card settings-about-card" aria-labelledby="settings-updates-title">
+            <div className="workspace-section-heading"><div><h2 id="settings-updates-title">{t('workspace.settingsPanel.updatesTitle')}</h2><p>{t('workspace.settingsPanel.updatesText')}</p></div></div>
+            <p className="settings-update-status"><Icon name="info" size={16} />{t('workspace.settingsPanel.updatesStatus')}</p>
+          </section>
+        </div>
+      );
+    }
+
     if (activeTab === 'notifications') {
       return (
         <div className="settings-content">
@@ -423,12 +490,16 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
         <div><p>{t('workspace.settingsPanel.kicker')}</p><h1 id="settings-title">{t('workspace.settingsPanel.title')}</h1><span>{t('workspace.settingsPanel.intro')}</span></div>
         <span className="workspace-panel-icon"><Icon name="settings" size={25} /></span>
       </header>
-      <div className="settings-tabs" role="tablist" aria-label={t('workspace.settingsPanel.tabsLabel')}>
-        {TABS.map((tab, index) => <button className={activeTab === tab.id ? 'is-active' : ''} type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls={`settings-panel-${tab.id}`} aria-selected={activeTab === tab.id} tabIndex={activeTab === tab.id ? 0 : -1} key={tab.id} onClick={() => { setActiveTab(tab.id); setNotice(''); setFormError(''); }} onKeyDown={(event) => handleTabKeyDown(event, index)}><Icon name={tab.icon} size={16} />{t(`workspace.settingsPanel.${tab.id}`)}</button>)}
+      <div className="settings-layout">
+        <div className="settings-tabs" role="tablist" aria-label={t('workspace.settingsPanel.tabsLabel')} aria-orientation={isCompactSettingsNavigation ? 'horizontal' : 'vertical'}>
+          {TABS.map((tab, index) => <button className={activeTab === tab.id ? 'is-active' : ''} type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls={`settings-panel-${tab.id}`} aria-selected={activeTab === tab.id} tabIndex={activeTab === tab.id ? 0 : -1} key={tab.id} onClick={() => selectTab(tab.id)} onKeyDown={(event) => handleTabKeyDown(event, index)}><Icon name={tab.icon} size={16} />{t(`workspace.settingsPanel.${tab.id}`)}</button>)}
+        </div>
+        <div className="settings-main">
+          <div id={`settings-panel-${activeTab}`} role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`}>{renderSettings()}</div>
+          <SecurityFormNotice error={formError} notice={notice} />
+          {['appearance', 'notifications'].includes(activeTab) ? <AraButton type="button" variant="primary" onClick={saveLocalSettings}><Icon name="save" size={17} />{t('workspace.settingsPanel.save')}</AraButton> : null}
+        </div>
       </div>
-      <div id={`settings-panel-${activeTab}`} role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`}>{renderSettings()}</div>
-      <SecurityFormNotice error={formError} notice={notice} />
-      {activeTab !== 'security' ? <AraButton type="button" variant="primary" onClick={saveLocalSettings}><Icon name="save" size={17} />{t('workspace.settingsPanel.save')}</AraButton> : null}
     </section>
   );
 }

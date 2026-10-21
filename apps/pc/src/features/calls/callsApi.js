@@ -5,3 +5,9 @@ export function getCallIceConfiguration(accessToken) {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 }
+
+export function getCallHistory(accessToken) {
+  return apiRequest('/api/calls/history', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}

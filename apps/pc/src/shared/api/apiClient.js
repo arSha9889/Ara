@@ -106,6 +106,118 @@ const ERROR_MESSAGES = {
     ru: 'Текст сообщения не может быть длиннее 4 000 символов.',
     en: 'The message text cannot exceed 4,000 characters.',
   },
+  'Public branch not found': {
+    ru: 'Публичный канал не найден.',
+    en: 'The public channel was not found.',
+  },
+  'This branch address is already in use': {
+    ru: 'Этот адрес канала уже занят.',
+    en: 'This channel address is already in use.',
+  },
+  'Channel avatar cannot be empty': {
+    ru: 'Аватар канала не может быть пустым.',
+    en: 'The channel avatar cannot be empty.',
+  },
+  'Invite link is invalid or revoked': {
+    ru: 'Ссылка-приглашение недействительна или отозвана.',
+    en: 'The invitation link is invalid or has been revoked.',
+  },
+  'Channel not found': {
+    ru: 'Канал не найден или больше недоступен.',
+    en: 'The channel was not found or is no longer available.',
+  },
+  'Transfer channel ownership before leaving': {
+    ru: 'Перед выходом передайте права владельца другому участнику.',
+    en: 'Transfer channel ownership before leaving.',
+  },
+  'Channel member not found': {
+    ru: 'Участник канала не найден.',
+    en: 'The channel member was not found.',
+  },
+  'Unsupported channel role': {
+    ru: 'Такая роль в канале не поддерживается.',
+    en: 'This channel role is not supported.',
+  },
+  'Use ownership transfer before changing your own role': {
+    ru: 'Чтобы изменить свою роль, сначала передайте права владельца.',
+    en: 'Transfer ownership before changing your own role.',
+  },
+  'Only the channel owner can transfer ownership': {
+    ru: 'Передать права владельца может только владелец канала.',
+    en: 'Only the channel owner can transfer ownership.',
+  },
+  'Transfer channel ownership before changing the owner role': {
+    ru: 'Чтобы изменить роль владельца, сначала передайте права владельца.',
+    en: 'Transfer ownership before changing the owner role.',
+  },
+  'Only the channel owner can change member roles': {
+    ru: 'Изменять роли участников может только владелец канала.',
+    en: 'Only the channel owner can change member roles.',
+  },
+  'Leave the channel instead of removing yourself': {
+    ru: 'Чтобы выйти из канала, используйте действие выхода.',
+    en: 'Leave the channel instead of removing yourself.',
+  },
+  'Channel owner cannot be removed': {
+    ru: 'Владельца канала нельзя удалить.',
+    en: 'The channel owner cannot be removed.',
+  },
+  'Administrators can remove members only': {
+    ru: 'Администраторы могут удалять только участников.',
+    en: 'Administrators can remove members only.',
+  },
+  'Subscribe to this channel first': {
+    ru: 'Сначала подпишитесь на этот канал.',
+    en: 'Subscribe to this channel first.',
+  },
+  'Only channel administrators can manage this channel': {
+    ru: 'Управлять этим каналом могут только его администраторы.',
+    en: 'Only channel administrators can manage this channel.',
+  },
+  'Comments are disabled for this post': {
+    ru: 'Комментарии к этой публикации отключены.',
+    en: 'Comments are disabled for this post.',
+  },
+  'Subscribe to this branch to comment': {
+    ru: 'Подпишитесь на этот канал, чтобы комментировать.',
+    en: 'Subscribe to this channel to comment.',
+  },
+  'Comment cannot be empty': {
+    ru: 'Комментарий не может быть пустым.',
+    en: 'The comment cannot be empty.',
+  },
+  'Too many comments. Please try again in a minute': {
+    ru: 'Слишком много комментариев. Попробуйте через минуту.',
+    en: 'Too many comments. Please try again in a minute.',
+  },
+  'Only the author can edit this comment': {
+    ru: 'Редактировать этот комментарий может только его автор.',
+    en: 'Only the author can edit this comment.',
+  },
+  'Deleted comment cannot be edited': {
+    ru: 'Удалённый комментарий нельзя изменить.',
+    en: 'A deleted comment cannot be edited.',
+  },
+  'Only the author or a branch administrator can delete this comment': {
+    ru: 'Удалить этот комментарий может только автор или администратор канала.',
+    en: 'Only the author or a channel administrator can delete this comment.',
+  },
+  'Branch not found': {
+    ru: 'Канал не найден или больше недоступен.',
+    en: 'The channel was not found or is no longer available.',
+  },
+  'Branch post not found': {
+    ru: 'Публикация канала не найдена.',
+    en: 'The channel post was not found.',
+  },
+  'Comment not found': {
+    ru: 'Комментарий не найден или уже удалён.',
+    en: 'The comment was not found or has already been deleted.',
+  },
+  'Only branch administrators can post': {
+    ru: 'Публиковать сообщения могут только администраторы канала.',
+    en: 'Only channel administrators can post.',
+  },
 };
 
 const KAZAKH_ERROR_MESSAGES = {
@@ -134,6 +246,34 @@ const KAZAKH_ERROR_MESSAGES = {
   'Chat not found': 'Чат табылмады немесе енді қолжетімсіз.',
   'Text message cannot be empty': 'Хабарлама мәтіні бос болмауы керек.',
   'Text message is too long': 'Хабарлама мәтіні 4 000 таңбадан аспауы керек.',
+  'Public branch not found': 'Ашық арна табылмады.',
+  'This branch address is already in use': 'Бұл арна мекенжайы бос емес.',
+  'Channel avatar cannot be empty': 'Арна аватары бос болмауы керек.',
+  'Invite link is invalid or revoked': 'Шақыру сілтемесі жарамсыз немесе кері қайтарылған.',
+  'Channel not found': 'Арна табылмады немесе енді қолжетімсіз.',
+  'Transfer channel ownership before leaving': 'Шығу алдында иелік құқығын басқа қатысушыға беріңіз.',
+  'Channel member not found': 'Арна қатысушысы табылмады.',
+  'Unsupported channel role': 'Мұндай арна рөліне қолдау көрсетілмейді.',
+  'Use ownership transfer before changing your own role': 'Өз рөліңізді өзгерту алдында иелікті беріңіз.',
+  'Only the channel owner can transfer ownership': 'Иелікті тек арна иесі бере алады.',
+  'Transfer channel ownership before changing the owner role': 'Иесінің рөлін өзгерту алдында иелікті беріңіз.',
+  'Only the channel owner can change member roles': 'Қатысушылардың рөлдерін тек арна иесі өзгерте алады.',
+  'Leave the channel instead of removing yourself': 'Өзіңізді жоюдың орнына арнадан шығыңыз.',
+  'Channel owner cannot be removed': 'Арна иесін жоюға болмайды.',
+  'Administrators can remove members only': 'Әкімшілер тек қатысушыларды жоя алады.',
+  'Subscribe to this channel first': 'Алдымен осы арнаға жазылыңыз.',
+  'Only channel administrators can manage this channel': 'Бұл арнаны тек оның әкімшілері басқара алады.',
+  'Comments are disabled for this post': 'Бұл жарияланымда пікірлер өшірілген.',
+  'Subscribe to this branch to comment': 'Пікір жазу үшін осы арнаға жазылыңыз.',
+  'Comment cannot be empty': 'Пікір бос болмауы керек.',
+  'Too many comments. Please try again in a minute': 'Пікір тым көп. Бір минуттан кейін қайталап көріңіз.',
+  'Only the author can edit this comment': 'Бұл пікірді тек авторы өңдей алады.',
+  'Deleted comment cannot be edited': 'Жойылған пікірді өңдеуге болмайды.',
+  'Only the author or a branch administrator can delete this comment': 'Бұл пікірді тек авторы немесе арна әкімшісі жоя алады.',
+  'Branch not found': 'Арна табылмады немесе енді қолжетімсіз.',
+  'Branch post not found': 'Арна жарияланымы табылмады.',
+  'Comment not found': 'Пікір табылмады немесе жойылған.',
+  'Only branch administrators can post': 'Жарияланым жаза алатындар — тек арна әкімшілері.',
 };
 
 export class ApiRequestError extends Error {

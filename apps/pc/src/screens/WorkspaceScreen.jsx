@@ -221,11 +221,12 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   }, [accessToken, focusMessage, loadChats, t]);
 
   const startCall = useCallback(async (chat, callType) => {
-    if (!chat?.peer || call.callState !== 'idle') return;
+    if (!chat?.peer || call.callState !== 'idle') return false;
     setCallError('');
     setActiveCallChat(chat);
     const didStart = await call.startCall({ chatId: chat.id, peer: chat.peer, callType });
     if (!didStart) setActiveCallChat(null);
+    return didStart;
   }, [call]);
 
   useEffect(() => {
@@ -449,6 +450,21 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     setContactMode('new');
   }
 
+  const openCallHistoryChat = useCallback(async (historyItem) => {
+    const chat = await resolveCallChat(historyItem?.chat_id);
+    if (!chat) return false;
+    setActiveSection('chats');
+    setSelectedChatId(chat.id);
+    setMessageFocus(null);
+    return true;
+  }, [resolveCallChat]);
+
+  const startCallFromHistory = useCallback(async (historyItem) => {
+    const chat = await resolveCallChat(historyItem?.chat_id);
+    if (!chat) return false;
+    return startCall(chat, historyItem.call_type);
+  }, [resolveCallChat, startCall]);
+
   async function clearAllChats() {
     if (!directChatCount || isClearingChats || isLoadingChats) return;
     if (!window.confirm(t('workspace.clearChatsConfirmation'))) return;
@@ -522,7 +538,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
 
   const renderMainContent = () => {
     if (activeSection === 'profile') return <ProfilePanel accessToken={accessToken} onCurrentUserUpdated={onCurrentUserUpdated} t={t} />;
-    if (activeSection === 'calls') return <CallsPanel call={call} t={t} />;
+    if (activeSection === 'calls') return <CallsPanel accessToken={accessToken} call={call} onNewCall={openNewChat} onOpenHistoryChat={openCallHistoryChat} onStartHistoryCall={startCallFromHistory} t={t} />;
     if (activeSection === 'notifications') {
       return <NotificationsPanel error={notificationsError} isLoading={isLoadingNotifications} isUpdating={isUpdatingNotifications} notifications={notifications} onMarkAllRead={markAllNotificationsRead} onOpenNotification={openNotification} onRetry={() => loadNotifications()} t={t} />;
     }

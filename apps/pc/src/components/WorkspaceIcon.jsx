@@ -69,6 +69,7 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'key') return <svg {...commonProps}><circle cx="7.5" cy="15.5" r="3.5" /><path d="m10.1 12.9 7.8-7.8 2 2-1.5 1.5 1.2 1.2-1.8 1.8-1.2-1.2-4 4" /></svg>;
   if (name === 'lock') return <svg {...commonProps}><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7.2a4 4 0 0 1 8 0V10M12 14.5v2.5" /></svg>;
   if (name === 'mail') return <svg {...commonProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" /></svg>;
+  if (name === 'info') return <svg {...commonProps}><circle cx="12" cy="12" r="8.5" /><path d="M12 10.5v5M12 7.8v.1" /></svg>;
   if (name === 'device') return <svg {...commonProps}><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 18h6M10.5 6h3" /></svg>;
   if (name === 'logout') return <svg {...commonProps}><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9" /></svg>;
   if (name === 'pin') return <svg {...commonProps}><path d="m15.5 4 4.5 4.5-3 1.1-2.9 4.9-2.6-2.6-4.9 2.9L5.5 12l4.9-2.9L11.5 6 15.5 4Z" /><path d="m11.5 14.5-6 6" /></svg>;

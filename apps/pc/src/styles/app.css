@@ -3230,6 +3230,177 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .desktop-app .workspace-detail-panel { padding-top: 26px; padding-bottom: 32px; }
 }
 
+/* Desktop settings use a stable sidebar on wide workspaces and return to a
+ * horizontal tab row when the chat shell leaves less room for the content. */
+.desktop-app .workspace-settings-panel .settings-layout {
+  display: grid;
+  grid-template-columns: minmax(148px, 176px) minmax(0, 1fr);
+  align-items: start;
+  gap: 22px;
+}
+.desktop-app .workspace-settings-panel .settings-tabs {
+  display: grid;
+  width: 100%;
+  margin: 0;
+  padding: 5px;
+  overflow: visible;
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+}
+.desktop-app .workspace-settings-panel .settings-tabs button {
+  justify-content: flex-start;
+  min-height: 38px;
+  padding: 0 10px;
+  color: var(--ara-text-muted);
+  text-align: left;
+}
+.desktop-app .workspace-settings-panel .settings-tabs button:hover:not(.is-active) {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .workspace-settings-panel .settings-tabs button.is-active {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+.desktop-app .workspace-settings-panel .settings-main { min-width: 0; }
+.desktop-app .workspace-settings-panel .settings-main > .workspace-form-notice,
+.desktop-app .workspace-settings-panel .settings-main > .workspace-primary-button { margin-top: 15px; }
+.desktop-app .workspace-settings-panel .settings-about-card { padding: 18px; }
+.desktop-app .workspace-settings-panel .settings-about-card + .settings-about-card { margin-top: 12px; }
+.desktop-app .workspace-settings-panel .settings-about-version {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  padding-top: 15px;
+  border-top: 1px solid var(--ara-border-subtle);
+}
+.desktop-app .workspace-settings-panel .settings-about-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: var(--ara-accent);
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 38%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .settings-about-version > div { display: grid; gap: 2px; min-width: 0; }
+.desktop-app .workspace-settings-panel .settings-about-version strong { color: var(--ara-text); font-size: 11px; }
+.desktop-app .workspace-settings-panel .settings-about-version output { color: var(--ara-text-muted); font-size: 11px; }
+.desktop-app .workspace-settings-panel .settings-update-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 15px 0 0;
+  padding: 8px 10px;
+  color: var(--ara-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--ara-warning) 46%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-warning) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .settings-update-status > svg { flex: 0 0 auto; color: var(--ara-warning); }
+
+.desktop-app .workspace-calls-panel .calls-history-card { margin-top: 14px; }
+.desktop-app .workspace-calls-panel .calls-history-status,
+.desktop-app .workspace-calls-panel .calls-history-empty { color: var(--ara-text-muted); }
+.desktop-app .workspace-calls-panel .calls-history-status { margin: 15px 0 0; font-size: 11px; }
+.desktop-app .workspace-calls-panel .calls-history-list {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 14px 0 0;
+  list-style: none;
+}
+.desktop-app .workspace-calls-panel .calls-history-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--ara-border-subtle);
+}
+.desktop-app .workspace-calls-panel .calls-history-row:first-child { border-top: 0; padding-top: 0; }
+.desktop-app .workspace-calls-panel .calls-history-type {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--ara-accent);
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 34%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .calls-history-type.is-incoming {
+  color: var(--ara-warning);
+  border-color: color-mix(in srgb, var(--ara-warning) 40%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-warning) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .calls-history-copy { display: grid; min-width: 0; gap: 2px; }
+.desktop-app .workspace-calls-panel .calls-history-copy strong {
+  overflow: hidden;
+  color: var(--ara-text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.desktop-app .workspace-calls-panel .calls-history-copy span,
+.desktop-app .workspace-calls-panel .calls-history-copy small { color: var(--ara-text-muted); font-size: 10px; line-height: 1.35; }
+.desktop-app .workspace-calls-panel .calls-history-outcome {
+  padding: 5px 7px;
+  color: var(--ara-text-muted);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .workspace-calls-panel .calls-history-outcome.is-completed {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 44%, var(--ara-border-interactive));
+  background: color-mix(in srgb, var(--ara-accent) 8%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .calls-history-outcome:is(.is-rejected, .is-busy, .is-failed) {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 42%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 8%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-calls-panel .calls-history-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.desktop-app .workspace-calls-panel .calls-history-actions .ara-button { min-height: 30px; }
+.desktop-app .workspace-calls-panel .calls-history-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 27px 16px 9px;
+  text-align: center;
+}
+.desktop-app .workspace-calls-panel .calls-history-empty > svg { color: var(--ara-accent); }
+.desktop-app .workspace-calls-panel .calls-history-empty strong { color: var(--ara-text); font-size: 11px; }
+.desktop-app .workspace-calls-panel .calls-history-empty p { max-width: 300px; margin: 0; font-size: 10px; line-height: 1.45; }
+
+@media (max-width: 1060px) {
+  .desktop-app .workspace-settings-panel .settings-layout { grid-template-columns: 1fr; gap: 15px; }
+  .desktop-app .workspace-settings-panel .settings-tabs {
+    display: flex;
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+    border-radius: var(--ara-radius-control);
+  }
+  .desktop-app .workspace-settings-panel .settings-tabs button { justify-content: center; min-height: 33px; padding: 0 11px; }
+}
+
+@media (max-width: 720px) {
+  .desktop-app .workspace-calls-panel .calls-history-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  .desktop-app .workspace-calls-panel .calls-history-actions { grid-column: 2 / -1; justify-content: flex-start; }
+}
+
 /* Authentication is a standalone scene: the wallpaper stays dark in both themes,
  * while the glass card adopts the selected interface theme. */
 .desktop-app .welcome-screen,

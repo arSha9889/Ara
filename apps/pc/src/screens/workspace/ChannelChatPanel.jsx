@@ -12,6 +12,7 @@ import {
   uploadChatMedia,
 } from '../../features/chats/chatsApi.js';
 import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
+import { formatFileSize } from '../../shared/format/fileSize.js';
 import { ChannelCommentsPanel } from './ChannelCommentsPanel.jsx';
 import { ChannelDetailsPanel } from './ChannelDetailsPanel.jsx';
 import { MessageContent } from './MessageContent.jsx';
@@ -27,12 +28,6 @@ function formatMessageTime(value) {
   if (Number.isNaN(date.getTime())) return '';
   const language = document.documentElement.lang || 'ru';
   return new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }).format(date);
-}
-
-function formatFileSize(value) {
-  if (!Number.isFinite(value) || value < 1) return '';
-  if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function messageTypeForUpload(upload) {

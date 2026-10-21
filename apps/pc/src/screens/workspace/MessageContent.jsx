@@ -3,12 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import { useAuthenticatedMediaBlob, useAuthenticatedMediaUrl } from '../../shared/api/authenticatedMedia.js';
 import { decryptE2eeAttachment } from '../../shared/crypto/e2eeDesktop.js';
-
-function formatFileSize(value) {
-  if (!Number.isFinite(value) || value < 1) return '';
-  if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(value >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
-}
+import { formatFileSize } from '../../shared/format/fileSize.js';
 
 function formatDuration(value) {
   const totalSeconds = Math.max(0, Math.round(Number(value) || 0));
