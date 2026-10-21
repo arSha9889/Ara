@@ -2498,3 +2498,531 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   outline: 2px solid var(--ara-focus);
   outline-offset: 3px;
 }
+
+/*
+ * Ara Shift desktop composition
+ *
+ * The functional workspace shell deliberately remains unchanged: the three
+ * existing regions are recast as a compact rail, a stable conversation index,
+ * and one focused workspace. Keeping this layer last makes the visual system
+ * authoritative while preserving realtime, E2EE and call behaviour above it.
+ */
+.desktop-app .workspace-screen {
+  grid-template-columns: 72px clamp(284px, 26vw, 332px) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 638px;
+  padding: 10px 12px 12px;
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-nav,
+.desktop-app .workspace-list,
+.desktop-app .workspace-main {
+  min-height: 0;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+}
+
+.desktop-app .workspace-nav {
+  padding: 12px 10px;
+  border-right: 1px solid var(--ara-border-subtle);
+  background: color-mix(in srgb, var(--ara-surface) 88%, var(--ara-canvas));
+}
+
+.desktop-app .workspace-logo {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-logo img {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.desktop-app .workspace-logo:hover {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-logo:hover img { transform: none; }
+
+.desktop-app .workspace-nav-groups { margin-top: 22px; }
+.desktop-app .workspace-nav-group { gap: 8px; }
+
+.desktop-app .workspace-nav-separator {
+  width: 30px;
+  margin-bottom: 12px;
+  background: var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-nav-button {
+  width: 42px;
+  height: 42px;
+  color: var(--ara-text-muted);
+  border: 1px solid transparent;
+  border-radius: var(--ara-radius-control);
+  transform: none;
+}
+
+.desktop-app .workspace-nav-button::before {
+  left: -11px;
+  width: 2px;
+  height: 22px;
+  border-radius: 0 2px 2px 0;
+}
+
+.desktop-app .workspace-nav-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-nav-button.is-active,
+.desktop-app .workspace-nav-button.is-active:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-nav-button.is-active::before { background: var(--ara-accent); }
+
+.desktop-app .workspace-list {
+  border-right: 1px solid var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-list-header {
+  align-items: center;
+  min-height: 86px;
+  padding: 17px 16px 13px 18px;
+  border-bottom: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-list-header h1 {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -.045em;
+}
+
+.desktop-app .workspace-list-header p {
+  margin-top: 4px;
+  font-size: 9px;
+  letter-spacing: .075em;
+}
+
+.desktop-app .workspace-list-actions { gap: 5px; }
+
+.desktop-app .workspace-list .theme-toggle,
+.desktop-app .workspace-list-refresh,
+.desktop-app .workspace-list-clear,
+.desktop-app .workspace-new-chat {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.desktop-app .workspace-list .theme-toggle,
+.desktop-app .workspace-list-refresh {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-list .theme-toggle:hover:not(:disabled),
+.desktop-app .workspace-list-refresh:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-list-clear {
+  color: var(--ara-text-muted);
+  border-color: transparent;
+  background: transparent;
+}
+
+.desktop-app .workspace-list-clear:hover:not(:disabled) {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 42%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 8%, var(--ara-surface));
+}
+
+.desktop-app .workspace-new-chat {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-new-chat:hover:not(:disabled) {
+  border-color: var(--ara-accent-hover);
+  background: var(--ara-accent-hover);
+}
+
+.desktop-app .workspace-search {
+  min-height: 38px;
+  margin: 13px 14px 8px;
+  padding: 0 10px;
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-search:focus-within {
+  border-color: var(--ara-border-interactive);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 28%, transparent);
+}
+
+.desktop-app .workspace-chat-list {
+  padding: 4px 8px 12px;
+  scroll-padding: 12px;
+}
+
+.desktop-app .workspace-chat-group + .workspace-chat-group { margin-top: 14px; }
+
+.desktop-app .workspace-chat-group-toggle {
+  min-height: 30px;
+  padding: 0 7px;
+  color: var(--ara-text-muted);
+  font-size: 9px;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+  border-radius: 7px;
+}
+
+.desktop-app .workspace-chat-group-toggle:hover {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-group-toggle em,
+.desktop-app .workspace-chat-group-toggle small {
+  min-width: 19px;
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-group-toggle em {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-chat-row {
+  min-height: 64px;
+  margin: 1px 0;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.desktop-app .workspace-chat-row:hover {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-row.is-selected {
+  border-color: color-mix(in srgb, var(--ara-accent) 54%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+  box-shadow: inset 2px 0 0 var(--ara-accent);
+}
+
+.desktop-app .workspace-list .workspace-avatar,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .workspace-avatar {
+  color: var(--ara-text);
+  border: 1px solid var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-chat-row.is-selected .workspace-avatar {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-list .workspace-avatar:is(.is-violet, .is-coral, .is-yellow, .is-blue),
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .workspace-avatar:is(.is-violet, .is-coral, .is-yellow, .is-blue) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-row.is-selected .workspace-avatar:is(.is-violet, .is-coral, .is-yellow, .is-blue) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-chat-name { font-size: 12px; font-weight: 750; }
+.desktop-app .workspace-chat-preview { font-size: 10px; }
+.desktop-app .workspace-chat-meta time { font-size: 9px; }
+
+.desktop-app .workspace-unread {
+  min-width: 18px;
+  min-height: 18px;
+  color: var(--ara-on-accent);
+  border: 0;
+  border-radius: 99px;
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-list-notice,
+.desktop-app .workspace-list-status,
+.desktop-app .workspace-list-error,
+.desktop-app .workspace-no-results {
+  margin-right: 6px;
+  margin-left: 6px;
+  border-radius: 10px;
+}
+
+.desktop-app .workspace-list-footer {
+  padding: 11px 16px 13px;
+  font-size: 9px;
+  border-top-color: var(--ara-border-subtle);
+  background: color-mix(in srgb, var(--ara-surface) 94%, var(--ara-canvas));
+}
+
+.desktop-app .workspace-main {
+  scroll-padding: 16px;
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-main::before { display: none; }
+
+.desktop-app .workspace-empty-state,
+.desktop-app .workspace-selected-state,
+.desktop-app .workspace-feature-state {
+  width: min(100%, 520px);
+  padding: 48px 32px;
+}
+
+.desktop-app .workspace-empty-state > p,
+.desktop-app .workspace-selected-state > p,
+.desktop-app .workspace-feature-state > p {
+  margin-top: 16px;
+  color: var(--ara-accent);
+  letter-spacing: .1em;
+}
+
+.desktop-app .workspace-empty-state h1,
+.desktop-app .workspace-selected-state h1,
+.desktop-app .workspace-feature-state h1 {
+  font-size: clamp(27px, 3vw, 38px);
+  letter-spacing: -.052em;
+}
+
+.desktop-app .workspace-empty-state > span,
+.desktop-app .workspace-selected-state > span,
+.desktop-app .workspace-feature-state > span { line-height: 1.6; }
+
+.desktop-app .workspace-empty-illustration { width: 144px; height: 128px; }
+.desktop-app .workspace-empty-illustration .empty-orbit { display: none; }
+.desktop-app .empty-cloud { fill: var(--ara-surface); }
+.desktop-app .empty-feather { box-shadow: none; }
+
+.desktop-app .workspace-empty-state .workspace-outline-button {
+  min-height: 38px;
+  margin-top: 20px;
+  padding: 0 13px;
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: 8px;
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-empty-state .workspace-outline-button:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent-hover);
+  background: var(--ara-accent-hover);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel),
+.desktop-app .workspace-chat-panel.channel-chat-panel,
+.desktop-app .workspace-chat-panel.channel-comments-panel,
+.desktop-app .workspace-chat-panel.channel-details-panel { background: var(--ara-canvas); }
+
+.desktop-app .workspace-chat-panel .chat-header {
+  min-height: 66px;
+  padding: 10px 18px;
+  border-bottom-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-chat-panel .chat-back-button {
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+}
+
+.desktop-app .workspace-chat-panel .chat-contact-heading h1 { font-size: 13px; }
+.desktop-app .workspace-chat-panel .chat-contact-heading div > span { font-size: 9px; }
+
+.desktop-app .workspace-chat-panel .chat-header-actions button,
+.desktop-app .workspace-chat-panel .chat-composer-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.desktop-app .workspace-chat-panel .chat-header-actions button:hover:not(:disabled),
+.desktop-app .workspace-chat-panel .chat-composer-icon:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel .chat-history {
+  padding: 18px clamp(20px, 3.6vw, 44px) 22px;
+  scroll-padding-top: 16px;
+  scroll-padding-bottom: 16px;
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message { width: min(100%, 650px); }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-bubble {
+  max-width: min(100%, 500px);
+  padding: 9px 11px;
+  border-color: var(--ara-border-subtle);
+  border-radius: 10px 10px 10px 3px;
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-bubble {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: 10px 10px 3px 10px;
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message footer { margin-top: 4px; }
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine footer,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine footer svg,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine footer span { color: var(--ara-text-muted); }
+
+.desktop-app .workspace-chat-panel .chat-composer-area {
+  padding: 11px 18px 13px;
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer {
+  min-height: 44px;
+  border-color: var(--ara-border-subtle);
+  border-radius: 10px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer:focus-within {
+  border-color: var(--ara-border-interactive);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 28%, transparent);
+}
+
+.desktop-app .workspace-chat-panel .chat-send-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.desktop-app .workspace-chat-panel .chat-composer-hint { margin-top: 7px; font-size: 9px; }
+
+.desktop-app .workspace-detail-panel {
+  width: min(100%, 860px);
+  padding: 34px clamp(24px, 4vw, 56px) 42px;
+}
+
+.desktop-app .workspace-panel-heading { padding-bottom: 24px; }
+.desktop-app .workspace-panel-heading h1 { letter-spacing: -.045em; }
+
+.desktop-app .workspace-section-card {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-outline-button,
+.desktop-app .workspace-icon-button {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-outline-button:hover:not(:disabled),
+.desktop-app .workspace-icon-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-primary-button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: 8px;
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-primary-button:hover:not(:disabled) {
+  border-color: var(--ara-accent-hover);
+  background: var(--ara-accent-hover);
+  box-shadow: none;
+}
+
+.desktop-app .channels-panel .workspace-section-card,
+.desktop-app .channel-details-panel .workspace-section-card,
+.desktop-app .workspace-settings-panel .workspace-section-card,
+.desktop-app .workspace-profile-panel .workspace-section-card,
+.desktop-app .workspace-calls-panel .workspace-section-card { background: var(--ara-surface); }
+
+.desktop-app .contact-found-card,
+.desktop-app .call-start-card,
+.desktop-app .workspace-profile-panel .profile-identity-card,
+.desktop-app .workspace-calls-panel .call-start-card {
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .desktop-call-media { background: var(--ara-canvas); }
+.desktop-app .desktop-share-studio { background: var(--ara-surface); }
+
+.desktop-app .workspace-screen :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ara-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1060px) {
+  .desktop-app .workspace-screen {
+    grid-template-columns: 64px minmax(260px, 286px) minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px 10px 10px;
+  }
+
+  .desktop-app .workspace-nav { padding-right: 7px; padding-left: 7px; }
+  .desktop-app .workspace-list-header { padding-right: 12px; padding-left: 14px; }
+  .desktop-app .workspace-list .theme-toggle { display: none; }
+}
+
+@media (max-height: 760px) {
+  .desktop-app .workspace-screen { padding-top: 8px; padding-bottom: 8px; }
+  .desktop-app .workspace-list-header { min-height: 76px; padding-top: 12px; padding-bottom: 10px; }
+  .desktop-app .workspace-nav-groups { margin-top: 14px; }
+  .desktop-app .workspace-nav-group { gap: 5px; }
+  .desktop-app .workspace-chat-panel .chat-header { min-height: 60px; }
+  .desktop-app .workspace-chat-panel .chat-composer-area { padding-top: 8px; padding-bottom: 9px; }
+  .desktop-app .workspace-detail-panel { padding-top: 26px; padding-bottom: 32px; }
+}
