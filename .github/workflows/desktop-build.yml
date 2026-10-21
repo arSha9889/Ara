@@ -27,6 +27,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The design-reference archive contains paths that exceed the Windows
+          # filesystem limit but is not used to package the Desktop client.
+          sparse-checkout: |
+            apps/pc
+            apps/web/public/icons
       - uses: actions/setup-node@v4
         with:
           node-version: 22
