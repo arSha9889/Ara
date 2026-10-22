@@ -3663,3 +3663,67 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .desktop-app .is-leaving .welcome-hero,
   .desktop-app .auth-glass-card .register-form-wrap { animation: none; }
 }
+
+/* Standalone account pages retain navigation but use the chat-list column for content. */
+.desktop-app .workspace-screen.is-standalone-page {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.desktop-app .workspace-screen.is-standalone-page .workspace-main { grid-column: 2; }
+
+.desktop-app .workspace-chat-category-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 14px 8px;
+  padding: 4px;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-category-tab.ara-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 8px;
+  color: var(--ara-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  border: 1px solid transparent;
+  border-radius: calc(var(--ara-radius-control) - 3px);
+  background: transparent;
+}
+
+.desktop-app .workspace-chat-category-tab.ara-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-chat-category-tab.ara-button.is-active,
+.desktop-app .workspace-chat-category-tab.ara-button.is-active:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-chat-category-tab em {
+  min-width: 18px;
+  padding: 2px 5px;
+  color: inherit;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  border-radius: 99px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.desktop-app .workspace-chat-category-tab.is-active em { background: color-mix(in srgb, var(--ara-on-accent) 20%, transparent); }
+
+@media (max-width: 1060px) {
+  .desktop-app .workspace-screen.is-standalone-page { grid-template-columns: 64px minmax(0, 1fr); }
+}

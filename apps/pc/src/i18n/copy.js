@@ -140,6 +140,8 @@ export const COPY = {
       retry: 'Повторить',
       noChatsTitle: 'Личных чатов пока нет',
       noChatsText: 'Найдите человека, чтобы начать переписку.',
+      noChannelChatsTitle: 'Каналов пока нет',
+      noChannelChatsText: 'Подпишитесь на канал или создайте закрытый канал в разделе «Каналы».',
       noMessagesPreview: 'Сообщений пока нет',
       nonTextPreview: 'Вложение',
       directChatsOnly: 'Показаны только личные диалоги.',
@@ -772,6 +774,8 @@ export const COPY = {
       retry: 'Try again',
       noChatsTitle: 'No direct chats yet',
       noChatsText: 'Find someone to start a conversation.',
+      noChannelChatsTitle: 'No channels yet',
+      noChannelChatsText: 'Join a channel or create a private one in the Channels section.',
       noMessagesPreview: 'No messages yet',
       nonTextPreview: 'Attachment',
       directChatsOnly: 'Only direct chats are shown.',
@@ -1347,6 +1351,11 @@ Object.assign(COPY.kk.workspace.settingsPanel, {
   updatesTitle: 'Desktop жаңартулары',
   updatesText: 'Desktop үшін автоматты жаңартулар әлі бапталмаған. Жаңа нұсқалар қолтаңбасы бар жаңарту арнасы жарияланғаннан кейін қолжетімді болады.',
   updatesStatus: 'Автоматты жаңартулар бапталмаған',
+});
+
+Object.assign(COPY.kk.workspace, {
+  noChannelChatsTitle: 'Әзірге арналар жоқ',
+  noChannelChatsText: 'Арнаға жазылыңыз немесе «Арналар» бөлімінде жабық арна жасаңыз.',
 });
 
 export function localeFromSystem() {

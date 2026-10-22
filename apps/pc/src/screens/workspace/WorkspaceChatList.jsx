@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 import { AraButton } from '../../components/AraButton.jsx';
 import { ThemeToggle } from '../../components/ThemeLanguageControls.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
@@ -82,23 +84,62 @@ function WorkspaceChatRow({ activeSection, chat, onOpenChat, selectedChatId, t }
   );
 }
 
-function ChatGroup({ activeSection, chats, count, headingId, isExpanded, label, onOpenChat, onToggle, selectedChatId, t, unreadCount }) {
+const CHAT_CATEGORIES = [
+  { id: 'direct', labelPath: 'workspace.directChatsSection' },
+  { id: 'channels', labelPath: 'workspace.channels.title' },
+];
+
+function ChatCategoryTabs({ activeCategory, channelCount, channelUnreadCount, directCount, directUnreadCount, onSelect, t }) {
+  const tabRefs = useRef([]);
+
+  function selectCategory(index) {
+    const category = CHAT_CATEGORIES[index];
+    if (!category) return;
+    onSelect(category.id);
+    tabRefs.current[index]?.focus();
+  }
+
+  function handleKeyDown(event, index) {
+    const lastIndex = CHAT_CATEGORIES.length - 1;
+    let nextIndex = null;
+    if (event.key === 'ArrowRight') nextIndex = index === lastIndex ? 0 : index + 1;
+    if (event.key === 'ArrowLeft') nextIndex = index === 0 ? lastIndex : index - 1;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = lastIndex;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    selectCategory(nextIndex);
+  }
+
   return (
-    <section className="workspace-chat-group" aria-labelledby={headingId}>
-      <AraButton
-        aria-expanded={isExpanded}
-        className="workspace-chat-group-toggle"
-        id={headingId}
-        onClick={onToggle}
-        size="compact"
-        variant="ghost"
-      >
-        <Icon name="chevron-right" size={15} />
-        <span>{label}</span>
-        {unreadCount ? <em>{unreadCount}</em> : <small>{count}</small>}
-      </AraButton>
-      {isExpanded ? <div>{chats.map((chat) => <WorkspaceChatRow activeSection={activeSection} chat={chat} key={chat.id} onOpenChat={onOpenChat} selectedChatId={selectedChatId} t={t} />)}</div> : null}
-    </section>
+    <div aria-label={t('workspace.chatsTitle')} className="workspace-chat-category-tabs" role="tablist">
+      {CHAT_CATEGORIES.map((category, index) => {
+        const isActive = activeCategory === category.id;
+        const unreadCount = category.id === 'direct' ? directUnreadCount : channelUnreadCount;
+        const count = category.id === 'direct' ? directCount : channelCount;
+        return (
+          <AraButton
+            aria-controls={`workspace-chat-category-panel-${category.id}`}
+            aria-label={unreadCount ? `${t(category.labelPath)}. ${t('workspace.unread', { count: unreadCount })}` : `${t(category.labelPath)}: ${count}`}
+            aria-selected={isActive}
+            className={`workspace-chat-category-tab ${isActive ? 'is-active' : ''}`}
+            id={`workspace-chat-category-tab-${category.id}`}
+            key={category.id}
+            onClick={() => onSelect(category.id)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
+            ref={(element) => { tabRefs.current[index] = element; }}
+            role="tab"
+            size="compact"
+            tabIndex={isActive ? 0 : -1}
+            variant="ghost"
+          >
+            <span>{t(category.labelPath)}</span>
+            <em aria-hidden="true">{unreadCount || count}</em>
+          </AraButton>
+        );
+      })}
+    </div>
   );
 }
 
@@ -108,9 +149,7 @@ export function WorkspaceChatList({
   chatsError,
   chatsNotice,
   directChatCount,
-  isChannelChatsExpanded,
   isClearingChats,
-  isDirectChatsExpanded,
   isLoadingChats,
   onClearChats,
   onNewChat,
@@ -118,14 +157,19 @@ export function WorkspaceChatList({
   onQueryChange,
   onRefresh,
   onRetry,
-  onToggleChannelChats,
-  onToggleDirectChats,
   preferences,
   query,
   selectedChatId,
   t,
   updatePreferences,
 }) {
+  const [activeCategory, setActiveCategory] = useState('direct');
+
+  useEffect(() => {
+    if (activeSection === 'channels') setActiveCategory('channels');
+    if (activeSection === 'chats') setActiveCategory('direct');
+  }, [activeSection]);
+
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleChats = chats.filter((chat) => {
     const peer = chat.peer;
@@ -137,6 +181,14 @@ export function WorkspaceChatList({
   const channelChatCount = chats.filter((chat) => chat.type === 'branch').length;
   const directUnreadCount = chats.filter((chat) => chat.type === 'direct').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
   const channelUnreadCount = chats.filter((chat) => chat.type === 'branch').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
+  const activeChats = activeCategory === 'channels' ? channelChats : directChats;
+  const isChannelCategory = activeCategory === 'channels';
+  const emptyTitle = normalizedQuery
+    ? t('workspace.noSearchResults')
+    : t(isChannelCategory ? 'workspace.noChannelChatsTitle' : 'workspace.noChatsTitle');
+  const emptyText = normalizedQuery
+    ? t('workspace.noSearchResultsText')
+    : t(isChannelCategory ? 'workspace.noChannelChatsText' : 'workspace.noChatsText');
 
   return (
     <aside className="workspace-list ara-workspace-chat-list" aria-label={t('workspace.chats')}>
@@ -160,14 +212,13 @@ export function WorkspaceChatList({
         {query ? <AraButton aria-label={t('workspace.clearSearch')} onClick={() => onQueryChange('')} size="icon" variant="ghost"><Icon name="close" size={15} /></AraButton> : null}
       </label>
 
+      <ChatCategoryTabs activeCategory={activeCategory} channelCount={channelChatCount} channelUnreadCount={channelUnreadCount} directCount={directChatCount} directUnreadCount={directUnreadCount} onSelect={setActiveCategory} t={t} />
+
       {chatsNotice ? <p className="workspace-list-notice" role="status">{chatsNotice}</p> : null}
-      <div className="workspace-chat-list" aria-busy={isLoadingChats || isClearingChats}>
+      <div aria-busy={isLoadingChats || isClearingChats} aria-labelledby={`workspace-chat-category-tab-${activeCategory}`} className="workspace-chat-list" id={`workspace-chat-category-panel-${activeCategory}`} role="tabpanel">
         {chatsError ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.chatsLoadError')}</strong><span>{chatsError}</span><AraButton onClick={onRetry} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
-        {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : visibleChats.length ? <>
-          <ChatGroup activeSection={activeSection} chats={directChats} count={directChatCount} headingId="direct-chats-heading" isExpanded={isDirectChatsExpanded} label={t('workspace.directChatsSection')} onOpenChat={onOpenChat} onToggle={onToggleDirectChats} selectedChatId={selectedChatId} t={t} unreadCount={directUnreadCount} />
-          <ChatGroup activeSection={activeSection} chats={channelChats} count={channelChatCount} headingId="channel-chats-heading" isExpanded={isChannelChatsExpanded} label={t('workspace.channels')} onOpenChat={onOpenChat} onToggle={onToggleChannelChats} selectedChatId={selectedChatId} t={t} unreadCount={channelUnreadCount} />
-        </> : (
-          <div className="workspace-no-results"><strong>{normalizedQuery ? t('workspace.noSearchResults') : t('workspace.noChatsTitle')}</strong><span>{normalizedQuery ? t('workspace.noSearchResultsText') : t('workspace.noChatsText')}</span>{normalizedQuery ? null : <AraButton className="workspace-list-empty-action" onClick={onNewChat} size="compact" variant="primary">{t('workspace.findUser')}</AraButton>}</div>
+        {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : activeChats.length ? activeChats.map((chat) => <WorkspaceChatRow activeSection={activeSection} chat={chat} key={chat.id} onOpenChat={onOpenChat} selectedChatId={selectedChatId} t={t} />) : (
+          <div className="workspace-no-results"><strong>{emptyTitle}</strong><span>{emptyText}</span>{normalizedQuery || isChannelCategory ? null : <AraButton className="workspace-list-empty-action" onClick={onNewChat} size="compact" variant="primary">{t('workspace.findUser')}</AraButton>}</div>
         )}
       </div>
       <p className="workspace-list-footer">{t('workspace.chatListFooter')}</p>

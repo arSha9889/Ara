@@ -42,8 +42,6 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const [chats, setChats] = useState([]);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [isClearingChats, setIsClearingChats] = useState(false);
-  const [isDirectChatsExpanded, setIsDirectChatsExpanded] = useState(true);
-  const [isChannelChatsExpanded, setIsChannelChatsExpanded] = useState(true);
   const [chatsError, setChatsError] = useState('');
   const [chatsNotice, setChatsNotice] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState('connecting');
@@ -71,6 +69,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const messageFocusResolversRef = useRef(new Map());
   const directChatCount = chats.filter((chat) => chat.type === 'direct').length;
   const selectedChat = chats.find((chat) => chat.id === selectedChatId);
+  const isStandalonePage = ['profile', 'notifications', 'settings'].includes(activeSection);
 
   const loadChats = useCallback(async ({ showLoading = true, showSuccess = false } = {}) => {
     if (!accessToken) return;
@@ -562,9 +561,10 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
 
   return (
     <WorkspaceShell
-      chatList={<WorkspaceChatList activeSection={activeSection} chats={chats} chatsError={chatsError} chatsNotice={chatsNotice} directChatCount={directChatCount} isChannelChatsExpanded={isChannelChatsExpanded} isClearingChats={isClearingChats} isDirectChatsExpanded={isDirectChatsExpanded} isLoadingChats={isLoadingChats} onClearChats={clearAllChats} onNewChat={openNewChat} onOpenChat={openChat} onQueryChange={setQuery} onRefresh={() => loadChats({ showSuccess: true })} onRetry={() => loadChats()} onToggleChannelChats={() => setIsChannelChatsExpanded((current) => !current)} onToggleDirectChats={() => setIsDirectChatsExpanded((current) => !current)} preferences={preferences} query={query} selectedChatId={selectedChatId} t={t} updatePreferences={updatePreferences} />}
+      chatList={<WorkspaceChatList activeSection={activeSection} chats={chats} chatsError={chatsError} chatsNotice={chatsNotice} directChatCount={directChatCount} isClearingChats={isClearingChats} isLoadingChats={isLoadingChats} onClearChats={clearAllChats} onNewChat={openNewChat} onOpenChat={openChat} onQueryChange={setQuery} onRefresh={() => loadChats({ showSuccess: true })} onRetry={() => loadChats()} preferences={preferences} query={query} selectedChatId={selectedChatId} t={t} updatePreferences={updatePreferences} />}
       density={preferences.density ?? 'comfortable'}
       isChatOpen={selectedChat && ['chats', 'channels'].includes(activeSection)}
+      isStandalonePage={isStandalonePage}
       navigation={<WorkspaceNavigation activeSection={activeSection} onHome={() => { openSection('chats'); setSelectedChatId(null); }} onSelect={openSection} t={t} />}
       overlay={<><CallOverlay call={call} peer={activeCallChat?.peer} t={t} />{callError && call.callState === 'idle' ? <WorkspaceCallError message={callError} onClose={() => setCallError('')} t={t} /> : null}</>}
     >

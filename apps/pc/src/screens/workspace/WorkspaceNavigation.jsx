@@ -19,14 +19,14 @@ function NavigationGroup({ activeSection, items, onSelect, t }) {
   return items.map((item) => {
     const isActive = activeSection === item.id;
     return (
-      <AraButton
-        aria-current={isActive ? 'page' : undefined}
-        aria-label={t(`workspace.${item.id}`)}
-        className={`workspace-nav-button ${isActive ? 'is-active' : ''}`}
-        key={item.id}
-        onClick={() => onSelect(item.id)}
-        size="icon"
-        title={t(`workspace.${item.id}`)}
+        <AraButton
+          aria-current={isActive ? 'page' : undefined}
+          aria-label={item.id === 'channels' ? t('workspace.channels.title') : t(`workspace.${item.id}`)}
+          className={`workspace-nav-button ${isActive ? 'is-active' : ''}`}
+          key={item.id}
+          onClick={() => onSelect(item.id)}
+          size="icon"
+          title={item.id === 'channels' ? t('workspace.channels.title') : t(`workspace.${item.id}`)}
         variant={isActive ? 'active' : 'ghost'}
       >
         <Icon name={item.icon} />

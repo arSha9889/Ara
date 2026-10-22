@@ -1,8 +1,8 @@
-export function WorkspaceShell({ chatList, children, density, isChatOpen, navigation, overlay }) {
+export function WorkspaceShell({ chatList, children, density, isChatOpen, isStandalonePage, navigation, overlay }) {
   return (
-    <main className={`workspace-screen ara-workspace-shell density-${density}`}>
+    <main className={`workspace-screen ara-workspace-shell density-${density} ${isStandalonePage ? 'is-standalone-page' : ''}`}>
       {navigation}
-      {chatList}
+      {isStandalonePage ? null : chatList}
       <section className={`workspace-main ara-workspace-main ${isChatOpen ? 'is-chat-open' : ''}`}>
         {children}
       </section>
