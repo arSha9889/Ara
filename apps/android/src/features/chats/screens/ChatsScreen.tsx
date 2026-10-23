@@ -16,7 +16,12 @@ import { useSession } from '../../auth/session/useSession';
 import { authErrorKey } from '../../auth/authError';
 import { chatPreview, chatTitle, formatConversationTime, type ChatPresentationCopy } from '../chatPresentation';
 import { getChats, type Chat } from '../api/chatApi';
-import { applyCreatedMessageToChats, applyReadMessageToChats } from '../chatRealtime';
+import {
+  applyCreatedMessageToChats,
+  applyReadMessageToChats,
+  removeChatById,
+  upsertGroupChat,
+} from '../chatRealtime';
 import { colors, sharedStyles, spacing } from '../../../theme/theme';
 import { useI18n } from '../../../localization/I18nProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
@@ -50,6 +55,18 @@ export function ChatsScreen() {
     call: t('call'),
     directChat: t('chatsDirectFallback'),
     file: t('chatFile'),
+    groupChat: t('groupChat'),
+    groupCreated: t('groupCreated'),
+    groupCreatedWithMembers: t('groupCreatedWithMembers'),
+    groupLifecycleFallback: t('groupLifecycleFallback'),
+    groupMemberAdded: t('groupMemberAdded'),
+    groupMemberJoined: t('groupMemberJoined'),
+    groupMemberLeft: t('groupMemberLeft'),
+    groupMemberRemoved: t('groupMemberRemoved'),
+    groupMemberRoleChanged: t('groupMemberRoleChanged'),
+    groupOwnershipTransferred: t('groupOwnershipTransferred'),
+    groupRoleAdmin: t('groupRoleAdmin'),
+    groupRoleMember: t('groupRoleMember'),
     noMessages: t('noMessages'),
     photo: t('chatPhoto'),
     savedMessages: t('chatsSavedMessages'),
@@ -123,6 +140,27 @@ export function ChatsScreen() {
         return;
       }
 
+      if (event.event.startsWith('group.')) {
+        const isOwnAccessLoss =
+          event.event === 'group.deleted' ||
+          ((event.event === 'group.member_left' || event.event === 'group.member_removed') &&
+            (event.memberUserId === session?.user.id || event.member?.user_id === session?.user.id));
+
+        if (isOwnAccessLoss && event.chatId) {
+          setChats(current => removeChatById(current, event.chatId!));
+          return;
+        }
+
+        setChats(current => {
+          const withGroup = event.chat ? upsertGroupChat(current, event.chat) : current;
+          return event.message
+            ? applyCreatedMessageToChats(withGroup, event.message, session?.user.id)
+            : withGroup;
+        });
+        scheduleResync();
+        return;
+      }
+
       if (event.event === 'presence.status' && event.userId) {
         setChats(current =>
           current.map(chat => {
@@ -152,6 +190,14 @@ export function ChatsScreen() {
   }, [scheduleResync, session?.user.id, subscribeToEvents]);
 
   function openChat(chat: Chat): void {
+    if (chat.type === 'group') {
+      navigation.navigate('GroupChat', {
+        chatId: chat.id,
+        title: chatTitle(chat, copy),
+      });
+      return;
+    }
+
     navigation.navigate('Chat', {
       chatId: chat.id,
       title: chatTitle(chat, copy),
@@ -165,11 +211,25 @@ export function ChatsScreen() {
     navigation.navigate('MainTabs', { params: { mode: undefined }, screen: 'Search' });
   }
 
+  function openGroupCreate(): void {
+    navigation.navigate('GroupCreate');
+  }
+
   function renderChat({ item }: { item: Chat }) {
     const title = chatTitle(item, copy);
     const preview = chatPreview(item.last_message, session?.user.id, copy);
-    const avatarType = item.type === 'saved' ? session?.user.avatarType : item.peer?.avatar_type;
-    const avatarRef = item.type === 'saved' ? session?.user.avatarRef : item.peer?.avatar_ref;
+    const avatarType =
+      item.type === 'saved'
+        ? session?.user.avatarType
+        : item.type === 'group'
+          ? 'uploaded'
+          : item.peer?.avatar_type;
+    const avatarRef =
+      item.type === 'saved'
+        ? session?.user.avatarRef
+        : item.type === 'group'
+          ? item.avatar_ref
+          : item.peer?.avatar_ref;
 
     return (
       <Pressable
@@ -216,14 +276,21 @@ export function ChatsScreen() {
             <Text style={sharedStyles.eyebrow}>AraChat</Text>
             <Text style={sharedStyles.title}>{t('chats')}</Text>
           </View>
-          <IconButton
-            accessibilityLabel={t('chatsRetry')}
-            disabled={isLoading}
-            icon="refresh"
-            onPress={() => {
-              loadChats().catch(() => undefined);
-            }}
-          />
+          <View style={styles.headingActions}>
+            <IconButton
+              accessibilityLabel={t('groupCreate')}
+              icon="groups"
+              onPress={openGroupCreate}
+            />
+            <IconButton
+              accessibilityLabel={t('chatsRetry')}
+              disabled={isLoading}
+              icon="refresh"
+              onPress={() => {
+                loadChats().catch(() => undefined);
+              }}
+            />
+          </View>
       </View>
 
       {isUpdateAvailable && release && !isBannerDismissed ? (
@@ -317,6 +384,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
+  },
+  headingActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
   updateBanner: {
     alignItems: 'center',

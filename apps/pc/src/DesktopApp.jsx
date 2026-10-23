@@ -11,13 +11,24 @@ import { RegisterScreen } from './screens/RegisterScreen.jsx';
 import { WelcomeScreen } from './screens/WelcomeScreen.jsx';
 import { WorkspaceScreen } from './screens/WorkspaceScreen.jsx';
 import { logoutDesktopSession } from './features/auth/authApi.js';
+import { initializeNativeLiquidGlass } from './shared/nativeLiquidGlass.js';
 
 export function DesktopApp() {
   const [preferences, updatePreferences] = usePreferences();
   const { clearSession, getRefreshToken, isSessionLoading, saveSession, session, updateSessionUser } = useSession();
   const [route, setRoute] = useState('welcome');
+  const [hasNativeLiquidGlass, setHasNativeLiquidGlass] = useState(false);
   const didRestoreRoute = useRef(false);
+  const nativeLiquidGlassInitialization = useRef(null);
   const t = (path, variables) => translate(preferences.language, path, variables);
+
+  useEffect(() => {
+    nativeLiquidGlassInitialization.current ??= initializeNativeLiquidGlass();
+
+    void nativeLiquidGlassInitialization.current.then((isEnabled) => {
+      if (isEnabled) setHasNativeLiquidGlass(true);
+    });
+  }, []);
 
   useEffect(() => {
     if (isSessionLoading || didRestoreRoute.current) return;
@@ -66,8 +77,8 @@ export function DesktopApp() {
   }
 
   return (
-    <div className="desktop-app">
-      <Titlebar t={t} />
+    <div className={`desktop-app${hasNativeLiquidGlass ? ' has-native-liquid-glass' : ''}`}>
+      {!hasNativeLiquidGlass && <Titlebar t={t} />}
       <div className="desktop-content">{renderScreen()}</div>
     </div>
   );

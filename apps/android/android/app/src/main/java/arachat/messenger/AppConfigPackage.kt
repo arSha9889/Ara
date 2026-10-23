@@ -10,6 +10,7 @@ class AppConfigPackage : BaseReactPackage() {
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? =
     when (name) {
       AppConfigModule.NAME -> AppConfigModule(reactContext)
+      ClipboardModule.NAME -> ClipboardModule(reactContext)
       CallAudioModule.NAME -> CallAudioModule(reactContext)
       CallForegroundModule.NAME -> CallForegroundModule(reactContext)
       MediaModule.NAME -> MediaModule(reactContext)
@@ -25,6 +26,15 @@ class AppConfigPackage : BaseReactPackage() {
           ReactModuleInfo(
             name = AppConfigModule.NAME,
             className = AppConfigModule::class.java.name,
+            canOverrideExistingModule = false,
+            needsEagerInit = false,
+            isCxxModule = false,
+            isTurboModule = false,
+          ),
+        ClipboardModule.NAME to
+          ReactModuleInfo(
+            name = ClipboardModule.NAME,
+            className = ClipboardModule::class.java.name,
             canOverrideExistingModule = false,
             needsEagerInit = false,
             isCxxModule = false,

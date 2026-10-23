@@ -30,6 +30,93 @@ export function createDirectChatForUser(accessToken, userId) {
   });
 }
 
+export function createGroup(accessToken, payload) {
+  return apiRequest('/api/chats/groups', {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function updateGroup(accessToken, chatId, payload) {
+  return apiRequest(`/api/chats/groups/${chatId}`, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function deleteGroup(accessToken, chatId) {
+  return apiRequest(`/api/chats/groups/${chatId}`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function leaveGroup(accessToken, chatId) {
+  return apiRequest(`/api/chats/groups/${chatId}/leave`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function getGroupMembers(accessToken, chatId) {
+  return apiRequest(`/api/chats/groups/${chatId}/members`, {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function addGroupMember(accessToken, chatId, userId) {
+  return apiRequest(`/api/chats/groups/${chatId}/members`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: { user_id: userId },
+  });
+}
+
+export function updateGroupMemberRole(accessToken, chatId, userId, role) {
+  return apiRequest(`/api/chats/groups/${chatId}/members/${userId}`, {
+    method: 'PATCH',
+    headers: authorizationHeaders(accessToken),
+    body: { role },
+  });
+}
+
+export function removeGroupMember(accessToken, chatId, userId) {
+  return apiRequest(`/api/chats/groups/${chatId}/members/${userId}`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function transferGroupOwnership(accessToken, chatId, userId) {
+  return apiRequest(`/api/chats/groups/${chatId}/ownership`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+    body: { user_id: userId },
+  });
+}
+
+export function getGroupInviteState(accessToken, chatId) {
+  return apiRequest(`/api/chats/groups/${chatId}/invite`, {
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function generateGroupInvite(accessToken, chatId) {
+  return apiRequest(`/api/chats/groups/${chatId}/invite`, {
+    method: 'POST',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
+export function revokeGroupInvite(accessToken, chatId) {
+  return apiRequest(`/api/chats/groups/${chatId}/invite`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}
+
 export function getPublicChannels(accessToken) {
   return apiRequest('/api/chats/branches/public', {
     headers: authorizationHeaders(accessToken),
@@ -71,6 +158,14 @@ export function updatePrivateChannel(accessToken, channelId, payload) {
     method: 'PATCH',
     headers: authorizationHeaders(accessToken),
     body: payload,
+  });
+}
+
+
+export function deletePrivateChannel(accessToken, channelId) {
+  return apiRequest(`/api/chats/branches/${channelId}`, {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
   });
 }
 
@@ -246,6 +341,8 @@ export function uploadChannelAvatar(accessToken, file) {
     body: formData,
   });
 }
+
+export const uploadGroupAvatar = uploadChannelAvatar;
 
 export function uploadE2eeAttachment(accessToken, file) {
   const formData = new FormData();

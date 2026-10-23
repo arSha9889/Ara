@@ -38,6 +38,7 @@ function formatChatTime(value) {
 function chatPreview(lastMessage, t) {
   if (!lastMessage) return t('workspace.noMessagesPreview');
   if (lastMessage.encryption_state === 'e2ee_web_v1') return t('workspace.chatPanel.encryptedMessage');
+  if (lastMessage.type === 'system') return t('workspace.groups.system.preview');
   if (lastMessage.type === 'text' || lastMessage.type === 'emoji') return lastMessage.payload;
   if (lastMessage.type === 'photo' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('image/'))) return t('workspace.chatPanel.typePhoto');
   if (lastMessage.type === 'video' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('video/'))) return t('workspace.chatPanel.typeVideo');
@@ -47,7 +48,7 @@ function chatPreview(lastMessage, t) {
 }
 
 function ChatListAvatar({ chat, name, username }) {
-  const avatarRef = chat.type === 'branch' ? chat.avatar_ref : chat.peer?.avatar_ref;
+  const avatarRef = ['branch', 'group'].includes(chat.type) ? chat.avatar_ref : chat.peer?.avatar_ref;
   const avatarUrl = mediaUrlForDesktop(avatarRef);
   if (avatarUrl) return <span className="workspace-avatar"><img src={avatarUrl} alt="" /></span>;
   return <span className={`workspace-avatar is-${avatarTone(chat.peer?.id || chat.id)}`} aria-hidden="true">{initials(name, username)}</span>;
@@ -57,11 +58,13 @@ function WorkspaceChatRow({ activeSection, chat, onOpenChat, selectedChatId, t }
   const peer = chat.peer;
   const name = chat.type === 'branch'
     ? chat.title || t('workspace.channels.untitled')
+    : chat.type === 'group'
+      ? chat.title || t('workspace.groups.untitled')
     : peer?.display_name || peer?.username || t('workspace.unknownUser');
-  const username = chat.type === 'branch' ? chat.slug || '' : peer?.username || '';
+  const username = chat.type === 'branch' ? chat.slug || '' : chat.type === 'group' ? t('workspace.groups.membersCount', { count: chat.participant_ids?.length || 0 }) : peer?.username || '';
   const preview = chatPreview(chat.last_message, t);
   const timestamp = formatChatTime(chat.last_message?.created_at || chat.updated_at);
-  const isOpen = selectedChatId === chat.id && activeSection === (chat.type === 'branch' ? 'channels' : 'chats');
+  const isOpen = selectedChatId === chat.id && activeSection === (chat.type === 'branch' ? 'channels' : chat.type === 'group' ? 'groups' : 'chats');
 
   return (
     <AraButton
@@ -84,12 +87,55 @@ function WorkspaceChatRow({ activeSection, chat, onOpenChat, selectedChatId, t }
   );
 }
 
+function CreateChatMenu({ onNewChat, onNewGroup, t }) {
+  const menuRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  function closeMenuAfterFocusChange() {
+    window.setTimeout(() => {
+      if (!menuRef.current?.contains(document.activeElement)) setIsOpen(false);
+    }, 0);
+  }
+
+  function choose(action) {
+    setIsOpen(false);
+    action?.();
+  }
+
+  return (
+    <div className="workspace-create-menu" onBlur={closeMenuAfterFocusChange} onKeyDown={(event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setIsOpen(false);
+      menuRef.current?.querySelector('button')?.focus();
+    }} ref={menuRef}>
+      <AraButton
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        aria-label={t('workspace.createChatMenu')}
+        className="workspace-new-chat"
+        onClick={() => setIsOpen((current) => !current)}
+        size="icon"
+        title={t('workspace.createChatMenu')}
+        variant="primary"
+      >
+        <Icon name="plus" size={17} />
+      </AraButton>
+      {isOpen ? <div aria-label={t('workspace.createChatMenu')} className="workspace-create-menu-popover" role="menu">
+        <AraButton onClick={() => choose(onNewChat)} role="menuitem" size="compact" variant="ghost"><Icon name="chats" size={16} />{t('workspace.newChat')}</AraButton>
+        <AraButton onClick={() => choose(onNewGroup)} role="menuitem" size="compact" variant="ghost"><Icon name="groups" size={16} />{t('workspace.groups.create')}</AraButton>
+      </div> : null}
+    </div>
+  );
+}
+
 const CHAT_CATEGORIES = [
   { id: 'direct', labelPath: 'workspace.directChatsSection' },
+  { id: 'groups', labelPath: 'workspace.groups.title' },
   { id: 'channels', labelPath: 'workspace.channels.title' },
 ];
 
-function ChatCategoryTabs({ activeCategory, channelCount, channelUnreadCount, directCount, directUnreadCount, onSelect, t }) {
+function ChatCategoryTabs({ activeCategory, channelCount, channelUnreadCount, directCount, directUnreadCount, groupCount, groupUnreadCount, onSelect, t }) {
   const tabRefs = useRef([]);
 
   function selectCategory(index) {
@@ -116,8 +162,8 @@ function ChatCategoryTabs({ activeCategory, channelCount, channelUnreadCount, di
     <div aria-label={t('workspace.chatsTitle')} className="workspace-chat-category-tabs" role="tablist">
       {CHAT_CATEGORIES.map((category, index) => {
         const isActive = activeCategory === category.id;
-        const unreadCount = category.id === 'direct' ? directUnreadCount : channelUnreadCount;
-        const count = category.id === 'direct' ? directCount : channelCount;
+        const unreadCount = category.id === 'direct' ? directUnreadCount : category.id === 'groups' ? groupUnreadCount : channelUnreadCount;
+        const count = category.id === 'direct' ? directCount : category.id === 'groups' ? groupCount : channelCount;
         return (
           <AraButton
             aria-controls={`workspace-chat-category-panel-${category.id}`}
@@ -152,6 +198,8 @@ export function WorkspaceChatList({
   isClearingChats,
   isLoadingChats,
   onClearChats,
+  onCategoryChange,
+  onNewGroup,
   onNewChat,
   onOpenChat,
   onQueryChange,
@@ -167,6 +215,7 @@ export function WorkspaceChatList({
 
   useEffect(() => {
     if (activeSection === 'channels') setActiveCategory('channels');
+    if (['groups', 'group-create'].includes(activeSection)) setActiveCategory('groups');
     if (activeSection === 'chats') setActiveCategory('direct');
   }, [activeSection]);
 
@@ -177,18 +226,22 @@ export function WorkspaceChatList({
     return searchable.toLocaleLowerCase().includes(normalizedQuery);
   });
   const directChats = visibleChats.filter((chat) => chat.type === 'direct');
+  const groupChats = visibleChats.filter((chat) => chat.type === 'group');
   const channelChats = visibleChats.filter((chat) => chat.type === 'branch');
   const channelChatCount = chats.filter((chat) => chat.type === 'branch').length;
+  const groupChatCount = chats.filter((chat) => chat.type === 'group').length;
   const directUnreadCount = chats.filter((chat) => chat.type === 'direct').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
+  const groupUnreadCount = chats.filter((chat) => chat.type === 'group').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
   const channelUnreadCount = chats.filter((chat) => chat.type === 'branch').reduce((total, chat) => total + (Number(chat.unread_count) || 0), 0);
-  const activeChats = activeCategory === 'channels' ? channelChats : directChats;
+  const activeChats = activeCategory === 'channels' ? channelChats : activeCategory === 'groups' ? groupChats : directChats;
   const isChannelCategory = activeCategory === 'channels';
+  const isGroupCategory = activeCategory === 'groups';
   const emptyTitle = normalizedQuery
     ? t('workspace.noSearchResults')
-    : t(isChannelCategory ? 'workspace.noChannelChatsTitle' : 'workspace.noChatsTitle');
+    : t(isChannelCategory ? 'workspace.noChannelChatsTitle' : isGroupCategory ? 'workspace.noGroupChatsTitle' : 'workspace.noChatsTitle');
   const emptyText = normalizedQuery
     ? t('workspace.noSearchResultsText')
-    : t(isChannelCategory ? 'workspace.noChannelChatsText' : 'workspace.noChatsText');
+    : t(isChannelCategory ? 'workspace.noChannelChatsText' : isGroupCategory ? 'workspace.noGroupChatsText' : 'workspace.noChatsText');
 
   return (
     <aside className="workspace-list ara-workspace-chat-list" aria-label={t('workspace.chats')}>
@@ -201,7 +254,7 @@ export function WorkspaceChatList({
           <ThemeToggle preferences={preferences} updatePreferences={updatePreferences} t={t} compact />
           <AraButton className={`workspace-list-refresh ${isLoadingChats ? 'is-loading' : ''}`} aria-label={isLoadingChats ? t('workspace.refreshingChats') : t('workspace.refreshChats')} disabled={isLoadingChats || isClearingChats} onClick={onRefresh} size="icon" title={t('workspace.refreshChats')} variant="surface"><Icon name="refresh" size={16} /></AraButton>
           <AraButton className="workspace-list-clear" aria-label={t('workspace.clearAllChats')} disabled={!directChatCount || isLoadingChats || isClearingChats} onClick={onClearChats} size="icon" title={t('workspace.clearAllChats')} variant="ghost"><Icon name="trash" size={16} /></AraButton>
-          <AraButton className="workspace-new-chat" aria-label={t('workspace.newChat')} onClick={onNewChat} size="icon" variant="primary"><Icon name="plus" /></AraButton>
+          <CreateChatMenu onNewGroup={onNewGroup} onNewChat={onNewChat} t={t} />
         </div>
       </div>
 
@@ -212,13 +265,13 @@ export function WorkspaceChatList({
         {query ? <AraButton aria-label={t('workspace.clearSearch')} onClick={() => onQueryChange('')} size="icon" variant="ghost"><Icon name="close" size={15} /></AraButton> : null}
       </label>
 
-      <ChatCategoryTabs activeCategory={activeCategory} channelCount={channelChatCount} channelUnreadCount={channelUnreadCount} directCount={directChatCount} directUnreadCount={directUnreadCount} onSelect={setActiveCategory} t={t} />
+      <ChatCategoryTabs activeCategory={activeCategory} channelCount={channelChatCount} channelUnreadCount={channelUnreadCount} directCount={directChatCount} directUnreadCount={directUnreadCount} groupCount={groupChatCount} groupUnreadCount={groupUnreadCount} onSelect={(category) => { setActiveCategory(category); onCategoryChange?.(category); }} t={t} />
 
       {chatsNotice ? <p className="workspace-list-notice" role="status">{chatsNotice}</p> : null}
       <div aria-busy={isLoadingChats || isClearingChats} aria-labelledby={`workspace-chat-category-tab-${activeCategory}`} className="workspace-chat-list" id={`workspace-chat-category-panel-${activeCategory}`} role="tabpanel">
         {chatsError ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.chatsLoadError')}</strong><span>{chatsError}</span><AraButton onClick={onRetry} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
         {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : activeChats.length ? activeChats.map((chat) => <WorkspaceChatRow activeSection={activeSection} chat={chat} key={chat.id} onOpenChat={onOpenChat} selectedChatId={selectedChatId} t={t} />) : (
-          <div className="workspace-no-results"><strong>{emptyTitle}</strong><span>{emptyText}</span>{normalizedQuery || isChannelCategory ? null : <AraButton className="workspace-list-empty-action" onClick={onNewChat} size="compact" variant="primary">{t('workspace.findUser')}</AraButton>}</div>
+          <div className="workspace-no-results"><strong>{emptyTitle}</strong><span>{emptyText}</span>{normalizedQuery || isChannelCategory || isGroupCategory ? null : <AraButton className="workspace-list-empty-action" onClick={onNewChat} size="compact" variant="primary">{t('workspace.findUser')}</AraButton>}</div>
         )}
       </div>
       <p className="workspace-list-footer">{t('workspace.chatListFooter')}</p>

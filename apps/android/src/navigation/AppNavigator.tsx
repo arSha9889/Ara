@@ -8,6 +8,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useState } from 'react';
 
 import { ChatScreen, type ChatRouteParams } from '../features/chats/screens/ChatScreen';
+import { GroupChatScreen, type GroupChatRouteParams } from '../features/chats/screens/GroupChatScreen';
+import { GroupCreateScreen } from '../features/chats/screens/GroupCreateScreen';
+import { GroupDetailsScreen } from '../features/chats/screens/GroupDetailsScreen';
 import { AccountCredentialsScreen } from '../features/account/screens/AccountCredentialsScreen';
 import { DevicesScreen } from '../features/account/screens/DevicesScreen';
 import { EmailChangeScreen } from '../features/account/screens/EmailChangeScreen';
@@ -27,6 +30,9 @@ import { MainTabs, type MainTabParamList } from './MainTabs';
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Chat: ChatRouteParams;
+  GroupCreate: undefined;
+  GroupChat: GroupChatRouteParams;
+  GroupDetails: { chatId: string };
   BlockedUsers: undefined;
   MyReports: undefined;
   SupportTickets: undefined;
@@ -69,6 +75,9 @@ export function AppNavigator() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen component={MainTabs} name="MainTabs" />
           <Stack.Screen component={ChatScreen} name="Chat" />
+          <Stack.Screen component={GroupCreateScreen} name="GroupCreate" />
+          <Stack.Screen component={GroupChatScreen} name="GroupChat" />
+          <Stack.Screen component={GroupDetailsScreen} name="GroupDetails" />
           <Stack.Screen component={BlockedUsersScreen} name="BlockedUsers" />
           <Stack.Screen component={MyReportsScreen} name="MyReports" />
           <Stack.Screen component={SupportTicketsScreen} name="SupportTickets" />

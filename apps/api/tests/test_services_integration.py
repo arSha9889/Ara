@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import models  # noqa: F401
 from app.db.base import Base
-from app.models.chats import Chat, ChatParticipant, Message
+from app.models.chats import Chat, ChatParticipant, Message, Notification
 from app.models.storage import StoredObject
 from app.models.safety import UserBlock
 from app.models.verification import EmailVerification
@@ -20,13 +20,14 @@ from app.schemas.chats import MessageCreateRequest, MessageOut
 from app.schemas.users import ProfileUpdateRequest
 from app.services.auth_service import AuthError, complete_registration, login_with_password, refresh_access_token
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, list_branch_comments, update_branch_comment
-from app.services.branch_service import create_private_branch, generate_private_branch_invite, join_private_branch_by_invite, leave_private_branch, list_public_branches, remove_private_branch_member, revoke_private_branch_invite, subscribe_to_branch, unsubscribe_from_branch, update_branch_notifications, update_private_branch_member
+from app.services.branch_service import create_private_branch, delete_private_branch, generate_private_branch_invite, join_private_branch_by_invite, leave_private_branch, list_public_branches, remove_private_branch_member, revoke_private_branch_invite, subscribe_to_branch, unsubscribe_from_branch, update_branch_notifications, update_private_branch_member
+from app.services.group_service import add_group_member, create_group, delete_group, generate_group_invite, join_group_by_invite, leave_group, remove_group_member, revoke_group_invite, transfer_group_ownership, update_group_member_role
 from app.services.call_signaling import CallSession
 from app.services.call_history_service import finalize_call_record, list_call_history, start_call_record
 from app.services.chat_service import create_call_history_message, create_message, create_or_get_direct_chat, create_or_get_direct_chat_for_user, create_or_get_saved_chat, delete_message, get_chat, get_message, hide_all_direct_chats, hide_chat, list_chats, list_messages, mark_message_read, mark_messages_read, restore_chat, set_branch_post_comments_enabled, toggle_reaction, update_chat_wallpaper
 from app.services.media_service import MediaAccessError, get_private_media
 from app.services.e2ee_service import E2EE_WEB_ALGORITHM, list_direct_chat_e2ee_keys, upsert_e2ee_web_key
-from app.services.notification_service import create_message_notifications, list_notifications
+from app.services.notification_service import clear_notifications, create_message_notifications, list_notifications
 from app.services.user_service import find_public_user, update_profile
 
 
@@ -611,6 +612,134 @@ async def test_private_branch_invites_access_roles_and_comments() -> None:
             await remove_private_branch_member(session, owner.id, branch.id, outsider.id)
             with pytest.raises(AuthError, match='Chat not found'):
                 await get_chat(session, outsider.id, branch.id)
+
+            with pytest.raises(AuthError, match='Only the channel owner can delete this channel'):
+                await delete_private_branch(session, owner.id, branch.id)
+            participant_ids = await delete_private_branch(session, reader.id, branch.id)
+            assert participant_ids == {owner.id, reader.id}
+            assert await session.get(Chat, branch.id) is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_groups_are_private_manage_members_and_delete_registered_files(monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    deleted_storage_keys: list[str] = []
+
+    async def record_storage_delete(storage_key: str) -> None:
+        deleted_storage_keys.append(storage_key)
+
+    monkeypatch.setattr('app.services.group_service.delete_storage_object', record_storage_delete)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        owner, _, _ = await _create_user(session_factory, 'groupowner', '701')
+        member, _, _ = await _create_user(session_factory, 'groupmember', '702')
+        administrator, _, _ = await _create_user(session_factory, 'groupadmin', '703')
+        outsider, _, _ = await _create_user(session_factory, 'groupoutsider', '704')
+
+        async with session_factory() as session:
+            group, created_message = await create_group(
+                session,
+                owner.id,
+                'Команда продукта',
+                'Закрытое обсуждение',
+                None,
+                [member.id],
+            )
+            assert group.type == 'group'
+            assert group.is_private
+            assert (await get_chat(session, owner.id, group.id)).current_role == 'owner'
+            assert (await get_chat(session, member.id, group.id)).current_role == 'member'
+            assert json.loads(created_message.payload)['action'] == 'group_created'
+            with pytest.raises(AuthError, match='Chat not found'):
+                await get_chat(session, outsider.id, group.id)
+            with pytest.raises(AuthError, match='Chat not found'):
+                await list_messages(session, outsider.id, group.id)
+
+            _, added_message, _ = await add_group_member(session, owner.id, group.id, administrator.id)
+            assert json.loads(added_message.payload)['action'] == 'member_added'
+            role_message, _, _ = await update_group_member_role(
+                session,
+                owner.id,
+                group.id,
+                administrator.id,
+                'admin',
+            )
+            assert role_message and json.loads(role_message.payload)['action'] == 'member_role_changed'
+            invite = await generate_group_invite(session, administrator.id, group.id)
+            joined_group, joined_message, joined = await join_group_by_invite(session, outsider.id, invite)
+            assert joined and joined_message and joined_group.id == group.id
+            assert json.loads(joined_message.payload)['action'] == 'member_joined'
+            await revoke_group_invite(session, administrator.id, group.id)
+            with pytest.raises(AuthError, match='Invite link is invalid or revoked'):
+                await join_group_by_invite(session, outsider.id, invite)
+
+            removed_message, remaining_ids, _ = await remove_group_member(session, administrator.id, group.id, outsider.id)
+            assert owner.id in remaining_ids and outsider.id not in remaining_ids
+            assert json.loads(removed_message.payload)['action'] == 'member_removed'
+            with pytest.raises(AuthError, match='Chat not found'):
+                await get_chat(session, outsider.id, group.id)
+
+            with pytest.raises(AuthError, match='Transfer group ownership before leaving'):
+                await leave_group(session, owner.id, group.id)
+            transfer_message, _, _ = await transfer_group_ownership(session, owner.id, group.id, member.id)
+            assert json.loads(transfer_message.payload)['action'] == 'ownership_transferred'
+            assert (await get_chat(session, member.id, group.id)).current_role == 'owner'
+            await leave_group(session, owner.id, group.id)
+            assert (await session.get(ChatParticipant, {'chat_id': group.id, 'user_id': owner.id})) is None
+
+            post = await create_message(session, member.id, group.id, MessageCreateRequest(text='Файл проекта'))
+            stored_object = StoredObject(
+                owner_user_id=member.id,
+                message_id=post.id,
+                storage_key=f'test-group-media/{uuid4()}',
+                public_url='https://storage.example.test/group-media',
+                purpose='message',
+                status='attached_message',
+                size_bytes=1,
+            )
+            session.add(stored_object)
+            await session.commit()
+
+            participant_ids = await delete_group(session, member.id, group.id)
+            assert participant_ids == {member.id, administrator.id}
+            assert deleted_storage_keys == [stored_object.storage_key]
+            assert await session.get(Chat, group.id) is None
+            assert await session.get(StoredObject, stored_object.id) is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.anyio
+async def test_clearing_notifications_only_deletes_current_users_history() -> None:
+    engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        try:
+            await _prepare_database(engine)
+        except (OSError, OperationalError) as exc:
+            pytest.skip(f'database is not available: {exc}')
+
+        first_user, _, _ = await _create_user(session_factory, 'notificationfirst', '501')
+        second_user, _, _ = await _create_user(session_factory, 'notificationsecond', '502')
+
+        async with session_factory() as session:
+            session.add_all([
+                Notification(recipient_user_id=first_user.id, title='Первое уведомление', body='Для первого пользователя', url='/first'),
+                Notification(recipient_user_id=second_user.id, title='Второе уведомление', body='Для второго пользователя', url='/second'),
+            ])
+            await session.commit()
+
+            await clear_notifications(session, first_user.id)
+
+            assert await list_notifications(session, first_user.id) == []
+            assert [item.title for item in await list_notifications(session, second_user.id)] == ['Второе уведомление']
     finally:
         await engine.dispose()
 

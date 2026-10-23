@@ -1,4 +1,4 @@
-import type { Chat, ChatMessage } from '../../features/chats/api/chatApi';
+import type { Chat, ChatMessage, GroupMemberIdentity } from '../../features/chats/api/chatApi';
 import type { CallHistoryItem } from '../../features/calls/api/callApi';
 
 export interface CallSessionDescription {
@@ -24,6 +24,9 @@ export interface RealtimeEvent {
   isOnline?: boolean;
   lastSeenAt?: string | null;
   message?: ChatMessage;
+  member?: GroupMemberIdentity;
+  memberUserId?: string;
+  owner?: GroupMemberIdentity;
   readerId?: string;
   reason?: string;
   userId?: string;
@@ -71,6 +74,14 @@ function callIceCandidate(value: unknown): CallIceCandidate | undefined {
   }
 
   return candidate;
+}
+
+function groupMemberIdentity(value: unknown): GroupMemberIdentity | undefined {
+  if (!isRecord(value) || typeof value.user_id !== 'string' || typeof value.display_name !== 'string') {
+    return undefined;
+  }
+
+  return { user_id: value.user_id, display_name: value.display_name };
 }
 
 export function isChatMessage(value: unknown): value is ChatMessage {
@@ -142,6 +153,9 @@ export function parseRealtimeEvent(value: unknown): RealtimeEvent | null {
     isOnline: typeof value.is_online === 'boolean' ? value.is_online : undefined,
     lastSeenAt: nullableStringValue(value.last_seen_at),
     message: isChatMessage(value.message) ? value.message : undefined,
+    member: groupMemberIdentity(value.member),
+    memberUserId: stringValue(value.member_user_id),
+    owner: groupMemberIdentity(value.owner),
     readerId: stringValue(value.reader_id),
     reason: stringValue(value.reason),
     userId: stringValue(value.user_id),

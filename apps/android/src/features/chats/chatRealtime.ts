@@ -49,3 +49,15 @@ export function applyReadMessageToChats(
       : chat,
   );
 }
+
+export function upsertGroupChat(chats: Chat[], group: Chat): Chat[] {
+  if (group.type !== 'group') {
+    return chats;
+  }
+
+  return [group, ...chats.filter(chat => chat.id !== group.id)];
+}
+
+export function removeChatById(chats: Chat[], chatId: string): Chat[] {
+  return chats.filter(chat => chat.id !== chatId);
+}

@@ -122,6 +122,32 @@ test('parses a pin update with the refreshed chat state', () => {
   });
 });
 
+test('parses group membership state and its embedded lifecycle message', () => {
+  const group = { id: 'group-1', type: 'group', pinned_message_id: null };
+  const member = { user_id: 'user-2', display_name: 'Мария' };
+  const owner = { user_id: 'user-1', display_name: 'Анна' };
+
+  expect(
+    parseRealtimeEvent({
+      event: 'group.member_removed',
+      chat_id: 'group-1',
+      chat: group,
+      member,
+      member_user_id: 'user-2',
+      message: { ...message, chat_id: 'group-1', type: 'system' },
+      owner,
+    }),
+  ).toEqual({
+    chat: group,
+    chatId: 'group-1',
+    event: 'group.member_removed',
+    member,
+    memberUserId: 'user-2',
+    message: { ...message, chat_id: 'group-1', type: 'system' },
+    owner,
+  });
+});
+
 test('parses validated call signalling fields', () => {
   expect(
     parseRealtimeEvent({

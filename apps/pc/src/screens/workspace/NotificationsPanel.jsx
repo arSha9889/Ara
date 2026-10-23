@@ -10,7 +10,7 @@ function formatNotificationTime(value) {
   }).format(date);
 }
 
-export function NotificationsPanel({ error, isLoading, isUpdating, notifications, onMarkAllRead, onOpenNotification, onRetry, t }) {
+export function NotificationsPanel({ error, isLoading, isUpdating, notifications, onClearHistory, onMarkAllRead, onOpenNotification, onRetry, t }) {
   const unreadCount = notifications.filter((notification) => !notification.read_at).length;
 
   return (
@@ -22,7 +22,7 @@ export function NotificationsPanel({ error, isLoading, isUpdating, notifications
       <div className="workspace-section-card">
         <div className="workspace-section-heading">
           <div><h2>{t('workspace.notificationsPanel.inboxTitle')}</h2><p>{unreadCount ? t('workspace.notificationsPanel.unread', { count: unreadCount }) : t('workspace.notificationsPanel.allRead')}</p></div>
-          <AraButton className="notification-mark-all" type="button" onClick={onMarkAllRead} disabled={!unreadCount || isLoading || isUpdating} size="compact" variant="secondary">{t('workspace.notificationsPanel.markAllRead')}</AraButton>
+          <div className="notification-actions"><AraButton className="notification-mark-all" type="button" onClick={onMarkAllRead} disabled={!unreadCount || isLoading || isUpdating} size="compact" variant="secondary">{t('workspace.notificationsPanel.markAllRead')}</AraButton><AraButton className="notification-clear-history" type="button" onClick={onClearHistory} disabled={!notifications.length || isLoading || isUpdating} size="compact" variant="secondary">{t('workspace.notificationsPanel.clearHistory')}</AraButton></div>
         </div>
         {error ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.notificationsPanel.loadError')}</strong><span>{error}</span><AraButton type="button" onClick={onRetry} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
         {isLoading ? <p className="notification-list-status" role="status">{t('workspace.notificationsPanel.loading')}</p> : error ? null : notifications.length ? <div className="desktop-notification-list">

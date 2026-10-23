@@ -10,6 +10,48 @@ function formatDuration(value) {
   return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
+function systemMemberName(value) {
+  if (!value || typeof value !== 'object') return '';
+  return typeof value.display_name === 'string'
+    ? value.display_name
+    : typeof value.username === 'string'
+      ? value.username
+      : '';
+}
+
+function GroupSystemMessage({ message, t }) {
+  let event;
+  try {
+    event = JSON.parse(message.payload);
+  } catch {
+    event = null;
+  }
+
+  if (!event || event.version !== 1 || typeof event.action !== 'string' || !event.data || typeof event.data !== 'object') {
+    return <p className="group-system-message"><Icon name="info" size={15} />{t('workspace.groups.system.fallback')}</p>;
+  }
+
+  const member = systemMemberName(event.data.member);
+  const owner = systemMemberName(event.data.owner);
+  const roleKey = typeof event.data.role === 'string'
+    ? `workspace.groups.role${event.data.role[0]?.toUpperCase() || ''}${event.data.role.slice(1)}`
+    : '';
+  const role = ['admin', 'member', 'owner'].includes(event.data.role) ? t(roleKey) : '';
+  const textByAction = {
+    group_created: Number.isFinite(Number(event.data.member_count))
+      ? t('workspace.groups.system.groupCreated', { count: Number(event.data.member_count) })
+      : '',
+    member_added: member ? t('workspace.groups.system.memberAdded', { member }) : '',
+    member_joined: member ? t('workspace.groups.system.memberJoined', { member }) : '',
+    member_left: member ? t('workspace.groups.system.memberLeft', { member }) : '',
+    member_removed: member ? t('workspace.groups.system.memberRemoved', { member }) : '',
+    member_role_changed: member && role ? t('workspace.groups.system.memberRoleChanged', { member, role }) : '',
+    ownership_transferred: owner ? t('workspace.groups.system.ownershipTransferred', { member: owner }) : '',
+  };
+
+  return <p className="group-system-message"><Icon name="info" size={15} />{textByAction[event.action] || t('workspace.groups.system.fallback')}</p>;
+}
+
 export function displayMessageType(message) {
   if (message.e2ee_attachment) {
     if (message.e2ee_attachment.media_kind) return message.e2ee_attachment.media_kind;
@@ -159,6 +201,7 @@ function EncryptedAttachmentMessage({ accessToken, chatId, message, t }) {
 
 export function MessageContent({ accessToken, chatId, message, t }) {
   if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
+  if (message.type === 'system') return <GroupSystemMessage message={message} t={t} />;
   if (message.encryption_state === 'e2ee_web_v1' && !['verified', 'unverified', 'key_changed'].includes(message.e2ee_status)) {
     return <p className="chat-encrypted-unavailable">{t('workspace.chatPanel.encryptedMessageUnavailable')}</p>;
   }

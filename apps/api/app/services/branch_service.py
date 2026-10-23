@@ -163,6 +163,20 @@ async def leave_private_branch(session: AsyncSession, user_id: UUID, chat_id: UU
     await session.commit()
 
 
+async def delete_private_branch(session: AsyncSession, user_id: UUID, chat_id: UUID) -> set[UUID]:
+    branch = await _private_branch(session, chat_id)
+    participant = await session.get(ChatParticipant, {'chat_id': branch.id, 'user_id': user_id})
+    if not participant or participant.role != 'owner':
+        raise AuthError('Only the channel owner can delete this channel')
+
+    participant_ids = set((await session.execute(
+        select(ChatParticipant.user_id).where(ChatParticipant.chat_id == branch.id)
+    )).scalars())
+    await session.delete(branch)
+    await session.commit()
+    return participant_ids
+
+
 async def generate_private_branch_invite(session: AsyncSession, user_id: UUID, chat_id: UUID) -> str:
     branch, _ = await _require_private_manager(session, user_id, chat_id)
     invite_token = _new_invite_token()

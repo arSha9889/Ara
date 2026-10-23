@@ -10,7 +10,7 @@ from app.api.dependencies.auth import get_current_user
 from app.api.routes._responses import domain_error_response
 from app.db.session import get_db_session
 from app.models.chats import Chat, ChatParticipant
-from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, BranchInviteJoinRequest, BranchInviteOut, BranchInviteStateOut, BranchMemberOut, BranchMemberUpdateRequest, BranchNotificationsUpdateRequest, BranchPostCommentsUpdateRequest, ChatBulkHideOut, ChatE2eeKeyOut, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, MessageCreateRequest, MessageOut, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, PrivateBranchCreateOut, PrivateBranchCreateRequest, PrivateBranchUpdateRequest, PublicBranchCreateRequest
+from app.schemas.chats import BranchCommentCreateRequest, BranchCommentOut, BranchCommentUpdateRequest, BranchInviteJoinRequest, BranchInviteOut, BranchInviteStateOut, BranchMemberOut, BranchMemberUpdateRequest, BranchNotificationsUpdateRequest, BranchPostCommentsUpdateRequest, ChatBulkHideOut, ChatE2eeKeyOut, ChatOut, ChatWallpaperUpdateRequest, DirectChatCreateRequest, GroupCreateOut, GroupCreateRequest, GroupInviteJoinRequest, GroupInviteOut, GroupInviteStateOut, GroupMemberAddRequest, GroupMemberOut, GroupMemberRoleUpdateRequest, GroupOwnershipTransferRequest, GroupUpdateRequest, MessageCreateRequest, MessageOut, MessageReactionRequest, MessageReadRequest, MessageUpdateRequest, PrivateBranchCreateOut, PrivateBranchCreateRequest, PrivateBranchUpdateRequest, PublicBranchCreateRequest
 from app.schemas.users import UserOut
 from app.services.auth_service import AuthError
 from app.services.chat_service import create_message as create_chat_message
@@ -23,7 +23,8 @@ from app.services.chat_service import list_messages as list_chat_messages
 from app.services.chat_service import mark_messages_read, set_branch_post_comments_enabled, toggle_pin_message, toggle_reaction
 from app.services.e2ee_service import list_direct_chat_e2ee_keys
 from app.services.branch_comment_service import create_branch_comment, delete_branch_comment, get_branch_post_author_id, list_branch_comments, update_branch_comment
-from app.services.branch_service import create_private_branch, create_public_branch, generate_private_branch_invite, join_private_branch_by_invite, leave_private_branch, list_private_branch_members, list_public_branches, private_branch_invite_is_active, private_branch_invite_link, remove_private_branch_member, revoke_private_branch_invite, subscribe_to_branch, unsubscribe_from_branch, update_branch_notifications, update_private_branch, update_private_branch_member
+from app.services.branch_service import create_private_branch, create_public_branch, delete_private_branch, generate_private_branch_invite, join_private_branch_by_invite, leave_private_branch, list_private_branch_members, list_public_branches, private_branch_invite_is_active, private_branch_invite_link, remove_private_branch_member, revoke_private_branch_invite, subscribe_to_branch, unsubscribe_from_branch, update_branch_notifications, update_private_branch, update_private_branch_member
+from app.services.group_service import add_group_member, create_group, delete_group, generate_group_invite, group_invite_is_active, group_invite_link, join_group_by_invite, leave_group, list_group_members, remove_group_member, revoke_group_invite, transfer_group_ownership, update_group, update_group_member_role
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import is_user_interaction_blocked
 from app.services.notification_service import create_branch_comment_notification, create_message_notifications
@@ -93,6 +94,310 @@ async def create_saved_chat(
 ) -> ChatOut:
     try:
         return await create_or_get_saved_chat(session, current_user.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+async def _broadcast_group_state(
+    session: AsyncSession,
+    user_ids: set[UUID],
+    chat_id: UUID,
+    event: str,
+    *,
+    message_id: UUID | None = None,
+    extra: dict[str, object] | None = None,
+) -> None:
+    for user_id in user_ids:
+        payload: dict[str, object] = {
+            'event': event,
+            'chat_id': str(chat_id),
+            'chat': (await get_user_chat(session, user_id, chat_id)).model_dump(mode='json'),
+        }
+        if message_id:
+            payload['message'] = (await get_chat_message(session, user_id, chat_id, message_id)).model_dump(mode='json')
+        if extra:
+            payload.update(extra)
+        await realtime_manager.broadcast_to_user(user_id, payload)
+
+
+@router.post('/groups', response_model=GroupCreateOut)
+async def create_group_route(
+    request: GroupCreateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> GroupCreateOut:
+    try:
+        group, message = await create_group(
+            session,
+            current_user.id,
+            request.title,
+            request.description,
+            request.avatar_ref,
+            request.member_user_ids,
+        )
+        participant_ids = set((await session.execute(
+            select(ChatParticipant.user_id).where(ChatParticipant.chat_id == group.id)
+        )).scalars())
+        await _broadcast_group_state(
+            session,
+            participant_ids,
+            group.id,
+            'group.created',
+            message_id=message.id,
+        )
+        return GroupCreateOut(chat=await get_user_chat(session, current_user.id, group.id))
+    except (AuthError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/groups/join')
+async def join_group_invite(
+    request: GroupInviteJoinRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        group, message, joined = await join_group_by_invite(session, current_user.id, request.invite_token)
+        if joined and message:
+            participant_ids = set((await session.execute(
+                select(ChatParticipant.user_id).where(ChatParticipant.chat_id == group.id)
+            )).scalars())
+            await _broadcast_group_state(
+                session,
+                participant_ids,
+                group.id,
+                'group.member_joined',
+                message_id=message.id,
+                extra={'member_user_id': str(current_user.id)},
+            )
+        return await get_user_chat(session, current_user.id, group.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch('/groups/{chat_id}')
+async def update_group_route(
+    chat_id: UUID,
+    request: GroupUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        group = await update_group(
+            session,
+            current_user.id,
+            chat_id,
+            title=request.title,
+            description=request.description,
+            avatar_ref=request.avatar_ref,
+            update_avatar='avatar_ref' in request.model_fields_set,
+        )
+        participant_ids = set((await session.execute(
+            select(ChatParticipant.user_id).where(ChatParticipant.chat_id == group.id)
+        )).scalars())
+        await _broadcast_group_state(session, participant_ids, group.id, 'group.updated')
+        return await get_user_chat(session, current_user.id, group.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete('/groups/{chat_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_group_route(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        participant_ids = await delete_group(session, current_user.id, chat_id)
+        for participant_id in participant_ids:
+            await realtime_manager.broadcast_to_user(participant_id, {
+                'event': 'group.deleted',
+                'chat_id': str(chat_id),
+            })
+        await realtime_manager.unsubscribe_users_from_chats(participant_ids, [chat_id])
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/groups/{chat_id}/leave', status_code=status.HTTP_204_NO_CONTENT)
+async def leave_group_route(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        message, remaining_user_ids = await leave_group(session, current_user.id, chat_id)
+        await _broadcast_group_state(
+            session,
+            remaining_user_ids,
+            chat_id,
+            'group.member_left',
+            message_id=message.id,
+            extra={'member_user_id': str(current_user.id)},
+        )
+        await realtime_manager.broadcast_to_user(current_user.id, {
+            'event': 'group.member_left',
+            'chat_id': str(chat_id),
+            'member_user_id': str(current_user.id),
+        })
+        await realtime_manager.unsubscribe_users_from_chats({current_user.id}, [chat_id])
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get('/groups/{chat_id}/members', response_model=list[GroupMemberOut])
+async def list_group_members_route(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[GroupMemberOut]:
+    try:
+        return [GroupMemberOut(**member) for member in await list_group_members(session, current_user.id, chat_id)]
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post('/groups/{chat_id}/members')
+async def add_group_member_route(
+    chat_id: UUID,
+    request: GroupMemberAddRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatOut:
+    try:
+        group, message, member = await add_group_member(session, current_user.id, chat_id, request.user_id)
+        participant_ids = set((await session.execute(
+            select(ChatParticipant.user_id).where(ChatParticipant.chat_id == group.id)
+        )).scalars())
+        await _broadcast_group_state(
+            session,
+            participant_ids,
+            group.id,
+            'group.member_added',
+            message_id=message.id,
+            extra={'member': member},
+        )
+        return await get_user_chat(session, current_user.id, group.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.patch('/groups/{chat_id}/members/{member_user_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def update_group_member_role_route(
+    chat_id: UUID,
+    member_user_id: UUID,
+    request: GroupMemberRoleUpdateRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        message, participant_ids, member = await update_group_member_role(
+            session,
+            current_user.id,
+            chat_id,
+            member_user_id,
+            request.role,
+        )
+        if message and member:
+            await _broadcast_group_state(
+                session,
+                participant_ids,
+                chat_id,
+                'group.member_role_changed',
+                message_id=message.id,
+                extra={'member': member, 'role': request.role},
+            )
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete('/groups/{chat_id}/members/{member_user_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def remove_group_member_route(
+    chat_id: UUID,
+    member_user_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        message, remaining_user_ids, member = await remove_group_member(session, current_user.id, chat_id, member_user_id)
+        await _broadcast_group_state(
+            session,
+            remaining_user_ids,
+            chat_id,
+            'group.member_removed',
+            message_id=message.id,
+            extra={'member': member},
+        )
+        await realtime_manager.broadcast_to_user(member_user_id, {
+            'event': 'group.member_removed',
+            'chat_id': str(chat_id),
+            'member': member,
+        })
+        await realtime_manager.unsubscribe_users_from_chats({member_user_id}, [chat_id])
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post('/groups/{chat_id}/ownership', status_code=status.HTTP_204_NO_CONTENT)
+async def transfer_group_ownership_route(
+    chat_id: UUID,
+    request: GroupOwnershipTransferRequest,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        message, participant_ids, next_owner = await transfer_group_ownership(
+            session,
+            current_user.id,
+            chat_id,
+            request.user_id,
+        )
+        await _broadcast_group_state(
+            session,
+            participant_ids,
+            chat_id,
+            'group.ownership_transferred',
+            message_id=message.id,
+            extra={'owner': next_owner},
+        )
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get('/groups/{chat_id}/invite', response_model=GroupInviteStateOut)
+async def group_invite_state_route(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> GroupInviteStateOut:
+    try:
+        return GroupInviteStateOut(is_active=await group_invite_is_active(session, current_user.id, chat_id))
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post('/groups/{chat_id}/invite', response_model=GroupInviteOut)
+async def generate_group_invite_route(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> GroupInviteOut:
+    try:
+        token = await generate_group_invite(session, current_user.id, chat_id)
+        return GroupInviteOut(invite_link=group_invite_link(token))
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete('/groups/{chat_id}/invite', response_model=GroupInviteStateOut)
+async def revoke_group_invite_route(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> GroupInviteStateOut:
+    try:
+        await revoke_group_invite(session, current_user.id, chat_id)
+        return GroupInviteStateOut(is_active=False)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -179,6 +484,19 @@ async def update_private_channel(
             update_avatar='avatar_ref' in request.model_fields_set,
         )
         return await get_user_chat(session, current_user.id, branch.id)
+    except AuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.delete('/branches/{chat_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_private_channel(
+    chat_id: UUID,
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    try:
+        participant_ids = await delete_private_branch(session, current_user.id, chat_id)
+        await realtime_manager.unsubscribe_users_from_chats(participant_ids, [chat_id])
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

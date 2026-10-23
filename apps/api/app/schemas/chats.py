@@ -160,6 +160,57 @@ class PrivateBranchCreateOut(BaseModel):
     invite: BranchInviteOut
 
 
+class GroupCreateRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=120)
+    description: str = Field(default='', max_length=500)
+    avatar_ref: str | None = Field(default=None, max_length=255)
+    member_user_ids: list[UUID] = Field(default_factory=list, max_length=200)
+
+
+class GroupUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    avatar_ref: str | None = Field(default=None, max_length=255)
+
+
+class GroupCreateOut(BaseModel):
+    chat: ChatOut
+
+
+class GroupInviteJoinRequest(BaseModel):
+    invite_token: str = Field(min_length=20, max_length=256)
+
+
+class GroupInviteOut(BaseModel):
+    invite_link: str
+
+
+class GroupInviteStateOut(BaseModel):
+    is_active: bool
+
+
+class GroupMemberAddRequest(BaseModel):
+    user_id: UUID
+
+
+class GroupMemberRoleUpdateRequest(BaseModel):
+    role: Literal['admin', 'member']
+
+
+class GroupOwnershipTransferRequest(BaseModel):
+    user_id: UUID
+
+
+class GroupMemberOut(BaseModel):
+    user_id: UUID
+    display_name: str
+    username: str
+    avatar_type: str
+    avatar_ref: str
+    role: Literal['owner', 'admin', 'member']
+    joined_at: datetime
+
+
 class BranchMemberUpdateRequest(BaseModel):
     role: Literal['owner', 'admin', 'member']
 

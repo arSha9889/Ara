@@ -21,6 +21,7 @@ const mockTranslations: Record<string, string> = {
   chatsAttachment: 'Вложение',
   chatsDirectFallback: 'Личный чат',
   chatsSavedMessages: 'Сохранённые',
+  groupChat: 'Группа',
   noMessages: 'Нет сообщений',
   notificationMessageUnavailable: 'Это сообщение больше недоступно.',
   youPrefix: 'Вы',
@@ -63,6 +64,7 @@ const chatCopy = {
   attachment: 'Вложение',
   call: 'Звонок',
   directChat: 'Личный чат',
+  groupChat: 'Группа',
   noMessages: 'Нет сообщений',
   savedMessages: 'Сохранённые',
   youPrefix: 'Вы',
@@ -75,6 +77,14 @@ const directChat = {
     id: '94c32a6a-221f-48cb-8a8d-74e8ad7c6d96',
     display_name: 'Мария',
   },
+} as Chat;
+
+const groupChat = {
+  ...directChat,
+  id: 'ae6997ea-55fa-45b9-9b48-6dc89e87786a',
+  type: 'group',
+  peer: null,
+  title: 'Команда',
 } as Chat;
 
 const targetMessage: ChatMessage = {
@@ -139,6 +149,23 @@ test('opens only an available chat for a message notification', async () => {
   expect(mockGetMessage).not.toHaveBeenCalled();
 });
 
+test('opens a group notification in the isolated group route without direct-peer fields', async () => {
+  const navigation = { navigate: jest.fn() };
+  mockGetChats.mockResolvedValue([groupChat]);
+
+  await navigateFromMobilePush(
+    navigation as never,
+    { kind: 'message', notificationId, chatId: groupChat.id },
+    chatCopy,
+  );
+
+  expect(navigation.navigate).toHaveBeenCalledWith('GroupChat', {
+    chatId: groupChat.id,
+    title: 'Команда',
+  });
+  expect(mockGetMessage).not.toHaveBeenCalled();
+});
+
 test('does not navigate when the message chat is unavailable to the current user', async () => {
   const navigation = { navigate: jest.fn() };
   mockGetChats.mockResolvedValue([]);
@@ -180,6 +207,26 @@ test('verifies the exact target message before navigating from a message push', 
     peerLastSeenAt: undefined,
     targetMessageId: messageId,
     targetMessage,
+  });
+});
+
+test('passes an exact group target to the isolated group route', async () => {
+  const navigation = { navigate: jest.fn() };
+  const groupMessage = { ...targetMessage, chat_id: groupChat.id };
+  mockGetChats.mockResolvedValue([groupChat]);
+  mockGetMessage.mockResolvedValue(groupMessage);
+
+  await navigateFromMobilePush(
+    navigation as never,
+    { kind: 'message', notificationId, chatId: groupChat.id, messageId },
+    chatCopy,
+  );
+
+  expect(navigation.navigate).toHaveBeenCalledWith('GroupChat', {
+    chatId: groupChat.id,
+    title: 'Команда',
+    targetMessageId: messageId,
+    targetMessage: groupMessage,
   });
 });
 

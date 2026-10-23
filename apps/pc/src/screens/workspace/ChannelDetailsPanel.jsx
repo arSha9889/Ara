@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import {
+  deletePrivateChannel,
   generateChannelInvite,
   getChat,
   getChannelInviteState,
@@ -38,7 +39,7 @@ async function copyText(value) {
   if (!copied) throw new Error('Clipboard is unavailable');
 }
 
-export function ChannelDetailsPanel({ accessToken, channel, currentUserId, onBack, onLeave, onUpdated, t }) {
+export function ChannelDetailsPanel({ accessToken, channel, currentUserId, onBack, onDeleted, onLeave, onUpdated, t }) {
   const [title, setTitle] = useState(channel.title || '');
   const [description, setDescription] = useState(channel.description || '');
   const [avatarFile, setAvatarFile] = useState(null);
@@ -228,6 +229,21 @@ export function ChannelDetailsPanel({ accessToken, channel, currentUserId, onBac
     }
   }
 
+  async function deleteChannel() {
+    if (isSaving || !isPrivate || !isOwner || !window.confirm(t('workspace.channels.deleteChannelConfirm', { channel: channel.title }))) return;
+    setError('');
+    setNotice('');
+    setIsSaving(true);
+    try {
+      await deletePrivateChannel(accessToken, channel.id);
+      await onDeleted?.();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return <section className="workspace-chat-panel channel-details-panel" aria-labelledby="channel-details-title">
     <header className="chat-header">
       <AraButton className="chat-back-button" type="button" onClick={onBack} size="compact" variant="ghost"><Icon name="arrow-left" size={18} />{t('workspace.channels.backToPosts')}</AraButton>
@@ -275,7 +291,8 @@ export function ChannelDetailsPanel({ accessToken, channel, currentUserId, onBac
 
       {channel.is_subscribed ? <section className="workspace-section-card channel-preferences-card"><div><h2>{t('workspace.channels.notificationsTitle')}</h2><p>{t('workspace.channels.notificationsHint')}</p></div><button className={`channel-notification-toggle ${notificationsEnabled ? 'is-enabled' : ''}`} type="button" role="switch" aria-checked={notificationsEnabled} onClick={() => void toggleNotifications()} disabled={isSaving}><span>{notificationsEnabled ? t('workspace.channels.notificationsOn') : t('workspace.channels.notificationsOff')}</span><i /></button></section> : null}
 
-      {isPrivate ? <section className="channel-leave-card"><div><h2>{t('workspace.channels.leaveTitle')}</h2><p>{role === 'owner' ? t('workspace.channels.ownerLeaveRestricted') : t('workspace.channels.leaveHint')}</p></div><AraButton type="button" onClick={() => void leaveChannel()} disabled={isSaving || role === 'owner'} variant="secondary">{t('workspace.channels.leaveChannel')}</AraButton></section> : null}
+      {isPrivate && !isOwner ? <section className="channel-leave-card"><div><h2>{t('workspace.channels.leaveTitle')}</h2><p>{t('workspace.channels.leaveHint')}</p></div><AraButton type="button" onClick={() => void leaveChannel()} disabled={isSaving} variant="secondary">{t('workspace.channels.leaveChannel')}</AraButton></section> : null}
+      {isPrivate && isOwner ? <section className="channel-delete-card"><div><h2>{t('workspace.channels.deleteTitle')}</h2><p>{t('workspace.channels.deleteHint')}</p></div><AraButton type="button" onClick={() => void deleteChannel()} disabled={isSaving} variant="secondary">{isSaving ? t('workspace.channels.deletingChannel') : t('workspace.channels.deleteChannel')}</AraButton></section> : null}
     </div>
   </section>;
 }

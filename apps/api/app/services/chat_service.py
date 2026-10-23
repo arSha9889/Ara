@@ -20,6 +20,15 @@ from app.services.storage_service import E2EE_ATTACHMENT_PURPOSE
 from app.services.stored_object_service import attach_upload_to_message, schedule_message_upload_deletion
 
 MESSAGE_TYPES = {'text', 'photo', 'video', 'video_note', 'voice', 'emoji', 'sticker', 'file'}
+GROUP_SYSTEM_ACTIONS = frozenset({
+    'group_created',
+    'member_added',
+    'member_joined',
+    'member_left',
+    'member_removed',
+    'member_role_changed',
+    'ownership_transferred',
+})
 E2EE_ATTACHMENT_MESSAGE_TYPES = frozenset({'file', 'voice', 'video_note'})
 STICKER_IDS = frozenset({
     'ara-alt', 'ara-solidity', 'ara-school-holiday', 'ara-aksakal-approves',
@@ -278,6 +287,39 @@ async def create_message(
     return await _message_out(session, message, user_id)
 
 
+async def create_group_system_message(
+    session: AsyncSession,
+    chat_id: UUID,
+    actor_user_id: UUID,
+    action: str,
+    data: dict[str, object] | None = None,
+    *,
+    commit: bool = True,
+) -> Message:
+    """Persist a machine-readable group lifecycle event for localized clients."""
+    if action not in GROUP_SYSTEM_ACTIONS:
+        raise ValueError('Unsupported group system action')
+    chat = await session.get(Chat, chat_id)
+    if not chat or chat.type != 'group':
+        raise AuthError('Group not found')
+    message = Message(
+        chat_id=chat_id,
+        sender_id=actor_user_id,
+        type='system',
+        payload=json.dumps({'version': 1, 'action': action, 'data': data or {}}, separators=(',', ':')),
+        comments_enabled=False,
+    )
+    session.add(message)
+    await session.flush()
+    await _create_delivery_receipts(session, message)
+    chat.last_message_id = message.id
+    if commit:
+        await session.commit()
+    else:
+        await session.flush()
+    return message
+
+
 async def create_call_history_message(
     session: AsyncSession,
     call: CallSession,
@@ -375,6 +417,8 @@ async def delete_message(session: AsyncSession, user_id: UUID, chat_id: UUID, me
         raise AuthError('Message not found')
     if message.sender_id != user_id:
         raise AuthError('Only the sender can delete this message')
+    if message.type == 'system':
+        raise AuthError('System messages cannot be deleted')
     message.deleted_at = datetime.now(timezone.utc)
     message.payload = ''
     await schedule_message_upload_deletion(session, message.id)
@@ -393,6 +437,8 @@ async def toggle_pin_message(session: AsyncSession, user_id: UUID, chat_id: UUID
     message = await session.get(Message, message_id)
     if not message or message.chat_id != chat_id or message.deleted_at:
         raise AuthError('Message not found')
+    if message.type == 'system':
+        raise AuthError('System messages cannot be pinned')
     chat.pinned_message_id = None if chat.pinned_message_id == message_id else message_id
     await session.commit()
     await session.refresh(chat)
@@ -411,6 +457,8 @@ async def toggle_reaction(session: AsyncSession, user_id: UUID, chat_id: UUID, m
         raise AuthError('Message not found')
     if message.deleted_at:
         raise AuthError('Deleted message cannot be reacted to')
+    if message.type == 'system':
+        raise AuthError('System messages cannot be reacted to')
     if emoji not in REACTION_EMOJIS:
         raise AuthError('Unsupported reaction')
 
@@ -649,7 +697,7 @@ async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | N
         last_message_id=chat.last_message_id,
         pinned_message_id=chat.pinned_message_id,
         participant_ids=[] if chat.type == 'branch' else participant_ids,
-        peer=await _chat_peer_out(session, participant_ids, current_user_id),
+        peer=await _chat_peer_out(session, participant_ids, current_user_id) if chat.type == 'direct' else None,
         last_message=await _chat_preview_message_out(session, chat.last_message_id),
         pinned_message=await _chat_preview_message_out(session, chat.pinned_message_id),
         unread_count=await _unread_count(session, chat.id, current_user_id),
@@ -662,7 +710,7 @@ async def _chat_out(session: AsyncSession, chat: Chat, current_user_id: UUID | N
         is_subscribed=bool(current_user_id and await session.get(ChatParticipant, {'chat_id': chat.id, 'user_id': current_user_id})),
         subscriber_count=await _subscriber_count(session, chat.id) if chat.type == 'branch' else 0,
         can_post=bool(current_user_id and await can_post_to_branch(session, current_user_id, chat.id)) if chat.type == 'branch' else True,
-        current_role=(await _current_participant_role(session, chat.id, current_user_id)) if current_user_id and chat.type == 'branch' else None,
+        current_role=(await _current_participant_role(session, chat.id, current_user_id)) if current_user_id and chat.type in {'branch', 'group'} else None,
         notifications_enabled=await _notifications_enabled(session, chat.id, current_user_id),
         wallpaper_id=wallpaper_id,
     )

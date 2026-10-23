@@ -1,11 +1,28 @@
-import { chatPreview, chatTitle } from '../src/features/chats/chatPresentation';
+import {
+  chatPreview,
+  chatTitle,
+  groupLifecycleText,
+  type ChatPresentationCopy,
+} from '../src/features/chats/chatPresentation';
 import type { Chat, ChatPreviewMessage } from '../src/features/chats/api/chatApi';
 
-const copy = {
+const copy: ChatPresentationCopy = {
   attachment: 'Attachment',
   call: 'Call',
   directChat: 'Direct chat',
   file: 'Document',
+  groupChat: 'Group chat',
+  groupCreated: 'Group created',
+  groupCreatedWithMembers: 'Group created with members',
+  groupLifecycleFallback: 'Group activity',
+  groupMemberAdded: 'Member added',
+  groupMemberJoined: 'Member joined',
+  groupMemberLeft: 'Member left',
+  groupMemberRemoved: 'Member removed',
+  groupMemberRoleChanged: 'Member role changed',
+  groupOwnershipTransferred: 'Ownership transferred',
+  groupRoleAdmin: 'Admin',
+  groupRoleMember: 'Member',
   noMessages: 'No messages',
   photo: 'Photo',
   savedMessages: 'Saved messages',
@@ -56,6 +73,11 @@ test('uses the saved-messages label for a saved chat', () => {
   expect(chatTitle({ ...chat, type: 'saved', peer: null }, copy)).toBe('Saved messages');
 });
 
+test('uses a group title with a localized fallback', () => {
+  expect(chatTitle({ ...chat, type: 'group', peer: null, title: 'Команда' }, copy)).toBe('Команда');
+  expect(chatTitle({ ...chat, type: 'group', peer: null, title: '   ' }, copy)).toBe('Group chat');
+});
+
 test('labels the current user in a text-message preview', () => {
   expect(chatPreview(message, 'user-1', copy)).toBe('You: Привет');
 });
@@ -85,4 +107,29 @@ test('uses a local call label for call history previews', () => {
   expect(chatPreview({ ...message, type: 'call', payload: '{"version":1}', media_name: null }, 'user-2', copy)).toBe(
     'Call',
   );
+});
+
+test('renders a group lifecycle preview instead of its JSON payload', () => {
+  expect(
+    chatPreview(
+      {
+        ...message,
+        type: 'system',
+        payload: JSON.stringify({
+          version: 1,
+          action: 'member_role_changed',
+          data: { member: { display_name: 'Анна' }, role: 'admin' },
+        }),
+      },
+      'user-2',
+      copy,
+    ),
+  ).toBe('Member role changed: Анна — Admin');
+});
+
+test('uses a neutral fallback for malformed or unknown group lifecycle payloads', () => {
+  expect(groupLifecycleText('{"version":1,"action":"unknown","data":{}}', copy)).toBe(
+    'Group activity',
+  );
+  expect(groupLifecycleText('backend JSON must not be shown', copy)).toBe('Group activity');
 });

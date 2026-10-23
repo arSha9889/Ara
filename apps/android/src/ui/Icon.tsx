@@ -14,6 +14,7 @@ export type IconName =
   | 'compose'
   | 'download'
   | 'file'
+  | 'groups'
   | 'hangUp'
   | 'microphone'
   | 'microphoneOff'
@@ -64,6 +65,7 @@ export function Icon({ name, size = 24, color = colors.text }: IconProps) {
       {name === 'compose' ? <><Path {...common} d="m14.7 4.3 5 5" /><Path {...common} d="M4.5 19.5l4.2-.9L20 7.3a2.1 2.1 0 0 0-3-3L5.7 15.6l-1.2 3.9Z" /></> : null}
       {name === 'download' ? <><Path {...common} d="M12 4v10" /><Path {...common} d="m8 10 4 4 4-4M5 20h14" /></> : null}
       {name === 'file' ? <><Path {...common} d="M7 3.5h6l4 4V20.5H7z" /><Path {...common} d="M13 3.5v4h4M9.5 13h5M9.5 16h5" /></> : null}
+      {name === 'groups' ? <><Circle {...common} cx="9" cy="9" r="3" /><Circle {...common} cx="17" cy="10" r="2.3" /><Path {...common} d="M3.8 20c.6-3.4 2.7-5.3 5.2-5.3s4.6 1.9 5.2 5.3M15.2 15.2c2.7.4 4.4 2.1 5 4.8" /></> : null}
       {name === 'hangUp' ? <Path {...common} d="M5.3 16.9 3.8 14c-.4-.8-.1-1.8.6-2.3a12.8 12.8 0 0 1 15.2 0c.7.5 1 1.5.6 2.3l-1.5 2.9-3.4-1.2.2-2a9 9 0 0 0-7 0l.2 2-3.4 1.2Z" /> : null}
       {name === 'microphone' ? <><Path {...common} d="M12 4.2a2.7 2.7 0 0 0-2.7 2.7v5.2a2.7 2.7 0 1 0 5.4 0V6.9A2.7 2.7 0 0 0 12 4.2Z" /><Path {...common} d="M6.9 11.8a5.1 5.1 0 0 0 10.2 0M12 16.9v3" /></> : null}
       {name === 'microphoneOff' ? <><Path {...common} d="m5 5 14 14" /><Path {...common} d="M9.3 9.3v2.8a2.7 2.7 0 0 0 4.4 2.1M14.7 10.5V6.9a2.7 2.7 0 0 0-4.5-2M6.9 11.8a5.1 5.1 0 0 0 8.6 3.8M17.1 11.8c0 .5-.1.9-.2 1.3M12 16.9v3" /></> : null}

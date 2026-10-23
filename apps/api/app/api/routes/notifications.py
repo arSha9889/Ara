@@ -19,6 +19,7 @@ from app.schemas.chats import (
 )
 from app.schemas.users import UserOut
 from app.services.notification_service import (
+    clear_notifications,
     list_notifications,
     mark_notifications_read,
     deactivate_mobile_push_tokens,
@@ -100,6 +101,15 @@ async def delete_push_subscription(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict[str, bool]:
     await remove_push_subscription(session, current_user.id, request.endpoint, request.device_id)
+    return {'ok': True}
+
+
+@router.delete('/history')
+async def clear_notifications_history(
+    current_user: Annotated[UserOut, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, bool]:
+    await clear_notifications(session, current_user.id)
     return {'ok': True}
 
 

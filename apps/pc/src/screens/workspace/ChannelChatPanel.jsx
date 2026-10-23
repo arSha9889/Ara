@@ -316,7 +316,7 @@ export function ChannelChatPanel({
   }
 
   if (panel === 'details') {
-    return <ChannelDetailsPanel accessToken={accessToken} channel={channel} currentUserId={currentUserId} onBack={() => setPanel('posts')} onLeave={leaveChannel} onUpdated={handleChannelUpdated} t={t} />;
+    return <ChannelDetailsPanel accessToken={accessToken} channel={channel} currentUserId={currentUserId} onBack={() => setPanel('posts')} onDeleted={leaveChannel} onLeave={leaveChannel} onUpdated={handleChannelUpdated} t={t} />;
   }
 
   return <section className="workspace-chat-panel channel-chat-panel" aria-labelledby="channel-title">

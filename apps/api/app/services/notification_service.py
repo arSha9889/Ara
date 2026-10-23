@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from pywebpush import WebPushException, webpush
 from py_vapid import Vapid
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -193,6 +193,11 @@ async def mark_notifications_read(session: AsyncSession, user_id: UUID, notifica
     await session.commit()
 
 
+async def clear_notifications(session: AsyncSession, user_id: UUID) -> None:
+    await session.execute(delete(Notification).where(Notification.recipient_user_id == user_id))
+    await session.commit()
+
+
 async def create_message_notifications(session: AsyncSession, message: MessageOut) -> None:
     recipients = list((await session.execute(
         select(ChatParticipant.user_id).where(
@@ -206,7 +211,7 @@ async def create_message_notifications(session: AsyncSession, message: MessageOu
             recipient_id for recipient_id in recipients
             if not await is_user_interaction_blocked(session, message.sender_id, recipient_id)
         ]
-    elif chat and chat.type == 'branch':
+    elif chat and chat.type in {'branch', 'group'}:
         muted_recipient_ids = set((await session.execute(
             select(ChatPreference.user_id).where(
                 ChatPreference.chat_id == message.chat_id,

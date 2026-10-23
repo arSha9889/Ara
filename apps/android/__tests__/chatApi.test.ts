@@ -1,17 +1,31 @@
 import { apiClient } from '../src/infrastructure/http/apiClient';
 import {
+  addGroupMember,
+  createGroup,
   createDirectChatForUser,
+  deleteGroup,
   deleteMessage,
   editTextMessage,
+  generateGroupInvite,
   getChats,
+  getGroupInviteState,
+  getGroupMembers,
   getMessage,
   getMessages,
+  joinGroupInvite,
+  leaveGroup,
   markMessagesRead,
+  removeGroupMember,
+  revokeGroupInvite,
   sendMediaMessage,
   sendTextMessage,
+  transferGroupOwnership,
   togglePinMessage,
   toggleMessageReaction,
   uploadChatAttachment,
+  uploadGroupAvatar,
+  updateGroup,
+  updateGroupMemberRole,
 } from '../src/features/chats/api/chatApi';
 
 jest.mock('../src/infrastructure/http/apiClient', () => ({
@@ -29,16 +43,18 @@ beforeEach(() => {
   requestMultipart.mockReset();
 });
 
-test('loads only chat types included in Android v1', async () => {
+test('loads only chat types supported by Android', async () => {
   request.mockResolvedValue([
     { id: 'direct-1', type: 'direct' },
     { id: 'saved-1', type: 'saved' },
+    { id: 'group-1', type: 'group' },
     { id: 'branch-1', type: 'branch' },
   ]);
 
   await expect(getChats()).resolves.toEqual([
     { id: 'direct-1', type: 'direct' },
     { id: 'saved-1', type: 'saved' },
+    { id: 'group-1', type: 'group' },
   ]);
   expect(request).toHaveBeenCalledWith('/api/chats');
 });
@@ -147,6 +163,94 @@ test('opens or creates a direct chat with a selected user', async () => {
 
   expect(request).toHaveBeenCalledWith('/api/chats/direct/users/user-1', {
     method: 'POST',
+  });
+});
+
+test('uses the group management API contract', async () => {
+  const group = { id: 'group/id', type: 'group' };
+  request.mockResolvedValue(group);
+  request.mockResolvedValueOnce({ chat: group });
+
+  await createGroup({
+    title: '  Проект  ',
+    description: '  Закрытая группа  ',
+    avatar_ref: '/api/media/avatar',
+    member_user_ids: ['user-1'],
+  });
+  await updateGroup('group/id', { title: '  Новый проект  ', description: '  Описание  ' });
+  await getGroupMembers('group/id');
+  await addGroupMember('group/id', 'user/id');
+  await updateGroupMemberRole('group/id', 'user/id', 'admin');
+  await removeGroupMember('group/id', 'user/id');
+  await transferGroupOwnership('group/id', 'user/id');
+  await getGroupInviteState('group/id');
+  await generateGroupInvite('group/id');
+  await revokeGroupInvite('group/id');
+  await joinGroupInvite('  invite-token  ');
+  await leaveGroup('group/id');
+  await deleteGroup('group/id');
+
+  expect(request.mock.calls).toEqual([
+    [
+      '/api/chats/groups',
+      {
+        method: 'POST',
+        body: {
+          title: 'Проект',
+          description: 'Закрытая группа',
+          avatar_ref: '/api/media/avatar',
+          member_user_ids: ['user-1'],
+        },
+      },
+    ],
+    [
+      '/api/chats/groups/group%2Fid',
+      { method: 'PATCH', body: { title: 'Новый проект', description: 'Описание' } },
+    ],
+    ['/api/chats/groups/group%2Fid/members'],
+    [
+      '/api/chats/groups/group%2Fid/members',
+      { method: 'POST', body: { user_id: 'user/id' } },
+    ],
+    [
+      '/api/chats/groups/group%2Fid/members/user%2Fid',
+      { method: 'PATCH', body: { role: 'admin' } },
+    ],
+    ['/api/chats/groups/group%2Fid/members/user%2Fid', { method: 'DELETE' }],
+    [
+      '/api/chats/groups/group%2Fid/ownership',
+      { method: 'POST', body: { user_id: 'user/id' } },
+    ],
+    ['/api/chats/groups/group%2Fid/invite'],
+    ['/api/chats/groups/group%2Fid/invite', { method: 'POST' }],
+    ['/api/chats/groups/group%2Fid/invite', { method: 'DELETE' }],
+    ['/api/chats/groups/join', { method: 'POST', body: { invite_token: 'invite-token' } }],
+    ['/api/chats/groups/group%2Fid/leave', { method: 'POST' }],
+    ['/api/chats/groups/group%2Fid', { method: 'DELETE' }],
+  ]);
+});
+
+test('uploads a group avatar through the dedicated avatar endpoint', async () => {
+  const upload = {
+    media_url: '/api/media/group-avatar',
+    media_name: 'group.png',
+    media_mime_type: 'image/png',
+    media_size_bytes: 4096,
+    suggested_message_type: 'photo',
+  };
+  requestMultipart.mockResolvedValue(upload);
+
+  await expect(
+    uploadGroupAvatar({
+      uri: 'file:///cache/group.png',
+      name: 'group.png',
+      mimeType: 'image/png',
+    }),
+  ).resolves.toEqual(upload);
+
+  expect(requestMultipart).toHaveBeenCalledWith('/api/uploads/avatar', {
+    method: 'POST',
+    formData: expect.any(FormData),
   });
 });
 

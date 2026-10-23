@@ -52,10 +52,14 @@ name = "arachat-desktop"
 version = "0.1.0"
 dependencies = [
  "keyring",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "tauri",
  "tauri-build",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
+ "tokio",
 ]
 
 [[package]]

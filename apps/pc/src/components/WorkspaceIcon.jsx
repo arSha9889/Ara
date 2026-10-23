@@ -1,18 +1,24 @@
 import callsIcon from '../assets/button-icons/calls.png';
+import bellIcon from '../assets/button-icons/bell.png';
 import chatsIcon from '../assets/button-icons/chats.png';
+import channelsIcon from '../assets/button-icons/channels.png';
 import contactsIcon from '../assets/button-icons/contacts.png';
 import micIcon from '../assets/button-icons/mic.png';
 import profileIcon from '../assets/button-icons/profile.png';
+import settingsIcon from '../assets/button-icons/settings.png';
 import speakerIcon from '../assets/button-icons/speaker.png';
 import videoIcon from '../assets/button-icons/video.png';
 
 const BUTTON_ICON_ASSETS = {
+  bell: bellIcon,
   calls: callsIcon,
   camera: videoIcon,
   chats: chatsIcon,
+  channels: channelsIcon,
   contacts: contactsIcon,
   mic: micIcon,
   profile: profileIcon,
+  settings: settingsIcon,
   speaker: speakerIcon,
   video: videoIcon,
 };
@@ -36,6 +42,7 @@ export function WorkspaceIcon({ name, size = 20 }) {
   };
 
   if (name === 'channels') return <svg {...commonProps}><path d="M4 12.2V9.8l11-4.3v11L4 12.2Z" /><path d="M15 8.2c2.3.7 3.7 2 3.7 3.8S17.3 15.1 15 15.8M6.4 13.2l1.3 5.1h3.1l-1-4" /><path d="M20.2 8.3c1.2 1 1.8 2.2 1.8 3.7s-.6 2.7-1.8 3.7" /></svg>;
+  if (name === 'groups') return <svg {...commonProps}><circle cx="9" cy="8.2" r="3" /><circle cx="16.8" cy="9.5" r="2.3" /><path d="M3.6 19.5c.8-3.2 2.8-4.8 5.4-4.8s4.6 1.6 5.4 4.8" /><path d="M14.4 15.5c2.7-.2 4.7 1.1 5.3 4" /></svg>;
   if (name === 'settings') return <svg {...commonProps}><circle cx="12" cy="12" r="2.8" /><path d="M19.4 13.5a1.7 1.7 0 0 0 .3 1.9l.1.1-2.2 2.2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-3.2v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1-2.2-2.2.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1h-.2V9.3h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1L8.5 4l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h3.2v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.2 2.2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v3.2h-.2a1.7 1.7 0 0 0-1.6 1Z" /></svg>;
   if (name === 'search') return <svg {...commonProps}><circle cx="10.7" cy="10.7" r="5.7" /><path d="m15 15 4.2 4.2" /></svg>;
   if (name === 'plus') return <svg {...commonProps}><path d="M12 5v14M5 12h14" /></svg>;

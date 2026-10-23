@@ -1,5 +1,8 @@
 use keyring::{Entry, Error as KeyringError};
 
+#[cfg(target_os = "macos")]
+mod liquid_glass;
+
 const KEYRING_SERVICE: &str = "ru.arachat.desktop";
 const KEYRING_ACCOUNT: &str = "refresh-token";
 
@@ -37,6 +40,20 @@ fn clear_refresh_token() -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+async fn initialize_native_liquid_glass(window: tauri::WebviewWindow) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        liquid_glass::initialize(window).await
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = window;
+        Ok(false)
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -45,7 +62,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             save_refresh_token,
             load_refresh_token,
-            clear_refresh_token
+            clear_refresh_token,
+            initialize_native_liquid_glass
         ])
         .run(tauri::generate_context!())
         .expect("AraChat Desktop failed to start");

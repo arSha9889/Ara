@@ -15,3 +15,10 @@ export function markNotificationsRead(accessToken, notificationIds = null) {
     body: notificationIds,
   });
 }
+
+export function clearNotificationsHistory(accessToken) {
+  return apiRequest('/api/notifications/history', {
+    method: 'DELETE',
+    headers: authorizationHeaders(accessToken),
+  });
+}

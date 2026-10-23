@@ -14,6 +14,44 @@ export interface UploadedChatAttachment {
   suggested_message_type: string;
 }
 
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export interface GroupMember {
+  user_id: string;
+  display_name: string;
+  username: string;
+  avatar_type: string;
+  avatar_ref: string;
+  role: GroupRole;
+  joined_at: string;
+}
+
+export interface GroupMemberIdentity {
+  user_id: string;
+  display_name: string;
+}
+
+export interface GroupCreateInput {
+  title: string;
+  description?: string;
+  avatar_ref?: string;
+  member_user_ids?: string[];
+}
+
+export interface GroupUpdateInput {
+  title?: string;
+  description?: string;
+  avatar_ref?: string;
+}
+
+export interface GroupInviteState {
+  is_active: boolean;
+}
+
+export interface GroupInvite {
+  invite_link: string;
+}
+
 export type ChatAttachmentMessageType = 'photo' | 'video' | 'voice' | 'video_note' | 'file';
 
 export interface MediaMessageOptions {
@@ -60,6 +98,11 @@ export interface Chat {
   pinned_message?: ChatPreviewMessage | null;
   unread_count: number;
   title: string | null;
+  description?: string | null;
+  avatar_ref?: string | null;
+  is_private?: boolean;
+  current_role?: GroupRole | null;
+  notifications_enabled?: boolean;
   can_post: boolean;
 }
 
@@ -111,7 +154,7 @@ export interface ChatMessage {
 }
 
 function isSupportedMobileChat(chat: Chat): boolean {
-  return chat.type === 'direct' || chat.type === 'saved';
+  return chat.type === 'direct' || chat.type === 'saved' || chat.type === 'group';
 }
 
 export async function getChats(): Promise<Chat[]> {
@@ -140,6 +183,101 @@ export function createDirectChatForUser(userId: string): Promise<Chat> {
       method: 'POST',
     },
   );
+}
+
+export async function createGroup(input: GroupCreateInput): Promise<Chat> {
+  const response = await apiClient.request<{ chat: Chat }>('/api/chats/groups', {
+    method: 'POST',
+    body: {
+      title: input.title.trim(),
+      description: input.description?.trim() ?? '',
+      ...(input.avatar_ref ? { avatar_ref: input.avatar_ref } : {}),
+      member_user_ids: input.member_user_ids ?? [],
+    },
+  });
+  return response.chat;
+}
+
+export function updateGroup(chatId: string, input: GroupUpdateInput): Promise<Chat> {
+  return apiClient.request<Chat>(`/api/chats/groups/${encodeURIComponent(chatId)}`, {
+    method: 'PATCH',
+    body: {
+      ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+      ...(input.description !== undefined ? { description: input.description.trim() } : {}),
+      ...(input.avatar_ref !== undefined ? { avatar_ref: input.avatar_ref } : {}),
+    },
+  });
+}
+
+export function deleteGroup(chatId: string): Promise<void> {
+  return apiClient.request<void>(`/api/chats/groups/${encodeURIComponent(chatId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export function leaveGroup(chatId: string): Promise<void> {
+  return apiClient.request<void>(`/api/chats/groups/${encodeURIComponent(chatId)}/leave`, {
+    method: 'POST',
+  });
+}
+
+export function getGroupMembers(chatId: string): Promise<GroupMember[]> {
+  return apiClient.request<GroupMember[]>(`/api/chats/groups/${encodeURIComponent(chatId)}/members`);
+}
+
+export function addGroupMember(chatId: string, userId: string): Promise<Chat> {
+  return apiClient.request<Chat>(`/api/chats/groups/${encodeURIComponent(chatId)}/members`, {
+    method: 'POST',
+    body: { user_id: userId },
+  });
+}
+
+export function updateGroupMemberRole(
+  chatId: string,
+  userId: string,
+  role: Exclude<GroupRole, 'owner'>,
+): Promise<void> {
+  return apiClient.request<void>(
+    `/api/chats/groups/${encodeURIComponent(chatId)}/members/${encodeURIComponent(userId)}`,
+    { method: 'PATCH', body: { role } },
+  );
+}
+
+export function removeGroupMember(chatId: string, userId: string): Promise<void> {
+  return apiClient.request<void>(
+    `/api/chats/groups/${encodeURIComponent(chatId)}/members/${encodeURIComponent(userId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+export function transferGroupOwnership(chatId: string, userId: string): Promise<void> {
+  return apiClient.request<void>(`/api/chats/groups/${encodeURIComponent(chatId)}/ownership`, {
+    method: 'POST',
+    body: { user_id: userId },
+  });
+}
+
+export function getGroupInviteState(chatId: string): Promise<GroupInviteState> {
+  return apiClient.request<GroupInviteState>(`/api/chats/groups/${encodeURIComponent(chatId)}/invite`);
+}
+
+export function generateGroupInvite(chatId: string): Promise<GroupInvite> {
+  return apiClient.request<GroupInvite>(`/api/chats/groups/${encodeURIComponent(chatId)}/invite`, {
+    method: 'POST',
+  });
+}
+
+export function revokeGroupInvite(chatId: string): Promise<GroupInviteState> {
+  return apiClient.request<GroupInviteState>(`/api/chats/groups/${encodeURIComponent(chatId)}/invite`, {
+    method: 'DELETE',
+  });
+}
+
+export function joinGroupInvite(inviteToken: string): Promise<Chat> {
+  return apiClient.request<Chat>('/api/chats/groups/join', {
+    method: 'POST',
+    body: { invite_token: inviteToken.trim() },
+  });
 }
 
 export function sendTextMessage(
@@ -171,6 +309,25 @@ export async function uploadChatAttachment(
   );
 
   return apiClient.requestMultipart<UploadedChatAttachment>('/api/uploads', {
+    method: 'POST',
+    formData,
+  });
+}
+
+export async function uploadGroupAvatar(
+  attachment: ChatAttachmentUpload,
+): Promise<UploadedChatAttachment> {
+  const formData = new FormData();
+  formData.append(
+    'file',
+    {
+      uri: attachment.uri,
+      name: attachment.name,
+      type: attachment.mimeType,
+    } as unknown as Blob,
+  );
+
+  return apiClient.requestMultipart<UploadedChatAttachment>('/api/uploads/avatar', {
     method: 'POST',
     formData,
   });

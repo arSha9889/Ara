@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import { ChannelChatPanel } from './ChannelChatPanel.jsx';
+import { GroupChatPanel } from './GroupChatPanel.jsx';
 import {
   deleteMessage,
   editMessage,
@@ -809,5 +810,6 @@ function DirectChatPanel({
 
 export function ChatPanel(props) {
   if (props.chat.type === 'branch') return <ChannelChatPanel {...props} />;
+  if (props.chat.type === 'group') return <GroupChatPanel {...props} />;
   return <DirectChatPanel {...props} />;
 }

@@ -126,6 +126,70 @@ const ERROR_MESSAGES = {
     ru: 'Канал не найден или больше недоступен.',
     en: 'The channel was not found or is no longer available.',
   },
+  'Group not found': {
+    ru: 'Группа не найдена или больше недоступна.',
+    en: 'The group was not found or is no longer available.',
+  },
+  'Only the group owner can edit this group': {
+    ru: 'Изменять оформление группы может только её владелец.',
+    en: 'Only the group owner can edit this group.',
+  },
+  'Only the group owner can delete this group': {
+    ru: 'Удалить группу может только её владелец.',
+    en: 'Only the group owner can delete this group.',
+  },
+  'Group avatar cannot be empty': {
+    ru: 'Аватар группы не может быть пустым.',
+    en: 'The group avatar cannot be empty.',
+  },
+  'User is already a group member': {
+    ru: 'Этот пользователь уже состоит в группе.',
+    en: 'This user is already a group member.',
+  },
+  'Transfer group ownership before leaving': {
+    ru: 'Перед выходом передайте владение группой другому участнику.',
+    en: 'Transfer group ownership before leaving.',
+  },
+  'Group member not found': {
+    ru: 'Участник группы не найден.',
+    en: 'The group member was not found.',
+  },
+  'Leave the group instead of removing yourself': {
+    ru: 'Чтобы выйти из группы, используйте действие выхода.',
+    en: 'Leave the group instead of removing yourself.',
+  },
+  'Group owner cannot be removed': {
+    ru: 'Владельца группы нельзя удалить.',
+    en: 'The group owner cannot be removed.',
+  },
+  'Only the group owner can change member roles': {
+    ru: 'Изменять роли участников может только владелец группы.',
+    en: 'Only the group owner can change member roles.',
+  },
+  'Unsupported group role': {
+    ru: 'Такая роль в группе не поддерживается.',
+    en: 'This group role is not supported.',
+  },
+  'Use ownership transfer to change the owner role': {
+    ru: 'Чтобы изменить роль владельца, используйте передачу владения.',
+    en: 'Use ownership transfer to change the owner role.',
+  },
+  'Only the group owner can transfer ownership': {
+    ru: 'Передать владение может только владелец группы.',
+    en: 'Only the group owner can transfer ownership.',
+  },
+  'Select another group member as the owner': {
+    ru: 'Выберите другого участника группы новым владельцем.',
+    en: 'Select another group member as the owner.',
+  },
+  'Only group administrators can manage this group': {
+    ru: 'Управлять этой группой могут только её владелец и администраторы.',
+    en: 'Only group administrators can manage this group.',
+  },
+  'Active user not found': {
+    ru: 'Активный пользователь не найден.',
+    en: 'The active user was not found.',
+  },
   'Transfer channel ownership before leaving': {
     ru: 'Перед выходом передайте права владельца другому участнику.',
     en: 'Transfer channel ownership before leaving.',
@@ -251,6 +315,22 @@ const KAZAKH_ERROR_MESSAGES = {
   'Channel avatar cannot be empty': 'Арна аватары бос болмауы керек.',
   'Invite link is invalid or revoked': 'Шақыру сілтемесі жарамсыз немесе кері қайтарылған.',
   'Channel not found': 'Арна табылмады немесе енді қолжетімсіз.',
+  'Group not found': 'Топ табылмады немесе енді қолжетімсіз.',
+  'Only the group owner can edit this group': 'Топ безендіруін тек оның иесі өзгерте алады.',
+  'Only the group owner can delete this group': 'Топты тек оның иесі жоя алады.',
+  'Group avatar cannot be empty': 'Топ аватары бос болмауы керек.',
+  'User is already a group member': 'Бұл пайдаланушы топта әлдеқашан бар.',
+  'Transfer group ownership before leaving': 'Шығу алдында топ иелігін басқа қатысушыға беріңіз.',
+  'Group member not found': 'Топ қатысушысы табылмады.',
+  'Leave the group instead of removing yourself': 'Өзіңізді жоюдың орнына топтан шығыңыз.',
+  'Group owner cannot be removed': 'Топ иесін жоюға болмайды.',
+  'Only the group owner can change member roles': 'Қатысушылардың рөлдерін тек топ иесі өзгерте алады.',
+  'Unsupported group role': 'Мұндай топ рөліне қолдау көрсетілмейді.',
+  'Use ownership transfer to change the owner role': 'Иесінің рөлін өзгерту үшін иелікті беруді пайдаланыңыз.',
+  'Only the group owner can transfer ownership': 'Иелікті тек топ иесі бере алады.',
+  'Select another group member as the owner': 'Жаңа иесі ретінде басқа топ қатысушысын таңдаңыз.',
+  'Only group administrators can manage this group': 'Бұл топты тек оның иесі мен әкімшілері басқара алады.',
+  'Active user not found': 'Белсенді пайдаланушы табылмады.',
   'Transfer channel ownership before leaving': 'Шығу алдында иелік құқығын басқа қатысушыға беріңіз.',
   'Channel member not found': 'Арна қатысушысы табылмады.',
   'Unsupported channel role': 'Мұндай арна рөліне қолдау көрсетілмейді.',

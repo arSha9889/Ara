@@ -30,6 +30,7 @@ export function MobilePushNavigationHandler({ navigation }: Props) {
       attachment: t('chatsAttachment'),
       call: t('call'),
       directChat: t('chatsDirectFallback'),
+      groupChat: t('groupChat'),
       noMessages: t('noMessages'),
       savedMessages: t('chatsSavedMessages'),
       youPrefix: t('youPrefix'),
@@ -117,23 +118,39 @@ export async function navigateFromMobilePush(
       throw new MessageDestinationUnavailableError();
     }
 
+    if (chat.type === 'group') {
+      navigation.navigate('GroupChat', {
+        chatId: chat.id,
+        title: chatTitle(chat, chatCopy),
+        targetMessageId: message.id,
+        targetMessage: message,
+      });
+    } else {
+      navigation.navigate('Chat', {
+        chatId: chat.id,
+        title: chatTitle(chat, chatCopy),
+        peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
+        peerIsOnline: chat.type === 'direct' ? chat.peer?.is_online : undefined,
+        peerLastSeenAt: chat.type === 'direct' ? chat.peer?.last_seen_at : undefined,
+        targetMessageId: message.id,
+        targetMessage: message,
+      });
+    }
+    return;
+  }
+
+  if (chat.type === 'group') {
+    navigation.navigate('GroupChat', {
+      chatId: chat.id,
+      title: chatTitle(chat, chatCopy),
+    });
+  } else {
     navigation.navigate('Chat', {
       chatId: chat.id,
       title: chatTitle(chat, chatCopy),
       peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
       peerIsOnline: chat.type === 'direct' ? chat.peer?.is_online : undefined,
       peerLastSeenAt: chat.type === 'direct' ? chat.peer?.last_seen_at : undefined,
-      targetMessageId: message.id,
-      targetMessage: message,
     });
-    return;
   }
-
-  navigation.navigate('Chat', {
-    chatId: chat.id,
-    title: chatTitle(chat, chatCopy),
-    peerUserId: chat.type === 'direct' ? chat.peer?.id : undefined,
-    peerIsOnline: chat.type === 'direct' ? chat.peer?.is_online : undefined,
-    peerLastSeenAt: chat.type === 'direct' ? chat.peer?.last_seen_at : undefined,
-  });
 }

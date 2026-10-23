@@ -4,6 +4,7 @@ import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 
 const PRIMARY_NAVIGATION_ITEMS = [
   { id: 'chats', icon: 'chats' },
+  { id: 'groups', icon: 'groups' },
   { id: 'channels', icon: 'channels' },
   { id: 'calls', icon: 'calls' },
   { id: 'contacts', icon: 'contacts' },
@@ -21,12 +22,12 @@ function NavigationGroup({ activeSection, items, onSelect, t }) {
     return (
         <AraButton
           aria-current={isActive ? 'page' : undefined}
-          aria-label={item.id === 'channels' ? t('workspace.channels.title') : t(`workspace.${item.id}`)}
+          aria-label={item.id === 'channels' ? t('workspace.channels.title') : item.id === 'groups' ? t('workspace.groups.title') : t(`workspace.${item.id}`)}
           className={`workspace-nav-button ${isActive ? 'is-active' : ''}`}
           key={item.id}
           onClick={() => onSelect(item.id)}
           size="icon"
-          title={item.id === 'channels' ? t('workspace.channels.title') : t(`workspace.${item.id}`)}
+          title={item.id === 'channels' ? t('workspace.channels.title') : item.id === 'groups' ? t('workspace.groups.title') : t(`workspace.${item.id}`)}
         variant={isActive ? 'active' : 'ghost'}
       >
         <Icon name={item.icon} />
