@@ -69,6 +69,11 @@ fn install(
     }
 
     let native_window = native_window(window)?;
+    configure_native_titlebar(native_window, capabilities);
+
+    // Updating the style mask from an undecorated Tauri window to a titled
+    // full-size-content window can rebuild AppKit's content hierarchy. Add the
+    // overlay only after that transition so it remains the topmost subview.
     let root_view = native_window
         .contentView()
         .ok_or_else(|| "The native window has no content view".to_owned())?;
@@ -91,7 +96,6 @@ fn install(
     add_title_label(&glass_content, main_thread);
 
     root_view.addSubview(&glass);
-    configure_native_titlebar(native_window, capabilities);
     IS_INSTALLED.store(true, Ordering::Release);
 
     Ok(true)
