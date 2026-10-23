@@ -5,8 +5,6 @@ import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraFooter } from '../components/AraFooter.jsx';
 import { PublicSiteHeader } from '../components/PublicSiteHeader.jsx';
 
-const PRODUCT_CODE_LINES = '26 486';
-
 export function PresentationPage() {
   const { session } = useSession();
   const isAuthenticated = Boolean(session?.accessToken);
@@ -112,14 +110,14 @@ export function PresentationPage() {
           <div className="ara-build-grid">
             <article className="ara-code-card">
               <span aria-hidden="true"><Icon name="activity" size={21} /></span>
-              <strong>{PRODUCT_CODE_LINES}</strong>
-              <small>строк прикладного кода</small>
-              <p>Веб-клиент и серверная часть AraChat — без зависимостей, сборки, документации, миграций и переводов.</p>
+              <strong>Работающий продукт</strong>
+              <small>без неподтверждённых метрик</small>
+              <p>Веб-клиент, серверная часть и нативные клиенты развиваются как единый продукт.</p>
             </article>
             <ol className="ara-roadmap">
-              <li><span><Icon name="check" size={17} /></span><div><small>Сейчас</small><strong>Личные чаты и обмен важным</strong><p>Текст, фото, видео, файлы, голосовые сообщения, статусы и уведомления.</p></div></li>
-              <li><span><Icon name="activity" size={17} /></span><div><small>Развитие</small><strong>Надёжный realtime-опыт</strong><p>Синхронизация, живые статусы и всё более удобный сценарий общения.</p></div></li>
-              <li><span><Icon name="sparkles" size={17} /></span><div><small>Дальше</small><strong>Desktop и mobile</strong><p>Развитие AraChat как привычного приложения на разных устройствах.</p></div></li>
+              <li><span><Icon name="check" size={17} /></span><div><small>Сейчас</small><strong>Личные чаты и обмен важным</strong><p>Текст, фото, видео, файлы, голосовые и видеосообщения, реакции, ответы, редактирование, закрепления и статусы.</p></div></li>
+              <li><span><Icon name="activity" size={17} /></span><div><small>Реализовано</small><strong>Группы и ветви</strong><p>Групповые чаты, публичные и приватные ветви, подписки, приглашения и комментарии к публикациям.</p></div></li>
+              <li><span><Icon name="sparkles" size={17} /></span><div><small>Публикация и инфраструктура</small><strong>Приложения и связь</strong><p>Android APK уже доступен. Публичные установщики для Desktop и Apple ещё не опубликованы; звонки и Web Push зависят от конфигурации сервера.</p></div></li>
             </ol>
           </div>
           <aside className="ara-ai-note" aria-labelledby="ai-development-title">
