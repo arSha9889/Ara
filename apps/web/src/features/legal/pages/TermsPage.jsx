@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { AraFooter } from '../../onboarding/components/AraFooter.jsx';
 import { PublicSiteHeader } from '../../onboarding/components/PublicSiteHeader.jsx';
 
 const updatedAt = '14 октября 2026 года';
@@ -8,7 +9,7 @@ const operatorEmail = 'artenaantonov@yandex.ru';
 
 export function TermsPage() {
   return (
-    <main className="public-page public-legal-page">
+    <main className="public-page ara-page ara-legal-page">
       <div className="public-shell">
         <PublicSiteHeader minimal />
         <section className="auth-page legal-page">
@@ -92,6 +93,7 @@ export function TermsPage() {
         </div>
           </article>
         </section>
+        <AraFooter />
       </div>
     </main>
   );

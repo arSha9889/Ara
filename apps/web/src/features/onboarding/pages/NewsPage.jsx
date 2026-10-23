@@ -4,63 +4,89 @@ import { Link } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { OFFICIAL_CHANNELS } from '../../../shared/config/projectLinks.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
-import { CometSiteHeader } from '../components/CometSiteHeader.jsx';
+import { AraFooter } from '../components/AraFooter.jsx';
+import { PublicSiteHeader } from '../components/PublicSiteHeader.jsx';
 import { getPublishedProjectNews } from '../api/projectNewsApi.js';
 
 export function NewsPage() {
   const { language, t } = useI18n();
   const [news, setNews] = useState([]);
+  const [status, setStatus] = useState('loading');
+  const [requestVersion, setRequestVersion] = useState(0);
   const activeChannels = OFFICIAL_CHANNELS.filter((channel) => channel.href);
 
   useEffect(() => {
     let isCurrent = true;
+    setStatus('loading');
+
     getPublishedProjectNews(language).then((items) => {
-      if (isCurrent) setNews(items);
+      if (!isCurrent) return;
+      setNews(items);
+      setStatus('ready');
     }).catch(() => {
-      if (isCurrent) setNews([]);
+      if (!isCurrent) return;
+      setNews([]);
+      setStatus('error');
     });
+
     return () => { isCurrent = false; };
-  }, [language]);
+  }, [language, requestVersion]);
 
   return (
-    <main className="public-page comet-page comet-news-page" aria-labelledby="news-title">
-      <div className="comet-shell">
-        <CometSiteHeader activePage="news" />
-        <section className="comet-news-hero">
-          <span className="comet-news-hero-signal" aria-hidden="true" />
-          <p className="comet-kicker"><span />{t('comet.newsKicker')}</p>
-          <h1 id="news-title">{t('comet.newsTitle')}</h1>
-          <p>{t('comet.newsLead')}</p>
+    <main className="public-page ara-page ara-news-page" aria-labelledby="news-title">
+      <div className="ara-shell ara-news-shell">
+        <a className="ara-skip-link" href="#news-content">{t('common.skipToContent')}</a>
+        <PublicSiteHeader activePage="news" />
+
+        <section className="ara-editorial-hero" id="news-content" tabIndex="-1">
+          <div>
+            <p className="ara-overline">{t('comet.newsKicker')}</p>
+            <h1 id="news-title">{t('comet.newsTitle')}</h1>
+            <p>{t('comet.newsLead')}</p>
+          </div>
+          <div className="ara-editorial-hero-signal" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
         </section>
 
-        {news.length ? (
-          <section className="comet-news-timeline" aria-label={t('comet.newsTitle')}>
-            {news.map((item) => (
-              <article className="comet-news-entry" key={item.slug}>
-                <p>{new Date(item.published_at).toLocaleDateString(language)}</p>
-                <h2><Link to={`/news/${item.slug}`}>{item.title}</Link></h2>
-                <p>{item.excerpt}</p>
+        {status === 'loading' ? (
+          <section className="ara-news-loading" aria-live="polite" aria-busy="true">
+            <span className="ara-sr-only">{t('common.loading')}</span>
+            {[0, 1, 2].map((item) => <div className="ara-news-skeleton" key={item} aria-hidden="true" />)}
+          </section>
+        ) : news.length ? (
+          <section className="ara-news-feed" aria-label={t('comet.newsTitle')}>
+            {news.map((item, index) => (
+              <article className="ara-journal-entry" key={item.slug}>
+                <div className="ara-journal-entry-meta">
+                  <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                  <time dateTime={item.published_at}>{new Date(item.published_at).toLocaleDateString(language)}</time>
+                </div>
+                <div>
+                  <h2><Link to={`/news/${item.slug}`}>{item.title}<Icon name="arrowRight" size={20} /></Link></h2>
+                  <p>{item.excerpt}</p>
+                </div>
               </article>
             ))}
           </section>
         ) : (
-          <section className="comet-news-empty" aria-labelledby="news-empty-title">
-            <span className="comet-news-empty-icon"><Icon name="sparkles" size={25} /></span>
+          <section className="ara-news-empty" aria-labelledby="news-empty-title" aria-live={status === 'error' ? 'assertive' : undefined}>
+            <span className="ara-news-empty-icon" aria-hidden="true"><Icon name={status === 'error' ? 'refresh' : 'sparkles'} size={25} /></span>
             <div>
-              <p className="comet-kicker">{t('comet.newsEmptyKicker')}</p>
+              <p className="ara-overline">{t('comet.newsEmptyKicker')}</p>
               <h2 id="news-empty-title">{t('comet.newsEmptyTitle')}</h2>
               <p>{t('comet.newsEmptyText')}</p>
+              {status === 'error' ? <button className="ara-button ara-button-secondary" type="button" onClick={() => setRequestVersion((version) => version + 1)}>{t('common.retry')}<Icon name="refresh" size={17} /></button> : null}
             </div>
-            <div className="comet-news-channel-links">
+            {activeChannels.length ? <div className="ara-news-channel-links">
               {activeChannels.map((channel) => <a href={channel.href} target="_blank" rel="noreferrer" key={channel.key}>{channel.title}<Icon name="arrowRight" size={15} /></a>)}
-            </div>
+            </div> : null}
           </section>
         )}
 
-        <footer className="comet-news-footer">
-          <Link to="/">{t('comet.backToHome')} <Icon name="arrowLeft" size={16} /></Link>
-          <span>AraChat Comet</span>
-        </footer>
+        <AraFooter />
       </div>
     </main>
   );

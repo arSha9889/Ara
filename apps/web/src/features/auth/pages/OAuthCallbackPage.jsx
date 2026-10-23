@@ -46,7 +46,7 @@ export function OAuthCallbackPage() {
   }, [navigate, saveSession, session.accessToken, t]);
 
   return (
-    <main className="public-page public-auth-page">
+    <main className="public-page ara-page ara-auth-page">
       <div className="public-shell">
         <PublicSiteHeader minimal publicOnly={false} />
         <section className="auth-page"><section className="panel auth-card"><h1>AraChat</h1><p className="muted">{message}</p><Link className="auth-switch-link" to="/login">{t('common.backToLogin')}</Link></section></section>

@@ -121,7 +121,7 @@ export function RegisterPage() {
   }
 
   return (
-    <main className="public-page public-auth-page">
+    <main className="public-page ara-page ara-auth-page">
       <div className="public-shell">
         <PublicSiteHeader minimal publicOnly={false} />
         <section className="auth-page">

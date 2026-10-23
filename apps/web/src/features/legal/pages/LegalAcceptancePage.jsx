@@ -38,7 +38,7 @@ export function LegalAcceptancePage() {
   }
 
   return (
-    <main className="public-page public-legal-page">
+    <main className="public-page ara-page ara-legal-page">
       <div className="public-shell">
         <PublicSiteHeader minimal showAuthAction={false} showLanguage={false} />
         <section className="auth-page legal-page">
