@@ -7,6 +7,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import models  # noqa: F401
+from app.core.config import settings
 from app.db.base import Base
 from app.models.chats import MobilePushToken, Notification
 from app.models.safety import ContentReport, UserBlock
@@ -57,7 +58,7 @@ async def _create_user(session, marker: str) -> User:
 def _mobile_request(
     device_id: str,
     token: str,
-    provider: str = 'fcm',
+    provider: str = 'rustore',
 ) -> MobilePushTokenRegisterRequest:
     return MobilePushTokenRegisterRequest(
         device_id=device_id,
@@ -97,14 +98,15 @@ async def test_mobile_push_token_moves_to_current_user_and_deactivates() -> None
             assert len(tokens) == 1
             assert tokens[0].user_id == second_user.id
 
-            await deactivate_mobile_push_tokens(session, second_user.id, device_id, 'fcm')
+            await deactivate_mobile_push_tokens(session, second_user.id, device_id, 'rustore')
             assert not (await session.get(MobilePushToken, refreshed.id)).is_active
     finally:
         await engine.dispose()
 
 
 @pytest.mark.anyio
-async def test_mobile_push_token_registration_deactivates_the_other_provider_for_one_device() -> None:
+async def test_fcm_registration_is_ignored_while_suspended(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, 'fcm_push_enabled', False)
     engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     try:
@@ -121,19 +123,15 @@ async def test_mobile_push_token_registration_deactivates_the_other_provider_for
                 user.id,
                 _mobile_request(device_id, f'rustore-{uuid4()}', provider='rustore'),
             )
-            await save_mobile_push_token(
+            ignored = await save_mobile_push_token(
                 session,
                 user.id,
                 _mobile_request(device_id, f'fcm-{uuid4()}', provider='fcm'),
             )
 
             tokens = list((await session.execute(select(MobilePushToken))).scalars())
-            assert {token.provider for token in tokens} == {'rustore', 'fcm'}
-            assert {
-                token.provider
-                for token in tokens
-                if token.is_active
-            } == {'fcm'}
+            assert ignored is None
+            assert [(token.provider, token.is_active) for token in tokens] == [('rustore', True)]
     finally:
         await engine.dispose()
 

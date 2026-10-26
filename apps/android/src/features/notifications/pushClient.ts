@@ -22,7 +22,6 @@ interface NativePushModule {
 
 const PUSH_PROVIDER_BY_SDK_KEY: Record<string, MobilePushProvider> = {
   rustore: 'rustore',
-  firebase: 'fcm',
 };
 const NOTIFICATION_OPEN_EVENT = 'AraChatNotificationOpen';
 

@@ -2,7 +2,7 @@ import { NativeModules } from 'react-native';
 
 import { apiClient } from '../../../infrastructure/http/apiClient';
 
-export type MobilePushProvider = 'rustore' | 'fcm';
+export type MobilePushProvider = 'rustore';
 
 export interface MobilePushToken {
   provider: MobilePushProvider;

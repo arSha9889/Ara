@@ -20,8 +20,10 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
     synchronized(notificationOpenLock) {
       activeModule = WeakReference(this)
     }
-    RuStoreUniversalPushClient.setOnNewTokenListener { provider, token ->
-      emitToken(provider, token)
+    if (PushProviderSelector.select(reactApplicationContext) != null) {
+      RuStoreUniversalPushClient.setOnNewTokenListener { provider, token ->
+        emitToken(provider, token)
+      }
     }
   }
 
@@ -30,6 +32,10 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
   @ReactMethod
   fun getTokens(promise: Promise) {
     val selectedProvider = PushProviderSelector.select(reactApplicationContext)
+    if (selectedProvider == null) {
+      promise.resolve(Arguments.createMap())
+      return
+    }
     RuStoreUniversalPushClient.getTokens()
       .addOnSuccessListener { tokens ->
         val result = Arguments.createMap()
@@ -46,11 +52,19 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
 
   @ReactMethod
   fun getNotificationPermissionStatus(promise: Promise) {
+    if (PushProviderSelector.select(reactApplicationContext) == null) {
+      promise.resolve(PERMISSION_DENIED)
+      return
+    }
     promise.resolve(notificationPermissionStatus())
   }
 
   @ReactMethod
   fun requestNotificationPermission(promise: Promise) {
+    if (PushProviderSelector.select(reactApplicationContext) == null) {
+      promise.resolve(PERMISSION_DENIED)
+      return
+    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
       promise.resolve(PERMISSION_GRANTED)
       return
@@ -128,7 +142,7 @@ class PushModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
   }
 
   private fun emitToken(provider: String, token: String) {
-    if (provider != PushProviderSelector.select(reactApplicationContext).sdkKey || token.isBlank()) {
+    if (provider != PushProviderSelector.select(reactApplicationContext)?.sdkKey || token.isBlank()) {
       return
     }
 

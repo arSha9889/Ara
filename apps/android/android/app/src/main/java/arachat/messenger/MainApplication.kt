@@ -8,7 +8,6 @@ import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import ru.rustore.sdk.pushclient.common.logger.Logger
 import ru.rustore.sdk.universalpush.RuStoreUniversalPushClient
-import ru.rustore.sdk.universalpush.firebase.provides.FirebasePushProvider
 import ru.rustore.sdk.universalpush.rustore.providers.RuStorePushProvider
 
 class MainApplication : Application(), ReactApplication {
@@ -27,34 +26,30 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
-    initializePushProviders()
-    PushNotificationHandler.install(this)
+    if (initializePushProviders()) {
+      PushNotificationHandler.install(this)
+    }
     loadReactNative(this)
   }
 
-  private fun initializePushProviders() {
-    val selectedProvider = PushProviderSelector.select(this)
-    val rustoreProvider = if (selectedProvider == AndroidPushProvider.RUSTORE) {
-      BuildConfig.RUSTORE_PUSH_PROJECT_ID.trim().takeIf { it.isNotEmpty() }?.let { projectId ->
-        RuStorePushProvider(
-          application = this,
-          projectId = projectId,
-          logger = PushLogger,
-        )
-      }
-    } else {
-      null
+  private fun initializePushProviders(): Boolean {
+    if (PushProviderSelector.select(this) != AndroidPushProvider.RUSTORE) {
+      return false
     }
+    val rustoreProvider = BuildConfig.RUSTORE_PUSH_PROJECT_ID.trim().takeIf { it.isNotEmpty() }?.let { projectId ->
+      RuStorePushProvider(
+        application = this,
+        projectId = projectId,
+        logger = PushLogger,
+      )
+    } ?: return false
 
     RuStoreUniversalPushClient.init(
       context = this,
       rustore = rustoreProvider,
-      firebase = if (selectedProvider == AndroidPushProvider.FCM) {
-        FirebasePushProvider(context = this)
-      } else {
-        null
-      },
+      firebase = null,
     )
+    return true
   }
 
   private object PushLogger : Logger {

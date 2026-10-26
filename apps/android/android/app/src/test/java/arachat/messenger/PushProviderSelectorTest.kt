@@ -1,6 +1,7 @@
 package arachat.messenger
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PushProviderSelectorTest {
@@ -10,18 +11,12 @@ class PushProviderSelectorTest {
       AndroidPushProvider.RUSTORE,
       PushProviderSelector.select("ru.vk.store"),
     )
-    assertEquals(
-      AndroidPushProvider.FCM,
-      PushProviderSelector.select("ru.vk.store.beta"),
-    )
+    assertNull(PushProviderSelector.select("ru.vk.store.beta"))
   }
 
   @Test
-  fun `selects FCM for Google Play direct and unknown installations`() {
-    assertEquals(
-      AndroidPushProvider.FCM,
-      PushProviderSelector.select("com.android.vending"),
-    )
-    assertEquals(AndroidPushProvider.FCM, PushProviderSelector.select(null))
+  fun `disables mobile push for Google Play direct and unknown installations`() {
+    assertNull(PushProviderSelector.select("com.android.vending"))
+    assertNull(PushProviderSelector.select(null))
   }
 }

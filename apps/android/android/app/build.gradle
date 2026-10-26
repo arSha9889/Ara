@@ -1,7 +1,6 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-apply plugin: "com.google.gms.google-services"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -178,7 +177,6 @@ dependencies {
 
     implementation("ru.rustore.sdk:universalpush:7.4.1")
     implementation("ru.rustore.sdk:universalrustore:7.4.1")
-    implementation("ru.rustore.sdk:universalfcm:7.4.1")
 
     testImplementation("junit:junit:4.13.2")
 }

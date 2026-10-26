@@ -14,7 +14,7 @@ def _request(provider: str) -> MobilePushTokenRegisterRequest:
 
 
 @pytest.mark.parametrize('provider', ['rustore', 'fcm'])
-def test_mobile_push_schema_accepts_separate_rustore_and_fcm_providers(provider: str) -> None:
+def test_mobile_push_schema_accepts_rustore_and_legacy_fcm_providers(provider: str) -> None:
     assert _request(provider).provider == provider
 
 

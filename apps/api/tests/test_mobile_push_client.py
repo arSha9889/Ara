@@ -7,10 +7,10 @@ from uuid import uuid4
 import pytest
 
 from app.core.config import Settings, settings
-from app.models.chats import Notification
+from app.models.chats import MobilePushToken, Notification
 from app.schemas.chats import NotificationOut, NotificationTargetOut
 from app.services import mobile_push_client
-from app.services.notification_service import _mobile_call_push_data, _mobile_push_data, _notification_out
+from app.services.notification_service import _mobile_call_push_data, _mobile_push_data, _mobile_tokens_by_provider, _notification_out
 
 
 class FakeResponse:
@@ -29,6 +29,7 @@ class FakeResponse:
 
 def _configure_rustore(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, 'mobile_push_enabled', True)
+    monkeypatch.setattr(settings, 'fcm_push_enabled', False)
     monkeypatch.setattr(settings, 'rustore_push_project_id', 'rustore-project')
     monkeypatch.setattr(settings, 'rustore_push_service_token', 'rustore-service-token')
     monkeypatch.setattr(settings, 'fcm_push_project_id', '')
@@ -39,6 +40,7 @@ def test_mobile_push_is_enabled_by_default(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.delenv('NEXUS_MOBILE_PUSH_ENABLED', raising=False)
 
     assert Settings(_env_file=None).mobile_push_enabled
+    assert not Settings(_env_file=None).fcm_push_enabled
 
 
 @pytest.mark.anyio
@@ -112,7 +114,7 @@ async def test_mobile_push_is_not_sent_when_disabled(monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.anyio
-async def test_mobile_push_groups_rustore_and_fcm_tokens(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+async def test_mobile_push_excludes_fcm_tokens_while_suspended(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     _configure_rustore(monkeypatch)
     service_account_file = tmp_path / 'fcm-service-account.json'
     service_account_file.write_text('{}')
@@ -120,7 +122,7 @@ async def test_mobile_push_groups_rustore_and_fcm_tokens(monkeypatch: pytest.Mon
     monkeypatch.setattr(settings, 'fcm_service_account_file', str(service_account_file))
 
     async def fake_fcm_access_token() -> str:
-        return 'fcm-oauth-token'
+        pytest.fail('FCM credentials must not be requested while FCM is suspended')
 
     monkeypatch.setattr(mobile_push_client, '_get_fcm_access_token', fake_fcm_access_token)
     captured = {}
@@ -148,11 +150,32 @@ async def test_mobile_push_groups_rustore_and_fcm_tokens(monkeypatch: pytest.Mon
     assert result.delivered
     assert captured['payload']['tokens'] == {
         'rustore': ['rustore-token-123456789'],
-        'fcm': ['fcm-token-123456789'],
     }
-    assert captured['payload']['providers']['fcm'] == {
-        'project_id': 'firebase-project',
-        'auth_token': 'fcm-oauth-token',
+    assert 'fcm' not in captured['payload']['providers']
+
+
+def test_mobile_push_token_grouping_excludes_stored_fcm_tokens_while_suspended(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, 'fcm_push_enabled', False)
+    user_id = uuid4()
+    tokens = [
+        MobilePushToken(
+            user_id=user_id,
+            device_id='rustore-device',
+            provider='rustore',
+            package_name='arachat.messenger',
+            token='rustore-token-123456789',
+        ),
+        MobilePushToken(
+            user_id=user_id,
+            device_id='legacy-fcm-device',
+            provider='fcm',
+            package_name='arachat.messenger',
+            token='fcm-token-123456789',
+        ),
+    ]
+
+    assert _mobile_tokens_by_provider(tokens) == {
+        'rustore': ['rustore-token-123456789'],
     }
 
 

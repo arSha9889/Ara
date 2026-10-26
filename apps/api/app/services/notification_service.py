@@ -21,7 +21,7 @@ from app.schemas.chats import (
     PushSubscriptionCreateRequest,
 )
 from app.services.localization import message_preview, tr
-from app.services.mobile_push_client import send_mobile_push
+from app.services.mobile_push_client import fcm_push_is_enabled, send_mobile_push
 from app.services.mobile_push_token_service import deactivate_mobile_push_tokens
 from app.services.realtime_manager import realtime_manager
 from app.services.safety_service import is_user_interaction_blocked
@@ -101,7 +101,10 @@ async def save_mobile_push_token(
     session: AsyncSession,
     user_id: UUID,
     request: MobilePushTokenRegisterRequest,
-) -> MobilePushToken:
+) -> MobilePushToken | None:
+    if request.provider == 'fcm' and not fcm_push_is_enabled():
+        return None
+
     try:
         matching_token = await session.scalar(select(MobilePushToken).where(MobilePushToken.token == request.token))
         matching_device = await session.scalar(
@@ -498,8 +501,11 @@ async def send_mobile_call_invite_push(
 
 def _mobile_tokens_by_provider(tokens: list[MobilePushToken]) -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
+    enabled_providers = {'rustore'}
+    if fcm_push_is_enabled():
+        enabled_providers.add('fcm')
     for token in tokens:
-        if token.provider in {'rustore', 'fcm'}:
+        if token.provider in enabled_providers:
             result.setdefault(token.provider, []).append(token.token)
     return result
 

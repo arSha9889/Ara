@@ -34,7 +34,7 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-test('maps the Universal SDK firebase key to the server fcm provider', async () => {
+test('returns only RuStore tokens and ignores disabled Firebase tokens', async () => {
   nativePush.getTokens.mockResolvedValue({
     firebase: 'f'.repeat(32),
     rustore: 'r'.repeat(32),
@@ -42,7 +42,6 @@ test('maps the Universal SDK firebase key to the server fcm provider', async () 
   });
 
   await expect(getMobilePushTokens()).resolves.toEqual([
-    { provider: 'fcm', token: 'f'.repeat(32) },
     { provider: 'rustore', token: 'r'.repeat(32) },
   ]);
 });

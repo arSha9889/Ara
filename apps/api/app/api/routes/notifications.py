@@ -48,7 +48,7 @@ async def register_mobile_push_token(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> MobilePushTokenOut:
     token = await save_mobile_push_token(session, current_user.id, request)
-    return MobilePushTokenOut(active=token.is_active)
+    return MobilePushTokenOut(active=bool(token and token.is_active))
 
 
 @router.delete('/mobile-tokens')

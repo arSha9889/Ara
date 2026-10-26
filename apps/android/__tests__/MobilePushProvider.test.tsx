@@ -89,7 +89,7 @@ describe('MobilePushProvider', () => {
 
   it('requests permission once for a newly registered user and keeps it enabled when token synchronization fails', async () => {
     mockRequestNotificationPermission.mockResolvedValue('granted');
-    mockGetMobilePushTokens.mockResolvedValue([{ provider: 'fcm', token: 'f'.repeat(32) }]);
+    mockGetMobilePushTokens.mockResolvedValue([{ provider: 'rustore', token: 'r'.repeat(32) }]);
     mockRegisterMobilePushToken.mockRejectedValue(new Error('Mobile token endpoint is unavailable'));
     mockConsumeNotificationPermissionRequest.mockResolvedValue(true);
 
@@ -107,7 +107,7 @@ describe('MobilePushProvider', () => {
     expect(mockRequestNotificationPermission).toHaveBeenCalledTimes(1);
     expect(mockRegisterMobilePushToken).toHaveBeenCalledWith(
       'test-device-id',
-      { provider: 'fcm', token: 'f'.repeat(32) },
+      { provider: 'rustore', token: 'r'.repeat(32) },
     );
 
     await act(async () => {

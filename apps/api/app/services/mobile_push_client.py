@@ -9,9 +9,6 @@ from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from google.auth.transport.requests import Request as GoogleRequest
-from google.oauth2 import service_account
-
 from app.core.config import settings
 
 
@@ -36,6 +33,10 @@ _fcm_service_account_file: str | None = None
 
 def mobile_push_is_configured() -> bool:
     return settings.mobile_push_enabled and bool(_configured_providers())
+
+
+def fcm_push_is_enabled() -> bool:
+    return settings.fcm_push_enabled
 
 
 async def send_mobile_push(
@@ -75,10 +76,11 @@ def _configured_providers() -> dict[MobilePushProvider, dict[str, str]]:
             'auth_token': rustore_service_token,
         }
 
-    fcm_project_id = settings.fcm_push_project_id.strip()
-    fcm_service_account_file = settings.fcm_service_account_file.strip()
-    if fcm_project_id and fcm_service_account_file and Path(fcm_service_account_file).is_file():
-        providers['fcm'] = {'project_id': fcm_project_id, 'auth_token': ''}
+    if fcm_push_is_enabled():
+        fcm_project_id = settings.fcm_push_project_id.strip()
+        fcm_service_account_file = settings.fcm_service_account_file.strip()
+        if fcm_project_id and fcm_service_account_file and Path(fcm_service_account_file).is_file():
+            providers['fcm'] = {'project_id': fcm_project_id, 'auth_token': ''}
     return providers
 
 
@@ -88,6 +90,9 @@ async def _get_fcm_access_token() -> str:
 
 def _load_fcm_access_token() -> str:
     global _fcm_access_token, _fcm_access_token_expires_at, _fcm_service_account_file
+
+    from google.auth.transport.requests import Request as GoogleRequest
+    from google.oauth2 import service_account
 
     service_account_file = settings.fcm_service_account_file.strip()
     with _fcm_token_lock:
