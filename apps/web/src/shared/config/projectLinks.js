@@ -53,7 +53,7 @@ export const APP_DISTRIBUTION = [
             icon: 'shield',
             labelKey: 'onboarding.downloadApk',
             descriptionKey: 'onboarding.downloadApkText',
-            href: 'https://aramsg.ru/downloads/arachat-1.0.apk',
+            href: 'https://aramsg.ru/downloads/arachat-1.0.1.apk',
           },
         ],
       },

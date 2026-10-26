@@ -126,8 +126,8 @@ android {
         applicationId = "arachat.messenger"
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
-        versionCode = 5
-        versionName = "1.0"
+        versionCode = 6
+        versionName = "1.0.1"
         buildConfigField "String", "API_BASE_URL", "\"${escapedApiBaseUrl}\""
         buildConfigField "String", "RUSTORE_PUSH_PROJECT_ID", "\"${escapedRustorePushProjectId}\""
     }
