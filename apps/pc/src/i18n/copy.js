@@ -1543,6 +1543,24 @@ export const COPY = {
   },
 };
 
+Object.assign(COPY.ru.workspace.chatPanel, {
+  messageActions: 'Действия с сообщением',
+  preparingVoice: 'Подготавливаем голосовое сообщение…',
+  voicePlaybackError: 'Не удалось воспроизвести голосовое сообщение на этом устройстве.',
+});
+
+Object.assign(COPY.en.workspace.chatPanel, {
+  messageActions: 'Message actions',
+  preparingVoice: 'Preparing voice message…',
+  voicePlaybackError: 'Could not play this voice message on this device.',
+});
+
+Object.assign(COPY.kk.workspace.chatPanel, {
+  messageActions: 'Хабарлама әрекеттері',
+  preparingVoice: 'Дауыстық хабарлама дайындалуда…',
+  voicePlaybackError: 'Бұл құрылғыда дауыстық хабарламаны ойнату мүмкін болмады.',
+});
+
 Object.assign(COPY.kk.workspace.callsPanel, {
   findPerson: 'Адамды табу',
   historyTitle: 'Қоңыраулар тарихы',

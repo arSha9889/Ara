@@ -78,5 +78,5 @@ export function useAuthenticatedMediaUrl(mediaUrl, accessToken) {
     return () => URL.revokeObjectURL(objectUrl);
   }, [blob, mediaUrl]);
 
-  return { url, isLoading, error };
+  return { blob, url, isLoading, error };
 }

@@ -16,8 +16,8 @@ import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
 import { formatFileSize } from '../../shared/format/fileSize.js';
 import { GroupDetailsPanel } from './GroupDetailsPanel.jsx';
 import { MessageContent, displayMessageType } from './MessageContent.jsx';
+import { MessageContextMenu, messageMenuPositionFromEvent } from './MessageContextMenu.jsx';
 
-const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '🙏', '🔥'];
 const ACCEPTED_FILE_TYPES = 'image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/avif,video/mp4,video/webm,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,application/pdf,text/plain';
 
 function initials(value) {
@@ -95,7 +95,7 @@ export function GroupChatPanel({
   const [selectedFile, setSelectedFile] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
-  const [openReactionPickerMessageId, setOpenReactionPickerMessageId] = useState(null);
+  const [messageActionMenu, setMessageActionMenu] = useState(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -283,7 +283,6 @@ export function GroupChatPanel({
     try {
       const updated = await reactToMessage(accessToken, chat.id, message.id, emoji);
       setMessages((current) => upsertMessage(current, updated));
-      setOpenReactionPickerMessageId(null);
     } catch (requestError) {
       setComposerError(requestError.message);
     }
@@ -294,7 +293,22 @@ export function GroupChatPanel({
     setDraft(message.payload || '');
     setSelectedFile(null);
     setReplyingTo(null);
-    setOpenReactionPickerMessageId(null);
+  }
+
+  function openMessageActionMenu(event, message, isMine) {
+    event.preventDefault();
+    setMessageActionMenu({
+      ...messageMenuPositionFromEvent(event),
+      canEdit: isMine && message.type === 'text',
+      isMine,
+      message,
+      trigger: event.currentTarget,
+    });
+  }
+
+  function handleMessageActionMenuKeyDown(event, message, isMine) {
+    if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+    openMessageActionMenu(event, message, isMine);
   }
 
   function handleFileSelected(event) {
@@ -345,23 +359,22 @@ export function GroupChatPanel({
         const isMine = String(message.sender_id) === String(currentUserId);
         const authorName = message.author?.display_name || message.author?.username || t('workspace.unknownUser');
         const isFocused = String(message.id) === String(highlightedMessageId);
-        return <article className={`chat-message group-message ${isMine ? 'is-mine' : ''} ${isFocused ? 'is-notification-target' : ''} ${isSystem ? 'is-system' : ''}`} key={message.id} ref={(element) => {
+        return <article aria-expanded={!isSystem && !message.deleted_at && messageActionMenu?.message.id === message.id} aria-haspopup={!isSystem && !message.deleted_at ? 'menu' : undefined} aria-label={!isSystem && !message.deleted_at ? t('workspace.chatPanel.messageActions') : undefined} className={`chat-message group-message ${isMine ? 'is-mine' : ''} ${isFocused ? 'is-notification-target' : ''} ${isSystem ? 'is-system' : ''}`} key={message.id} onContextMenu={!isSystem && !message.deleted_at ? (event) => openMessageActionMenu(event, message, isMine) : undefined} onKeyDown={!isSystem && !message.deleted_at ? (event) => handleMessageActionMenuKeyDown(event, message, isMine) : undefined} ref={(element) => {
           const messageId = String(message.id);
           if (element) messageElementRefs.current.set(messageId, element);
           else messageElementRefs.current.delete(messageId);
-        }}>
+        }} tabIndex={!isSystem && !message.deleted_at ? 0 : undefined}>
           <div className="chat-message-bubble">
             {!isSystem ? <header className="group-message-author"><strong>{isMine ? t('workspace.chatPanel.you') : authorName}</strong>{message.author?.username && !isMine ? <span>@{message.author.username}</span> : null}</header> : null}
             {!isSystem && message.reply_to ? <div className="chat-reply-preview"><span>{message.reply_to.author?.display_name || t('workspace.chatPanel.you')}</span><small>{messagePreview(message.reply_to, t)}</small></div> : null}
             <MessageContent accessToken={accessToken} chatId={chat.id} message={message} t={t} />
             {!isSystem && message.reactions?.length ? <div className="chat-reactions">{message.reactions.map((reaction) => <AraButton aria-pressed={reaction.reacted_by_me} key={reaction.emoji} onClick={() => void handleReaction(message, reaction.emoji)} size="compact" type="button" variant={reaction.reacted_by_me ? 'selected' : 'surface'}>{reaction.emoji}<span>{reaction.count}</span></AraButton>)}</div> : null}
-            {!isSystem && !message.deleted_at ? <div className="chat-message-actions"><AraButton onClick={() => setReplyingTo(message)} size="compact" type="button" variant="ghost"><Icon name="reply" size={14} />{t('workspace.chatPanel.reply')}</AraButton><AraButton aria-expanded={openReactionPickerMessageId === message.id} onClick={() => setOpenReactionPickerMessageId((current) => current === message.id ? null : message.id)} size="compact" type="button" variant="ghost"><Icon name="smile" size={14} />{t('workspace.chatPanel.react')}</AraButton><AraButton aria-pressed={message.is_pinned} onClick={() => void handlePin(message)} size="compact" type="button" variant={message.is_pinned ? 'selected' : 'ghost'}><Icon name="pin" size={14} />{message.is_pinned ? t('workspace.chatPanel.unpin') : t('workspace.chatPanel.pin')}</AraButton>{isMine && message.type === 'text' ? <AraButton onClick={() => startEditing(message)} size="compact" type="button" variant="ghost"><Icon name="edit" size={14} />{t('workspace.chatPanel.edit')}</AraButton> : null}{isMine ? <AraButton className="is-danger" onClick={() => void handleDelete(message)} size="compact" type="button" variant="ghost"><Icon name="trash" size={14} />{t('workspace.chatPanel.delete')}</AraButton> : null}</div> : null}
-            {!isSystem && openReactionPickerMessageId === message.id ? <div aria-label={t('workspace.chatPanel.reactionsLabel')} className="chat-reaction-picker">{REACTION_EMOJIS.map((emoji) => <AraButton key={emoji} onClick={() => void handleReaction(message, emoji)} size="compact" type="button" variant="surface">{emoji}</AraButton>)}</div> : null}
           </div>
           <footer><time dateTime={message.created_at}>{formatMessageTime(message.created_at)}</time>{message.edited_at && !message.deleted_at ? <span>{t('workspace.chatPanel.edited')}</span> : null}{message.is_pinned ? <span>{t('workspace.chatPanel.pinned')}</span> : null}</footer>
         </article>;
       }) : <div className="chat-empty-history"><span className="workspace-avatar workspace-avatar-large channel-header-avatar" aria-hidden="true">{avatarUrl ? <img src={avatarUrl} alt="" /> : initials(group.title)}</span><strong>{t('workspace.groups.noMessagesTitle')}</strong><p>{t('workspace.groups.noMessagesText')}</p></div>}
     </div>
+    <MessageContextMenu contextMenu={messageActionMenu} onClose={() => setMessageActionMenu(null)} onDelete={(message) => void handleDelete(message)} onEdit={startEditing} onPin={(message) => void handlePin(message)} onReact={(message, emoji) => void handleReaction(message, emoji)} onReply={setReplyingTo} t={t} />
 
     <div className="chat-composer-area">
       {composerError ? <p className="chat-composer-error" id="group-message-error" role="alert">{composerError}</p> : null}

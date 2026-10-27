@@ -4,6 +4,7 @@ import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
 import { useAuthenticatedMediaBlob, useAuthenticatedMediaUrl } from '../../shared/api/authenticatedMedia.js';
 import { decryptE2eeAttachment } from '../../shared/crypto/e2eeDesktop.js';
 import { formatFileSize } from '../../shared/format/fileSize.js';
+import { dataUrlForBlob } from '../../shared/media/dataUrl.js';
 
 function formatDuration(value) {
   const totalSeconds = Math.max(0, Math.round(Number(value) || 0));
@@ -67,17 +68,48 @@ export function displayMessageType(message) {
   return 'file';
 }
 
-function VoiceMessage({ durationSeconds, url, t }) {
+function VoiceMessage({ blob, durationSeconds, url, t }) {
   const audioRef = useRef(null);
+  const fallbackAttemptedRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [playbackUrl, setPlaybackUrl] = useState(url);
+  const [isPreparingFallback, setIsPreparingFallback] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
   const duration = Number(durationSeconds) || audioRef.current?.duration || 0;
+
+  useEffect(() => {
+    fallbackAttemptedRef.current = false;
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setIsPreparingFallback(false);
+    setPlaybackError(false);
+    setPlaybackUrl(url);
+  }, [url]);
+
+  function prepareDataUrlFallback() {
+    setIsPlaying(false);
+    if (!blob || fallbackAttemptedRef.current) {
+      setPlaybackError(true);
+      return;
+    }
+
+    fallbackAttemptedRef.current = true;
+    setIsPreparingFallback(true);
+    void dataUrlForBlob(blob)
+      .then((fallbackUrl) => {
+        setPlaybackUrl(fallbackUrl);
+        setPlaybackError(false);
+      })
+      .catch(() => setPlaybackError(true))
+      .finally(() => setIsPreparingFallback(false));
+  }
 
   function togglePlayback() {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || isPreparingFallback) return;
     if (audio.paused) {
-      void audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      void audio.play().then(() => setIsPlaying(true)).catch(prepareDataUrlFallback);
       return;
     }
     audio.pause();
@@ -94,13 +126,15 @@ function VoiceMessage({ durationSeconds, url, t }) {
   }
 
   return <div className={`chat-voice-message ${isPlaying ? 'is-playing' : ''}`}>
-    <button type="button" className="chat-media-play" onClick={togglePlayback} aria-label={isPlaying ? t('workspace.chatPanel.pauseVoice') : t('workspace.chatPanel.playVoice')} title={isPlaying ? t('workspace.chatPanel.pauseVoice') : t('workspace.chatPanel.playVoice')}><Icon name={isPlaying ? 'pause' : 'play'} size={16} /></button>
+    <button type="button" className="chat-media-play" disabled={isPreparingFallback} onClick={togglePlayback} aria-label={isPreparingFallback ? t('workspace.chatPanel.preparingVoice') : isPlaying ? t('workspace.chatPanel.pauseVoice') : t('workspace.chatPanel.playVoice')} title={isPreparingFallback ? t('workspace.chatPanel.preparingVoice') : isPlaying ? t('workspace.chatPanel.pauseVoice') : t('workspace.chatPanel.playVoice')}><Icon name={isPlaying ? 'pause' : 'play'} size={16} /></button>
     <div className="chat-voice-message-body">
       <span>{t('workspace.chatPanel.typeVoice')}</span>
       <div className="chat-voice-wave" aria-hidden="true">{Array.from({ length: 18 }).map((_, index) => <i key={index} style={{ '--voice-bar': index }} />)}</div>
     </div>
     <time>{formatDuration(isPlaying ? currentTime : duration)}</time>
-    <audio ref={audioRef} src={url} preload="metadata" onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+    {isPreparingFallback ? <p className="chat-voice-playback-status" role="status">{t('workspace.chatPanel.preparingVoice')}</p> : null}
+    {playbackError ? <p className="chat-voice-playback-status is-error" role="alert">{t('workspace.chatPanel.voicePlaybackError')}</p> : null}
+    <audio ref={audioRef} src={playbackUrl} preload="metadata" onError={prepareDataUrlFallback} onTimeUpdate={handleTimeUpdate} onEnded={handleEnded} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
   </div>;
 }
 
@@ -129,12 +163,12 @@ function VideoNoteMessage({ durationSeconds, url, t }) {
 
 function MediaMessage({ accessToken, message, t }) {
   const displayType = displayMessageType(message);
-  const { error, isLoading, url } = useAuthenticatedMediaUrl(message.deleted_at ? null : message.media_url, accessToken);
+  const { blob, error, isLoading, url } = useAuthenticatedMediaUrl(message.deleted_at ? null : message.media_url, accessToken);
 
   if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
   if (isLoading) return <p className="chat-media-status" role="status">{t('workspace.chatPanel.loadingMedia')}</p>;
   if (error || !url) return <p className="chat-media-status is-error">{t('workspace.chatPanel.mediaLoadError')}</p>;
-  if (message.type === 'voice') return <><VoiceMessage durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
+  if (message.type === 'voice') return <><VoiceMessage blob={blob} durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (message.type === 'video_note') return <><VideoNoteMessage durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'photo') return <><img className="chat-media-image" src={url} alt={message.media_name || t('workspace.chatPanel.photoAlt')} />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'video') return <><video className="chat-media-video" src={url} controls preload="metadata" />{message.payload ? <p>{message.payload}</p> : null}</>;
@@ -143,8 +177,8 @@ function MediaMessage({ accessToken, message, t }) {
   return <p className="chat-unsupported-message">{t('workspace.chatPanel.unsupportedMessage')}</p>;
 }
 
-function AttachmentPreview({ descriptor, url, t }) {
-  if (descriptor.media_kind === 'voice') return <><VoiceMessage durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+function AttachmentPreview({ blob, descriptor, url, t }) {
+  if (descriptor.media_kind === 'voice') return <><VoiceMessage blob={blob} durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
   if (descriptor.media_kind === 'video_note') return <><VideoNoteMessage durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
   const displayType = descriptor.mime_type.startsWith('image/')
     ? 'photo'
@@ -161,12 +195,12 @@ function AttachmentPreview({ descriptor, url, t }) {
 
 function EncryptedAttachmentMessage({ accessToken, chatId, message, t }) {
   const { blob: ciphertext, error: loadError, isLoading } = useAuthenticatedMediaBlob(message.deleted_at ? null : message.media_url, accessToken);
-  const [state, setState] = useState({ url: '', error: null });
+  const [state, setState] = useState({ blob: null, url: '', error: null });
   const descriptor = message.e2ee_attachment;
 
   useEffect(() => {
     if (!ciphertext || !descriptor) {
-      setState({ url: '', error: null });
+      setState({ blob: null, url: '', error: null });
       return undefined;
     }
 
@@ -181,9 +215,9 @@ function EncryptedAttachmentMessage({ accessToken, chatId, message, t }) {
           senderId: String(message.sender_id),
         });
         objectUrl = URL.createObjectURL(plaintext);
-        if (active) setState({ url: objectUrl, error: null });
+        if (active) setState({ blob: plaintext, url: objectUrl, error: null });
       } catch {
-        if (active) setState({ url: '', error: new Error('Encrypted attachment could not be decrypted') });
+        if (active) setState({ blob: null, url: '', error: new Error('Encrypted attachment could not be decrypted') });
       }
     })();
 
@@ -196,7 +230,7 @@ function EncryptedAttachmentMessage({ accessToken, chatId, message, t }) {
   if (message.deleted_at) return <p className="chat-deleted-message">{t('workspace.chatPanel.deletedMessage')}</p>;
   if (isLoading) return <p className="chat-media-status" role="status">{t('workspace.chatPanel.loadingMedia')}</p>;
   if (loadError || state.error || !state.url) return <p className="chat-media-status is-error">{t('workspace.chatPanel.encryptedAttachmentLoadError')}</p>;
-  return <AttachmentPreview descriptor={descriptor} url={state.url} t={t} />;
+  return <AttachmentPreview blob={state.blob} descriptor={descriptor} url={state.url} t={t} />;
 }
 
 export function MessageContent({ accessToken, chatId, message, t }) {
