@@ -24,7 +24,7 @@ import { SupportTicketScreen } from '../features/support/screens/SupportTicketSc
 import { SupportTicketsScreen } from '../features/support/screens/SupportTicketsScreen';
 import { AppUpdateScreen } from '../features/settings/screens/AppUpdateScreen';
 import { MobilePushNavigationHandler } from '../features/notifications/MobilePushNavigationHandler';
-import { colors } from '../theme/theme';
+import { useTheme } from '../theme/ThemeProvider';
 import { MainTabs, type MainTabParamList } from './MainTabs';
 
 export type RootStackParamList = {
@@ -50,20 +50,21 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.canvas,
-    border: colors.borderSubtle,
-    card: colors.surface,
-    primary: colors.accent,
-    text: colors.text,
-  },
-};
-
 export function AppNavigator() {
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+  const { colors, mode } = useTheme();
+  const navigationTheme = {
+    ...DarkTheme,
+    dark: mode === 'dark',
+    colors: {
+      ...DarkTheme.colors,
+      background: colors.canvas,
+      border: colors.borderSubtle,
+      card: colors.surface,
+      primary: colors.accent,
+      text: colors.text,
+    },
+  };
 
   return (
     <>

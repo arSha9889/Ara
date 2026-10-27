@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, sharedStyles, spacing } from '../theme/theme';
+import { radii, spacing, type AppColors } from '../theme/theme';
+import { useTheme, useThemedStyles } from '../theme/ThemeProvider';
 import { Icon, type IconName } from './Icon';
 
 interface EmptyStateProps {
@@ -10,6 +11,9 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ title, description, icon = 'chats' }: EmptyStateProps) {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={[sharedStyles.glassCard, styles.card]}>
       <View accessibilityElementsHidden style={styles.orb}>
@@ -21,7 +25,8 @@ export function EmptyState({ title, description, icon = 'chats' }: EmptyStatePro
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   card: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -32,7 +37,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.accentSubtle,
     borderColor: colors.borderInteractive,
-    borderRadius: 22,
+    borderRadius: radii.card,
     borderWidth: 1,
     height: 44,
     justifyContent: 'center',
@@ -52,4 +57,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     textAlign: 'center',
   },
-});
+  });
+}

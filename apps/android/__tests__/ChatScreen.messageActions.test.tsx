@@ -15,6 +15,7 @@ import {
   recordChatVideoNote,
   selectChatMediaFromLibrary,
 } from '../src/features/chats/media/mediaClient';
+import { themes } from '../src/theme/theme';
 
 const mockGetMessages = jest.fn();
 const mockGetChat = jest.fn();
@@ -250,7 +251,7 @@ function settleAsyncWork(): Promise<void> {
 
 function flattenedStyle(style: unknown): Record<string, unknown> {
   if (Array.isArray(style)) {
-    return Object.assign({}, ...style.filter(Boolean));
+    return Object.assign({}, ...style.filter(Boolean).map(flattenedStyle));
   }
 
   return (style ?? {}) as Record<string, unknown>;
@@ -429,7 +430,7 @@ test('keeps the edit form above the Android keyboard without a bottom sheet bord
     messageActionsModal?.findByProps({ accessibilityLabel: 'editMessagePlaceholder' }).props.autoFocus,
   ).toBe(true);
 
-  const sheet = messageActionsModal?.findByProps({ accessibilityViewIsModal: true });
+  const sheet = messageActionsModal?.findByType('LiquidGlassView' as never);
   expect(flattenedStyle(sheet?.props.style)).toMatchObject({
     borderBottomWidth: 0,
     overflow: 'hidden',
@@ -505,24 +506,25 @@ test('opens the attachment picker without an Android-unsupported dialog role', a
   const attachmentButton = component.root
     .findAllByProps({ accessibilityLabel: 'addAttachment' })
     .find(node => node.props.accessibilityRole === 'button');
-  const attachmentPickerModal = component.root
+  let attachmentPickerModal = component.root
     .findAllByType('Modal' as never)
     .find(modal =>
       modal
-        .findAllByProps({ accessibilityLabel: 'addAttachment' })
-        .some(node => node.props.accessibilityViewIsModal),
+        .findAllByProps({ accessibilityLabel: 'closeAttachmentPicker' })
+        .length > 0,
     );
 
   expect(attachmentButton).toBeDefined();
-  expect(attachmentPickerModal?.props.visible).toBe(false);
+  expect(attachmentPickerModal).toBeUndefined();
 
   act(() => {
     attachmentButton?.props.onPress();
   });
 
-  const attachmentSheet = attachmentPickerModal
-    ?.findAllByProps({ accessibilityLabel: 'addAttachment' })
-    .find(node => node.props.accessibilityViewIsModal);
+  attachmentPickerModal = component.root
+    .findAllByType('Modal' as never)
+    .find(modal => modal.findAllByProps({ accessibilityLabel: 'closeAttachmentPicker' }).length > 0);
+  const attachmentSheet = attachmentPickerModal?.findByProps({ accessibilityViewIsModal: true });
   expect(attachmentPickerModal?.props.visible).toBe(true);
   expect(attachmentSheet?.props.accessibilityViewIsModal).toBe(true);
   expect(attachmentSheet?.props.accessibilityRole).toBeUndefined();
@@ -595,25 +597,26 @@ test('opens explicit voice and video-note choices from one recording control', a
   const recordButton = component.root
     .findAllByProps({ accessibilityLabel: 'recordMessage' })
     .find(node => node.props.accessibilityRole === 'button');
-  const recordingPickerModal = component.root
+  let recordingPickerModal = component.root
     .findAllByType('Modal' as never)
     .find(modal =>
       modal
-        .findAllByProps({ accessibilityLabel: 'recordMessage' })
-        .some(node => node.props.accessibilityViewIsModal),
+        .findAllByProps({ accessibilityLabel: 'closeRecordingPicker' })
+        .length > 0,
     );
 
   expect(recordButton).toBeDefined();
-  expect(recordingPickerModal?.props.visible).toBe(false);
+  expect(recordingPickerModal).toBeUndefined();
 
   act(() => {
     recordButton?.props.onPress();
   });
 
+  recordingPickerModal = component.root
+    .findAllByType('Modal' as never)
+    .find(modal => modal.findAllByProps({ accessibilityLabel: 'closeRecordingPicker' }).length > 0);
   expect(recordingPickerModal?.props.visible).toBe(true);
-  const recordingSheet = recordingPickerModal
-    ?.findAllByProps({ accessibilityLabel: 'recordMessage' })
-    .find(node => node.props.accessibilityViewIsModal);
+  const recordingSheet = recordingPickerModal?.findByProps({ accessibilityViewIsModal: true });
   expect(recordingSheet?.findByProps({ accessibilityLabel: 'attachmentVoice' })).toBeDefined();
   expect(recordingSheet?.findByProps({ accessibilityLabel: 'attachmentVideoNote' })).toBeDefined();
 
@@ -675,7 +678,7 @@ test('uploads a recorded video note and sends it with its type and duration', as
   });
 });
 
-test('renders sent, delivered, and read message statuses like WhatsApp', async () => {
+test('distinguishes sent, delivered, and read message statuses', async () => {
   const component = await renderChatScreen([
     ownTextMessage('message-sent', 'sent'),
     ownTextMessage('message-delivered', 'delivered'),
@@ -687,11 +690,11 @@ test('renders sent, delivered, and read message statuses like WhatsApp', async (
   const read = component.root.findByProps({ accessibilityLabel: 'messageRead' });
 
   expect(sent.children).toEqual(['✓']);
-  expect(flattenedStyle(sent.props.style).color).toBe('rgba(23, 26, 20, 0.68)');
+  expect(flattenedStyle(sent.props.style).color).toBe(themes.dark.onAccentFaint);
   expect(delivered.children).toEqual(['✓✓']);
-  expect(flattenedStyle(delivered.props.style).color).toBe('rgba(23, 26, 20, 0.68)');
+  expect(flattenedStyle(delivered.props.style).color).toBe(themes.dark.onAccentFaint);
   expect(read.children).toEqual(['✓✓']);
-  expect(flattenedStyle(read.props.style).color).toBe('#3C5D68');
+  expect(flattenedStyle(read.props.style).color).toBe(themes.dark.deliveryRead);
 
   await act(async () => {
     component.unmount();

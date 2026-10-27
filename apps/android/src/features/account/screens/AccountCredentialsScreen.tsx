@@ -5,18 +5,22 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import type { SessionUser } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { Icon } from '../../../ui/Icon';
 import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
 import { getMyProfile } from '../api/accountApi';
-import { AccountScreenLayout, accountStyles } from '../components/AccountScreenLayout';
+import { AccountScreenLayout, useAccountStyles } from '../components/AccountScreenLayout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AccountCredentials'>;
 
 export function AccountCredentialsScreen({ navigation }: Props) {
   const { session } = useSession();
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const accountStyles = useAccountStyles();
+  const styles = useThemedStyles(createStyles);
   const [user, setUser] = useState<SessionUser | null>(session?.user ?? null);
   const [error, setError] = useState('');
 
@@ -63,7 +67,8 @@ export function AccountCredentialsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   email: {
     color: colors.text,
     fontSize: 18,
@@ -85,4 +90,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.76,
   },
-});
+  });
+}

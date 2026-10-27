@@ -2,8 +2,6 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { ACCESS_TOKEN_STORAGE_KEY, configureAuthSessionHandlers, REFRESH_TOKEN_STORAGE_KEY } from '../../shared/api/httpClient.js';
 import { getCurrentUser, refreshSession } from '../../features/auth/api/authApi.js';
-import { saveE2eeWebKey } from '../../features/security/api/e2eeApi.js';
-import { isE2eeWebSupported, registerE2eeWebIdentity } from '../../shared/crypto/e2eeWeb.js';
 import { useI18n } from './I18nProvider.jsx';
 import { useTheme } from './ThemeProvider.jsx';
 
@@ -180,23 +178,6 @@ export function SessionProvider({ children }) {
       window.removeEventListener('focus', refreshWhenVisible);
     };
   }, [isSessionLoading, session.accessToken, session.refreshToken]);
-
-  useEffect(() => {
-    if (isSessionLoading || !session.accessToken || !session.user?.id || !isE2eeWebSupported()) return undefined;
-    let active = true;
-
-    registerE2eeWebIdentity(
-      String(session.user.id),
-      (payload) => saveE2eeWebKey(session.accessToken, payload),
-    ).catch(() => {
-      // E2EE is optional per direct chat. A temporary registration failure must not log the user out.
-      if (!active) return;
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [isSessionLoading, session.accessToken, session.user?.id]);
 
   const value = useMemo(() => ({
     session,

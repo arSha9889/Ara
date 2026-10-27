@@ -3,14 +3,18 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../../auth/authError';
 import { createPin, resetPin } from '../api/accountApi';
-import { AccountScreenLayout, accountStyles } from '../components/AccountScreenLayout';
+import { AccountScreenLayout, useAccountStyles } from '../components/AccountScreenLayout';
 
 export function PinSettingsScreen() {
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const accountStyles = useAccountStyles();
+  const styles = useThemedStyles(createStyles);
   const [currentPassword, setCurrentPassword] = useState('');
   const [pin, setPin] = useState('');
   const [pinRepeat, setPinRepeat] = useState('');
@@ -144,13 +148,14 @@ export function PinSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   saveButton: {
     marginTop: spacing.lg,
   },
   removeButton: {
     alignItems: 'center',
-    borderColor: 'rgba(255, 158, 175, 0.48)',
+    borderColor: colors.danger,
     borderRadius: 16,
     borderWidth: 1,
     justifyContent: 'center',
@@ -163,6 +168,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   pressed: {
-    backgroundColor: 'rgba(255, 156, 173, 0.12)',
+    backgroundColor: colors.dangerSubtle,
   },
-});
+  });
+}

@@ -7,11 +7,15 @@ import {
   View,
 } from 'react-native';
 
+import type { AppColors } from '../theme/theme';
+import { useThemedStyles } from '../theme/ThemeProvider';
+
 interface HaloMarkProps {
   size?: number;
 }
 
 export function HaloMark({ size = 92 }: HaloMarkProps) {
+  const styles = useThemedStyles(createStyles);
   const [reduceMotion, setReduceMotion] = useState(false);
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -78,17 +82,19 @@ export function HaloMark({ size = 92 }: HaloMarkProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoFrame: {
     overflow: 'hidden',
-    shadowColor: '#000000',
+    shadowColor: colors.shadow,
     shadowOffset: { height: 8, width: 0 },
     shadowOpacity: 0.24,
     shadowRadius: 16,
   },
   logo: { resizeMode: 'cover' },
-});
+  });
+}

@@ -14,12 +14,14 @@ import { SignInScreen } from '../features/auth/screens/SignInScreen';
 import type { RegistrationCountry } from '../features/auth/registrationCountry';
 import { RealtimeProvider } from '../features/realtime/RealtimeProvider';
 import { useI18n } from '../localization/I18nProvider';
-import { colors } from '../theme/theme';
+import { type AppColors } from '../theme/theme';
+import { useTheme, useThemedStyles } from '../theme/ThemeProvider';
 import { HaloMark } from '../ui/HaloMark';
 
 export function AppRoot() {
   const { session, status } = useSession();
   const { isLoading: isI18nLoading } = useI18n();
+  const { isLoading: isThemeLoading } = useTheme();
   const [screen, setScreen] = useState<'signIn' | 'registrationSetup' | 'register' | 'recovery'>('signIn');
   const [registrationCountry, setRegistrationCountry] = useState<RegistrationCountry | null>(null);
 
@@ -33,7 +35,7 @@ export function AppRoot() {
     setScreen('registrationSetup');
   }
 
-  if (status === 'loading' || isI18nLoading) {
+  if (status === 'loading' || isI18nLoading || isThemeLoading) {
     return <BootScreen />;
   }
 
@@ -98,6 +100,9 @@ export function AppRoot() {
 }
 
 function BootScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container}>
       <HaloMark />
@@ -107,7 +112,8 @@ function BootScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     alignItems: 'center',
     backgroundColor: colors.canvas,
@@ -123,4 +129,5 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 20,
   },
-});
+  });
+}

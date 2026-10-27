@@ -3,7 +3,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-na
 
 import { useI18n } from '../../../localization/I18nProvider';
 import { LanguageSwitcher } from '../../../localization/LanguageSwitcher';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { HaloMark } from '../../../ui/HaloMark';
 
@@ -15,6 +16,8 @@ interface AuthLayoutProps extends PropsWithChildren {
 
 export function AuthLayout({ eyebrow, title, description, children }: AuthLayoutProps) {
   const { t } = useI18n();
+  const { sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <KeyboardAvoidingView
@@ -42,7 +45,12 @@ export function AuthLayout({ eyebrow, title, description, children }: AuthLayout
   );
 }
 
-export const authStyles = StyleSheet.create({
+export function useAuthStyles() {
+  return useThemedStyles(createAuthStyles);
+}
+
+function createAuthStyles(colors: AppColors) {
+  return StyleSheet.create({
   label: {
     color: colors.text,
     fontSize: 14,
@@ -105,9 +113,11 @@ export const authStyles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-});
+  });
+}
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   keyboardAvoidingView: {
     backgroundColor: colors.canvas,
     flex: 1,
@@ -158,4 +168,5 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     marginTop: spacing.xs,
   },
-});
+  });
+}

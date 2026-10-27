@@ -18,7 +18,8 @@ import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { IconButton } from '../../../ui/IconButton';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
@@ -42,6 +43,8 @@ const statusKeys: Record<SupportTicketStatus, TranslationKey> = {
 
 export function SupportTicketScreen({ navigation, route }: Props) {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { session } = useSession();
   const [ticket, setTicket] = useState<SupportTicketDetail | null>(null);
   const [reply, setReply] = useState('');
@@ -214,7 +217,8 @@ function formatMessageDate(value: string, language: 'ru' | 'en'): string {
   }).format(date);
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   keyboardAvoidingView: { backgroundColor: colors.canvas, flex: 1 },
   content: { flex: 1 },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
@@ -232,7 +236,7 @@ const styles = StyleSheet.create({
   messages: { flex: 1, marginTop: spacing.sm },
   messagesList: { gap: spacing.sm, paddingBottom: spacing.sm },
   message: { borderRadius: 18, maxWidth: '88%', padding: spacing.sm },
-  messageMine: { alignSelf: 'flex-end', backgroundColor: 'rgba(74, 168, 240, 0.25)', borderColor: 'rgba(140, 201, 255, 0.38)', borderWidth: StyleSheet.hairlineWidth },
+  messageMine: { alignSelf: 'flex-end', backgroundColor: colors.accentSubtle, borderColor: colors.accent, borderWidth: StyleSheet.hairlineWidth },
   messageTeam: { alignSelf: 'flex-start', backgroundColor: colors.surfaceRaised, borderColor: colors.glassBorder, borderWidth: StyleSheet.hairlineWidth },
   messageMeta: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
   messageAuthor: { color: colors.primary, fontSize: 12, fontWeight: '700' },
@@ -242,4 +246,5 @@ const styles = StyleSheet.create({
   replyInput: { backgroundColor: colors.input, borderColor: colors.glassBorder, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, color: colors.text, fontSize: 16, lineHeight: 22, maxHeight: 130, minHeight: 76, padding: spacing.sm },
   resolvedCard: { gap: spacing.md, marginBottom: spacing.md, padding: spacing.md },
   resolvedText: { color: colors.textMuted, fontSize: 14, lineHeight: 21 },
-});
+  });
+}

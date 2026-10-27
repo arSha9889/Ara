@@ -5,7 +5,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './app/App.jsx';
 import { AppProviders } from './app/providers/AppProviders.jsx';
 import './styles/global.css';
-import './styles/orbit-focus.css';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

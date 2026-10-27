@@ -5,7 +5,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -20,10 +19,13 @@ import { authErrorKey } from '../../auth/authError';
 import { createDirectChatForUser } from '../../chats/api/chatApi';
 import { useSession } from '../../auth/session/useSession';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
+import { AnimatedBottomSheet } from '../../../ui/AnimatedBottomSheet';
 import { EmptyState } from '../../../ui/EmptyState';
 import { Icon } from '../../../ui/Icon';
+import { InterfaceIcon } from '../../../ui/InterfaceIcon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { ReportUserSheet } from '../../safety/components/ReportUserSheet';
 import { blockUser } from '../../safety/api/safetyApi';
@@ -44,6 +46,8 @@ function firstLetter(value: string): string {
 
 export function SearchScreen() {
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { session } = useSession();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<MainTabParamList, 'Search'>>();
@@ -289,20 +293,13 @@ export function SearchScreen() {
         </View>
       ) : null}
 
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setSelectedUser(null)}
-        transparent
+      <AnimatedBottomSheet
+        accessibilityLabel={t('close')}
+        onClose={() => setSelectedUser(null)}
+        sheetStyle={styles.sheet}
         visible={Boolean(selectedUser)}
       >
-        <View style={styles.sheetOverlay}>
-          <Pressable
-            accessibilityLabel={t('close')}
-            accessibilityRole="button"
-            onPress={() => setSelectedUser(null)}
-            style={styles.sheetBackdrop}
-          />
-          <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.sheet]}>
+          <View>
             <View style={styles.sheetHandle} />
             <View accessibilityElementsHidden style={styles.sheetAvatar}>
               <Text style={styles.sheetAvatarLetter}>{firstLetter(selectedName)}</Text>
@@ -330,7 +327,7 @@ export function SearchScreen() {
                     pressed && !isStartingCall && !isBlocking && !call && styles.callActionPressed,
                   ]}
                 >
-                  <Icon color={colors.canvas} name="call" size={20} />
+                  <InterfaceIcon color={colors.onAccent} name="phoneCall" size={20} />
                   <Text style={styles.callActionLabel}>{isStartingCall ? t('startingCall') : t('callAudio')}</Text>
                 </Pressable>
                 <Pressable
@@ -348,7 +345,7 @@ export function SearchScreen() {
                     pressed && !isStartingCall && !isBlocking && !call && styles.callActionPressed,
                   ]}
                 >
-                  <Icon color={colors.primary} name="video" size={20} />
+                  <InterfaceIcon color={colors.primary} name="videoCamera" size={20} />
                   <Text style={styles.videoCallActionLabel}>{isStartingCall ? t('startingCall') : t('callVideo')}</Text>
                 </Pressable>
               </View>
@@ -389,8 +386,7 @@ export function SearchScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+      </AnimatedBottomSheet>
       <ReportUserSheet
         onClose={() => setIsReportVisible(false)}
         onSubmitted={() => Alert.alert(t('reportSubmitted'))}
@@ -401,7 +397,8 @@ export function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   intro: {
     color: colors.textMuted,
     fontSize: 16,
@@ -503,25 +500,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 24,
   },
-  sheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheetBackdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.54)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
   sheet: {
     alignItems: 'center',
-    backgroundColor: colors.glassStrong,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   sheetHandle: {
     backgroundColor: colors.textFaint,
@@ -533,8 +513,8 @@ const styles = StyleSheet.create({
   },
   sheetAvatar: {
     alignItems: 'center',
-    backgroundColor: 'rgba(169, 156, 255, 0.24)',
-    borderColor: 'rgba(169, 156, 255, 0.58)',
+    backgroundColor: colors.accentSubtle,
+    borderColor: colors.accent,
     borderRadius: 38,
     borderWidth: 1,
     height: 76,
@@ -600,7 +580,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   callActionLabel: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -641,11 +621,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   blockButton: {
-    borderColor: 'rgba(255, 158, 175, 0.48)',
+    borderColor: colors.danger,
   },
   blockButtonLabel: {
     color: colors.danger,
     fontSize: 15,
     fontWeight: '700',
   },
-});
+  });
+}

@@ -1,6 +1,7 @@
 import { Linking, Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useThemedStyles } from '../../../theme/ThemeProvider';
 
 interface LegalDocumentLinkProps {
   label: string;
@@ -9,6 +10,8 @@ interface LegalDocumentLinkProps {
 }
 
 export function LegalDocumentLink({ label, onOpenError, url }: LegalDocumentLinkProps) {
+  const styles = useThemedStyles(createStyles);
+
   async function openDocument(): Promise<void> {
     try {
       await Linking.openURL(url);
@@ -29,7 +32,8 @@ export function LegalDocumentLink({ label, onOpenError, url }: LegalDocumentLink
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   link: {
     alignSelf: 'flex-start',
     justifyContent: 'center',
@@ -46,4 +50,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.78,
   },
-});
+  });
+}

@@ -10,7 +10,9 @@ import {
 import { RTCView } from 'react-native-webrtc';
 
 import { useI18n } from '../../localization/I18nProvider';
-import { colors, spacing } from '../../theme/theme';
+import { radii, spacing, type AppColors } from '../../theme/theme';
+import { useTheme, useThemedStyles } from '../../theme/ThemeProvider';
+import { AraGlassSurface } from '../../ui/AraGlassSurface';
 import { ConnectionStatusStrip } from '../../ui/ConnectionStatusStrip';
 import { Icon, type IconName } from '../../ui/Icon';
 import type { CallAudioRoute } from './callAudio';
@@ -20,6 +22,7 @@ import { subscribeToPictureInPicture } from './callForeground';
 
 export function CallOverlay() {
   const { t } = useI18n();
+  const styles = useThemedStyles(createStyles);
   const {
     acceptCall,
     audioRoutes,
@@ -137,12 +140,12 @@ export function CallOverlay() {
           ) : null}
 
           <View accessibilityLiveRegion="polite" style={[styles.copy, showVideoStage && styles.videoCopy]}>
-            <Text numberOfLines={2} style={styles.name}>{peerName}</Text>
-            <Text style={styles.kind}>{isVideoCall ? t('callVideo') : t('callAudio')}</Text>
-            <Text accessibilityRole="alert" style={[styles.status, isFailed && styles.statusFailed]}>
+            <Text numberOfLines={2} style={[styles.name, showVideoStage && styles.videoName]}>{peerName}</Text>
+            <Text style={[styles.kind, showVideoStage && styles.videoKind]}>{isVideoCall ? t('callVideo') : t('callAudio')}</Text>
+            <Text accessibilityRole="alert" style={[styles.status, showVideoStage && styles.videoStatus, isFailed && styles.statusFailed]}>
               {duration || status}
             </Text>
-            {duration ? <Text style={styles.connectedLabel}>{status}</Text> : null}
+            {duration ? <Text style={[styles.connectedLabel, showVideoStage && styles.videoConnectedLabel]}>{status}</Text> : null}
           </View>
 
           {isIncoming ? (
@@ -167,7 +170,11 @@ export function CallOverlay() {
           ) : null}
 
           {isActive ? (
-            <View style={styles.activeControls}>
+            <AraGlassSurface
+              style={styles.activeControlSurface}
+              variant={showVideoStage ? 'media' : 'chrome'}
+            >
+              <View style={styles.activeControls}>
               {audioRoutes.length > 1 ? (
                 <View accessibilityLabel={t('callAudioRoute')} style={styles.routePicker}>
                   {audioRoutes.map(route => (
@@ -216,7 +223,8 @@ export function CallOverlay() {
                   tone="danger"
                 />
               </View>
-            </View>
+              </View>
+            </AraGlassSurface>
           ) : null}
 
           {canEnd ? (
@@ -264,6 +272,8 @@ function CallRouteAction({ onPress, route, selected }: {
   selected: boolean;
 }) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const presentation = routePresentation(route, t);
 
   return (
@@ -278,7 +288,7 @@ function CallRouteAction({ onPress, route, selected }: {
         pressed && styles.routeButtonPressed,
       ]}
     >
-      <Icon color={selected ? colors.canvas : colors.text} name={presentation.icon} size={20} />
+      <Icon color={selected ? colors.onAccent : colors.text} name={presentation.icon} size={20} />
       <Text numberOfLines={1} style={[styles.routeLabel, selected && styles.routeLabelSelected]}>
         {presentation.label}
       </Text>
@@ -312,7 +322,9 @@ interface CallActionProps {
 }
 
 function CallAction({ accessibilityLabel, icon, label, onPress, selected = false, tone }: CallActionProps) {
-  const iconColor = tone === 'default' ? colors.text : colors.canvas;
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const iconColor = tone === 'default' ? colors.text : colors.onAccent;
 
   return (
     <View style={styles.actionItem}>
@@ -336,7 +348,8 @@ function CallAction({ accessibilityLabel, icon, label, onPress, selected = false
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: colors.canvas,
@@ -351,7 +364,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryGlow: {
-    backgroundColor: 'rgba(74, 168, 240, 0.14)',
+    backgroundColor: colors.callOverlayPrimaryGlow,
     borderRadius: 240,
     height: 360,
     position: 'absolute',
@@ -360,7 +373,7 @@ const styles = StyleSheet.create({
     width: 360,
   },
   secondaryGlow: {
-    backgroundColor: 'rgba(178, 169, 255, 0.08)',
+    backgroundColor: colors.callOverlaySecondaryGlow,
     borderRadius: 220,
     bottom: -140,
     height: 320,
@@ -431,8 +444,8 @@ const styles = StyleSheet.create({
     maxWidth: 440,
   },
   videoCopy: {
-    backgroundColor: 'rgba(10, 17, 28, 0.78)',
-    borderColor: 'rgba(243, 247, 252, 0.16)',
+    backgroundColor: colors.mediaOverlay,
+    borderColor: colors.mediaOverlayBorder,
     borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: spacing.md,
@@ -444,11 +457,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  videoName: {
+    color: colors.onMedia,
+  },
   kind: {
     color: colors.textMuted,
     fontSize: 16,
     lineHeight: 22,
     textAlign: 'center',
+  },
+  videoKind: {
+    color: colors.onMediaMuted,
   },
   status: {
     color: colors.primary,
@@ -458,6 +477,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     textAlign: 'center',
   },
+  videoStatus: {
+    color: colors.onMedia,
+  },
   statusFailed: {
     color: colors.danger,
   },
@@ -466,6 +488,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
+  },
+  videoConnectedLabel: {
+    color: colors.onMediaFaint,
   },
   incomingActions: {
     flexDirection: 'row',
@@ -482,6 +507,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.lg,
   },
+  activeControlSurface: {
+    alignSelf: 'center',
+    borderRadius: radii.card,
+    maxWidth: 440,
+    padding: spacing.sm,
+  },
   routePicker: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -497,7 +528,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 6,
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: spacing.sm,
   },
   routeButtonSelected: {
@@ -514,7 +545,7 @@ const styles = StyleSheet.create({
     maxWidth: 112,
   },
   routeLabelSelected: {
-    color: colors.canvas,
+    color: colors.onAccent,
   },
   singleAction: {
     minHeight: 102,
@@ -574,4 +605,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-});
+  });
+}

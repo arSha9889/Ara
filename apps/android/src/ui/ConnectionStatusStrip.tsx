@@ -9,13 +9,16 @@ import {
 } from '../features/network/connectionStatusPresentation';
 import { useRealtimeConnectionStatus } from '../features/realtime/RealtimeProvider';
 import { useI18n } from '../localization/I18nProvider';
-import { colors, spacing } from '../theme/theme';
+import { spacing, type AppColors } from '../theme/theme';
+import { useTheme, useThemedStyles } from '../theme/ThemeProvider';
 import { Icon } from './Icon';
 
 export function ConnectionStatusStrip() {
   const { connection } = useNetwork();
   const realtimeConnectionStatus = useRealtimeConnectionStatus();
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const presentation = connectionStatusPresentation(connection, realtimeConnectionStatus);
   const [visiblePresentation, setVisiblePresentation] =
     useState<ConnectionStatusPresentation | null>(null);
@@ -71,13 +74,13 @@ export function ConnectionStatusStrip() {
       ]}
       testID="network-status-strip"
     >
-      <Icon color={toneColor(visiblePresentation.tone)} name={visiblePresentation.icon} size={18} />
-      <Text style={[styles.label, { color: toneColor(visiblePresentation.tone) }]}>{label}</Text>
+      <Icon color={toneColor(visiblePresentation.tone, colors)} name={visiblePresentation.icon} size={18} />
+      <Text style={[styles.label, { color: toneColor(visiblePresentation.tone, colors) }]}>{label}</Text>
     </View>
   );
 }
 
-function toneColor(tone: ConnectionStatusTone): string {
+function toneColor(tone: ConnectionStatusTone, colors: AppColors): string {
   switch (tone) {
     case 'danger':
       return colors.danger;
@@ -88,7 +91,8 @@ function toneColor(tone: ConnectionStatusTone): string {
 
 const TRANSIENT_STATUS_DELAY_MS = 1_500;
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   container: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -115,4 +119,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 18,
   },
-});
+  });
+}

@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
-import { AccountScreenLayout, accountStyles } from '../../account/components/AccountScreenLayout';
+import { AccountScreenLayout, useAccountStyles } from '../../account/components/AccountScreenLayout';
 import { getMyProfile, updateMyProfile, updateUsername } from '../../account/api/accountApi';
 import { avatarEmoji, builtInAvatarRefs, type BuiltInAvatarRef } from '../avatar';
 
@@ -15,6 +16,9 @@ const usernamePattern = /^[A-Za-z0-9]{3,32}$/;
 export function ProfileEditScreen() {
   const { session, updateSessionUser } = useSession();
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const accountStyles = useAccountStyles();
+  const styles = useThemedStyles(createStyles);
   const [displayName, setDisplayName] = useState(session?.user.displayName ?? '');
   const [username, setUsername] = useState(session?.user.username ?? '');
   const [phone, setPhone] = useState(session?.user.optionalPhone ?? '');
@@ -179,7 +183,8 @@ export function ProfileEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   avatarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -197,7 +202,7 @@ const styles = StyleSheet.create({
     width: 48,
   },
   avatarOptionSelected: {
-    backgroundColor: 'rgba(74, 168, 240, 0.2)',
+    backgroundColor: colors.accentSelected,
     borderColor: colors.primary,
   },
   avatarEmoji: {
@@ -246,7 +251,7 @@ const styles = StyleSheet.create({
   },
   switchThumbActive: {
     alignSelf: 'flex-end',
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.onAccent,
   },
   saveButton: {
     marginTop: spacing.lg,
@@ -257,4 +262,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.76,
   },
-});
+  });
+}

@@ -3,7 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { EmptyState } from '../../../ui/EmptyState';
 import { authErrorKey } from '../../auth/authError';
 import { getLoginHistory, type LoginHistoryItem } from '../api/accountApi';
@@ -11,6 +12,8 @@ import { AccountScreenLayout } from '../components/AccountScreenLayout';
 
 export function LoginHistoryScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [items, setItems] = useState<LoginHistoryItem[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -91,7 +94,8 @@ function formatDate(value: string, language: 'ru' | 'en'): string {
       }).format(date);
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   loading: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl },
   errorCard: { gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
@@ -105,4 +109,5 @@ const styles = StyleSheet.create({
   failed: { color: colors.danger, fontSize: 13, fontWeight: '700' },
   deviceId: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs },
   date: { color: colors.textFaint, fontSize: 13, marginTop: 4 },
-});
+  });
+}

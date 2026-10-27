@@ -32,6 +32,14 @@ const { ApiError: MockApiError } = jest.requireMock('../src/infrastructure/http/
 
 jest.mock('react-native', () => {
   const React = jest.requireActual('react');
+  class MockAnimatedValue {
+    interpolate = jest.fn(() => this);
+    setValue = jest.fn();
+    stopAnimation = jest.fn();
+
+    constructor(_value: number) {}
+  }
+  const animation = () => ({ start: jest.fn(), stop: jest.fn() });
   const FlatList = React.forwardRef(
     (
       props: {
@@ -60,8 +68,17 @@ jest.mock('react-native', () => {
   );
 
   return {
+    AccessibilityInfo: {
+      addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      isReduceMotionEnabled: jest.fn().mockResolvedValue(true),
+    },
     ActivityIndicator: 'ActivityIndicator',
     Alert: { alert: jest.fn() },
+    Animated: {
+      Value: MockAnimatedValue,
+      View: 'AnimatedView',
+      timing: animation,
+    },
     FlatList,
     Image: 'Image',
     KeyboardAvoidingView: 'KeyboardAvoidingView',
@@ -69,6 +86,7 @@ jest.mock('react-native', () => {
     Platform: { select: (options: Record<string, unknown>) => options.android ?? options.default },
     Pressable: 'Pressable',
     StyleSheet: {
+      absoluteFill: {},
       create: <T extends object>(styles: T) => styles,
       hairlineWidth: 1,
     },

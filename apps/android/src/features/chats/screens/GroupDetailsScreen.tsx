@@ -19,7 +19,8 @@ import { ApiError } from '../../../infrastructure/http/apiClient';
 import { useI18n } from '../../../localization/I18nProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { searchPublicUsers, type PublicUser } from '../../search/api/searchApi';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { Icon } from '../../../ui/Icon';
 import { IconButton } from '../../../ui/IconButton';
@@ -60,6 +61,8 @@ function isGroupUnavailable(error: unknown): boolean {
 
 export function GroupDetailsScreen({ navigation, route }: Props) {
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { session } = useSession();
   const { subscribeToChat, subscribeToEvents } = useRealtime();
   const [group, setGroup] = useState<Chat | null>(null);
@@ -439,7 +442,8 @@ export function GroupDetailsScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   content: { gap: spacing.md, paddingBottom: spacing.xl },
   loading: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
   muted: { color: colors.textMuted, fontSize: 15 },
@@ -493,4 +497,5 @@ const styles = StyleSheet.create({
   deleteCard: { borderColor: colors.danger },
   disabledButton: { opacity: 0.45 },
   pressed: { backgroundColor: colors.surfacePressed },
-});
+  });
+}

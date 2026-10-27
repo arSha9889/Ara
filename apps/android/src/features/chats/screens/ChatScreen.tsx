@@ -10,7 +10,6 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
-  Modal,
   PermissionsAndroid,
   Platform,
   Pressable,
@@ -69,7 +68,11 @@ import type { TranslationKey } from '../../../localization/messages';
 import { useDirectCall } from '../../calls/DirectCallProvider';
 import { clearMessageNotificationsForChat } from '../../notifications/pushClient';
 import { useRealtime } from '../../realtime/RealtimeProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { motion, radii, spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
+import { AnimatedBottomSheet } from '../../../ui/AnimatedBottomSheet';
+import { AnimatedPhotoViewer } from '../../../ui/AnimatedPhotoViewer';
+import { AraGlassSurface } from '../../../ui/AraGlassSurface';
 import { AppScreen } from '../../../ui/AppScreen';
 import { ChatAvatar } from '../components/ChatAvatar';
 import { EmptyState } from '../../../ui/EmptyState';
@@ -106,6 +109,8 @@ interface PhotoViewerState {
 
 export function ChatScreen({ navigation, route }: Props) {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { session } = useSession();
   const { call, startCall, startVideoCall } = useDirectCall();
   const { send, subscribeToChat, subscribeToEvents } = useRealtime();
@@ -124,6 +129,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const statusOpacity = useRef(new Animated.Value(1)).current;
   const statusTranslateY = useRef(new Animated.Value(0)).current;
   const composerActionScale = useRef(new Animated.Value(1)).current;
+  const composerTransition = useRef(new Animated.Value(1)).current;
   const typingDotValues = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
@@ -166,6 +172,13 @@ export function ChatScreen({ navigation, route }: Props) {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [isTargetMessageUnavailable, setIsTargetMessageUnavailable] = useState(false);
   const composerShowsSend = Boolean(text.trim() || selectedAttachment);
+  const composerMode = isVoiceRecording
+    ? 'recording'
+    : selectedAttachment
+      ? 'attachment'
+      : replyToMessage
+        ? 'reply'
+        : 'default';
   const attachmentCopy: AttachmentPresentationCopy = {
     attachment: t('chatsAttachment'),
     file: t('chatFile'),
@@ -339,6 +352,21 @@ export function ChatScreen({ navigation, route }: Props) {
       useNativeDriver: true,
     }).start();
   }, [composerActionScale, composerShowsSend, reduceMotion]);
+
+  useEffect(() => {
+    composerTransition.stopAnimation();
+    if (reduceMotion) {
+      composerTransition.setValue(1);
+      return;
+    }
+
+    composerTransition.setValue(0.96);
+    Animated.timing(composerTransition, {
+      duration: motion.standard,
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [composerMode, composerTransition, reduceMotion]);
 
   useEffect(() => {
     if (reduceMotion) {
@@ -1515,6 +1543,7 @@ export function ChatScreen({ navigation, route }: Props) {
               accessibilityLabel={t('callAudio')}
               disabled={Boolean(call)}
               icon="call"
+              interfaceIcon="phoneCall"
               onPress={() => {
                 startCall({
                   chatId: route.params.chatId,
@@ -1529,6 +1558,7 @@ export function ChatScreen({ navigation, route }: Props) {
               accessibilityLabel={t('callVideo')}
               disabled={Boolean(call)}
               icon="video"
+              interfaceIcon="videoCamera"
               onPress={() => {
                 startVideoCall({
                   chatId: route.params.chatId,
@@ -1656,6 +1686,12 @@ export function ChatScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
+        <Animated.View
+          style={{
+            opacity: composerTransition,
+            transform: [{ scale: composerTransition }],
+          }}
+        >
         {selectedAttachment ? (
           <View style={[sharedStyles.glassCard, styles.attachmentDraft]}>
             {selectedAttachment.mimeType.startsWith('image/') ? (
@@ -1745,7 +1781,7 @@ export function ChatScreen({ navigation, route }: Props) {
         ) : null}
 
         {isVoiceRecording ? (
-          <View style={[sharedStyles.glassPanel, styles.voiceRecordingComposer]}>
+          <AraGlassSurface style={styles.voiceRecordingComposer}>
             <Pressable
               accessibilityLabel={t('cancelVoiceRecording')}
               accessibilityRole="button"
@@ -1787,9 +1823,9 @@ export function ChatScreen({ navigation, route }: Props) {
                 <Icon color={colors.canvas} name="stop" size={19} />
               )}
             </Pressable>
-          </View>
+          </AraGlassSurface>
         ) : (
-          <View style={[sharedStyles.glassPanel, styles.composer]}>
+          <AraGlassSurface style={styles.composer}>
             <Pressable
               accessibilityLabel={t('addAttachment')}
               accessibilityRole="button"
@@ -1895,33 +1931,21 @@ export function ChatScreen({ navigation, route }: Props) {
                 </Pressable>
               </Animated.View>
             </View>
-          </View>
+          </AraGlassSurface>
         )}
+        </Animated.View>
       </AppScreen>
 
-      <Modal
-        animationType="slide"
-        onRequestClose={closeMessageActions}
-        transparent
+      <AnimatedBottomSheet
+        accessibilityLabel={t('closeMessageActions')}
+        disabled={Boolean(pendingAction)}
+        keyboardAvoiding
+        onClose={closeMessageActions}
+        sheetStyle={styles.sheet}
         visible={Boolean(actionMessage)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.select({ android: 'height', ios: 'padding' })}
-          style={styles.sheetKeyboardAvoidingView}
-        >
-          <View style={styles.sheetOverlay}>
-            <Pressable
-              accessibilityLabel={t('closeMessageActions')}
-              accessibilityRole="button"
-              disabled={Boolean(pendingAction)}
-              onPress={closeMessageActions}
-              style={styles.sheetBackdrop}
-            />
-            {actionMessage ? (
-              <View
-                accessibilityViewIsModal
-                style={[sharedStyles.glassPanel, styles.sheet]}
-              >
+        {actionMessage ? (
+          <View>
               <View style={styles.sheetHandle} />
               <View style={styles.sheetHeading}>
                 <Text style={styles.sheetTitle}>
@@ -2119,30 +2143,16 @@ export function ChatScreen({ navigation, route }: Props) {
                   {error}
                 </Text>
               ) : null}
-              </View>
-            ) : null}
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setIsAttachmentPickerVisible(false)}
-        transparent
+        ) : null}
+      </AnimatedBottomSheet>
+      <AnimatedBottomSheet
+        accessibilityLabel={t('closeAttachmentPicker')}
+        disabled={isPickingAttachment}
+        onClose={() => setIsAttachmentPickerVisible(false)}
+        sheetStyle={styles.attachmentSheet}
         visible={isAttachmentPickerVisible}
       >
-        <View style={styles.sheetOverlay}>
-          <Pressable
-            accessibilityLabel={t('closeAttachmentPicker')}
-            accessibilityRole="button"
-            disabled={isPickingAttachment}
-            onPress={() => setIsAttachmentPickerVisible(false)}
-            style={styles.sheetBackdrop}
-          />
-          <View
-            accessibilityLabel={t('addAttachment')}
-            accessibilityViewIsModal
-            style={[sharedStyles.glassPanel, styles.attachmentSheet]}
-          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('addAttachment')}</Text>
             <Text style={styles.attachmentSheetDescription}>
@@ -2235,28 +2245,14 @@ export function ChatScreen({ navigation, route }: Props) {
                 </View>
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setIsMediaLibraryVisible(false)}
-        transparent
+      </AnimatedBottomSheet>
+      <AnimatedBottomSheet
+        accessibilityLabel={t('closeMediaLibrary')}
+        disabled={isPickingAttachment}
+        onClose={() => setIsMediaLibraryVisible(false)}
+        sheetStyle={styles.mediaLibrarySheet}
         visible={isMediaLibraryVisible}
       >
-        <View style={styles.sheetOverlay}>
-          <Pressable
-            accessibilityLabel={t('closeMediaLibrary')}
-            accessibilityRole="button"
-            disabled={isPickingAttachment}
-            onPress={() => setIsMediaLibraryVisible(false)}
-            style={styles.sheetBackdrop}
-          />
-          <View
-            accessibilityLabel={t('attachmentMedia')}
-            accessibilityViewIsModal
-            style={[sharedStyles.glassPanel, styles.mediaLibrarySheet]}
-          >
             <View style={styles.sheetHandle} />
             <View style={styles.mediaLibraryHeader}>
               <View style={styles.mediaLibraryHeading}>
@@ -2360,28 +2356,14 @@ export function ChatScreen({ navigation, route }: Props) {
                 <Text style={styles.mediaLibraryFallbackLabel}>{t('attachmentVideo')}</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setIsRecordingPickerVisible(false)}
-        transparent
+      </AnimatedBottomSheet>
+      <AnimatedBottomSheet
+        accessibilityLabel={t('closeRecordingPicker')}
+        disabled={isPickingAttachment}
+        onClose={() => setIsRecordingPickerVisible(false)}
+        sheetStyle={styles.attachmentSheet}
         visible={isRecordingPickerVisible}
       >
-        <View style={styles.sheetOverlay}>
-          <Pressable
-            accessibilityLabel={t('closeRecordingPicker')}
-            accessibilityRole="button"
-            disabled={isPickingAttachment}
-            onPress={() => setIsRecordingPickerVisible(false)}
-            style={styles.sheetBackdrop}
-          />
-          <View
-            accessibilityLabel={t('recordMessage')}
-            accessibilityViewIsModal
-            style={[sharedStyles.glassPanel, styles.attachmentSheet]}
-          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('recordMessage')}</Text>
             <Text style={styles.attachmentSheetDescription}>{t('recordMessageDescription')}</Text>
@@ -2441,59 +2423,20 @@ export function ChatScreen({ navigation, route }: Props) {
                 </Text>
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setPhotoViewer(null)}
-        transparent
-        visible={Boolean(photoViewer)}
-      >
-        <View style={styles.photoViewer}>
-          <Pressable
-            accessibilityLabel={t('closePhotoViewer')}
-            accessibilityRole="button"
-            onPress={() => setPhotoViewer(null)}
-            style={styles.photoViewerBackdrop}
-          />
-          {photoViewer ? (
-            <View style={styles.photoViewerContent}>
-              <Image
-                accessibilityLabel={photoViewer.name}
-                resizeMode="contain"
-                source={{ uri: photoViewer.uri }}
-                style={styles.photoViewerImage}
-              />
-              <View style={styles.photoViewerHeader}>
-                <Text numberOfLines={1} style={styles.photoViewerName}>
-                  {photoViewer.name}
-                </Text>
-                <IconButton
-                  accessibilityLabel={t('closePhotoViewer')}
-                  icon="close"
-                  onPress={() => setPhotoViewer(null)}
-                />
-              </View>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setIsSafetyActionsVisible(false)}
-        transparent
+      </AnimatedBottomSheet>
+      <AnimatedPhotoViewer
+        closeLabel={t('closePhotoViewer')}
+        name={photoViewer?.name ?? null}
+        onClose={() => setPhotoViewer(null)}
+        uri={photoViewer?.uri ?? null}
+      />
+      <AnimatedBottomSheet
+        accessibilityLabel={t('closeSafetyActions')}
+        disabled={isBlocking}
+        onClose={() => setIsSafetyActionsVisible(false)}
+        sheetStyle={styles.safetySheet}
         visible={isSafetyActionsVisible}
       >
-        <View style={styles.sheetOverlay}>
-          <Pressable
-            accessibilityLabel={t('closeSafetyActions')}
-            accessibilityRole="button"
-            disabled={isBlocking}
-            onPress={() => setIsSafetyActionsVisible(false)}
-            style={styles.sheetBackdrop}
-          />
-          <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.safetySheet]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('safetyActions')}</Text>
             <Pressable
@@ -2519,9 +2462,7 @@ export function ChatScreen({ navigation, route }: Props) {
             >
               <Text style={styles.deleteActionLabel}>{isBlocking ? '…' : t('blockUser')}</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </AnimatedBottomSheet>
       <ReportUserSheet
         onClose={() => setIsReportVisible(false)}
         onSubmitted={() => Alert.alert(t('reportSubmitted'))}
@@ -2571,7 +2512,8 @@ function deliveryPresentation(
   return { isRead: false, label: t('messageSent'), symbol: '✓' };
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   keyboardAvoidingView: {
     backgroundColor: colors.canvas,
     flex: 1,
@@ -2581,15 +2523,15 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glassStrong,
     borderColor: colors.borderSubtle,
-    borderRadius: 20,
+    borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.xs,
     justifyContent: 'space-between',
     marginBottom: spacing.md,
-    padding: spacing.xs,
+    padding: 4,
   },
   title: {
     color: colors.text,
@@ -2724,9 +2666,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   messageBubble: {
-    borderRadius: 20,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
+    borderRadius: radii.card,
+    paddingHorizontal: 14,
+    paddingTop: 10,
   },
   messageBubbleOwn: {
     backgroundColor: colors.accent,
@@ -3001,13 +2943,15 @@ const styles = StyleSheet.create({
   },
   composer: {
     alignItems: 'flex-end',
+    borderRadius: radii.card,
     flexDirection: 'row',
     gap: spacing.xs,
     marginTop: spacing.sm,
-    padding: spacing.xs,
+    padding: 6,
   },
   voiceRecordingComposer: {
     alignItems: 'center',
+    borderRadius: radii.card,
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.sm,
@@ -3073,10 +3017,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     maxHeight: 240,
-    minHeight: 120,
+    minHeight: 48,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: 13,
   },
   composerQuickActions: {
     alignItems: 'center',
@@ -3103,55 +3047,20 @@ const styles = StyleSheet.create({
   composerPrimaryButtonPressed: {
     backgroundColor: colors.accentPressed,
   },
-  sheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheetKeyboardAvoidingView: {
-    flex: 1,
-  },
-  sheetBackdrop: {
-    backgroundColor: colors.overlay,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
   sheet: {
-    backgroundColor: colors.glassStrong,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderBottomWidth: 0,
+    gap: spacing.sm,
     overflow: 'hidden',
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   safetySheet: {
-    backgroundColor: colors.glassStrong,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
     gap: spacing.sm,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   attachmentSheet: {
-    backgroundColor: colors.glassStrong,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
     gap: spacing.sm,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   mediaLibrarySheet: {
-    backgroundColor: colors.glassStrong,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
     gap: spacing.sm,
     maxHeight: '84%',
     minHeight: 360,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   mediaLibraryHeader: {
     alignItems: 'flex-start',
@@ -3461,39 +3370,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.md,
   },
-  photoViewer: {
-    backgroundColor: colors.mediaViewer,
-    flex: 1,
-  },
-  photoViewerBackdrop: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  photoViewerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.md,
-  },
-  photoViewerImage: {
-    flex: 1,
-    width: '100%',
-  },
-  photoViewerHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    left: spacing.md,
-    position: 'absolute',
-    right: spacing.md,
-    top: spacing.xl,
-  },
-  photoViewerName: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+  });
+}

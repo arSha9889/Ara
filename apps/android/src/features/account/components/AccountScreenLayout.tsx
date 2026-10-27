@@ -3,7 +3,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-na
 import { useNavigation } from '@react-navigation/native';
 
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { IconButton } from '../../../ui/IconButton';
 
@@ -15,6 +16,7 @@ interface AccountScreenLayoutProps extends PropsWithChildren {
 export function AccountScreenLayout({ children, title, description }: AccountScreenLayoutProps) {
   const navigation = useNavigation();
   const { t } = useI18n();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <KeyboardAvoidingView
@@ -33,7 +35,12 @@ export function AccountScreenLayout({ children, title, description }: AccountScr
   );
 }
 
-export const accountStyles = StyleSheet.create({
+export function useAccountStyles() {
+  return useThemedStyles(createAccountStyles);
+}
+
+function createAccountStyles(colors: AppColors) {
+  return StyleSheet.create({
   card: {
     marginTop: spacing.md,
     padding: spacing.lg,
@@ -116,9 +123,11 @@ export const accountStyles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 3,
   },
-});
+  });
+}
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   keyboardAvoidingView: {
     backgroundColor: colors.canvas,
     flex: 1,
@@ -140,4 +149,5 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: spacing.xs,
   },
-});
+  });
+}

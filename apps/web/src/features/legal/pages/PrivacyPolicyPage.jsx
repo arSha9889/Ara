@@ -103,7 +103,7 @@ export function PrivacyPolicyPage() {
 
         <div className="legal-actions">
           <Link to="/terms" className="button button-secondary">Пользовательское соглашение</Link>
-          <Link to="/register" className="button button-primary">К регистрации</Link>
+          <Link to="/download" className="button button-primary">Установить приложение</Link>
         </div>
           </article>
         </section>

@@ -5,7 +5,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useSession } from '../../auth/session/useSession';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { Icon } from '../../../ui/Icon';
 import { avatarEmoji } from '../avatar';
@@ -17,6 +18,8 @@ function firstLetter(value: string): string {
 export function ProfileScreen() {
   const { session } = useSession();
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = session?.user;
   const name = user?.displayName || user?.username || t('profileFallback');
@@ -41,7 +44,7 @@ export function ProfileScreen() {
           onPress={() => navigation.navigate('ProfileEdit')}
           style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
         >
-          <Icon color={colors.canvas} name="compose" size={20} />
+          <Icon color={colors.onAccent} name="compose" size={20} />
           <Text style={styles.editLabel}>{t('editProfile')}</Text>
         </Pressable>
       </View>
@@ -61,7 +64,8 @@ function formatNexusId(value?: string): string {
   return value ? value.replace(/(.{4})/g, '$1 ').trim() : '—';
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   profileCard: {
     alignItems: 'center',
     marginTop: spacing.lg,
@@ -69,8 +73,8 @@ const styles = StyleSheet.create({
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: 'rgba(140, 201, 255, 0.14)',
-    borderColor: 'rgba(140, 201, 255, 0.36)',
+    backgroundColor: colors.avatar,
+    borderColor: colors.avatarBorder,
     borderRadius: 44,
     borderWidth: 1,
     height: 88,
@@ -102,7 +106,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   editLabel: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -144,4 +148,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.sm,
   },
-});
+  });
+}

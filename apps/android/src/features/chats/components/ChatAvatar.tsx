@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { avatarEmoji, uploadedAvatarUrl } from '../../profile/avatar';
-import { colors } from '../../../theme/theme';
+import type { AppColors } from '../../../theme/theme';
+import { useThemedStyles } from '../../../theme/ThemeProvider';
 
 interface ChatAvatarProps {
   avatarRef?: string | null;
@@ -19,6 +20,7 @@ export function ChatAvatar({
   label,
   size,
 }: ChatAvatarProps) {
+  const styles = useThemedStyles(createStyles);
   const imageUrl = uploadedAvatarUrl(avatarType, avatarRef);
   const [imageUnavailable, setImageUnavailable] = useState(false);
   const emoji = avatarType === 'built_in' ? avatarEmoji(avatarRef ?? undefined) : null;
@@ -44,7 +46,8 @@ export function ChatAvatar({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.surfaceRaised,
@@ -95,4 +98,5 @@ const styles = StyleSheet.create({
     right: -1,
     width: 12,
   },
-});
+  });
+}

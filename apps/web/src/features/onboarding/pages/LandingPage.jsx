@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { APP_DISTRIBUTION, DONATION_DETAILS, OFFICIAL_CHANNELS, YOUTUBE_CHANNEL_URL } from '../../../shared/config/projectLinks.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { CometSiteHeader } from '../components/CometSiteHeader.jsx';
 import { AraFooter } from '../components/AraFooter.jsx';
 import { AraProductPreview } from '../components/AraProductPreview.jsx';
+import { DownloadConfirmationDialog } from '../components/DownloadConfirmationDialog.jsx';
 import { getPublishedProjectNews } from '../api/projectNewsApi.js';
 
 function isPlatformAvailable(platform) {
@@ -16,11 +16,8 @@ function isPlatformAvailable(platform) {
 
 export function LandingPage() {
   const { language, t } = useI18n();
-  const { session } = useSession();
   const { hash } = useLocation();
-  const isAuthenticated = Boolean(session?.accessToken);
-  const ctaPath = isAuthenticated ? '/app' : '/register';
-  const ctaLabel = isAuthenticated ? t('onboarding.enterMessenger') : t('onboarding.openMessenger');
+  const ctaLabel = t('onboarding.openMessenger');
   const [news, setNews] = useState([]);
   const [newsStatus, setNewsStatus] = useState('loading');
   const [isDonationDialogOpen, setIsDonationDialogOpen] = useState(false);
@@ -29,6 +26,8 @@ export function LandingPage() {
   const donationDialogRef = useRef(null);
   const donationDialogCloseRef = useRef(null);
   const wasDonationDialogOpenRef = useRef(false);
+  const downloadTriggerRef = useRef(null);
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
   const features = [
     { key: 'chats', icon: 'chat', title: t('onboarding.directChatsTitle'), text: t('onboarding.directChatsText') },
     { key: 'voice', icon: 'microphone', title: t('onboarding.voiceTitle'), text: t('onboarding.voiceText') },
@@ -136,6 +135,11 @@ export function LandingPage() {
     }
   }
 
+  function openDownloadDialog(event) {
+    downloadTriggerRef.current = event.currentTarget;
+    setIsDownloadDialogOpen(true);
+  }
+
   return (
     <main className="public-page ara-page ara-landing-page" aria-labelledby="landing-title">
       <div className="ara-shell">
@@ -148,7 +152,7 @@ export function LandingPage() {
             <h1 id="landing-title">{t('comet.heroTitle')}</h1>
             <p>{t('comet.heroText')}</p>
             <div className="ara-actions">
-              <Link to={ctaPath} className="ara-button ara-button-primary">{ctaLabel}<Icon name="arrowRight" size={18} /></Link>
+              <button className="ara-button ara-button-primary" type="button" aria-haspopup="dialog" aria-expanded={isDownloadDialogOpen} onClick={openDownloadDialog}>{ctaLabel}<Icon name="arrowRight" size={18} /></button>
               <Link to="/download" className="ara-button ara-button-secondary">{t('onboarding.downloadNavigation')}<Icon name="arrowRight" size={17} /></Link>
             </div>
             <p className="ara-hero-note"><Icon name="shield" size={16} />{t('comet.heroNote')}</p>
@@ -318,7 +322,7 @@ export function LandingPage() {
           <span className="ara-final-mark" aria-hidden="true"><img src="/icons/arachat-parrot-icon-192.png" alt="" /></span>
           <h2 id="final-title">{language === 'ru' ? 'Твои люди. Твоё пространство.' : t('comet.finalTitle')}</h2>
           <p>{language === 'ru' ? 'Оставайся на связи с AraChat.' : t('comet.finalText')}</p>
-          <div className="ara-actions"><Link to={ctaPath} className="ara-button ara-button-primary">{ctaLabel}<Icon name="arrowRight" size={17} /></Link><Link to="/download" className="ara-button ara-button-secondary">{t('onboarding.downloadNavigation')}<Icon name="arrowRight" size={17} /></Link></div>
+          <div className="ara-actions"><button className="ara-button ara-button-primary" type="button" aria-haspopup="dialog" aria-expanded={isDownloadDialogOpen} onClick={openDownloadDialog}>{ctaLabel}<Icon name="arrowRight" size={17} /></button><Link to="/download" className="ara-button ara-button-secondary">{t('onboarding.downloadNavigation')}<Icon name="arrowRight" size={17} /></Link></div>
         </section>
 
         <AraFooter />
@@ -383,6 +387,11 @@ export function LandingPage() {
           </section>
         </div>
       ) : null}
+      <DownloadConfirmationDialog
+        isOpen={isDownloadDialogOpen}
+        onClose={() => setIsDownloadDialogOpen(false)}
+        returnFocusRef={downloadTriggerRef}
+      />
     </main>
   );
 }

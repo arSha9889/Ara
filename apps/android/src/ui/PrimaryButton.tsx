@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, type GestureResponderEvent } from 'react-native';
 
-import { colors } from '../theme/theme';
+import { radii, type AppColors } from '../theme/theme';
+import { useTheme, useThemedStyles } from '../theme/ThemeProvider';
 
 interface PrimaryButtonProps {
   label: string;
@@ -15,11 +16,15 @@ export function PrimaryButton({
   disabled = false,
   accessibilityHint,
 }: PrimaryButtonProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityHint={accessibilityHint}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
+      android_ripple={{ color: colors.onAccentSubtle }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -33,11 +38,12 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: radii.control,
     justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 20,
@@ -53,4 +59,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-});
+  });
+}

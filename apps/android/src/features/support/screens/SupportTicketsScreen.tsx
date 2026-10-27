@@ -14,7 +14,8 @@ import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { authErrorKey } from '../../auth/authError';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
 import { IconButton } from '../../../ui/IconButton';
@@ -48,6 +49,8 @@ const statusKeys: Record<SupportTicketStatus, TranslationKey> = {
 
 export function SupportTicketsScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [category, setCategory] = useState<SupportCategory>('account');
@@ -298,7 +301,8 @@ function formatDate(value: string, language: 'ru' | 'en'): string {
   }).format(date);
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   header: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },
   headerCopy: { flex: 1 },
   intro: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
@@ -307,13 +311,13 @@ const styles = StyleSheet.create({
   formHeadingCopy: { flex: 1 },
   formTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
   formDescription: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 2 },
-  notice: { backgroundColor: 'rgba(169, 156, 255, 0.12)', borderColor: 'rgba(169, 156, 255, 0.36)', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, padding: spacing.sm },
+  notice: { backgroundColor: colors.accentSubtle, borderColor: colors.borderInteractive, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, marginTop: spacing.md, padding: spacing.sm },
   noticeLabel: { color: colors.text, fontSize: 14, fontWeight: '700', lineHeight: 20 },
   noticeDescription: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginTop: 2 },
   fieldLabel: { color: colors.text, fontSize: 14, fontWeight: '700', marginTop: spacing.md },
   categories: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
   category: { borderColor: colors.glassBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.sm },
-  categorySelected: { backgroundColor: 'rgba(67, 182, 255, 0.24)', borderColor: colors.primary },
+  categorySelected: { backgroundColor: colors.accentSelected, borderColor: colors.primary },
   categoryLabel: { color: colors.text, fontSize: 13, fontWeight: '600' },
   input: { backgroundColor: colors.input, borderColor: colors.glassBorder, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, color: colors.text, fontSize: 16, marginTop: spacing.xs, minHeight: 48, paddingHorizontal: spacing.sm },
   messageInput: { lineHeight: 22, maxHeight: 180, minHeight: 120, paddingTop: spacing.sm },
@@ -336,4 +340,5 @@ const styles = StyleSheet.create({
   preview: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: 4 },
   ticketMeta: { color: colors.textFaint, fontSize: 12, marginTop: spacing.sm },
   pressed: { backgroundColor: colors.surfacePressed },
-});
+  });
+}

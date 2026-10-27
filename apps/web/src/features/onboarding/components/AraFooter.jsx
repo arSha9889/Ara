@@ -39,7 +39,6 @@ export function AraFooter() {
         <strong>{t('onboarding.legalLinksLabel')}</strong>
         <Link to="/privacy">{t('onboarding.privacyPolicy')}</Link>
         <Link to="/terms">{t('onboarding.terms')}</Link>
-        <Link to="/presentation">{t('onboarding.openPresentation')}</Link>
       </div>
     </footer>
   );

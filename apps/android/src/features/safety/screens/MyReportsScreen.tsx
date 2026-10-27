@@ -7,7 +7,8 @@ import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { authErrorKey } from '../../auth/authError';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
 import { IconButton } from '../../../ui/IconButton';
@@ -32,6 +33,8 @@ const reasonKeys: Record<ContentReport['reason'], TranslationKey> = {
 
 export function MyReportsScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [reports, setReports] = useState<ContentReport[]>([]);
   const [error, setError] = useState('');
@@ -95,7 +98,8 @@ function formatDate(value: string, language: 'ru' | 'en'): string {
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   title: { color: colors.text, flex: 1, fontSize: 24, fontWeight: '700' },
   intro: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
@@ -111,4 +115,5 @@ const styles = StyleSheet.create({
   status: { color: colors.primary, fontSize: 13, fontWeight: '700', textAlign: 'right' },
   description: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
   date: { color: colors.textFaint, fontSize: 12, marginTop: spacing.sm },
-});
+  });
+}

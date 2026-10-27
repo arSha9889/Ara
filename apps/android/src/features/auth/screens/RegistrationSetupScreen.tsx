@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
 import { type AppLanguage } from '../../../localization/language';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { HaloMark } from '../../../ui/HaloMark';
 import { Icon } from '../../../ui/Icon';
@@ -29,6 +30,8 @@ const languageOptions: readonly {
 
 export function RegistrationSetupScreen({ onBack, onContinue }: RegistrationSetupScreenProps) {
   const { language, setLanguage, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [country, setCountry] = useState<RegistrationCountry | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>(language);
   const [isContinuing, setIsContinuing] = useState(false);
@@ -149,7 +152,8 @@ export function RegistrationSetupScreen({ onBack, onContinue }: RegistrationSetu
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   content: {
     alignSelf: 'center',
     maxWidth: 560,
@@ -315,4 +319,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.78,
   },
-});
+  });
+}

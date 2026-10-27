@@ -15,7 +15,8 @@ import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
 import { searchPublicUsers, type PublicUser } from '../../search/api/searchApi';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { Icon } from '../../../ui/Icon';
 import { IconButton } from '../../../ui/IconButton';
@@ -32,6 +33,8 @@ function userName(user: PublicUser): string {
 export function GroupCreateScreen({ navigation }: Props) {
   const { session } = useSession();
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [avatar, setAvatar] = useState<PickedChatAttachment | null>(null);
@@ -296,7 +299,8 @@ export function GroupCreateScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   content: { gap: spacing.md, paddingBottom: spacing.xl },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   headerCopy: { flex: 1, gap: 2 },
@@ -333,4 +337,5 @@ const styles = StyleSheet.create({
   userName: { color: colors.text, fontSize: 14, fontWeight: '700' },
   userUsername: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   addLabel: { color: colors.accent, fontSize: 13, fontWeight: '700' },
-});
+  });
+}

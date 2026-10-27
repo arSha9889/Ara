@@ -2,13 +2,17 @@ import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { Icon } from '../../../ui/Icon';
+import { InterfaceIcon } from '../../../ui/InterfaceIcon';
 import { AccountScreenLayout } from '../../account/components/AccountScreenLayout';
 import { useAppUpdate } from '../AppUpdateProvider';
 
 export function AppUpdateScreen() {
   const { t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { isUpdateAvailable, release, source } = useAppUpdate();
   const [notice, setNotice] = useState('');
   const actionUrl =
@@ -47,7 +51,7 @@ export function AppUpdateScreen() {
       {isUpdateAvailable && release ? (
         <View style={[sharedStyles.elevatedCard, styles.card]}>
           <View style={styles.versionRow}>
-            <Icon color={colors.primary} name="download" size={22} />
+            <InterfaceIcon color={colors.primary} name="bullhorn" size={22} />
             <View style={styles.versionCopy}>
               <Text style={styles.versionLabel}>{t('appUpdateLatestVersion')}</Text>
               <Text style={styles.version}>{release.latestVersionName}</Text>
@@ -75,7 +79,7 @@ export function AppUpdateScreen() {
               style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
               testID="app-update-action"
             >
-              <Icon color={colors.canvas} name="download" size={20} />
+              <Icon color={colors.onAccent} name="download" size={20} />
               <Text style={styles.actionLabel}>{actionLabel}</Text>
             </Pressable>
           ) : null}
@@ -86,7 +90,8 @@ export function AppUpdateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   card: {
     marginTop: spacing.lg,
     padding: spacing.lg,
@@ -154,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryPressed,
   },
   actionLabel: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -164,4 +169,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.sm,
   },
-});
+  });
+}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, sharedStyles, spacing } from '../theme/theme';
+import { spacing, type AppColors } from '../theme/theme';
+import { useTheme, useThemedStyles } from '../theme/ThemeProvider';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 import type { AppLanguage } from './language';
@@ -21,6 +22,8 @@ const languageOptions: readonly {
 
 export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
   const { language, setLanguage, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [isOpen, setIsOpen] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -136,7 +139,8 @@ export function LanguageSwitcher({ onLanguageChange }: LanguageSwitcherProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   trigger: {
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -244,4 +248,5 @@ const styles = StyleSheet.create({
   optionLabelSelected: {
     color: colors.text,
   },
-});
+  });
+}

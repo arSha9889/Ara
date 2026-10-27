@@ -1,12 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
-  Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -21,8 +21,12 @@ import { useSession } from '../../auth/session/useSession';
 import { ApiError } from '../../../infrastructure/http/apiClient';
 import { useI18n } from '../../../localization/I18nProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { motion, radii, spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
+import { AnimatedBottomSheet } from '../../../ui/AnimatedBottomSheet';
+import { AnimatedPhotoViewer } from '../../../ui/AnimatedPhotoViewer';
+import { AraGlassSurface } from '../../../ui/AraGlassSurface';
 import { EmptyState } from '../../../ui/EmptyState';
 import { Icon } from '../../../ui/Icon';
 import { IconButton } from '../../../ui/IconButton';
@@ -105,9 +109,12 @@ function isGroupUnavailable(error: unknown): boolean {
 
 export function GroupChatScreen({ navigation, route }: Props) {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { session } = useSession();
   const { subscribeToChat, subscribeToEvents } = useRealtime();
   const messageList = useRef<FlatList<ChatMessage>>(null);
+  const composerTransition = useRef(new Animated.Value(1)).current;
   const [group, setGroup] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
@@ -125,7 +132,13 @@ export function GroupChatScreen({ navigation, route }: Props) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [photoViewer, setPhotoViewer] = useState<PhotoViewerState | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const hasLostAccess = useRef(false);
+  const composerMode = selectedAttachment
+    ? 'attachment'
+    : replyToMessage
+      ? 'reply'
+      : 'default';
 
   const attachmentCopy: AttachmentPresentationCopy = useMemo(
     () => ({
@@ -161,6 +174,38 @@ export function GroupChatScreen({ navigation, route }: Props) {
     }),
     [attachmentCopy, t],
   );
+
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(enabled => {
+        if (active) {
+          setReduceMotion(enabled);
+        }
+      })
+      .catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    composerTransition.stopAnimation();
+    if (reduceMotion) {
+      composerTransition.setValue(1);
+      return;
+    }
+
+    composerTransition.setValue(0.96);
+    Animated.timing(composerTransition, {
+      duration: motion.standard,
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [composerMode, composerTransition, reduceMotion]);
 
   const leaveUnavailableGroup = useCallback(() => {
     if (hasLostAccess.current) {
@@ -661,46 +706,44 @@ export function GroupChatScreen({ navigation, route }: Props) {
           />
         )}
 
-        {replyToMessage ? <View style={[sharedStyles.glassCard, styles.replyComposer]}><Icon color={colors.accent} name="reply" size={20} /><View style={styles.replyComposerCopy}><Text numberOfLines={1} style={styles.replyComposerTitle}>{t('replyingTo')} {replyToMessage.sender_id === session?.user.id ? t('youPrefix') : replyToMessage.author?.display_name || presentationCopy.groupChat}</Text><Text numberOfLines={1} style={styles.replyComposerText}>{messagePreview(replyToMessage, attachmentCopy)}</Text></View><IconButton accessibilityLabel={t('cancelReply')} icon="close" onPress={() => setReplyToMessage(null)} /></View> : null}
-        {selectedAttachment ? <View style={[sharedStyles.glassCard, styles.attachmentDraft]}><Icon color={colors.accent} name="file" size={22} /><View style={styles.attachmentDraftCopy}><Text numberOfLines={1} style={styles.attachmentDraftTitle}>{selectedAttachment.name}</Text><Text style={styles.attachmentDraftMeta}>{attachmentTypeLabel}</Text></View><IconButton accessibilityLabel={t('removeAttachment')} disabled={isSending} icon="close" onPress={removeAttachment} /></View> : null}
+        <Animated.View style={{ opacity: composerTransition, transform: [{ scale: composerTransition }] }}>
+          {replyToMessage ? <View style={[sharedStyles.glassCard, styles.replyComposer]}><Icon color={colors.accent} name="reply" size={20} /><View style={styles.replyComposerCopy}><Text numberOfLines={1} style={styles.replyComposerTitle}>{t('replyingTo')} {replyToMessage.sender_id === session?.user.id ? t('youPrefix') : replyToMessage.author?.display_name || presentationCopy.groupChat}</Text><Text numberOfLines={1} style={styles.replyComposerText}>{messagePreview(replyToMessage, attachmentCopy)}</Text></View><IconButton accessibilityLabel={t('cancelReply')} icon="close" onPress={() => setReplyToMessage(null)} /></View> : null}
+          {selectedAttachment ? <View style={[sharedStyles.glassCard, styles.attachmentDraft]}><Icon color={colors.accent} name="file" size={22} /><View style={styles.attachmentDraftCopy}><Text numberOfLines={1} style={styles.attachmentDraftTitle}>{selectedAttachment.name}</Text><Text style={styles.attachmentDraftMeta}>{attachmentTypeLabel}</Text></View><IconButton accessibilityLabel={t('removeAttachment')} disabled={isSending} icon="close" onPress={removeAttachment} /></View> : null}
 
-        {group && !group.can_post ? <Text accessibilityRole="alert" style={styles.cannotPost}>{t('groupCannotPost')}</Text> : (
-          <View style={[sharedStyles.glassPanel, styles.composer]}>
-            <IconButton accessibilityLabel={t('addAttachment')} disabled={isSending || isPickingAttachment} icon="plus" onPress={() => setIsAttachmentPickerVisible(true)} />
-            <TextInput accessibilityLabel={t('groupMessagePlaceholder')} editable={!isSending} multiline onChangeText={setText} placeholder={t('groupMessagePlaceholder')} placeholderTextColor={colors.textFaint} style={styles.composerInput} textAlignVertical="top" value={text} />
-            <IconButton accessibilityLabel={isSending ? t('sendingMessage') : t('sendMessage')} disabled={isSending || (!text.trim() && !selectedAttachment)} icon="send" onPress={() => { handleSend().catch(() => undefined); }} tone="primary" />
-          </View>
-        )}
+          {group && !group.can_post ? <Text accessibilityRole="alert" style={styles.cannotPost}>{t('groupCannotPost')}</Text> : (
+            <AraGlassSurface style={styles.composer}>
+              <IconButton accessibilityLabel={t('addAttachment')} disabled={isSending || isPickingAttachment} icon="plus" onPress={() => setIsAttachmentPickerVisible(true)} />
+              <TextInput accessibilityLabel={t('groupMessagePlaceholder')} editable={!isSending} multiline onChangeText={setText} placeholder={t('groupMessagePlaceholder')} placeholderTextColor={colors.textFaint} style={styles.composerInput} textAlignVertical="top" value={text} />
+              <IconButton accessibilityLabel={isSending ? t('sendingMessage') : t('sendMessage')} disabled={isSending || (!text.trim() && !selectedAttachment)} icon="send" onPress={() => { handleSend().catch(() => undefined); }} tone="primary" />
+            </AraGlassSurface>
+          )}
+        </Animated.View>
       </AppScreen>
 
-      <Modal animationType="slide" onRequestClose={closeMessageActions} transparent visible={Boolean(actionMessage)}>
-        <View style={styles.sheetOverlay}>
-          <Pressable accessibilityLabel={t('closeMessageActions')} accessibilityRole="button" disabled={Boolean(pendingAction)} onPress={closeMessageActions} style={styles.sheetBackdrop} />
-          {actionMessage ? <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.sheet]}>
+      <AnimatedBottomSheet accessibilityLabel={t('closeMessageActions')} disabled={Boolean(pendingAction)} keyboardAvoiding onClose={closeMessageActions} sheetStyle={styles.sheet} visible={Boolean(actionMessage)}>
+          {actionMessage ? <View>
             <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>{isEditing ? t('editMessageTitle') : t('messageActions')}</Text><IconButton accessibilityLabel={t('closeMessageActions')} disabled={Boolean(pendingAction)} icon="close" onPress={closeMessageActions} /></View>
             {!isEditing ? <View style={styles.actionRow}><Pressable accessibilityRole="button" disabled={Boolean(pendingAction)} onPress={() => startReply(actionMessage)} style={({ pressed }) => [styles.secondaryButton, pressed && !pendingAction && styles.secondaryButtonPressed]}><Icon color={colors.text} name="reply" size={18} /><Text style={styles.secondaryButtonLabel}>{t('replyMessage')}</Text></Pressable><Pressable accessibilityRole="button" disabled={Boolean(pendingAction)} onPress={() => confirmPin(actionMessage)} style={({ pressed }) => [styles.secondaryButton, pressed && !pendingAction && styles.secondaryButtonPressed]}><Icon color={colors.text} name="pin" size={18} /><Text style={styles.secondaryButtonLabel}>{pinnedMessage?.id === actionMessage.id ? t('unpinMessage') : t('pinMessage')}</Text></Pressable></View> : null}
             {!isEditing ? <View style={styles.reactionPicker}>{REACTION_EMOJIS.map(emoji => <Pressable accessibilityLabel={emoji} accessibilityRole="button" disabled={Boolean(pendingAction)} key={emoji} onPress={() => { handleReaction(actionMessage.id, emoji).catch(() => undefined); }} style={({ pressed }) => [styles.reactionPickerButton, actionMessage.reactions.some(reaction => reaction.emoji === emoji && reaction.reacted_by_me) && styles.reactionPickerButtonSelected, pressed && !pendingAction && styles.reactionPickerButtonPressed]}><Text style={styles.reactionPickerEmoji}>{emoji}</Text></Pressable>)}</View> : null}
             {actionMessage.sender_id === session?.user.id ? isEditing ? <View style={styles.editForm}><TextInput accessibilityLabel={t('editMessagePlaceholder')} autoFocus editable={!pendingAction} multiline onChangeText={setEditText} placeholder={t('editMessagePlaceholder')} placeholderTextColor={colors.textFaint} style={styles.editInput} value={editText} /><View style={styles.actionRow}><Pressable accessibilityRole="button" disabled={Boolean(pendingAction)} onPress={() => setIsEditing(false)} style={({ pressed }) => [styles.secondaryButton, pressed && !pendingAction && styles.secondaryButtonPressed]}><Text style={styles.secondaryButtonLabel}>{t('cancel')}</Text></Pressable><Pressable accessibilityRole="button" disabled={!editText.trim() || Boolean(pendingAction)} onPress={() => { handleEdit().catch(() => undefined); }} style={({ pressed }) => [styles.primaryButton, (!editText.trim() || pendingAction) && styles.primaryButtonDisabled, pressed && editText.trim() && !pendingAction && styles.primaryButtonPressed]}><Text style={styles.primaryButtonLabel}>{pendingAction ? t('savingMessage') : t('saveMessage')}</Text></Pressable></View></View> : <View style={styles.actionRow}>{actionMessage.type === 'text' ? <Pressable accessibilityRole="button" disabled={Boolean(pendingAction)} onPress={() => setIsEditing(true)} style={({ pressed }) => [styles.secondaryButton, pressed && !pendingAction && styles.secondaryButtonPressed]}><Text style={styles.secondaryButtonLabel}>{t('editMessage')}</Text></Pressable> : null}<Pressable accessibilityRole="button" disabled={Boolean(pendingAction)} onPress={() => Alert.alert(t('deleteMessage'), t('deleteMessageConfirm'), [{ text: t('cancel'), style: 'cancel' }, { text: t('deleteMessage'), style: 'destructive', onPress: () => { handleDelete(actionMessage).catch(() => undefined); } }])} style={({ pressed }) => [styles.dangerButton, pressed && !pendingAction && styles.dangerButtonPressed]}><Text style={styles.dangerButtonLabel}>{t('deleteMessage')}</Text></Pressable></View> : null}
           </View> : null}
-        </View>
-      </Modal>
+      </AnimatedBottomSheet>
 
-      <Modal animationType="slide" onRequestClose={() => setIsAttachmentPickerVisible(false)} transparent visible={isAttachmentPickerVisible}>
-        <View style={styles.sheetOverlay}><Pressable accessibilityLabel={t('closeAttachmentPicker')} accessibilityRole="button" onPress={() => setIsAttachmentPickerVisible(false)} style={styles.sheetBackdrop} /><View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.attachmentSheet]}><Text style={styles.sheetTitle}>{t('addAttachment')}</Text><Pressable accessibilityRole="button" disabled={isPickingAttachment} onPress={() => { selectAttachment(pickChatPhoto).catch(() => undefined); }} style={({ pressed }) => [styles.attachmentOption, pressed && styles.secondaryButtonPressed]}><Icon color={colors.accent} name="photo" size={22} /><Text style={styles.attachmentOptionLabel}>{t('attachmentPhoto')}</Text></Pressable><Pressable accessibilityRole="button" disabled={isPickingAttachment} onPress={() => { selectAttachment(pickChatVideo).catch(() => undefined); }} style={({ pressed }) => [styles.attachmentOption, pressed && styles.secondaryButtonPressed]}><Icon color={colors.accent} name="video" size={22} /><Text style={styles.attachmentOptionLabel}>{t('attachmentVideo')}</Text></Pressable><Pressable accessibilityRole="button" disabled={isPickingAttachment} onPress={() => { selectAttachment(pickChatDocument).catch(() => undefined); }} style={({ pressed }) => [styles.attachmentOption, pressed && styles.secondaryButtonPressed]}><Icon color={colors.accent} name="file" size={22} /><Text style={styles.attachmentOptionLabel}>{t('attachmentFile')}</Text></Pressable></View></View>
-      </Modal>
+      <AnimatedBottomSheet accessibilityLabel={t('closeAttachmentPicker')} disabled={isPickingAttachment} onClose={() => setIsAttachmentPickerVisible(false)} sheetStyle={styles.attachmentSheet} visible={isAttachmentPickerVisible}>
+        <View><Text style={styles.sheetTitle}>{t('addAttachment')}</Text><Pressable accessibilityRole="button" disabled={isPickingAttachment} onPress={() => { selectAttachment(pickChatPhoto).catch(() => undefined); }} style={({ pressed }) => [styles.attachmentOption, pressed && styles.secondaryButtonPressed]}><Icon color={colors.accent} name="photo" size={22} /><Text style={styles.attachmentOptionLabel}>{t('attachmentPhoto')}</Text></Pressable><Pressable accessibilityRole="button" disabled={isPickingAttachment} onPress={() => { selectAttachment(pickChatVideo).catch(() => undefined); }} style={({ pressed }) => [styles.attachmentOption, pressed && styles.secondaryButtonPressed]}><Icon color={colors.accent} name="video" size={22} /><Text style={styles.attachmentOptionLabel}>{t('attachmentVideo')}</Text></Pressable><Pressable accessibilityRole="button" disabled={isPickingAttachment} onPress={() => { selectAttachment(pickChatDocument).catch(() => undefined); }} style={({ pressed }) => [styles.attachmentOption, pressed && styles.secondaryButtonPressed]}><Icon color={colors.accent} name="file" size={22} /><Text style={styles.attachmentOptionLabel}>{t('attachmentFile')}</Text></Pressable></View>
+      </AnimatedBottomSheet>
 
-      <Modal onRequestClose={() => setPhotoViewer(null)} transparent visible={Boolean(photoViewer)}>
-        <View style={styles.photoViewer}><Pressable accessibilityLabel={t('closePhotoViewer')} accessibilityRole="button" onPress={() => setPhotoViewer(null)} style={styles.photoViewerBackdrop} />{photoViewer ? <View style={styles.photoViewerContent}><Image resizeMode="contain" source={{ uri: photoViewer.uri }} style={styles.photoViewerImage} /><View style={styles.photoViewerHeader}><Text numberOfLines={1} style={styles.photoViewerTitle}>{photoViewer.name}</Text><IconButton accessibilityLabel={t('closePhotoViewer')} icon="close" onPress={() => setPhotoViewer(null)} /></View></View> : null}</View>
-      </Modal>
+      <AnimatedPhotoViewer closeLabel={t('closePhotoViewer')} name={photoViewer?.name ?? null} onClose={() => setPhotoViewer(null)} uri={photoViewer?.uri ?? null} />
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   keyboardAvoidingView: { flex: 1 },
   content: { gap: spacing.sm, paddingBottom: spacing.sm },
-  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  headerCopy: { alignItems: 'center', borderRadius: 16, flex: 1, flexDirection: 'row', gap: spacing.xs, minHeight: 48, paddingHorizontal: spacing.xs },
+  header: { alignItems: 'center', backgroundColor: colors.glassStrong, borderColor: colors.borderSubtle, borderRadius: radii.card, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.xs, padding: 4 },
+  headerCopy: { alignItems: 'center', borderRadius: radii.control, flex: 1, flexDirection: 'row', gap: spacing.xs, minHeight: 48, paddingHorizontal: spacing.xs },
   headerCopyPressed: { backgroundColor: colors.surfacePressed },
   headerTitleCopy: { flex: 1, minWidth: 0 },
   headerTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
@@ -711,21 +754,21 @@ const styles = StyleSheet.create({
   loading: { alignItems: 'center', flex: 1, gap: spacing.sm, justifyContent: 'center' },
   loadingLabel: { color: colors.textMuted, fontSize: 15 },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
-  messageList: { gap: spacing.sm, paddingBottom: spacing.sm, paddingTop: spacing.xs },
+  messageList: { gap: spacing.sm, paddingBottom: spacing.lg, paddingTop: spacing.xs },
   systemMessage: { alignItems: 'center', alignSelf: 'center', backgroundColor: colors.accentSubtle, borderRadius: 14, gap: 2, maxWidth: '88%', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   systemMessageText: { color: colors.textMuted, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   systemMessageTime: { color: colors.textFaint, fontSize: 11 },
   messageRow: { alignItems: 'flex-end', flexDirection: 'row', gap: spacing.xs, maxWidth: '92%' },
   messageRowOwn: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
   messageContent: { flexShrink: 1 },
-  messageBubble: { borderRadius: 18, gap: spacing.xs, padding: spacing.sm },
-  messageBubbleOther: { backgroundColor: colors.surfaceRaised, borderColor: colors.borderSubtle, borderWidth: StyleSheet.hairlineWidth },
-  messageBubbleOwn: { backgroundColor: colors.accent },
+  messageBubble: { borderRadius: radii.card, gap: spacing.xs, paddingHorizontal: 14, paddingTop: 10 },
+  messageBubbleOther: { backgroundColor: colors.surfaceRaised, borderBottomLeftRadius: 4, borderColor: colors.borderSubtle, borderWidth: StyleSheet.hairlineWidth },
+  messageBubbleOwn: { backgroundColor: colors.accent, borderBottomRightRadius: 4 },
   messageBubbleHighlighted: { borderColor: colors.accent, borderWidth: 2 },
   messageBubblePressed: { opacity: 0.8 },
   authorName: { color: colors.accent, fontSize: 12, fontWeight: '800' },
   replyPreview: { alignItems: 'center', backgroundColor: colors.accentSubtle, borderRadius: 10, flexDirection: 'row', gap: spacing.xs, padding: spacing.xs },
-  replyPreviewOwn: { backgroundColor: 'rgba(255,255,255,0.16)' },
+  replyPreviewOwn: { backgroundColor: colors.onAccentSubtle },
   replyPreviewCopy: { flex: 1, minWidth: 0 },
   replyPreviewAuthor: { color: colors.accent, fontSize: 12, fontWeight: '700' },
   replyPreviewAuthorOwn: { color: colors.onAccent },
@@ -752,11 +795,9 @@ const styles = StyleSheet.create({
   attachmentDraftTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   attachmentDraftMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   cannotPost: { color: colors.textMuted, fontSize: 14, lineHeight: 20, padding: spacing.sm, textAlign: 'center' },
-  composer: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, padding: spacing.xs },
+  composer: { alignItems: 'center', borderRadius: radii.card, flexDirection: 'row', gap: spacing.xs, padding: 6 },
   composerInput: { color: colors.text, flex: 1, fontSize: 16, maxHeight: 120, minHeight: 48, paddingVertical: spacing.xs },
-  sheetOverlay: { backgroundColor: 'rgba(0,0,0,0.58)', flex: 1, justifyContent: 'flex-end' },
-  sheetBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  sheet: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, gap: spacing.sm, padding: spacing.md },
+   sheet: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, gap: spacing.sm, padding: spacing.md },
   sheetHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
   actionRow: { flexDirection: 'row', gap: spacing.sm },
@@ -780,10 +821,5 @@ const styles = StyleSheet.create({
   attachmentSheet: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, gap: spacing.sm, padding: spacing.md },
   attachmentOption: { alignItems: 'center', borderColor: colors.borderSubtle, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: spacing.sm, minHeight: 56, paddingHorizontal: spacing.sm },
   attachmentOptionLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  photoViewer: { backgroundColor: 'rgba(0,0,0,0.88)', flex: 1, justifyContent: 'center' },
-  photoViewerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  photoViewerContent: { flex: 1, justifyContent: 'center' },
-  photoViewerImage: { flex: 1, width: '100%' },
-  photoViewerHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, left: spacing.md, position: 'absolute', right: spacing.md, top: spacing.xl },
-  photoViewerTitle: { color: colors.onAccent, flex: 1, fontSize: 14, fontWeight: '700' },
-});
+  });
+}

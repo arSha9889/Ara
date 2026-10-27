@@ -2,17 +2,20 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, spacing } from '../../../theme/theme';
+import { spacing } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../authError';
 import { legalDocumentUrls } from '../legalDocuments';
 import { useSession } from '../session/useSession';
-import { AuthLayout, authStyles } from './AuthLayout';
+import { AuthLayout, useAuthStyles } from './AuthLayout';
 import { LegalDocumentLink } from './LegalDocumentLink';
 
 export function LegalAcceptanceScreen() {
   const { t } = useI18n();
+  const styles = useThemedStyles(createStyles);
+  const authStyles = useAuthStyles();
   const { acceptLegalDocuments, signOut } = useSession();
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -96,6 +99,9 @@ function ConsentCheck({
   label: string;
   onChange(): void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -111,7 +117,8 @@ function ConsentCheck({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: import('../../../theme/theme').AppColors) {
+  return StyleSheet.create({
   documentName: {
     color: colors.text,
     fontSize: 17,
@@ -148,4 +155,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.78,
   },
-});
+  });
+}

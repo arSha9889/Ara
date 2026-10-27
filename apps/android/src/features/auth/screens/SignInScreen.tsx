@@ -3,11 +3,11 @@ import { Pressable, Text, TextInput } from 'react-native';
 
 import { runtimeConfig } from '../../../config/runtimeConfig';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors } from '../../../theme/theme';
+import { useTheme } from '../../../theme/ThemeProvider';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../authError';
 import { useSession } from '../session/useSession';
-import { AuthLayout, authStyles } from './AuthLayout';
+import { AuthLayout, useAuthStyles } from './AuthLayout';
 
 interface SignInScreenProps {
   onCreateAccount(): void;
@@ -17,6 +17,8 @@ interface SignInScreenProps {
 export function SignInScreen({ onCreateAccount, onRecoverPassword }: SignInScreenProps) {
   const { signIn } = useSession();
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const authStyles = useAuthStyles();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

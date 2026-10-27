@@ -4,7 +4,8 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { EmptyState } from '../../../ui/EmptyState';
 import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
@@ -13,6 +14,8 @@ import { AccountScreenLayout } from '../components/AccountScreenLayout';
 
 export function DevicesScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { signOut } = useSession();
   const [sessions, setSessions] = useState<DeviceSession[]>([]);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
@@ -141,7 +144,8 @@ function isExpiredAt(value: string): boolean {
   return !Number.isNaN(timestamp) && timestamp <= Date.now();
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   loading: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl },
   errorCard: { gap: spacing.sm, marginTop: spacing.md, padding: spacing.md },
   errorText: { color: colors.danger, fontSize: 14, lineHeight: 20 },
@@ -156,7 +160,8 @@ const styles = StyleSheet.create({
   identifierLabel: { color: colors.textFaint, fontSize: 12, fontWeight: '600', marginTop: spacing.sm, textTransform: 'uppercase' },
   identifier: { color: colors.text, fontSize: 13, marginTop: 2 },
   date: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginTop: 3 },
-  revokeButton: { alignItems: 'center', borderColor: 'rgba(255, 158, 175, 0.48)', borderRadius: 12, borderWidth: 1, justifyContent: 'center', marginTop: spacing.md, minHeight: 48 },
+  revokeButton: { alignItems: 'center', borderColor: colors.danger, borderRadius: 12, borderWidth: 1, justifyContent: 'center', marginTop: spacing.md, minHeight: 48 },
   revokeLabel: { color: colors.danger, fontSize: 14, fontWeight: '700' },
-  pressed: { backgroundColor: 'rgba(255, 156, 173, 0.12)' },
-});
+  pressed: { backgroundColor: colors.dangerSubtle },
+  });
+}

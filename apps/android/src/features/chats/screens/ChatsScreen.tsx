@@ -22,7 +22,8 @@ import {
   removeChatById,
   upsertGroupChat,
 } from '../chatRealtime';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { radii, spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { useI18n } from '../../../localization/I18nProvider';
 import { useRealtime } from '../../realtime/RealtimeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
@@ -30,6 +31,7 @@ import { ChatAvatar } from '../components/ChatAvatar';
 import { EmptyState } from '../../../ui/EmptyState';
 import { Icon } from '../../../ui/Icon';
 import { IconButton } from '../../../ui/IconButton';
+import { InterfaceIcon } from '../../../ui/InterfaceIcon';
 import { useAppUpdate } from '../../settings/AppUpdateProvider';
 
 function ChatSubscription({ chatId }: { chatId: string }) {
@@ -42,6 +44,8 @@ function ChatSubscription({ chatId }: { chatId: string }) {
 
 export function ChatsScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { session } = useSession();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { subscribeToEvents } = useRealtime();
@@ -237,7 +241,11 @@ export function ChatsScreen() {
         accessibilityLabel={title}
         accessibilityRole="button"
         onPress={() => openChat(item)}
-        style={({ pressed }) => [styles.chatRow, pressed && styles.chatRowPressed]}
+        style={({ pressed }) => [
+          styles.chatRow,
+          item.unread_count > 0 && styles.chatRowUnread,
+          pressed && styles.chatRowPressed,
+        ]}
         >
         <ChatAvatar
           avatarRef={avatarRef}
@@ -248,7 +256,7 @@ export function ChatsScreen() {
         />
         <View style={styles.chatCopy}>
           <View style={styles.chatHeading}>
-            <Text numberOfLines={1} style={styles.chatTitle}>{title}</Text>
+            <Text numberOfLines={1} style={[styles.chatTitle, item.unread_count > 0 && styles.chatTitleUnread]}>{title}</Text>
             {item.last_message ? (
               <Text style={styles.chatTime}>
                 {formatConversationTime(item.last_message.created_at, language)}
@@ -256,7 +264,7 @@ export function ChatsScreen() {
             ) : null}
           </View>
           <View style={styles.chatPreviewRow}>
-            <Text numberOfLines={1} style={styles.chatPreview}>{preview}</Text>
+            <Text numberOfLines={1} style={[styles.chatPreview, item.unread_count > 0 && styles.chatPreviewUnread]}>{preview}</Text>
             {item.unread_count > 0 ? (
               <View accessibilityLabel={`${item.unread_count}`} style={styles.unreadBadge}>
                 <Text style={styles.unreadLabel}>{item.unread_count > 99 ? '99+' : item.unread_count}</Text>
@@ -302,7 +310,7 @@ export function ChatsScreen() {
           style={({ pressed }) => [sharedStyles.elevatedCard, styles.updateBanner, pressed && styles.updateBannerPressed]}
           testID="app-update-banner"
         >
-          <Icon color={colors.accent} name="download" size={22} />
+          <InterfaceIcon color={colors.accent} name="bullhorn" size={22} />
           <View style={styles.updateBannerCopy}>
             <Text numberOfLines={1} style={styles.updateBannerTitle}>{t('appUpdateAvailable')}</Text>
             <Text numberOfLines={1} style={styles.updateBannerDescription}>
@@ -375,7 +383,8 @@ export function ChatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   content: {
     paddingBottom: spacing.lg,
   },
@@ -383,7 +392,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   headingActions: {
     flexDirection: 'row',
@@ -424,7 +433,7 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: spacing.xs,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxxl + spacing.xxxl,
     paddingTop: spacing.xs,
   },
   emptyList: {
@@ -432,15 +441,19 @@ const styles = StyleSheet.create({
   },
   chatRow: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderColor: colors.borderSubtle,
-    borderRadius: 20,
+    borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 84,
+    minHeight: 80,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
+  },
+  chatRowUnread: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderInteractive,
   },
   chatRowPressed: {
     backgroundColor: colors.surfacePressed,
@@ -460,6 +473,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  chatTitleUnread: {
+    fontWeight: '800',
+  },
   chatTime: {
     color: colors.textFaint,
     fontSize: 12,
@@ -472,16 +488,21 @@ const styles = StyleSheet.create({
   chatPreview: {
     color: colors.textMuted,
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  chatPreviewUnread: {
+    color: colors.text,
+    fontWeight: '600',
   },
   unreadBadge: {
     alignItems: 'center',
     backgroundColor: colors.accent,
-    borderRadius: 11,
+    borderRadius: 10,
     justifyContent: 'center',
-    minWidth: 24,
+    minWidth: 20,
     paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   unreadLabel: {
     color: colors.onAccent,
@@ -512,7 +533,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.accent,
     borderColor: colors.accent,
-    borderRadius: 24,
+    borderRadius: radii.pill,
     borderWidth: 1,
     bottom: spacing.md,
     elevation: 5,
@@ -522,6 +543,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     position: 'absolute',
     right: spacing.md,
+    shadowColor: colors.shadow,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
   },
   newChatButtonPressed: {
     backgroundColor: colors.accentPressed,
@@ -532,4 +557,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-});
+  });
+}

@@ -4,11 +4,11 @@ import { Pressable, Text, TextInput } from 'react-native';
 import { runtimeConfig } from '../../../config/runtimeConfig';
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors } from '../../../theme/theme';
+import { useTheme } from '../../../theme/ThemeProvider';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../authError';
 import { confirmPasswordReset, startPasswordReset } from '../api/authApi';
-import { AuthLayout, authStyles } from './AuthLayout';
+import { AuthLayout, useAuthStyles } from './AuthLayout';
 
 interface PasswordRecoveryScreenProps {
   onBack(): void;
@@ -19,6 +19,8 @@ const passwordPattern = /^[A-Za-z0-9]{5,30}$/;
 
 export function PasswordRecoveryScreen({ onBack }: PasswordRecoveryScreenProps) {
   const { language, t } = useI18n();
+  const { colors } = useTheme();
+  const authStyles = useAuthStyles();
   const [email, setEmail] = useState('');
   const [requested, setRequested] = useState(false);
   const [completed, setCompleted] = useState(false);

@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { Icon } from '../../../ui/Icon';
 import {
   downloadPrivateChatMedia,
@@ -57,6 +58,8 @@ export function ChatPhotoAttachment({
   onOpen,
 }: ChatPhotoAttachmentProps) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [cachedUri, setCachedUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasFailed, setHasFailed] = useState(false);
@@ -137,6 +140,8 @@ export function ChatFileAttachment({
   mimeType,
 }: ChatFileAttachmentProps) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [isOpening, setIsOpening] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
   const name = t('chatFile');
@@ -209,6 +214,8 @@ export function ChatVideoAttachment({
   mimeType,
 }: ChatVideoAttachmentProps) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [isOpening, setIsOpening] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
   const name = t('chatVideo');
@@ -279,6 +286,8 @@ export function ChatVoiceAttachment({
   mimeType,
 }: ChatVoiceAttachmentProps) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [cachedUri, setCachedUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
@@ -413,6 +422,8 @@ export function ChatVideoNoteAttachment({
   mimeType,
 }: ChatVideoNoteAttachmentProps) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [isOpening, setIsOpening] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
 
@@ -489,7 +500,8 @@ function formatDuration(value: number): string {
   return `${minutes}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   photoButton: {
     borderRadius: 14,
     overflow: 'hidden',
@@ -723,4 +735,5 @@ const styles = StyleSheet.create({
   attachmentPressed: {
     opacity: 0.76,
   },
-});
+  });
+}

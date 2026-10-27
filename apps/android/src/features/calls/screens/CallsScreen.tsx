@@ -14,11 +14,13 @@ import {
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
 import { Icon } from '../../../ui/Icon';
 import { IconButton } from '../../../ui/IconButton';
+import { InterfaceIcon } from '../../../ui/InterfaceIcon';
 import { authErrorKey } from '../../auth/authError';
 import { ChatAvatar } from '../../chats/components/ChatAvatar';
 import { useDirectCall } from '../DirectCallProvider';
@@ -43,7 +45,7 @@ interface CallHistoryRowProps {
   isCallActive: boolean;
 }
 
-const CallHistoryRow = memo(function CallHistoryRow({
+const CallHistoryRow = memo(function CallHistoryRowComponent({
   call,
   language,
   onOpenChat,
@@ -51,6 +53,8 @@ const CallHistoryRow = memo(function CallHistoryRow({
   t,
   isCallActive,
 }: CallHistoryRowProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const contactName = call.peer.display_name || call.peer.username || t('callUnknownCaller');
   const isCompleted = call.outcome === 'completed';
   const isVideo = call.call_type === 'video';
@@ -84,6 +88,7 @@ const CallHistoryRow = memo(function CallHistoryRow({
         accessibilityLabel={`${t('callCallback')}: ${contactName}, ${t(isVideo ? 'callVideo' : 'callAudio')}`}
         disabled={isCallActive}
         icon={isVideo ? 'video' : 'call'}
+        interfaceIcon={isVideo ? 'videoCamera' : 'phoneCall'}
         onPress={() => onRepeatCall(call)}
       />
     </View>
@@ -92,6 +97,8 @@ const CallHistoryRow = memo(function CallHistoryRow({
 
 export function CallsScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { call, startCall, startVideoCall } = useDirectCall();
   const { subscribeToEvents } = useRealtime();
@@ -179,7 +186,7 @@ export function CallsScreen() {
         t={t}
       />
     );
-  }, [call, language, openChat, repeatCall, t]);
+  }, [call, language, openChat, repeatCall, styles, t]);
 
   return (
     <AppScreen scroll={false} contentStyle={styles.content}>
@@ -246,7 +253,7 @@ export function CallsScreen() {
         onPress={() => navigation.navigate('MainTabs', { params: { mode: 'call' }, screen: 'Search' })}
         style={({ pressed }) => [styles.newCallButton, pressed && styles.newCallButtonPressed]}
       >
-        <Icon color={colors.canvas} name="call" size={20} />
+        <InterfaceIcon color={colors.onAccent} name="phoneCall" size={20} />
         <Text style={styles.newCallLabel}>{t('newCall')}</Text>
       </Pressable>
     </AppScreen>
@@ -263,7 +270,8 @@ function formatCallTime(value: string, language: 'ru' | 'en'): string {
     }).format(date);
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   content: {
     paddingBottom: spacing.md,
   },
@@ -384,8 +392,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryPressed,
   },
   newCallLabel: {
-    color: colors.canvas,
+    color: colors.onAccent,
     fontSize: 14,
     fontWeight: '800',
   },
-});
+  });
+}

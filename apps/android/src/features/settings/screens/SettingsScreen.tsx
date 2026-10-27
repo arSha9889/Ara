@@ -9,9 +9,11 @@ import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { clearPrivateChatMediaCache } from '../../chats/media/mediaClient';
 import { useI18n } from '../../../localization/I18nProvider';
 import { LanguageSwitcher } from '../../../localization/LanguageSwitcher';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors, type ThemePreference } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { Icon } from '../../../ui/Icon';
+import { InterfaceIcon } from '../../../ui/InterfaceIcon';
 import { deleteAccount, updateMyProfile } from '../../account/api/accountApi';
 import { useMobilePush } from '../../notifications/MobilePushProvider';
 import { useAppUpdate } from '../AppUpdateProvider';
@@ -22,6 +24,8 @@ export function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { status: mobilePushStatus } = useMobilePush();
   const { isUpdateAvailable, release } = useAppUpdate();
+  const { colors, preference, setPreference, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [languageNotice, setLanguageNotice] = useState('');
 
   async function handleSignOut(): Promise<void> {
@@ -178,16 +182,22 @@ export function SettingsScreen() {
         </Pressable>
       </View>
 
-      <View style={[sharedStyles.elevatedCard, styles.section]}>
-        <Text style={styles.sectionTitle}>{t('notifications')}</Text>
-        <Text style={styles.rowTitle}>{t(mobilePushStatus === 'enabled' ? 'notificationsEnabled' : 'notificationsUnavailable')}</Text>
-        <Text style={styles.rowDescription}>
-          {t(mobilePushStatus === 'enabled' ? 'notificationsEnabledDescription' : 'notificationsDescription')}
-        </Text>
-      </View>
+        <View style={[sharedStyles.elevatedCard, styles.section]}>
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionTitle}>{t('notifications')}</Text>
+            <InterfaceIcon color={colors.primary} name="bell" size={22} />
+          </View>
+          <Text style={styles.rowTitle}>{t(mobilePushStatus === 'enabled' ? 'notificationsEnabled' : 'notificationsUnavailable')}</Text>
+          <Text style={styles.rowDescription}>
+            {t(mobilePushStatus === 'enabled' ? 'notificationsEnabledDescription' : 'notificationsDescription')}
+          </Text>
+        </View>
 
-      <View style={[sharedStyles.elevatedCard, styles.section]}>
-        <Text style={styles.sectionTitle}>{t('help')}</Text>
+        <View style={[sharedStyles.elevatedCard, styles.section]}>
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionTitle}>{t('help')}</Text>
+            <InterfaceIcon color={colors.primary} name="bullhorn" size={22} />
+          </View>
         <Pressable
           accessibilityRole="button"
           onPress={() => navigation.navigate('SupportTickets')}
@@ -199,6 +209,33 @@ export function SettingsScreen() {
           </View>
           <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
+      </View>
+
+      <View style={[sharedStyles.elevatedCard, styles.section]}>
+        <Text style={styles.sectionTitle}>{t('theme')}</Text>
+        <Text style={styles.rowDescription}>{t('themeDescription')}</Text>
+        <View accessibilityRole="radiogroup" style={styles.themeOptions}>
+          {(['system', 'light', 'dark'] as const).map(option => {
+            const selected = preference === option;
+            const labelKey: Record<ThemePreference, 'themeSystem' | 'themeLight' | 'themeDark'> = {
+              system: 'themeSystem',
+              light: 'themeLight',
+              dark: 'themeDark',
+            };
+            return (
+              <Pressable
+                accessibilityLabel={t(labelKey[option])}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                key={option}
+                onPress={() => { setPreference(option).catch(() => undefined); }}
+                style={({ pressed }) => [styles.themeOption, selected && styles.themeOptionSelected, pressed && styles.navigationRowPressed]}
+              >
+                <Text style={[styles.themeOptionLabel, selected && styles.themeOptionLabelSelected]}>{t(labelKey[option])}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={[sharedStyles.elevatedCard, styles.section]}>
@@ -230,7 +267,8 @@ export function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   section: {
     marginTop: spacing.md,
     padding: spacing.lg,
@@ -241,6 +279,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
+  },
+  sectionHeading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   rowTitle: {
     color: colors.text,
@@ -267,6 +310,31 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: spacing.sm,
   },
+  themeOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  themeOption: {
+    alignItems: 'center',
+    borderColor: colors.borderSubtle,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.sm,
+  },
+  themeOptionSelected: {
+    backgroundColor: colors.accentSubtle,
+    borderColor: colors.accent,
+  },
+  themeOptionLabel: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  themeOptionLabelSelected: { color: colors.accent },
   navigationRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -283,7 +351,7 @@ const styles = StyleSheet.create({
   },
   signOut: {
     alignItems: 'center',
-    borderColor: 'rgba(255, 158, 175, 0.48)',
+    borderColor: colors.danger,
     borderRadius: 16,
     borderWidth: 1,
     justifyContent: 'center',
@@ -291,7 +359,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   signOutPressed: {
-    backgroundColor: 'rgba(255, 158, 175, 0.12)',
+    backgroundColor: colors.dangerSubtle,
   },
   signOutLabel: {
     color: colors.danger,
@@ -300,7 +368,7 @@ const styles = StyleSheet.create({
   },
   deleteAccount: {
     alignItems: 'center',
-    borderColor: 'rgba(255, 158, 175, 0.26)',
+    borderColor: colors.danger,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
@@ -309,7 +377,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   deleteAccountPressed: {
-    backgroundColor: 'rgba(255, 158, 175, 0.08)',
+    backgroundColor: colors.dangerSubtle,
   },
   deleteAccountLabel: {
     color: colors.danger,
@@ -323,4 +391,5 @@ const styles = StyleSheet.create({
     marginTop: 3,
     textAlign: 'center',
   },
-});
+  });
+}

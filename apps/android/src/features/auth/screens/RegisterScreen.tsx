@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { runtimeConfig } from '../../../config/runtimeConfig';
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { legalDocumentUrls } from '../legalDocuments';
@@ -16,7 +17,7 @@ import {
   startEmailVerification,
 } from '../api/authApi';
 import { useSession } from '../session/useSession';
-import { AuthLayout, authStyles } from './AuthLayout';
+import { AuthLayout, useAuthStyles } from './AuthLayout';
 import { LegalDocumentLink } from './LegalDocumentLink';
 
 type RegisterStep = 'email' | 'details';
@@ -32,6 +33,9 @@ const passwordPattern = /^[A-Za-z0-9]{5,30}$/;
 
 export function RegisterScreen({ country, onBack }: RegisterScreenProps) {
   const { language, t } = useI18n();
+  const { colors } = useTheme();
+  const authStyles = useAuthStyles();
+  const styles = useThemedStyles(createStyles);
   const { saveSession } = useSession();
   const [step, setStep] = useState<RegisterStep>('email');
   const [email, setEmail] = useState('');
@@ -322,6 +326,9 @@ function ConsentCheck({
   label: string;
   onChange(): void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -337,7 +344,8 @@ function ConsentCheck({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   disabled: {
     opacity: 0.45,
   },
@@ -389,4 +397,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-});
+  });
+}

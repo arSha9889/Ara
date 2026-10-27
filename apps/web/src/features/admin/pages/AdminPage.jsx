@@ -7,12 +7,12 @@ import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
 import { Button } from '../../../shared/ui/Button.jsx';
 import { TextInput } from '../../../shared/ui/TextInput.jsx';
 import { dictionaries } from '../../../shared/i18n/dictionaries.js';
-import { createPublicBranch } from '../../chats/api/chatApi.js';
 import { SupportTicketsPanel } from '../components/SupportTicketsPanel.jsx';
 import { ProjectNewsPanel } from '../components/ProjectNewsPanel.jsx';
 import {
   cancelAdminAnnouncement,
   createAdminAnnouncement,
+  createAdminPublicBranch,
   createAdminUserRestriction,
   getAdminAuditLogs,
   getAdminBranches,
@@ -394,7 +394,7 @@ export function AdminPage() {
     setIsCreatingBranch(true);
     setBranchStatus('');
     try {
-      await createPublicBranch(session.accessToken, payload);
+      await createAdminPublicBranch(session.accessToken, payload);
       setBranchForm(EMPTY_BRANCH_FORM);
       setIsBranchDialogOpen(false);
       await Promise.all([loadBranches(), loadOverview()]);
@@ -568,13 +568,13 @@ export function AdminPage() {
     <main className="admin-page">
       <section className="admin-control-room">
         <header className="admin-topbar">
-          <Link to="/app" className="admin-brand" aria-label={t('admin.controlRoomAria')}>
+          <Link to="/" className="admin-brand" aria-label={t('admin.controlRoomAria')}>
             <span className="admin-brand-mark"><AdminIcon name="shield" /></span>
             <span><strong>AraChat</strong><small>{t('admin.controlRoom')}</small></span>
           </Link>
           <div className="admin-topbar-actions">
             <span className="admin-secure-indicator"><span />{t('admin.secureAccess')}</span>
-            <Link to="/app" className="admin-exit-link"><span>{t('admin.backToMessenger')}</span><AdminIcon name="external" size={16} /></Link>
+            <Link to="/" className="admin-exit-link"><span>{t('comet.backToHome')}</span><AdminIcon name="external" size={16} /></Link>
           </div>
         </header>
 

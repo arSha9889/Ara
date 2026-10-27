@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { useNotifications } from '../../../app/providers/NotificationsProvider.jsx';
 import { useSession } from '../../../app/providers/SessionProvider.jsx';
 import { useAuthenticatedMediaUrl } from '../../../shared/api/mediaUrl.js';
 import { AraChatLoader } from '../../../shared/ui/AraChatLoader.jsx';
@@ -11,8 +10,8 @@ import {
   getAdminSupportTicket,
   getAdminSupportTickets,
   updateAdminSupportTicket,
-  uploadSupportAttachment,
-} from '../../support/api/supportApi.js';
+  uploadAdminSupportAttachment,
+} from '../api/adminApi.js';
 
 const SUPPORT_STATUSES = ['new', 'in_progress', 'waiting_user', 'resolved', 'closed'];
 const MAX_ATTACHMENT_SIZE_BYTES = 30 * 1024 * 1024;
@@ -61,7 +60,6 @@ function SupportStatus({ status, t }) {
 export function SupportTicketsPanel() {
   const { language, t } = useI18n();
   const { session } = useSession();
-  const { lastNotification } = useNotifications();
   const [statusFilter, setStatusFilter] = useState('all');
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -106,11 +104,6 @@ export function SupportTicketsPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.accessToken, statusFilter]);
 
-  useEffect(() => {
-    if (lastNotification?.kind === 'support') void loadTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastNotification?.id]);
-
   function selectAttachment(file) {
     if (!file) return;
     if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
@@ -142,7 +135,7 @@ export function SupportTicketsPanel() {
     setIsSubmitting(true);
     setError('');
     try {
-      const attachment = selectedFile ? await uploadSupportAttachment(session.accessToken, selectedFile) : null;
+      const attachment = selectedFile ? await uploadAdminSupportAttachment(session.accessToken, selectedFile) : null;
       const ticket = await createAdminSupportMessage(session.accessToken, selectedTicket.id, {
         text: messageText.trim(),
         is_internal: isInternal,

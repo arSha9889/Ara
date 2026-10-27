@@ -27,6 +27,7 @@ const translations: Record<string, string> = {
 
 jest.mock('react-native', () => ({
   Alert: { alert: jest.fn() },
+  Image: 'Image',
   Pressable: 'Pressable',
   StyleSheet: { create: (styles: object) => styles, hairlineWidth: 1 },
   Text: 'Text',

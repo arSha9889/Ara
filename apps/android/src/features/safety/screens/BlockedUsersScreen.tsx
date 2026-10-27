@@ -6,7 +6,8 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { authErrorKey } from '../../auth/authError';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { EmptyState } from '../../../ui/EmptyState';
 import { IconButton } from '../../../ui/IconButton';
@@ -14,6 +15,8 @@ import { getBlockedUsers, unblockUser, type BlockedUser } from '../api/safetyApi
 
 export function BlockedUsersScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [users, setUsers] = useState<BlockedUser[]>([]);
   const [error, setError] = useState('');
@@ -109,7 +112,8 @@ function formatDate(value: string, language: 'ru' | 'en'): string {
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short' }).format(date);
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   title: { color: colors.text, flex: 1, fontSize: 24, fontWeight: '700' },
   intro: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: spacing.xs },
@@ -129,4 +133,5 @@ const styles = StyleSheet.create({
   unblockButton: { alignItems: 'center', borderColor: colors.glassBorder, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.sm },
   unblockLabel: { color: colors.primary, fontSize: 14, fontWeight: '700' },
   pressed: { backgroundColor: colors.surfacePressed },
-});
+  });
+}

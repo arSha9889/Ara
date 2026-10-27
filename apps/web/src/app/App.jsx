@@ -1,81 +1,47 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { AppShell } from './layout/AppShell.jsx';
-import { ProtectedRoute } from './routes/ProtectedRoute.jsx';
-import { LoginPage } from '../features/auth/pages/LoginPage.jsx';
-import { OAuthCallbackPage } from '../features/auth/pages/OAuthCallbackPage.jsx';
-import { PasswordRecoveryPage } from '../features/auth/pages/PasswordRecoveryPage.jsx';
-import { RegisterPage } from '../features/auth/pages/RegisterPage.jsx';
 import { LandingPage } from '../features/onboarding/pages/LandingPage.jsx';
 import { DownloadPage } from '../features/onboarding/pages/DownloadPage.jsx';
 import { NewsPage } from '../features/onboarding/pages/NewsPage.jsx';
 import { NewsArticlePage } from '../features/onboarding/pages/NewsArticlePage.jsx';
-import { OnboardingPage } from '../features/onboarding/pages/OnboardingPage.jsx';
-import { PresentationPage } from '../features/onboarding/pages/PresentationPage.jsx';
-import { ChatPage } from '../features/chats/pages/ChatPage.jsx';
-import { ChatsPage } from '../features/chats/pages/ChatsPage.jsx';
-import { NewChatPage } from '../features/chats/pages/NewChatPage.jsx';
-import { PublicBranchesPage } from '../features/chats/pages/PublicBranchesPage.jsx';
 import { PrivacyPolicyPage } from '../features/legal/pages/PrivacyPolicyPage.jsx';
 import { TermsPage } from '../features/legal/pages/TermsPage.jsx';
-import { LegalAcceptancePage } from '../features/legal/pages/LegalAcceptancePage.jsx';
-import { ProfilePage } from '../features/profile/pages/ProfilePage.jsx';
-import { SettingsPage } from '../features/settings/pages/SettingsPage.jsx';
 import { AdminPage } from '../features/admin/pages/AdminPage.jsx';
-import { SupportPage } from '../features/support/pages/SupportPage.jsx';
-import { AppFeedbackViewport } from '../shared/ui/AppFeedbackViewport.jsx';
+import { AdminLoginPage } from '../features/admin/pages/AdminLoginPage.jsx';
+import { SubscriptionPreviewPage } from '../features/subscription/pages/SubscriptionPreviewPage.jsx';
 import { useSession } from './providers/SessionProvider.jsx';
 
 
 function AdminRoute() {
-  const { session } = useSession();
+  const { session, isSessionLoading } = useSession();
 
-  return session.user?.is_official
-    ? <AdminPage />
-    : <Navigate to="/app" replace />;
-}
-
-function ChatRoute() {
-  const { chatId } = useParams();
-  return <ChatPage key={chatId} />;
+  if (isSessionLoading) return null;
+  return session.user?.is_official ? <AdminPage /> : <Navigate to="/admin/login" replace />;
 }
 
 
 export function App() {
   return (
-    <>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/download" element={<DownloadPage />} />
-        <Route path="/news" element={<NewsPage />} />
-        <Route path="/news/:slug" element={<NewsArticlePage />} />
-        <Route path="/presentation" element={<PresentationPage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/region" element={<Navigate to="/register" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/login/oauth/callback" element={<OAuthCallbackPage />} />
-        <Route path="/password-recovery" element={<PasswordRecoveryPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/privacy" element={<PrivacyPolicyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="/legal/acceptance" element={<LegalAcceptancePage />} />
-          <Route path="/admin" element={<AdminRoute />} />
-          <Route path="/app" element={<AppShell />}>
-            <Route index element={<ChatsPage />} />
-            <Route path="new-chat" element={<NewChatPage />} />
-            <Route path="branches" element={<PublicBranchesPage />} />
-            <Route path="chats/:chatId" element={<ChatRoute />} />
-            <Route path="support" element={<SupportPage />} />
-            <Route path="support/:ticketId" element={<SupportPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="admin" element={<Navigate to="/admin" replace />} />
-          </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <AppFeedbackViewport />
-    </>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/download" element={<DownloadPage />} />
+      <Route path="/news" element={<NewsPage />} />
+      <Route path="/news/:slug" element={<NewsArticlePage />} />
+      <Route path="/subscription" element={<SubscriptionPreviewPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<AdminRoute />} />
+      <Route path="/app/*" element={<Navigate to="/" replace />} />
+      <Route path="/login/*" element={<Navigate to="/" replace />} />
+      <Route path="/register/*" element={<Navigate to="/" replace />} />
+      <Route path="/password-recovery/*" element={<Navigate to="/" replace />} />
+      <Route path="/onboarding/*" element={<Navigate to="/" replace />} />
+      <Route path="/region/*" element={<Navigate to="/" replace />} />
+      <Route path="/legal/acceptance" element={<Navigate to="/" replace />} />
+      <Route path="/presentation" element={<Navigate to="/" replace />} />
+      <Route path="/messenger" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

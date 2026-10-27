@@ -1,5 +1,8 @@
-import { apiRequest } from '../../../shared/api/httpClient.js';
-import { authHeaders } from '../../profile/api/userApi.js';
+import { authenticatedFetch, apiRequest, translateApiError } from '../../../shared/api/httpClient.js';
+
+function authHeaders(accessToken) {
+  return { Authorization: `Bearer ${accessToken}` };
+}
 
 export function getAdminOverview(accessToken) {
   return apiRequest('/api/admin/overview', { headers: authHeaders(accessToken) });
@@ -147,6 +150,58 @@ export function setAdminBranchMember(accessToken, branchId, userId, role) {
     headers: authHeaders(accessToken),
     body: { user_id: userId, role },
   });
+}
+
+export function createAdminPublicBranch(accessToken, payload) {
+  return apiRequest('/api/chats/branches', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function getAdminSupportTickets(accessToken, ticketStatus = 'all') {
+  const query = ticketStatus === 'all' ? '' : `?status=${encodeURIComponent(ticketStatus)}`;
+  return apiRequest(`/api/support/admin/tickets${query}`, { headers: authHeaders(accessToken) });
+}
+
+export function getAdminSupportTicket(accessToken, ticketId) {
+  return apiRequest(`/api/support/admin/tickets/${ticketId}`, { headers: authHeaders(accessToken) });
+}
+
+export function createAdminSupportMessage(accessToken, ticketId, payload) {
+  return apiRequest(`/api/support/admin/tickets/${ticketId}/messages`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: payload,
+  });
+}
+
+export function updateAdminSupportTicket(accessToken, ticketId, status) {
+  return apiRequest(`/api/support/admin/tickets/${ticketId}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: { status },
+  });
+}
+
+export async function uploadAdminSupportAttachment(accessToken, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await authenticatedFetch('/api/uploads/support', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    credentials: 'include',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(translateApiError(errorBody?.detail, response.status));
+  }
+
+  return response.json();
 }
 
 export function getAdminUsers(accessToken, filters = {}) {

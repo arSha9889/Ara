@@ -3,18 +3,21 @@ import { Text, TextInput, View } from 'react-native';
 
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing } from '../../../theme/theme';
+import { useTheme } from '../../../theme/ThemeProvider';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../../auth/authError';
 import { useSession } from '../../auth/session/useSession';
 import { confirmEmailChange, startEmailChange } from '../api/accountApi';
-import { AccountScreenLayout, accountStyles } from '../components/AccountScreenLayout';
+import { AccountScreenLayout, useAccountStyles } from '../components/AccountScreenLayout';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function EmailChangeScreen() {
   const { session, updateSessionUser } = useSession();
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const accountStyles = useAccountStyles();
   const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [verificationId, setVerificationId] = useState<string | null>(null);

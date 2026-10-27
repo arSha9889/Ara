@@ -17,6 +17,7 @@ const mockAppUpdate = {
 };
 
 jest.mock('react-native', () => ({
+  Image: 'Image',
   Linking: { openURL: (...args: unknown[]) => mockOpenUrl(...args) },
   Pressable: 'Pressable',
   StyleSheet: { create: <T extends object>(styles: T) => styles },

@@ -36,6 +36,7 @@ jest.mock('react-native', () => ({
   BackHandler: {
     addEventListener: jest.fn(() => ({ remove: jest.fn() })),
   },
+  Platform: { OS: 'android' },
   Pressable: 'Pressable',
   SafeAreaView: 'SafeAreaView',
   StyleSheet: {

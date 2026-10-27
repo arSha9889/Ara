@@ -89,7 +89,7 @@ export function TermsPage() {
 
         <div className="legal-actions">
           <Link to="/privacy" className="button button-secondary">Политика конфиденциальности</Link>
-          <Link to="/register" className="button button-primary">К регистрации</Link>
+          <Link to="/download" className="button button-primary">Установить приложение</Link>
         </div>
           </article>
         </section>

@@ -3,16 +3,19 @@ import { Text, TextInput, View } from 'react-native';
 
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing } from '../../../theme/theme';
+import { useTheme } from '../../../theme/ThemeProvider';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../../auth/authError';
 import { confirmPasswordChange, startPasswordChange } from '../api/accountApi';
-import { AccountScreenLayout, accountStyles } from '../components/AccountScreenLayout';
+import { AccountScreenLayout, useAccountStyles } from '../components/AccountScreenLayout';
 
 const passwordPattern = /^[A-Za-z0-9]{5,30}$/;
 
 export function PasswordChangeScreen() {
   const { language, t } = useI18n();
+  const { colors, sharedStyles } = useTheme();
+  const accountStyles = useAccountStyles();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [passwordRepeat, setPasswordRepeat] = useState('');

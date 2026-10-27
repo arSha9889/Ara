@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { authErrorKey } from '../../auth/authError';
 import { useI18n } from '../../../localization/I18nProvider';
 import type { TranslationKey } from '../../../localization/messages';
-import { colors, sharedStyles, spacing } from '../../../theme/theme';
+import { spacing, type AppColors } from '../../../theme/theme';
+import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
+import { AnimatedBottomSheet } from '../../../ui/AnimatedBottomSheet';
 import { IconButton } from '../../../ui/IconButton';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { submitUserReport, type ReportReason } from '../api/safetyApi';
@@ -38,6 +40,8 @@ interface ReportUserSheetProps {
 
 export function ReportUserSheet({ userId, visible, onClose, onSubmitted }: ReportUserSheetProps) {
   const { t } = useI18n();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [reason, setReason] = useState<ReportReason>('spam');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
@@ -71,16 +75,14 @@ export function ReportUserSheet({ userId, visible, onClose, onSubmitted }: Repor
   }
 
   return (
-    <Modal animationType="slide" onRequestClose={close} transparent visible={visible}>
-      <View style={styles.overlay}>
-        <Pressable
-          accessibilityLabel={t('closeSafetyActions')}
-          accessibilityRole="button"
-          disabled={isSubmitting}
-          onPress={close}
-          style={styles.backdrop}
-        />
-        <View accessibilityViewIsModal style={[sharedStyles.glassPanel, styles.sheet]}>
+    <AnimatedBottomSheet
+      accessibilityLabel={t('closeSafetyActions')}
+      disabled={isSubmitting}
+      keyboardAvoiding
+      onClose={close}
+      visible={visible}
+    >
+      <View>
           <View style={styles.handle} />
           <View style={styles.heading}>
             <Text style={styles.title}>{t('reportTitle')}</Text>
@@ -150,16 +152,13 @@ export function ReportUserSheet({ userId, visible, onClose, onSubmitted }: Repor
               />
             </View>
           </View>
-        </View>
       </View>
-    </Modal>
+    </AnimatedBottomSheet>
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { backgroundColor: 'rgba(0, 0, 0, 0.54)', bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  sheet: { backgroundColor: colors.glassStrong, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: spacing.lg, paddingBottom: spacing.xl },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   handle: { alignSelf: 'center', backgroundColor: colors.textFaint, borderRadius: 2, height: 4, marginBottom: spacing.md, opacity: 0.7, width: 40 },
   heading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   title: { color: colors.text, flex: 1, fontSize: 20, fontWeight: '700' },
@@ -167,7 +166,7 @@ const styles = StyleSheet.create({
   fieldLabel: { color: colors.text, fontSize: 14, fontWeight: '700', marginTop: spacing.lg },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
   reason: { borderColor: colors.glassBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  reasonSelected: { backgroundColor: 'rgba(74, 168, 240, 0.22)', borderColor: colors.primary },
+  reasonSelected: { backgroundColor: colors.accentSelected, borderColor: colors.primary },
   reasonPressed: { backgroundColor: colors.surfacePressed },
   reasonLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
   descriptionInput: { backgroundColor: colors.input, borderColor: colors.glassBorder, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, color: colors.text, fontSize: 16, lineHeight: 22, marginTop: spacing.sm, maxHeight: 140, minHeight: 100, padding: spacing.sm },
@@ -177,4 +176,5 @@ const styles = StyleSheet.create({
   cancelLabel: { color: colors.text, fontSize: 16, fontWeight: '700' },
   submitButton: { flex: 1 },
   pressed: { opacity: 0.74 },
-});
+  });
+}

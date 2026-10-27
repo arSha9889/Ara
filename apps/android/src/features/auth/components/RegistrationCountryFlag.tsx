@@ -2,13 +2,16 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import type { RegistrationCountry } from '../registrationCountry';
-import { colors } from '../../../theme/theme';
+import type { AppColors } from '../../../theme/theme';
+import { useThemedStyles } from '../../../theme/ThemeProvider';
 
 interface RegistrationCountryFlagProps {
   country: RegistrationCountry;
 }
 
 export function RegistrationCountryFlag({ country }: RegistrationCountryFlagProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View accessible={false} style={styles.frame}>
       <Svg height={30} viewBox="0 0 32 24" width={40}>
@@ -97,7 +100,8 @@ function UkraineFlag() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   frame: {
     borderColor: colors.glassBorder,
     borderRadius: 7,
@@ -106,4 +110,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: 40,
   },
-});
+  });
+}
