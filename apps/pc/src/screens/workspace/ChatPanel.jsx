@@ -246,8 +246,10 @@ function DirectChatPanel({
   const focusHighlightTimerRef = useRef(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [recordedMedia, setRecordedMedia] = useState(null);
+  const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
   const { recording, start: startRecording, stop: stopRecording, cancel: cancelRecording } = useMediaRecorder();
   const recordingVideoRef = useRef(null);
+  const mediaMenuRef = useRef(null);
   const peer = chatState.peer;
   const peerName = peer?.display_name || peer?.username || t('workspace.unknownUser');
   const peerUsername = peer?.username || '';
@@ -257,6 +259,25 @@ function DirectChatPanel({
   const participantIdsKey = (chat.participant_ids || []).map(String).sort().join(':');
 
   messagesRef.current = messages;
+
+  useEffect(() => {
+    if (!isMediaMenuOpen) return undefined;
+
+    function closeMenuOnOutsidePress(event) {
+      if (!mediaMenuRef.current?.contains(event.target)) setIsMediaMenuOpen(false);
+    }
+
+    function closeMenuOnEscape(event) {
+      if (event.key === 'Escape') setIsMediaMenuOpen(false);
+    }
+
+    document.addEventListener('pointerdown', closeMenuOnOutsidePress);
+    document.addEventListener('keydown', closeMenuOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenuOnOutsidePress);
+      document.removeEventListener('keydown', closeMenuOnEscape);
+    };
+  }, [isMediaMenuOpen]);
 
   const prepareDirectChatEncryption = useCallback(async () => {
     if (!isDirectChat) {
@@ -528,6 +549,7 @@ function DirectChatPanel({
   function updateDraft(value) {
     setDraft(value);
     setComposerError('');
+    if (value) setIsMediaMenuOpen(false);
     window.clearTimeout(typingStopTimerRef.current);
     if (!value) {
       stopTyping();
@@ -691,6 +713,7 @@ function DirectChatPanel({
     event.target.value = '';
     if (!file) return;
     setComposerError('');
+    setIsMediaMenuOpen(false);
     setRecordedMedia(null);
     setSelectedFile(file);
   }
@@ -698,6 +721,7 @@ function DirectChatPanel({
   function startMediaRecording(kind) {
     if (isLoadingMessages || isSending || editingMessage || selectedFile || recordedMedia || callState !== 'idle') return;
     setComposerError('');
+    setIsMediaMenuOpen(false);
     stopTyping();
     void startRecording(kind)
       .then(({ media, error }) => {
@@ -748,7 +772,8 @@ function DirectChatPanel({
   const composerValue = editingMessage ? editText : draft;
   const composerPlaceholder = editingMessage ? t('workspace.chatPanel.editPlaceholder') : t('workspace.chatPanel.composerPlaceholder');
   const directChatEncryption = directChatEncryptionLabel(isDirectChat ? e2eeStatus : 'inactive', t);
-  const canRecordMedia = !isLoadingMessages && !isSending && !editingMessage && !selectedFile && !recordedMedia && callState === 'idle';
+  const canRecordMedia = !isLoadingMessages && !isSending && !editingMessage && !selectedFile && !recordedMedia && !isRecording && callState === 'idle';
+  const shouldShowSendAction = Boolean(composerValue.trim() || selectedFile || recordedMedia || editingMessage);
 
   return (
     <section className="workspace-chat-panel" aria-labelledby="chat-title">
@@ -761,7 +786,6 @@ function DirectChatPanel({
         <div className="chat-header-actions" aria-label={t('workspace.chatPanel.actionsLabel')}>
           <AraButton type="button" title={canStartCall && !isRecording ? t('workspace.chatPanel.startAudio') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startAudio')} onClick={() => void onStartCall?.(chat, 'audio')} disabled={!canStartCall || isRecording} size="icon" variant="ghost"><Icon name="calls" size={18} /></AraButton>
           <AraButton type="button" title={canStartCall && !isRecording ? t('workspace.chatPanel.startVideo') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startVideo')} onClick={() => void onStartCall?.(chat, 'video')} disabled={!canStartCall || isRecording} size="icon" variant="ghost"><Icon name="video" size={18} /></AraButton>
-          <AraButton type="button" aria-label={t('workspace.chatPanel.refreshHistory')} onClick={() => loadMessages()} disabled={isLoadingMessages || isSending} size="icon" variant="ghost"><Icon name="refresh" size={18} /></AraButton>
         </div>
       </header>
 
@@ -803,11 +827,17 @@ function DirectChatPanel({
         <form className="chat-composer" onSubmit={submitMessage}>
           <input ref={fileInputRef} className="sr-only" type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileSelected} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isRecording || Boolean(recordedMedia)} />
           <AraButton className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.attachFile')} title={t('workspace.chatPanel.attachFile')} onClick={() => fileInputRef.current?.click()} disabled={isLoadingMessages || isSending || Boolean(editingMessage) || isRecording || Boolean(recordedMedia)} size="icon" variant="ghost"><Icon name="attachment" size={18} /></AraButton>
-          <AraButton className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.recordVoice')} title={t('workspace.chatPanel.recordVoice')} onClick={() => startMediaRecording('voice')} disabled={!canRecordMedia} size="icon" variant="ghost"><Icon name="mic" size={18} /></AraButton>
-          <AraButton className="chat-composer-icon" type="button" aria-label={t('workspace.chatPanel.recordVideoNote')} title={t('workspace.chatPanel.recordVideoNote')} onClick={() => startMediaRecording('video_note')} disabled={!canRecordMedia} size="icon" variant="ghost"><Icon name="video" size={18} /></AraButton>
           <label className="sr-only" htmlFor="chat-message-input">{t('workspace.chatPanel.composerLabel')}</label>
           <textarea id="chat-message-input" value={composerValue} onChange={(event) => editingMessage ? setEditText(event.target.value) : updateDraft(event.target.value)} onKeyDown={submitOnEnter} rows="1" maxLength="4000" placeholder={composerPlaceholder} aria-invalid={Boolean(composerError)} aria-describedby={composerError ? 'chat-message-error' : undefined} disabled={isLoadingMessages || isSending || isRecording} />
-          <AraButton className="chat-send-button" type="submit" disabled={(!composerValue.trim() && !selectedFile && !recordedMedia) || isLoadingMessages || isSending || isRecording || (isDirectChat && e2eeStatus === 'checking')} aria-label={isSending ? t('workspace.chatPanel.sending') : editingMessage ? t('workspace.chatPanel.saveEdit') : t('workspace.chatPanel.send')} size="icon" variant="primary"><Icon name={editingMessage ? 'save' : 'send'} size={18} /></AraButton>
+          <div className="chat-composer-actions" ref={mediaMenuRef}>
+            {shouldShowSendAction ? <AraButton className="chat-send-button" type="submit" disabled={(!composerValue.trim() && !selectedFile && !recordedMedia) || isLoadingMessages || isSending || isRecording || (isDirectChat && e2eeStatus === 'checking')} aria-label={isSending ? t('workspace.chatPanel.sending') : editingMessage ? t('workspace.chatPanel.saveEdit') : t('workspace.chatPanel.send')} size="icon" variant="primary"><Icon name={editingMessage ? 'save' : 'send'} size={18} /></AraButton> : <>
+              <AraButton aria-controls="chat-recording-actions" aria-expanded={isMediaMenuOpen} className={`chat-media-action ${isMediaMenuOpen ? 'is-open' : ''}`} type="button" aria-label={t('workspace.chatPanel.recordMedia')} title={t('workspace.chatPanel.recordMedia')} onClick={() => setIsMediaMenuOpen((current) => !current)} disabled={!canRecordMedia} size="icon" variant="ghost"><Icon name="mic" size={18} /></AraButton>
+              {isMediaMenuOpen ? <div className="chat-recording-menu" id="chat-recording-actions" role="group" aria-label={t('workspace.chatPanel.recordingActions')}>
+                <AraButton type="button" onClick={() => startMediaRecording('voice')} size="compact" variant="ghost"><Icon name="mic" size={16} /><span>{t('workspace.chatPanel.recordVoice')}</span></AraButton>
+                <AraButton type="button" onClick={() => startMediaRecording('video_note')} size="compact" variant="ghost"><Icon name="video" size={16} /><span>{t('workspace.chatPanel.recordVideoNote')}</span></AraButton>
+              </div> : null}
+            </>}
+          </div>
         </form>
         <p className="chat-composer-hint">{editingMessage ? t('workspace.chatPanel.editHint') : t('workspace.chatPanel.composerHint')}<br />{isE2eeReady ? t('workspace.chatPanel.encryptedAttachmentsHint') : t('workspace.chatPanel.attachmentsHint')}</p>
       </div>

@@ -353,7 +353,7 @@ export function GroupChatPanel({
         <span className="workspace-avatar channel-header-avatar" aria-hidden="true">{avatarUrl ? <img src={avatarUrl} alt="" /> : initials(group.title)}</span>
         <div><h1 id="group-title">{group.title || t('workspace.groups.untitled')}</h1><span>{group.description || t('workspace.groups.noDescription')}</span><small>{t('workspace.groups.privateGroup')} · {t('workspace.groups.membersCount', { count: group.participant_ids?.length || 0 })}</small></div>
       </div>
-      <div className="chat-header-actions" aria-label={t('workspace.groups.actionsLabel')}><AraButton aria-label={t('workspace.groups.groupInfoAction')} onClick={() => setPanel('details')} size="icon" title={t('workspace.groups.groupInfoAction')} type="button" variant="ghost"><Icon name="settings" size={18} /></AraButton><AraButton aria-label={t('workspace.chatPanel.refreshHistory')} disabled={isLoadingMessages || isSending} onClick={() => void loadMessages()} size="icon" title={t('workspace.chatPanel.refreshHistory')} type="button" variant="ghost"><Icon name="refresh" size={18} /></AraButton></div>
+      <div className="chat-header-actions" aria-label={t('workspace.groups.actionsLabel')}><AraButton aria-label={t('workspace.groups.groupInfoAction')} onClick={() => setPanel('details')} size="icon" title={t('workspace.groups.groupInfoAction')} type="button" variant="ghost"><Icon name="settings" size={18} /></AraButton></div>
     </header>
 
     <div aria-busy={isLoadingMessages} aria-label={t('workspace.groups.historyLabel')} className="chat-history group-message-history">

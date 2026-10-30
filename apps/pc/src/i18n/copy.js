@@ -1547,18 +1547,27 @@ Object.assign(COPY.ru.workspace.chatPanel, {
   messageActions: 'Действия с сообщением',
   preparingVoice: 'Подготавливаем голосовое сообщение…',
   voicePlaybackError: 'Не удалось воспроизвести голосовое сообщение на этом устройстве.',
+  recordMedia: 'Записать сообщение',
+  recordingActions: 'Выбор типа записи',
+  realtimeDisconnected: 'Нет подключения к обновлениям сообщений. Новые сообщения появятся после восстановления связи.',
 });
 
 Object.assign(COPY.en.workspace.chatPanel, {
   messageActions: 'Message actions',
   preparingVoice: 'Preparing voice message…',
   voicePlaybackError: 'Could not play this voice message on this device.',
+  recordMedia: 'Record a message',
+  recordingActions: 'Choose a recording type',
+  realtimeDisconnected: 'Message updates are unavailable. New messages will appear when the connection is restored.',
 });
 
 Object.assign(COPY.kk.workspace.chatPanel, {
   messageActions: 'Хабарлама әрекеттері',
   preparingVoice: 'Дауыстық хабарлама дайындалуда…',
   voicePlaybackError: 'Бұл құрылғыда дауыстық хабарламаны ойнату мүмкін болмады.',
+  recordMedia: 'Хабарлама жазу',
+  recordingActions: 'Жазба түрін таңдау',
+  realtimeDisconnected: 'Хабарлама жаңартуларына қосылым жоқ. Қосылым қалпына келгеннен кейін жаңа хабарламалар пайда болады.',
 });
 
 Object.assign(COPY.kk.workspace.callsPanel, {

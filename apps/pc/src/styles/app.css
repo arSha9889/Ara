@@ -4276,3 +4276,108 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 :root[data-theme='light'] .desktop-app .auth-glass-card .auth-doc-links button:hover,
 :root[data-theme='light'] .desktop-app .auth-glass-card .legal-check button:hover,
 :root[data-theme='light'] .desktop-app .auth-forgot-link:hover:not(:disabled) { color: #075f37; }
+
+/* Keep the native-window affordances quiet while retaining a draggable area and visible Windows controls. */
+.desktop-app .titlebar {
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border-bottom: 0;
+  background: rgba(2, 16, 13, .86);
+}
+.desktop-app .titlebar.is-windows { grid-template-columns: minmax(0, 1fr) auto; }
+.desktop-app .titlebar.is-mac { grid-template-columns: auto minmax(0, 1fr) 84px; }
+.desktop-app .titlebar-drag-region { display: block; align-self: stretch; min-width: 0; }
+.desktop-app .titlebar-name { display: none; }
+.desktop-app .window-controls { min-width: auto; }
+.desktop-app .window-control { width: 38px; height: 32px; color: var(--ara-text-muted); }
+.desktop-app .window-control svg { display: block; }
+.desktop-app .titlebar.is-windows .window-control:hover { color: var(--ara-text); background: rgba(228, 255, 239, .08); }
+.desktop-app .titlebar.is-windows .window-control.close:hover { color: #fff; background: #c9484b; }
+.desktop-app:not(.has-native-liquid-glass) .desktop-content { height: calc(100vh - 32px); }
+
+/* Let the direct-chat title occupy the full header and keep call controls at its far edge. */
+.desktop-app .workspace-chat-panel .chat-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  padding-right: 20px;
+  padding-left: 20px;
+}
+.desktop-app .workspace-chat-panel .chat-contact-heading { width: 100%; }
+.desktop-app .workspace-chat-panel .chat-contact-heading > div { flex: 1 1 auto; }
+.desktop-app .workspace-chat-panel .chat-contact-heading h1 { font-size: 14px; }
+.desktop-app .workspace-chat-panel .chat-header-actions { justify-self: end; gap: 6px; padding-left: 8px; }
+
+/* The portrait sits above the decorative cover rather than being swallowed by it. */
+.desktop-app .chat-details-hero { isolation: isolate; }
+.desktop-app .chat-details-cover { z-index: 0; }
+.desktop-app .chat-details-avatar,
+.desktop-app .chat-details-copy { position: relative; z-index: 2; }
+.desktop-app .chat-details-avatar { margin-top: -31px; }
+
+/* The composer uses the full chat width; send and media recording share the right-hand control slot. */
+.desktop-app .workspace-chat-panel .chat-composer-area {
+  padding: 12px clamp(20px, 3vw, 34px) 14px;
+}
+.desktop-app .workspace-chat-panel .chat-composer,
+.desktop-app .workspace-chat-panel .chat-composer-notice,
+.desktop-app .workspace-chat-panel .chat-draft-type,
+.desktop-app .workspace-chat-panel .chat-composer-hint,
+.desktop-app .workspace-chat-panel .chat-composer-error,
+.desktop-app .workspace-chat-panel .chat-composer-context { max-width: none; }
+.desktop-app .workspace-chat-panel .chat-composer {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+}
+.desktop-app .chat-composer-actions {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-self: end;
+  min-width: 34px;
+}
+.desktop-app .chat-media-action {
+  width: 34px;
+  height: 34px;
+  color: var(--ara-text-muted);
+  border-radius: 50%;
+}
+.desktop-app .chat-media-action:is(:hover, .is-open):not(:disabled) {
+  color: var(--ara-accent);
+  background: rgba(31, 214, 115, .1);
+}
+.desktop-app .chat-recording-menu {
+  position: absolute;
+  z-index: 22;
+  right: 0;
+  bottom: calc(100% + 9px);
+  display: grid;
+  width: max-content;
+  min-width: 196px;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid rgba(126, 204, 170, .2);
+  border-radius: 12px;
+  background: rgba(4, 29, 21, .98);
+  box-shadow: 0 15px 34px rgba(0, 8, 5, .36);
+}
+.desktop-app .chat-recording-menu .ara-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 35px;
+  padding: 0 9px;
+  color: var(--ara-text);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+}
+.desktop-app .chat-recording-menu .ara-button:hover:not(:disabled),
+.desktop-app .chat-recording-menu .ara-button:focus-visible { color: var(--ara-accent); background: rgba(31, 214, 115, .1); }
+
+:root[data-theme='light'] .desktop-app .titlebar { background: rgba(234, 244, 238, .91); }
+:root[data-theme='light'] .desktop-app .chat-recording-menu {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+  box-shadow: 0 15px 34px rgba(25, 77, 50, .16);
+}

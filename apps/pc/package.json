@@ -1,7 +1,7 @@
 {
   "name": "@arachat/desktop",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.4",
   "type": "module",
   "description": "AraChat Desktop client for macOS and Windows",
   "scripts": {

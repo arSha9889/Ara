@@ -50,6 +50,9 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'arrow-left') return <svg {...commonProps}><path d="m14.5 5-7 7 7 7M8 12h10" /></svg>;
   if (name === 'edit') return <svg {...commonProps}><path d="m5 19 3.4-.7L19 7.7a2.1 2.1 0 0 0-3-3L5.4 15.3 5 19Z" /><path d="m14.6 6.1 3.3 3.3" /></svg>;
   if (name === 'save') return <svg {...commonProps}><path d="M5 3h11l3 3v15H5V3Z" /><path d="M8 3v6h8V3M8 21v-7h8v7" /></svg>;
+  if (name === 'minus') return <svg {...commonProps}><path d="M5 12h14" /></svg>;
+  if (name === 'maximize') return <svg {...commonProps}><rect x="5.5" y="5.5" width="13" height="13" rx="1.5" /></svg>;
+  if (name === 'restore') return <svg {...commonProps}><rect x="8" y="5" width="11" height="11" rx="1.5" /><path d="M16 19H6.5A1.5 1.5 0 0 1 5 17.5V8" /></svg>;
   if (name === 'mic-off') return <svg {...commonProps}><path d="m4 4 16 16" /><path d="M9 9v2a3 3 0 0 0 4.9 2.3M15 9V7a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11.7 5.2M12 18v3M8.5 21h7" /></svg>;
   if (name === 'bell') return <svg {...commonProps}><path d="M18 10a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 22h4" /></svg>;
   if (name === 'palette') return <svg {...commonProps}><path d="M12 3a9 9 0 0 0 0 18h1.1a1.9 1.9 0 0 0 1.6-2.9 1.9 1.9 0 0 1 1.6-2.9h1.2A3.5 3.5 0 0 0 21 11.7C20.8 6.8 16.8 3 12 3Z" /><circle cx="7.5" cy="11" r=".7" fill="currentColor" /><circle cx="10" cy="7.7" r=".7" fill="currentColor" /><circle cx="14" cy="7.7" r=".7" fill="currentColor" /></svg>;

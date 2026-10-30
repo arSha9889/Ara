@@ -142,7 +142,6 @@ export function ChannelCommentsPanel({
     <header className="chat-header channel-comments-header">
       <AraButton className="chat-back-button" type="button" onClick={onBack} size="compact" variant="ghost"><Icon name="arrow-left" size={18} />{t('workspace.channels.backToPosts')}</AraButton>
       <div className="channel-comments-heading"><h1 id="channel-comments-title">{t('workspace.channels.commentsTitle')}</h1><span>{t('workspace.channels.commentsForPost')}</span></div>
-      <AraButton className="channel-header-action" type="button" aria-label={t('workspace.chatPanel.refreshHistory')} title={t('workspace.chatPanel.refreshHistory')} onClick={() => void loadComments()} disabled={isLoading || isSaving} size="icon" variant="ghost"><Icon name="refresh" size={18} /></AraButton>
     </header>
 
     <div className="channel-comments-history" aria-busy={isLoading}>

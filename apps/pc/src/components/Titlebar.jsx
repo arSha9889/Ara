@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-import { BrandMark } from './BrandMark.jsx';
+import { WorkspaceIcon as Icon } from './WorkspaceIcon.jsx';
 
 function isTauriRuntime() {
   return '__TAURI_INTERNALS__' in window;
@@ -27,21 +27,21 @@ export function Titlebar({ t }) {
   const controls = (
     <div className="window-controls" aria-label={t('window.appName')}>
       <button className="window-control minimize" type="button" onClick={() => withWindow((appWindow) => appWindow.minimize())} aria-label={t('window.minimize')}>
-        <span aria-hidden="true" />
+        {isMac ? <span aria-hidden="true" /> : <Icon name="minus" size={14} />}
       </button>
       <button className="window-control maximize" type="button" onClick={toggleMaximize} aria-label={t(isMaximized ? 'window.restore' : 'window.maximize')}>
-        <span aria-hidden="true" />
+        {isMac ? <span aria-hidden="true" /> : <Icon name={isMaximized ? 'restore' : 'maximize'} size={14} />}
       </button>
       <button className="window-control close" type="button" onClick={() => withWindow((appWindow) => appWindow.close())} aria-label={t('window.close')}>
-        <span aria-hidden="true" />
+        {isMac ? <span aria-hidden="true" /> : <Icon name="close" size={14} />}
       </button>
     </div>
   );
 
   return (
     <header className={`titlebar ${isMac ? 'is-mac' : 'is-windows'}`}>
-      {isMac ? controls : <BrandMark compact />}
-      <p className="titlebar-name" data-tauri-drag-region>AraChat</p>
+      {isMac ? controls : null}
+      <span className="titlebar-drag-region" data-tauri-drag-region />
       {isMac ? <span className="titlebar-spacer" data-tauri-drag-region /> : controls}
     </header>
   );

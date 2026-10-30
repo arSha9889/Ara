@@ -331,7 +331,7 @@ export function ChannelChatPanel({
         <span className="workspace-avatar channel-header-avatar" aria-hidden="true">{avatarUrl ? <img src={avatarUrl} alt="" /> : initials(channel.title)}</span>
         <div><h1 id="channel-title">{channel.title || t('workspace.channels.untitled')}</h1><span>{channel.description || t('workspace.channels.noDescription')}</span><small>{channel.is_private ? t('workspace.channels.privateChannel') : t('workspace.channels.publicChannel')} · {t('workspace.channels.subscribersCount', { count: channel.subscriber_count || 0 })}</small></div>
       </div>
-      <div className="chat-header-actions" aria-label={t('workspace.channels.actionsLabel')}><AraButton type="button" aria-label={t('workspace.channels.channelInfo')} title={t('workspace.channels.channelInfo')} onClick={() => setPanel('details')} size="icon" variant="ghost"><Icon name="settings" size={18} /></AraButton><AraButton type="button" aria-label={t('workspace.chatPanel.refreshHistory')} title={t('workspace.chatPanel.refreshHistory')} onClick={() => void loadMessages()} disabled={isLoadingMessages || isSending} size="icon" variant="ghost"><Icon name="refresh" size={18} /></AraButton></div>
+      <div className="chat-header-actions" aria-label={t('workspace.channels.actionsLabel')}><AraButton type="button" aria-label={t('workspace.channels.channelInfo')} title={t('workspace.channels.channelInfo')} onClick={() => setPanel('details')} size="icon" variant="ghost"><Icon name="settings" size={18} /></AraButton></div>
     </header>
 
     <div className="chat-history channel-post-history" aria-label={t('workspace.channels.postsLabel')} aria-busy={isLoadingMessages}>
