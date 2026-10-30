@@ -1721,6 +1721,45 @@ Object.assign(COPY.kk.workspace, {
   },
 });
 
+Object.assign(COPY.ru.workspace, {
+  chatInspector: {
+    label: 'Сведения о чате «{title}»',
+    actions: 'Действия с чатом',
+    about: 'Описание',
+    privacy: 'Защищённый диалог',
+    privacyText: 'Статус защиты и сообщения доступны в истории переписки.',
+    openDetails: 'Открыть сведения и управление',
+    view: 'Открыть',
+    online: 'В сети',
+  },
+});
+
+Object.assign(COPY.en.workspace, {
+  chatInspector: {
+    label: 'Details for {title}',
+    actions: 'Chat actions',
+    about: 'About',
+    privacy: 'Protected conversation',
+    privacyText: 'Protection status and messages are available in the conversation history.',
+    openDetails: 'Open details and management',
+    view: 'Open',
+    online: 'Online',
+  },
+});
+
+Object.assign(COPY.kk.workspace, {
+  chatInspector: {
+    label: '{title} чаты туралы мәліметтер',
+    actions: 'Чат әрекеттері',
+    about: 'Сипаттама',
+    privacy: 'Қорғалған диалог',
+    privacyText: 'Қорғау күйі мен хабарламалар хат алмасу тарихында қолжетімді.',
+    openDetails: 'Мәліметтер мен басқаруды ашу',
+    view: 'Ашу',
+    online: 'Желіде',
+  },
+});
+
 export function localeFromSystem() {
   const language = navigator.language?.toLowerCase() ?? 'en';
   if (language.startsWith('kk')) return 'kk';

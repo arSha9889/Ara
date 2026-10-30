@@ -17,6 +17,7 @@ import { ProfilePanel } from './workspace/ProfilePanel.jsx';
 import { SettingsPanel } from './workspace/SettingsPanel.jsx';
 import { WorkspaceCallError } from './workspace/WorkspaceCallError.jsx';
 import { WorkspaceChatList } from './workspace/WorkspaceChatList.jsx';
+import { WorkspaceChatDetails } from './workspace/WorkspaceChatDetails.jsx';
 import { WorkspaceEmptyState } from './workspace/WorkspaceEmptyState.jsx';
 import { WorkspaceNavigation } from './workspace/WorkspaceNavigation.jsx';
 import { WorkspaceShell } from './workspace/WorkspaceShell.jsx';
@@ -44,6 +45,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
   const [activeSection, setActiveSection] = useState('chats');
   const [query, setQuery] = useState('');
   const [selectedChatId, setSelectedChatId] = useState(null);
+  const [chatDetailsRequest, setChatDetailsRequest] = useState(null);
   const [messageFocus, setMessageFocus] = useState(null);
   const [contactMode, setContactMode] = useState('contacts');
   const [chats, setChats] = useState([]);
@@ -647,7 +649,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     }
 
     if (selectedChat) {
-      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={(changedChat) => changedChat?.type === 'group' ? handleGroupChanged(changedChat) : void loadChats({ showLoading: false })} onChannelLeft={handleChannelLeft} onGroupLeft={removeGroupFromWorkspace} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
+      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} detailsRequestId={String(chatDetailsRequest?.chatId) === String(selectedChat.id) ? chatDetailsRequest.id : 0} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={(changedChat) => changedChat?.type === 'group' ? handleGroupChanged(changedChat) : void loadChats({ showLoading: false })} onChannelLeft={handleChannelLeft} onGroupLeft={removeGroupFromWorkspace} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
     }
 
     return <WorkspaceEmptyState onNewChat={openNewChat} t={t} />;
@@ -659,7 +661,8 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
       density={preferences.density ?? 'comfortable'}
       isChatOpen={selectedChat && ['chats', 'groups', 'channels'].includes(activeSection)}
       isStandalonePage={isStandalonePage}
-      navigation={<WorkspaceNavigation activeSection={activeSection} onHome={() => { openSection('chats'); setSelectedChatId(null); }} onSelect={openSection} t={t} />}
+      navigation={<WorkspaceNavigation activeSection={activeSection} currentUser={currentUser} onHome={() => { openSection('chats'); setSelectedChatId(null); }} onSelect={openSection} t={t} />}
+      details={selectedChat && ['chats', 'groups', 'channels'].includes(activeSection) ? <WorkspaceChatDetails canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} chat={selectedChat} onOpenDetails={() => setChatDetailsRequest((current) => ({ chatId: selectedChat.id, id: (current?.id ?? 0) + 1 }))} onStartCall={startCall} t={t} /> : null}
       overlay={<><CallOverlay call={call} peer={activeCallChat?.peer} t={t} />{callError && call.callState === 'idle' ? <WorkspaceCallError message={callError} onClose={() => setCallError('')} t={t} /> : null}</>}
     >
       {renderMainContent()}

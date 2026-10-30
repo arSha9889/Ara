@@ -75,6 +75,7 @@ export function GroupChatPanel({
   accessToken,
   chat,
   currentUserId,
+  detailsRequestId,
   focusMessage,
   focusMessageId,
   focusRequestId,
@@ -107,6 +108,10 @@ export function GroupChatPanel({
   const messageElementRefs = useRef(new Map());
   const processedRealtimeEventIdRef = useRef(0);
   const handledResyncVersionRef = useRef(realtimeResyncVersion);
+
+  useEffect(() => {
+    if (detailsRequestId) setPanel('details');
+  }, [detailsRequestId]);
   const readMessageIdsRef = useRef(new Set());
   const readRetryTimerRef = useRef(null);
   const focusedRequestIdRef = useRef(0);

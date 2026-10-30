@@ -59,6 +59,7 @@ export function ChannelChatPanel({
   accessToken,
   chat,
   currentUserId,
+  detailsRequestId,
   focusMessage,
   focusMessageId,
   focusRequestId,
@@ -87,6 +88,10 @@ export function ChannelChatPanel({
   const activeRef = useRef(true);
   const postElementRefs = useRef(new Map());
   const processedRealtimeEventIdRef = useRef(0);
+
+  useEffect(() => {
+    if (detailsRequestId) setPanel('details');
+  }, [detailsRequestId]);
   const handledResyncVersionRef = useRef(realtimeResyncVersion);
   const readMessageIdsRef = useRef(new Set());
   const readRetryTimerRef = useRef(null);

@@ -1,6 +1,7 @@
-import { parrotIcon } from '../../components/BrandMark.jsx';
+import { BrandMark } from '../../components/BrandMark.jsx';
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
 
 const PRIMARY_NAVIGATION_ITEMS = [
   { id: 'chats', icon: 'chats' },
@@ -19,28 +20,33 @@ const SECONDARY_NAVIGATION_ITEMS = [
 function NavigationGroup({ activeSection, items, onSelect, t }) {
   return items.map((item) => {
     const isActive = activeSection === item.id;
+    const label = item.id === 'channels' ? t('workspace.channels.title') : item.id === 'groups' ? t('workspace.groups.title') : t(`workspace.${item.id}`);
     return (
         <AraButton
           aria-current={isActive ? 'page' : undefined}
-          aria-label={item.id === 'channels' ? t('workspace.channels.title') : item.id === 'groups' ? t('workspace.groups.title') : t(`workspace.${item.id}`)}
+          aria-label={label}
           className={`workspace-nav-button ${isActive ? 'is-active' : ''}`}
           key={item.id}
           onClick={() => onSelect(item.id)}
-          size="icon"
-          title={item.id === 'channels' ? t('workspace.channels.title') : item.id === 'groups' ? t('workspace.groups.title') : t(`workspace.${item.id}`)}
+          title={label}
         variant={isActive ? 'active' : 'ghost'}
       >
         <Icon name={item.icon} />
+        <span>{label}</span>
       </AraButton>
     );
   });
 }
 
-export function WorkspaceNavigation({ activeSection, onHome, onSelect, t }) {
+export function WorkspaceNavigation({ activeSection, currentUser, onHome, onSelect, t }) {
+  const profile = currentUser?.profile;
+  const displayName = profile?.display_name || profile?.username || t('workspace.profile');
+  const avatarUrl = mediaUrlForDesktop(profile?.avatar_ref);
+
   return (
     <aside className="workspace-nav ara-workspace-navigation" aria-label={t('workspace.navigation')}>
-      <AraButton className="workspace-logo" onClick={onHome} size="icon" variant="surface" aria-label={t('window.appName')}>
-        <img src={parrotIcon} alt="" />
+      <AraButton className="workspace-logo" onClick={onHome} variant="surface" aria-label={t('window.appName')}>
+        <BrandMark />
       </AraButton>
       <nav className="workspace-nav-groups">
         <div className="workspace-nav-group">
@@ -51,6 +57,11 @@ export function WorkspaceNavigation({ activeSection, onHome, onSelect, t }) {
           <NavigationGroup activeSection={activeSection} items={SECONDARY_NAVIGATION_ITEMS} onSelect={onSelect} t={t} />
         </div>
       </nav>
+      <AraButton aria-current={activeSection === 'profile' ? 'page' : undefined} aria-label={t('workspace.profile')} className={`workspace-user-chip ${activeSection === 'profile' ? 'is-active' : ''}`} onClick={() => onSelect('profile')} title={t('workspace.profile')} variant="ghost">
+        <span className="workspace-user-avatar" aria-hidden="true">{avatarUrl ? <img src={avatarUrl} alt="" /> : displayName.slice(0, 1).toUpperCase()}</span>
+        <span><strong>{displayName}</strong><small>{t('workspace.chatInspector.online')}</small></span>
+        <Icon name="chevron-right" size={15} />
+      </AraButton>
     </aside>
   );
 }
