@@ -108,7 +108,7 @@ export const COPY = {
     legal: {
       title: 'Документы AraChat',
       privacyTitle: 'Политика конфиденциальности',
-      termsTitle: 'Условия использования',
+      termsTitle: 'Пользовательское соглашение',
     },
     workspace: {
       navigation: 'Основная навигация',
@@ -296,6 +296,12 @@ export const COPY = {
         appearanceTitle: 'Внешний вид',
         appearanceText: 'Настройте интерфейс так, чтобы в нём было комфортно работать.',
         theme: 'Тема',
+        colorPalette: 'Цветовая палитра',
+        colorPaletteText: 'Выберите акцентный цвет интерфейса. Изменение применяется сразу и сохраняется на этом устройстве.',
+        paletteGreen: 'Зелёная',
+        paletteCyan: 'Голубая',
+        paletteYellow: 'Жёлтая',
+        paletteOrange: 'Оранжевая',
         language: 'Язык интерфейса',
         languageText: 'Изменение применяется сразу и сохраняется только на этом устройстве.',
         densityTitle: 'Плотность интерфейса',
@@ -384,6 +390,10 @@ export const COPY = {
         updatesTitle: 'Обновления Desktop',
         updatesText: 'Автоматические обновления для Desktop пока не настроены. Новые версии будут доступны после публикации подписанного канала обновлений.',
         updatesStatus: 'Автоматические обновления не настроены',
+        legalDocumentsTitle: 'Правовые документы',
+        legalDocumentsText: 'Политика конфиденциальности и Пользовательское соглашение откроются в браузере.',
+        openPrivacyPolicy: 'Открыть Политику конфиденциальности',
+        openTerms: 'Открыть Пользовательское соглашение',
       },
       notificationsPanel: {
         kicker: 'События аккаунта',
@@ -855,7 +865,7 @@ export const COPY = {
     legal: {
       title: 'AraChat documents',
       privacyTitle: 'Privacy policy',
-      termsTitle: 'Terms of use',
+        termsTitle: 'User agreement',
     },
     workspace: {
       navigation: 'Main navigation',
@@ -1043,6 +1053,12 @@ export const COPY = {
         appearanceTitle: 'Appearance',
         appearanceText: 'Set up an interface that is comfortable to work in.',
         theme: 'Theme',
+        colorPalette: 'Color palette',
+        colorPaletteText: 'Choose the interface accent color. The change applies immediately and is saved on this device.',
+        paletteGreen: 'Green',
+        paletteCyan: 'Cyan',
+        paletteYellow: 'Yellow',
+        paletteOrange: 'Orange',
         language: 'Interface language',
         languageText: 'Changes apply immediately and are saved only on this device.',
         densityTitle: 'Interface density',
@@ -1131,6 +1147,10 @@ export const COPY = {
         updatesTitle: 'Desktop updates',
         updatesText: 'Automatic Desktop updates are not configured yet. New versions will be available after a signed update channel is published.',
         updatesStatus: 'Automatic updates are not configured',
+        legalDocumentsTitle: 'Legal documents',
+        legalDocumentsText: 'The Privacy Policy and User Agreement open in your browser.',
+        openPrivacyPolicy: 'Open Privacy Policy',
+        openTerms: 'Open User Agreement',
       },
       notificationsPanel: {
         kicker: 'Account activity',
@@ -1515,7 +1535,7 @@ export const COPY = {
       verificationCode: 'Хаттағы код', codeHint: '6 сан', sendCode: 'Код жіберу', resendCode: 'Кодты қайта жіберу', registrationCountry: 'Тіркелу елі', selectCountry: 'Елді таңдаңыз', countries: { RU: 'Ресей', KZ: 'Қазақстан', KG: 'Қырғызстан', UA: 'Украина', BY: 'Беларусь', UZ: 'Өзбекстан' }, emailCodeSent: 'Код e-mail мекенжайына жіберілді. Ол {minutes} мин. жарамды.', emailConfirmed: 'E-mail расталды.', displayName: 'Достарыңыз сізді қалай көреді', displayNameHint: 'Мысалы, Лера', username: 'Username', usernameHint: 'Бос орынсыз, мысалы lera', usernameDescription: 'Іздеуге арналған ашық мекенжай: 3–32 латын әрпі немесе сан. Оны кейін өзгерте аласыз.', avatar: 'Аватар', uploadAvatar: 'Фотосурет таңдау', avatarDescription: 'JPG, PNG және WebP суреттеріне қолдау көрсетіледі.', passwordCreate: 'Құпиясөз ойлап табыңыз', passwordConfirm: 'Құпиясөзді қайталаңыз', passwordHelp: '5-тен 30-ға дейін латын әріптері не сандарын қолданыңыз — бұл сервердің қазіргі шектеуі.', privacyAcceptBefore: 'Мен оқыдым және қабылдаймын: ', termsAcceptBefore: 'Мен қабылдаймын: ', and: ' және ', create: 'Аккаунт ашу', already: 'Аккаунтыңыз бар ма?',
       validation: { email: 'Дұрыс e-mail мекенжайын енгізіңіз.', code: 'Код 6 саннан тұруы керек.', displayName: 'Көрсетілетін атты енгізіңіз.', country: 'Тіркелу елін таңдаңыз.', username: 'Username 3-тен 32-ге дейін латын әрпі не санынан тұруы керек.', password: 'Құпиясөз 5-тен 30-ға дейін латын әрпі не санынан тұруы керек.', passwordMatch: 'Құпиясөздер сәйкес келмейді.', legal: 'Тіркелу үшін екі құжатты да қабылдаңыз.' },
     },
-    legal: { title: 'AraChat құжаттары', privacyTitle: 'Құпиялылық саясаты', termsTitle: 'Пайдалану шарттары' },
+    legal: { title: 'AraChat құжаттары', privacyTitle: 'Құпиялылық саясаты', termsTitle: 'Пайдаланушы келісімі' },
     workspace: {
       navigation: 'Негізгі навигация', chats: 'Чаттар', channels: 'Арналар', calls: 'Қоңыраулар', contacts: 'Контактілер', profile: 'Профиль', notifications: 'Хабарландырулар', settings: 'Баптаулар', chatsTitle: 'Чаттар', chatsIntro: 'Жеке диалогтар', newChat: 'Жаңа чат', refreshChats: 'Чаттар тізімін жаңарту', refreshingChats: 'Чаттар тізімі жаңартылуда…', chatsUpdated: 'Чаттар тізімі жаңартылды.', clearAllChats: 'Чаттар тізімін тазалау', clearChatsConfirmation: 'Барлық жеке диалогтарды тізімнен жасыру керек пе? Хат алмасу мен әңгімелесушілердің чаттары жойылмайды. Жаңа кіріс хабарлама диалогты қайта көрсетеді.', clearingChats: 'Чаттар тізімі тазартылуда…', chatsCleared: 'Жасырылған диалогтар: {count}.', search: 'Іздеу', searchPlaceholder: 'Аты, username немесе хабарлама мәтіні', clearSearch: 'Іздеуді тазалау', noSearchResults: 'Диалогтар табылмады', noSearchResultsText: 'Сұрауды өзгертіңіз немесе іздеуді тазалаңыз.', unread: 'Оқылмаған: {count}', loadingChats: 'Чаттар жүктелуде…', chatsLoadError: 'Чаттарды жүктеу мүмкін болмады', retry: 'Қайталау', noChatsTitle: 'Әзірге жеке чаттар жоқ', noChatsText: 'Хат алмасуды бастау үшін адамды табыңыз.', noMessagesPreview: 'Әзірге хабарламалар жоқ', nonTextPreview: 'Тіркеме', directChatsOnly: 'Тек жеке диалогтар көрсетіледі.', chatListFooter: 'Жеке диалогтар және сіз жазылған арналар.', directChatsSection: 'Чаттар', unknownUser: 'AraChat пайдаланушысы', emptyKicker: 'Жеке хабарламалар', emptyTitle: 'Диалогты таңдаңыз', emptyText: 'Сол жақтағы чатты ашыңыз немесе хат алмасуды бастау үшін адамды табыңыз.', findUser: 'Адамды табу', featureTitle: '{feature} дайындалуда', featureText: 'Бұл бөлім келесі frontend кезеңдерінде пайда болады. Қазір чаттар тізімінің интерактивті қабығы қолжетімді.', backToChats: 'Чаттарға оралу',
       profilePanel: {
@@ -1617,6 +1637,16 @@ Object.assign(COPY.kk.workspace.settingsPanel, {
   updatesTitle: 'Desktop жаңартулары',
   updatesText: 'Desktop үшін автоматты жаңартулар әлі бапталмаған. Жаңа нұсқалар қолтаңбасы бар жаңарту арнасы жарияланғаннан кейін қолжетімді болады.',
   updatesStatus: 'Автоматты жаңартулар бапталмаған',
+  colorPalette: 'Түстер палитрасы',
+  colorPaletteText: 'Интерфейстің екпінді түсін таңдаңыз. Өзгеріс бірден қолданылады және осы құрылғыда сақталады.',
+  paletteGreen: 'Жасыл',
+  paletteCyan: 'Көгілдір',
+  paletteYellow: 'Сары',
+  paletteOrange: 'Қызғылт сары',
+  legalDocumentsTitle: 'Құқықтық құжаттар',
+  legalDocumentsText: 'Құпиялылық саясаты мен Пайдаланушы келісімі браузерде ашылады.',
+  openPrivacyPolicy: 'Құпиялылық саясатын ашу',
+  openTerms: 'Пайдаланушы келісімін ашу',
 });
 
 Object.assign(COPY.kk.workspace, {

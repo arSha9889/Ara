@@ -3,6 +3,7 @@ import { getVersion } from '@tauri-apps/api/app';
 
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { openLegalDocument } from '../../features/legal/openLegalDocument.js';
 import { SUPPORTED_LANGUAGES } from '../../i18n/copy.js';
 import { getDeviceId } from '../../shared/device/deviceId.js';
 import {
@@ -42,6 +43,7 @@ const LOGIN_RESULTS = {
 };
 
 const COMPACT_SETTINGS_NAVIGATION_QUERY = '(max-width: 1060px)';
+const COLOR_PALETTES = ['green', 'cyan', 'yellow', 'orange'];
 
 function SettingToggle({ checked, onChange, label, description }) {
   return (
@@ -382,6 +384,13 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
             <div className="workspace-section-heading"><div><h2 id="settings-updates-title">{t('workspace.settingsPanel.updatesTitle')}</h2><p>{t('workspace.settingsPanel.updatesText')}</p></div></div>
             <p className="settings-update-status"><Icon name="info" size={16} />{t('workspace.settingsPanel.updatesStatus')}</p>
           </section>
+          <section className="workspace-section-card settings-about-card" aria-labelledby="settings-legal-title">
+            <div className="workspace-section-heading"><div><h2 id="settings-legal-title">{t('workspace.settingsPanel.legalDocumentsTitle')}</h2><p>{t('workspace.settingsPanel.legalDocumentsText')}</p></div></div>
+            <div className="settings-legal-links">
+              <AraButton type="button" variant="secondary" onClick={() => void openLegalDocument('privacy')}><Icon name="document" size={16} />{t('workspace.settingsPanel.openPrivacyPolicy')}</AraButton>
+              <AraButton type="button" variant="secondary" onClick={() => void openLegalDocument('terms')}><Icon name="document" size={16} />{t('workspace.settingsPanel.openTerms')}</AraButton>
+            </div>
+          </section>
         </div>
       );
     }
@@ -454,6 +463,13 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
             <strong>{t('workspace.settingsPanel.theme')}</strong>
             <div className="theme-choice-grid">
               {['light', 'dark'].map((theme) => <button className={`theme-choice theme-choice-${theme} ${preferences.theme === theme ? 'is-selected' : ''}`} type="button" key={theme} aria-pressed={preferences.theme === theme} onClick={() => updatePreferences({ theme })}><span aria-hidden="true" /><b>{t(`common.${theme}`)}</b><i><Icon name="check" size={13} /></i></button>)}
+            </div>
+          </div>
+          <div className="setting-control-block color-palette-control">
+            <strong id="color-palette-label">{t('workspace.settingsPanel.colorPalette')}</strong>
+            <p id="color-palette-description">{t('workspace.settingsPanel.colorPaletteText')}</p>
+            <div className="color-palette-choice-grid" aria-labelledby="color-palette-label" aria-describedby="color-palette-description" role="group">
+              {COLOR_PALETTES.map((colorPalette) => <button className={`color-palette-choice color-palette-choice-${colorPalette} ${preferences.colorPalette === colorPalette ? 'is-selected' : ''}`} type="button" key={colorPalette} aria-pressed={preferences.colorPalette === colorPalette} onClick={() => updatePreferences({ colorPalette })}><span className="color-palette-swatch" aria-hidden="true" /><b>{t(`workspace.settingsPanel.palette${colorPalette[0].toUpperCase()}${colorPalette.slice(1)}`)}</b><i><Icon name="check" size={13} /></i></button>)}
             </div>
           </div>
           <fieldset className="setting-control-block language-choice-group">

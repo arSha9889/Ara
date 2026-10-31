@@ -1,4 +1,5 @@
 import { apiRequest } from '../../shared/api/apiClient.js';
+import { registrationRequestBody } from './registrationRequestBody.js';
 
 export function loginWithEmail({ email, password, deviceId }) {
   return apiRequest('/api/auth/login', {
@@ -21,31 +22,10 @@ export function confirmEmailVerification({ verificationId, code }) {
   });
 }
 
-export function completeRegistration({
-  verificationId,
-  username,
-  password,
-  deviceId,
-  language,
-  country,
-  displayName,
-}) {
+export function completeRegistration(input) {
   return apiRequest('/api/auth/register/complete', {
     method: 'POST',
-    body: {
-      email_verification_id: verificationId,
-      username,
-      password,
-      device_id: deviceId,
-      language,
-      registration_country: country,
-      design_theme: 'halo',
-      display_name: displayName,
-      avatar_type: 'built_in',
-      avatar_ref: 'animal-01',
-      accepted_terms: true,
-      accepted_privacy_policy: true,
-    },
+    body: registrationRequestBody(input),
   });
 }
 

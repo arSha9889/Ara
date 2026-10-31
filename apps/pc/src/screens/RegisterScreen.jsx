@@ -130,6 +130,8 @@ export function RegisterScreen({ language, t, onNavigate, onOpenLegal, onAuthent
         language,
         country: form.country,
         displayName: form.displayName.trim(),
+        acceptedTerms: form.terms,
+        acceptedPrivacyPolicy: form.privacy,
       });
       await onAuthenticated(session, { remember: true });
     } catch (requestError) {

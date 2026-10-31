@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -23,16 +23,37 @@ export function PublicSiteHeader({ activePage = 'home', minimal = false, publicO
     { to: '/#channels', label: t('comet.navigationChannels'), isActive: false },
   ];
 
+  function closeMenu() {
+    setIsMenuOpen(false);
+  }
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
   function openDownloadDialog(event) {
     downloadTriggerRef.current = event.currentTarget;
-    setIsMenuOpen(false);
+    closeMenu();
     setIsDownloadDialogOpen(true);
   }
 
   return (
     <>
       <header className={`ara-site-header ${minimal ? 'is-minimal' : ''}`}>
-        <Link to="/" className="ara-brand" onClick={() => setIsMenuOpen(false)}>
+        <Link to="/" className="ara-brand" onClick={closeMenu}>
           <img src="/icons/arachat-parrot-icon-192.png" alt="" aria-hidden="true" />
           <span>AraChat</span>
         </Link>
@@ -59,10 +80,13 @@ export function PublicSiteHeader({ activePage = 'home', minimal = false, publicO
           </button> : null}
         </div>
 
-        {!minimal && isMenuOpen ? <nav className="ara-mobile-navigation" id="ara-mobile-navigation" aria-label={t('common.navigation')}>
-          {navigation.map((item) => <Link to={item.to} onClick={() => setIsMenuOpen(false)} key={item.to}>{item.label}</Link>)}
+        {!minimal ? <>
+          {isMenuOpen ? <button className="ara-mobile-menu-backdrop" type="button" aria-label={t('common.close')} onClick={closeMenu} /> : null}
+          <nav className={`ara-mobile-navigation ${isMenuOpen ? 'is-open' : ''}`} id="ara-mobile-navigation" aria-label={t('common.navigation')} aria-hidden={!isMenuOpen}>
+          {navigation.map((item) => <Link to={item.to} onClick={closeMenu} key={item.to}>{item.label}</Link>)}
           {showAuthAction ? <button className="ara-header-cta" type="button" aria-haspopup="dialog" aria-expanded={isDownloadDialogOpen} onClick={openDownloadDialog}>{messengerLabel}</button> : null}
-        </nav> : null}
+          </nav>
+        </> : null}
       </header>
       <DownloadConfirmationDialog
         isOpen={isDownloadDialogOpen}

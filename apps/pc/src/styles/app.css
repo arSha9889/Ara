@@ -3925,16 +3925,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .desktop-app {
   background:
-    radial-gradient(circle at 21% 104%, rgba(31, 233, 119, .22), transparent 20%),
-    radial-gradient(circle at 96% -8%, rgba(15, 121, 80, .16), transparent 32%),
-    #02100d;
+    radial-gradient(circle at 21% 104%, color-mix(in srgb, var(--ara-accent) 22%, transparent), transparent 20%),
+    radial-gradient(circle at 96% -8%, color-mix(in srgb, var(--ara-accent) 16%, transparent), transparent 32%),
+    var(--ara-canvas);
 }
 
 .desktop-app .titlebar {
   height: 38px;
   color: var(--ara-text-muted);
   border-color: var(--ara-border-subtle);
-  background: linear-gradient(90deg, #051713, #03110e 72%, #061a15);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ara-surface) 84%, #000), var(--ara-canvas) 72%, var(--ara-surface));
 }
 
 .desktop-app .workspace-screen {
@@ -4343,7 +4343,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .desktop-app .chat-media-action:is(:hover, .is-open):not(:disabled) {
   color: var(--ara-accent);
-  background: rgba(31, 214, 115, .1);
+  background: color-mix(in srgb, var(--ara-accent) 10%, transparent);
 }
 .desktop-app .chat-recording-menu {
   position: absolute;
@@ -4355,10 +4355,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   min-width: 196px;
   gap: 2px;
   padding: 5px;
-  border: 1px solid rgba(126, 204, 170, .2);
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 20%, var(--ara-border-subtle));
   border-radius: 12px;
-  background: rgba(4, 29, 21, .98);
-  box-shadow: 0 15px 34px rgba(0, 8, 5, .36);
+  background: color-mix(in srgb, var(--ara-surface) 98%, #000);
+  box-shadow: 0 15px 34px var(--ara-shadow);
 }
 .desktop-app .chat-recording-menu .ara-button {
   display: flex;
@@ -4373,11 +4373,132 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-radius: 8px;
 }
 .desktop-app .chat-recording-menu .ara-button:hover:not(:disabled),
-.desktop-app .chat-recording-menu .ara-button:focus-visible { color: var(--ara-accent); background: rgba(31, 214, 115, .1); }
+.desktop-app .chat-recording-menu .ara-button:focus-visible { color: var(--ara-accent); background: color-mix(in srgb, var(--ara-accent) 10%, transparent); }
 
-:root[data-theme='light'] .desktop-app .titlebar { background: rgba(234, 244, 238, .91); }
+:root[data-theme='light'] .desktop-app .titlebar { background: color-mix(in srgb, var(--ara-canvas) 91%, transparent); }
 :root[data-theme='light'] .desktop-app .chat-recording-menu {
   border-color: var(--ara-border-subtle);
   background: var(--ara-surface);
-  box-shadow: 0 15px 34px rgba(25, 77, 50, .16);
+  box-shadow: 0 15px 34px var(--ara-shadow);
+}
+
+.desktop-app .workspace-settings-panel .color-palette-control { margin-top: 19px; }
+.desktop-app .workspace-settings-panel .color-palette-control > p { margin: -4px 0 0; color: var(--ara-text-muted); font-size: 10px; line-height: 1.45; }
+.desktop-app .workspace-settings-panel .color-palette-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.desktop-app .workspace-settings-panel .color-palette-choice {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px;
+  color: var(--ara-text);
+  text-align: left;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: var(--ara-radius-control);
+  background: var(--ara-surface-elevated);
+  transition: border-color var(--ara-motion-fast), background var(--ara-motion-fast);
+}
+.desktop-app .workspace-settings-panel .color-palette-choice:hover { border-color: var(--ara-border-interactive); background: var(--ara-surface); }
+.desktop-app .workspace-settings-panel .color-palette-choice.is-selected { border-color: var(--ara-accent); background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated)); }
+.desktop-app .workspace-settings-panel .color-palette-choice b { font-size: 11px; }
+.desktop-app .workspace-settings-panel .color-palette-choice i { display: grid; place-items: center; width: 18px; height: 18px; color: transparent; font-style: normal; border-radius: 6px; }
+.desktop-app .workspace-settings-panel .color-palette-choice.is-selected i { color: var(--ara-on-accent); background: var(--ara-accent); }
+.desktop-app .workspace-settings-panel .color-palette-swatch { display: block; width: 28px; height: 28px; border: 1px solid rgba(255, 255, 255, .24); border-radius: 9px; }
+.desktop-app .workspace-settings-panel .color-palette-choice-green .color-palette-swatch { background: linear-gradient(135deg, #0c4b2c, #22d878); }
+.desktop-app .workspace-settings-panel .color-palette-choice-cyan .color-palette-swatch { background: linear-gradient(135deg, #07526e, #39cff4); }
+.desktop-app .workspace-settings-panel .color-palette-choice-yellow .color-palette-swatch { background: linear-gradient(135deg, #665000, #ffd149); }
+.desktop-app .workspace-settings-panel .color-palette-choice-orange .color-palette-swatch { background: linear-gradient(135deg, #7a3105, #ff9545); }
+.desktop-app .workspace-settings-panel .settings-legal-links { display: grid; gap: 8px; padding-top: 15px; border-top: 1px solid var(--ara-border-subtle); }
+.desktop-app .workspace-settings-panel .settings-legal-links .ara-button { justify-content: flex-start; }
+
+:root[data-color-palette='cyan'] .desktop-app {
+  --ara-canvas: #04181d;
+  --ara-surface: #08252d;
+  --ara-surface-elevated: #0d333d;
+  --ara-text: #e4f3f7;
+  --ara-text-muted: #91b1ba;
+  --ara-border-subtle: rgba(132, 203, 222, .16);
+  --ara-border-interactive: rgba(93, 207, 239, .38);
+  --ara-border-strong: rgba(126, 223, 249, .56);
+  --ara-accent: #31c8ef;
+  --ara-accent-hover: #76def5;
+  --ara-on-accent: #04212a;
+  --ara-focus: #9beaff;
+  --ara-shadow: rgba(0, 11, 16, .54);
+}
+:root[data-theme='light'][data-color-palette='cyan'] .desktop-app {
+  --ara-canvas: #e9f7fb;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #effaff;
+  --ara-text: #0d2831;
+  --ara-text-muted: #57747d;
+  --ara-border-subtle: rgba(18, 104, 132, .15);
+  --ara-border-interactive: rgba(0, 127, 168, .38);
+  --ara-border-strong: rgba(0, 112, 148, .54);
+  --ara-accent: #007fa8;
+  --ara-accent-hover: #006a8d;
+  --ara-on-accent: #ffffff;
+  --ara-focus: #006c90;
+  --ara-shadow: rgba(20, 80, 98, .16);
+}
+:root[data-color-palette='yellow'] .desktop-app {
+  --ara-canvas: #191505;
+  --ara-surface: #282207;
+  --ara-surface-elevated: #39300b;
+  --ara-text: #fff8df;
+  --ara-text-muted: #c0b58c;
+  --ara-border-subtle: rgba(228, 202, 108, .17);
+  --ara-border-interactive: rgba(255, 209, 73, .40);
+  --ara-border-strong: rgba(255, 223, 125, .58);
+  --ara-accent: #ffd149;
+  --ara-accent-hover: #ffe28b;
+  --ara-on-accent: #2d2403;
+  --ara-focus: #ffdf7b;
+  --ara-shadow: rgba(14, 11, 0, .56);
+}
+:root[data-theme='light'][data-color-palette='yellow'] .desktop-app {
+  --ara-canvas: #fbf6e8;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #fff9e8;
+  --ara-text: #302804;
+  --ara-text-muted: #706540;
+  --ara-border-subtle: rgba(132, 96, 8, .16);
+  --ara-border-interactive: rgba(142, 97, 0, .40);
+  --ara-border-strong: rgba(121, 83, 0, .55);
+  --ara-accent: #8e6100;
+  --ara-accent-hover: #704d00;
+  --ara-on-accent: #ffffff;
+  --ara-focus: #785300;
+  --ara-shadow: rgba(96, 74, 14, .16);
+}
+:root[data-color-palette='orange'] .desktop-app {
+  --ara-canvas: #1c0e05;
+  --ara-surface: #2b1608;
+  --ara-surface-elevated: #3d210d;
+  --ara-text: #fff0e6;
+  --ara-text-muted: #c8ab97;
+  --ara-border-subtle: rgba(237, 165, 116, .17);
+  --ara-border-interactive: rgba(255, 149, 69, .40);
+  --ara-border-strong: rgba(255, 184, 125, .58);
+  --ara-accent: #ff9545;
+  --ara-accent-hover: #ffb577;
+  --ara-on-accent: #2c1203;
+  --ara-focus: #ffc28e;
+  --ara-shadow: rgba(16, 6, 0, .57);
+}
+:root[data-theme='light'][data-color-palette='orange'] .desktop-app {
+  --ara-canvas: #fff1e8;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #fff5ef;
+  --ara-text: #321906;
+  --ara-text-muted: #795c48;
+  --ara-border-subtle: rgba(156, 67, 8, .16);
+  --ara-border-interactive: rgba(179, 79, 0, .40);
+  --ara-border-strong: rgba(160, 69, 0, .55);
+  --ara-accent: #b34f00;
+  --ara-accent-hover: #913f00;
+  --ara-on-accent: #ffffff;
+  --ara-focus: #963f00;
+  --ara-shadow: rgba(116, 52, 12, .16);
 }
