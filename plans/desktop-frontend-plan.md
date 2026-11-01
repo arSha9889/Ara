@@ -26,7 +26,7 @@ API на двух платформах, устранить подтверждё�
 | Подпись Windows, подпись и notarization macOS | Не настроены. |
 
 Ручной workflow [`.github/workflows/desktop-build.yml`](../.github/workflows/desktop-build.yml)
-собирает `.dmg` на `macos-14` и NSIS `.exe` на `windows-latest`, но наличие
+собирает `.dmg` на `macos-15` и NSIS `.exe` на `windows-latest`, но наличие
 workflow не является доказательством прохождения реальной Windows-проверки.
 
 ## 2. Что уже реализовано в коде

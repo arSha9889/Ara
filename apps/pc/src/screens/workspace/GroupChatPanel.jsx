@@ -17,6 +17,7 @@ import { formatFileSize } from '../../shared/format/fileSize.js';
 import { GroupDetailsPanel } from './GroupDetailsPanel.jsx';
 import { MessageContent, displayMessageType } from './MessageContent.jsx';
 import { MessageContextMenu, messageMenuPositionFromEvent } from './MessageContextMenu.jsx';
+import { scrollHistoryToEnd } from './scrollHistoryToEnd.js';
 
 const ACCEPTED_FILE_TYPES = 'image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/avif,video/mp4,video/webm,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,application/pdf,text/plain';
 
@@ -104,6 +105,7 @@ export function GroupChatPanel({
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [readRetryVersion, setReadRetryVersion] = useState(0);
   const fileInputRef = useRef(null);
+  const historyRef = useRef(null);
   const activeRef = useRef(true);
   const messageElementRefs = useRef(new Map());
   const processedRealtimeEventIdRef = useRef(0);
@@ -116,6 +118,7 @@ export function GroupChatPanel({
   const readRetryTimerRef = useRef(null);
   const focusedRequestIdRef = useRef(0);
   const focusHighlightTimerRef = useRef(null);
+  const autoScrollFrameRef = useRef(null);
   const avatarUrl = mediaUrlForDesktop(group.avatar_ref);
 
   const loadMessages = useCallback(async ({ showLoading = true } = {}) => {
@@ -185,11 +188,30 @@ export function GroupChatPanel({
   }, [focusMessage, focusMessageId, focusRequestId]);
 
   useEffect(() => {
+    if (isLoadingMessages || !messages.length) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      autoScrollFrameRef.current = null;
+      scrollHistoryToEnd(historyRef.current);
+    });
+    autoScrollFrameRef.current = frameId;
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (autoScrollFrameRef.current === frameId) autoScrollFrameRef.current = null;
+    };
+  }, [isLoadingMessages, messages]);
+
+  useEffect(() => {
     if (!focusMessageId || !focusRequestId || focusedRequestIdRef.current === focusRequestId) return;
     if (!messages.some((message) => String(message.id) === String(focusMessageId))) return;
     const messageElement = messageElementRefs.current.get(String(focusMessageId));
     if (!messageElement) return;
 
+    if (autoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
     focusedRequestIdRef.current = focusRequestId;
     setHighlightedMessageId(focusMessageId);
     messageElement.scrollIntoView({
@@ -356,7 +378,7 @@ export function GroupChatPanel({
       <div className="chat-header-actions" aria-label={t('workspace.groups.actionsLabel')}><AraButton aria-label={t('workspace.groups.groupInfoAction')} onClick={() => setPanel('details')} size="icon" title={t('workspace.groups.groupInfoAction')} type="button" variant="ghost"><Icon name="settings" size={18} /></AraButton></div>
     </header>
 
-    <div aria-busy={isLoadingMessages} aria-label={t('workspace.groups.historyLabel')} className="chat-history group-message-history">
+    <div ref={historyRef} aria-busy={isLoadingMessages} aria-label={t('workspace.groups.historyLabel')} className="chat-history group-message-history">
       <div className={`chat-server-notice is-${realtimeStatus}`} role="status"><Icon name="shield" size={15} /><span>{realtimeNotice(realtimeStatus, t)}</span></div>
       {historyError ? <div className="chat-history-error" role="alert"><strong>{t('workspace.chatPanel.historyLoadError')}</strong><span>{historyError}</span><AraButton onClick={() => void loadMessages()} size="compact" type="button" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
       {isLoadingMessages ? <p className="chat-history-status" role="status">{t('workspace.chatPanel.loadingHistory')}</p> : historyError ? null : messages.length ? messages.map((message) => {

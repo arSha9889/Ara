@@ -58,6 +58,11 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'palette') return <svg {...commonProps}><path d="M12 3a9 9 0 0 0 0 18h1.1a1.9 1.9 0 0 0 1.6-2.9 1.9 1.9 0 0 1 1.6-2.9h1.2A3.5 3.5 0 0 0 21 11.7C20.8 6.8 16.8 3 12 3Z" /><circle cx="7.5" cy="11" r=".7" fill="currentColor" /><circle cx="10" cy="7.7" r=".7" fill="currentColor" /><circle cx="14" cy="7.7" r=".7" fill="currentColor" /></svg>;
   if (name === 'shield') return <svg {...commonProps}><path d="M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-3Z" /><path d="m8.7 12 2.1 2.1 4.6-4.6" /></svg>;
   if (name === 'eye') return <svg {...commonProps}><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg>;
+  if (name === 'eye-off') return <svg {...commonProps}><path d="m3.2 3.2 17.6 17.6" /><path d="M10.1 6.2A10.8 10.8 0 0 1 12 6c6.1 0 9.5 6 9.5 6a17.5 17.5 0 0 1-3.2 3.8M6.2 6.2A17.1 17.1 0 0 0 2.5 12s3.4 6 9.5 6c.7 0 1.4-.1 2-.2" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></svg>;
+  if (name === 'arrow-right') return <svg {...commonProps}><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
+  if (name === 'user-add') return <svg {...commonProps}><circle cx="9" cy="8" r="3" /><path d="M3.7 19.5c.8-3.2 2.7-4.8 5.3-4.8 1.2 0 2.3.3 3.2.9M18 11v8M14 15h8" /></svg>;
+  if (name === 'globe') return <svg {...commonProps}><circle cx="12" cy="12" r="8.5" /><path d="M3.8 12h16.4M12 3.5c2.1 2.3 3.2 5.1 3.2 8.5S14.1 18.2 12 20.5c-2.1-2.3-3.2-5.1-3.2-8.5S9.9 5.8 12 3.5" /></svg>;
+  if (name === 'at') return <svg {...commonProps}><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3" /><path d="M15 12v1.1a1.7 1.7 0 0 0 3.4 0V12" /></svg>;
   if (name === 'chevron-right') return <svg {...commonProps}><path d="m9 5 7 7-7 7" /></svg>;
   if (name === 'check') return <svg {...commonProps}><path d="m5 12.5 4.3 4.3L19.5 6.6" /></svg>;
   if (name === 'check-double') return <svg {...commonProps}><path d="m2.8 12.4 3.8 3.8 6.2-7M9.5 12.4l3.8 3.8 7.1-8.1" /></svg>;

@@ -66,11 +66,11 @@ export function DesktopApp() {
     }
 
     const form = route === 'login'
-      ? <LoginScreen t={t} onNavigate={setRoute} onOpenLegal={handleOpenLegalDocument} onAuthenticated={handleAuthenticated} />
+      ? <LoginScreen language={preferences.language} t={t} onNavigate={setRoute} onOpenLegal={handleOpenLegalDocument} onAuthenticated={handleAuthenticated} />
       : <RegisterScreen language={preferences.language} t={t} onNavigate={setRoute} onOpenLegal={handleOpenLegalDocument} onAuthenticated={handleAuthenticated} />;
 
     return (
-      <AuthLayout preferences={preferences} updatePreferences={updatePreferences} t={t} onBack={() => setRoute('welcome')} variant={route}>
+      <AuthLayout preferences={preferences} updatePreferences={updatePreferences} t={t} onBack={() => setRoute('welcome')} onNavigate={setRoute} variant={route}>
         {form}
       </AuthLayout>
     );

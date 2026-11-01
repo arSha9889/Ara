@@ -1,0 +1,8 @@
+// Локальный API для разработки. Это значение можно переопределить в xcodebuild.
+URL_SCHEME_SEPARATOR = /
+ARACHAT_API_BASE_URL = http:$(URL_SCHEME_SEPARATOR)$(URL_SCHEME_SEPARATOR)localhost:8000
+
+ARCHS = arm64
+MACOSX_DEPLOYMENT_TARGET = 13.0
+SWIFT_VERSION = 6.0
+SWIFT_STRICT_CONCURRENCY = complete

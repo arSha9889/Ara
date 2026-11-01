@@ -1,0 +1,463 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		200000000000000000000001 /* AraChatMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000001 /* AraChatMacApp.swift */; };
+		200000000000000000000002 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000002 /* AppState.swift */; };
+		200000000000000000000003 /* APIConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000003 /* APIConfiguration.swift */; };
+		200000000000000000000004 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000004 /* APIModels.swift */; };
+		200000000000000000000005 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000005 /* APIClient.swift */; };
+		200000000000000000000006 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000006 /* KeychainStore.swift */; };
+		200000000000000000000007 /* PreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000007 /* PreferencesStore.swift */; };
+		200000000000000000000008 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000008 /* SessionStore.swift */; };
+		200000000000000000000009 /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000009 /* AppRootView.swift */; };
+		20000000000000000000000A /* AuthenticationRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31000000000000000000000A /* AuthenticationRootView.swift */; };
+		20000000000000000000000B /* WorkspaceRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31000000000000000000000B /* WorkspaceRootView.swift */; };
+		20000000000000000000000C /* CallTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31000000000000000000000C /* CallTransport.swift */; };
+		20000000000000000000000D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 300000000000000000000002 /* Localizable.xcstrings */; };
+		20000000000000000000000E /* ThirdPartyNotices.md in Resources */ = {isa = PBXBuildFile; fileRef = 300000000000000000000003 /* ThirdPartyNotices.md */; };
+		20000000000000000000000F /* APIModelCodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320000000000000000000001 /* APIModelCodingTests.swift */; };
+		200000000000000000000010 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = A200000000000000000000001 /* WebRTC */; };
+		200000000000000000000011 /* RealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31000000000000000000000D /* RealtimeClient.swift */; };
+		200000000000000000000012 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31000000000000000000000E /* ChatModels.swift */; };
+		200000000000000000000013 /* ChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31000000000000000000000F /* ChatService.swift */; };
+		200000000000000000000020 /* WorkspaceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000020 /* WorkspaceViewModel.swift */; };
+		200000000000000000000021 /* WorkspaceViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320000000000000000000020 /* WorkspaceViewModelTests.swift */; };
+		200000000000000000000022 /* WorkspaceRealtimeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000021 /* WorkspaceRealtimeCoordinator.swift */; };
+		200000000000000000000023 /* WorkspaceRealtimeCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320000000000000000000021 /* WorkspaceRealtimeCoordinatorTests.swift */; };
+		200000000000000000000024 /* E2EE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310000000000000000000022 /* E2EE.swift */; };
+		200000000000000000000025 /* E2EECryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320000000000000000000022 /* E2EECryptoTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		210000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 800000000000000000000001;
+			remoteInfo = AraChatMac;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		300000000000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = AraChatMac/Info.plist; sourceTree = "<group>"; };
+		300000000000000000000002 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AraChatMac/Resources/Localizable.xcstrings; sourceTree = "<group>"; };
+		300000000000000000000003 /* ThirdPartyNotices.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ThirdPartyNotices.md; sourceTree = "<group>"; };
+		300000000000000000000004 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Debug.xcconfig; sourceTree = "<group>"; };
+		300000000000000000000005 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Release.xcconfig; sourceTree = "<group>"; };
+		310000000000000000000001 /* AraChatMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/App/AraChatMacApp.swift; sourceTree = "<group>"; };
+		310000000000000000000002 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/App/AppState.swift; sourceTree = "<group>"; };
+		310000000000000000000003 /* APIConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/Networking/APIConfiguration.swift; sourceTree = "<group>"; };
+		310000000000000000000004 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/Networking/APIModels.swift; sourceTree = "<group>"; };
+		310000000000000000000005 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/Networking/APIClient.swift; sourceTree = "<group>"; };
+		310000000000000000000006 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/Keychain/KeychainStore.swift; sourceTree = "<group>"; };
+		310000000000000000000007 /* PreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/Preferences/PreferencesStore.swift; sourceTree = "<group>"; };
+		310000000000000000000008 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/Session/SessionStore.swift; sourceTree = "<group>"; };
+		310000000000000000000009 /* AppRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/AppRootView.swift; sourceTree = "<group>"; };
+		31000000000000000000000A /* AuthenticationRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/Auth/AuthenticationRootView.swift; sourceTree = "<group>"; };
+		31000000000000000000000B /* WorkspaceRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/Workspace/WorkspaceRootView.swift; sourceTree = "<group>"; };
+		31000000000000000000000C /* CallTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/Calls/CallTransport.swift; sourceTree = "<group>"; };
+		31000000000000000000000D /* RealtimeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/Realtime/RealtimeClient.swift; sourceTree = "<group>"; };
+		31000000000000000000000E /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/Chats/ChatModels.swift; sourceTree = "<group>"; };
+		31000000000000000000000F /* ChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/Chats/ChatService.swift; sourceTree = "<group>"; };
+		310000000000000000000020 /* WorkspaceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/Workspace/WorkspaceViewModel.swift; sourceTree = "<group>"; };
+		310000000000000000000021 /* WorkspaceRealtimeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Features/Workspace/WorkspaceRealtimeCoordinator.swift; sourceTree = "<group>"; };
+		310000000000000000000022 /* E2EE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMac/Core/E2EE/E2EE.swift; sourceTree = "<group>"; };
+		320000000000000000000001 /* APIModelCodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMacTests/APIModelCodingTests.swift; sourceTree = "<group>"; };
+		320000000000000000000020 /* WorkspaceViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMacTests/WorkspaceViewModelTests.swift; sourceTree = "<group>"; };
+		320000000000000000000021 /* WorkspaceRealtimeCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMacTests/WorkspaceRealtimeCoordinatorTests.swift; sourceTree = "<group>"; };
+		320000000000000000000022 /* E2EECryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AraChatMacTests/E2EECryptoTests.swift; sourceTree = "<group>"; };
+		330000000000000000000001 /* AraChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AraChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		330000000000000000000002 /* AraChatMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AraChatMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		500000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				200000000000000000000010 /* WebRTC in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		500000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		400000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				400000000000000000000002 /* AraChatMac */,
+				400000000000000000000003 /* AraChatMacTests */,
+				400000000000000000000004 /* Config */,
+				300000000000000000000003 /* ThirdPartyNotices.md */,
+				400000000000000000000005 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		400000000000000000000002 /* AraChatMac */ = {
+			isa = PBXGroup;
+			children = (
+				300000000000000000000001 /* Info.plist */,
+				300000000000000000000002 /* Localizable.xcstrings */,
+				310000000000000000000001 /* AraChatMacApp.swift */,
+				310000000000000000000002 /* AppState.swift */,
+				310000000000000000000003 /* APIConfiguration.swift */,
+				310000000000000000000004 /* APIModels.swift */,
+				310000000000000000000005 /* APIClient.swift */,
+				310000000000000000000006 /* KeychainStore.swift */,
+				310000000000000000000007 /* PreferencesStore.swift */,
+				310000000000000000000008 /* SessionStore.swift */,
+				310000000000000000000009 /* AppRootView.swift */,
+				31000000000000000000000A /* AuthenticationRootView.swift */,
+				31000000000000000000000B /* WorkspaceRootView.swift */,
+				31000000000000000000000C /* CallTransport.swift */,
+				31000000000000000000000D /* RealtimeClient.swift */,
+				31000000000000000000000E /* ChatModels.swift */,
+				31000000000000000000000F /* ChatService.swift */,
+				310000000000000000000020 /* WorkspaceViewModel.swift */,
+				310000000000000000000021 /* WorkspaceRealtimeCoordinator.swift */,
+				310000000000000000000022 /* E2EE.swift */,
+			);
+			name = AraChatMac;
+			sourceTree = "<group>";
+		};
+		400000000000000000000003 /* AraChatMacTests */ = {
+			isa = PBXGroup;
+			children = (
+				320000000000000000000001 /* APIModelCodingTests.swift */,
+				320000000000000000000020 /* WorkspaceViewModelTests.swift */,
+				320000000000000000000021 /* WorkspaceRealtimeCoordinatorTests.swift */,
+				320000000000000000000022 /* E2EECryptoTests.swift */,
+			);
+			name = AraChatMacTests;
+			sourceTree = "<group>";
+		};
+		400000000000000000000004 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				300000000000000000000004 /* Debug.xcconfig */,
+				300000000000000000000005 /* Release.xcconfig */,
+			);
+			name = Config;
+			sourceTree = "<group>";
+		};
+		400000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				330000000000000000000001 /* AraChat.app */,
+				330000000000000000000002 /* AraChatMacTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		800000000000000000000001 /* AraChatMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000001 /* Build configuration list for PBXNativeTarget "AraChatMac" */;
+			buildPhases = (
+				700000000000000000000001 /* Sources */,
+				500000000000000000000001 /* Frameworks */,
+				600000000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AraChatMac;
+			packageProductDependencies = (
+				A200000000000000000000001 /* WebRTC */,
+			);
+			productName = AraChat;
+			productReference = 330000000000000000000001 /* AraChat.app */;
+			productType = "com.apple.product-type.application";
+		};
+		800000000000000000000002 /* AraChatMacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000002 /* Build configuration list for PBXNativeTarget "AraChatMacTests" */;
+			buildPhases = (
+				700000000000000000000002 /* Sources */,
+				500000000000000000000002 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				820000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = AraChatMacTests;
+			productName = AraChatMacTests;
+			productReference = 330000000000000000000002 /* AraChatMacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					800000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					800000000000000000000002 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 800000000000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = 900000000000000000000003 /* Build configuration list for PBXProject "AraChatMac" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				ru,
+				kk,
+				Base,
+			);
+			mainGroup = 400000000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A100000000000000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 400000000000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				800000000000000000000001 /* AraChatMac */,
+				800000000000000000000002 /* AraChatMacTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		600000000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				20000000000000000000000D /* Localizable.xcstrings in Resources */,
+				20000000000000000000000E /* ThirdPartyNotices.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		700000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				200000000000000000000001 /* AraChatMacApp.swift in Sources */,
+				200000000000000000000002 /* AppState.swift in Sources */,
+				200000000000000000000003 /* APIConfiguration.swift in Sources */,
+				200000000000000000000004 /* APIModels.swift in Sources */,
+				200000000000000000000005 /* APIClient.swift in Sources */,
+				200000000000000000000006 /* KeychainStore.swift in Sources */,
+				200000000000000000000007 /* PreferencesStore.swift in Sources */,
+				200000000000000000000008 /* SessionStore.swift in Sources */,
+				200000000000000000000009 /* AppRootView.swift in Sources */,
+				20000000000000000000000A /* AuthenticationRootView.swift in Sources */,
+				20000000000000000000000B /* WorkspaceRootView.swift in Sources */,
+				20000000000000000000000C /* CallTransport.swift in Sources */,
+				200000000000000000000011 /* RealtimeClient.swift in Sources */,
+				200000000000000000000012 /* ChatModels.swift in Sources */,
+				200000000000000000000013 /* ChatService.swift in Sources */,
+				200000000000000000000020 /* WorkspaceViewModel.swift in Sources */,
+				200000000000000000000022 /* WorkspaceRealtimeCoordinator.swift in Sources */,
+				200000000000000000000024 /* E2EE.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		700000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				20000000000000000000000F /* APIModelCodingTests.swift in Sources */,
+				200000000000000000000021 /* WorkspaceViewModelTests.swift in Sources */,
+				200000000000000000000023 /* WorkspaceRealtimeCoordinatorTests.swift in Sources */,
+				200000000000000000000025 /* E2EECryptoTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		820000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 800000000000000000000001 /* AraChatMac */;
+			targetProxy = 210000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		910000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 300000000000000000000004 /* Debug.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = NO;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AraChatMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = ru.arachat.macos;
+				PRODUCT_NAME = AraChat;
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		910000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 300000000000000000000005 /* Release.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AraChatMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = ru.arachat.macos;
+				PRODUCT_NAME = AraChat;
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		910000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ru.arachat.macos.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AraChat.app/Contents/MacOS/AraChat";
+			};
+			name = Debug;
+		};
+		910000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ru.arachat.macos.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AraChat.app/Contents/MacOS/AraChat";
+			};
+			name = Release;
+		};
+		910000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "";
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		910000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "";
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		900000000000000000000001 /* Build configuration list for PBXNativeTarget "AraChatMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				910000000000000000000001 /* Debug */,
+				910000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		900000000000000000000002 /* Build configuration list for PBXNativeTarget "AraChatMacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				910000000000000000000003 /* Debug */,
+				910000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		900000000000000000000003 /* Build configuration list for PBXProject "AraChatMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				910000000000000000000005 /* Debug */,
+				910000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A100000000000000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC.git";
+			requirement = {
+				kind = exactVersion;
+				version = 156.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A200000000000000000000001 /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A100000000000000000000001 /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 100000000000000000000001 /* Project object */;
+}

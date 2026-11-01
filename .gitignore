@@ -21,3 +21,10 @@ deploy/staging.env
 !deploy/staging.env.example
 .coverage
 htmlcov/
+
+# Xcode build and per-user state for the native macOS client.
+apps/macos/.build/
+apps/macos/build/
+apps/macos/DerivedData/
+apps/macos/**/*.xcuserstate
+apps/macos/**/xcuserdata/

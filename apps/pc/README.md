@@ -65,8 +65,11 @@ production frontend, release-бинарник и локальный ARM64 `.dmg`
 
 Ручной workflow **Desktop packages** в GitHub Actions создаёт:
 
-- `.dmg` для Apple Silicon на `macos-14`;
+- `.dmg` для Apple Silicon на `macos-15`;
 - NSIS `.exe` для Windows x64 на `windows-latest`.
+
+Перед началом установки Windows-пакет предлагает выбрать язык интерфейса:
+русский, қазақша или English. Выбор применяется также к удалению приложения.
 
 Запустите его во вкладке **Actions**, выберите **Desktop packages** и нажмите
 **Run workflow**. Готовые файлы появятся в artifacts этого запуска.

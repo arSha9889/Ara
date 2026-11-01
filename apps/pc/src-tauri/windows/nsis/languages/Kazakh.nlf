@@ -1,0 +1,191 @@
+# Header, don't edit
+NLF v6
+# Start editing here
+# Language ID
+1087
+# Font and size - dash (-) means default
+-
+-
+# Codepage - dash (-) means ANSI code page
+1251
+# RTL - anything else than RTL means LTR
+-
+# Kazakh translation for AraChat
+# ^Branding
+Nullsoft Install System %s
+# ^SetupCaption
+$(^Name) орнату
+# ^UninstallCaption
+$(^Name) жою
+# ^LicenseSubCaption
+: Лицензиялық келісім
+# ^ComponentsSubCaption
+: Орнату параметрлері
+# ^DirSubCaption
+: Орнату қалтасы
+# ^InstallingSubCaption
+: Орнатылуда
+# ^CompletedSubCaption
+: Аяқталды
+# ^UnComponentsSubCaption
+: Жою параметрлері
+# ^UnDirSubCaption
+: Жою қалтасы
+# ^ConfirmSubCaption
+: Растау
+# ^UninstallingSubCaption
+: Жойылуда
+# ^UnCompletedSubCaption
+: Аяқталды
+# ^BackBtn
+< &Артқа
+# ^NextBtn
+&Келесі >
+# ^AgreeBtn
+&Қабылдаймын
+# ^AcceptBtn
+Лицензиялық келісім шарттарын &қабылдаймын
+# ^DontAcceptBtn
+Лицензиялық келісім шарттарын &қабылдамаймын
+# ^InstallBtn
+&Орнату
+# ^UninstallBtn
+&Жою
+# ^CancelBtn
+Болдырмау
+# ^CloseBtn
+&Жабу
+# ^BrowseBtn
+&Шолу...
+# ^ShowDetailsBtn
+&Мәліметтерді көрсету
+# ^ClickNext
+Жалғастыру үшін «Келесі» түймесін басыңыз.
+# ^ClickInstall
+Орнатуды бастау үшін «Орнату» түймесін басыңыз.
+# ^ClickUninstall
+Жоюды бастау үшін «Жою» түймесін басыңыз.
+# ^Name
+Атауы
+# ^Completed
+Аяқталды
+# ^LicenseText
+$(^NameDA) қолданбасын орнатпас бұрын лицензиялық келісімді оқып шығыңыз. Келісімнің барлық шарттарын қабылдасаңыз, «Қабылдаймын» түймесін басыңыз.
+# ^LicenseTextCB
+$(^NameDA) қолданбасын орнатпас бұрын лицензиялық келісімді оқып шығыңыз. Келісімнің барлық шарттарын қабылдасаңыз, төмендегі құсбелгіні қойыңыз. $_CLICK
+# ^LicenseTextRB
+$(^NameDA) қолданбасын орнатпас бұрын лицензиялық келісімді оқып шығыңыз. Келісімнің барлық шарттарын қабылдасаңыз, төмендегі бірінші нұсқаны таңдаңыз. $_CLICK
+# ^UnLicenseText
+$(^NameDA) қолданбасын жоймас бұрын лицензиялық келісімді оқып шығыңыз. Келісімнің барлық шарттарын қабылдасаңыз, «Қабылдаймын» түймесін басыңыз.
+# ^UnLicenseTextCB
+$(^NameDA) қолданбасын жоймас бұрын лицензиялық келісімді оқып шығыңыз. Келісімнің барлық шарттарын қабылдасаңыз, төмендегі құсбелгіні қойыңыз. $_CLICK
+# ^UnLicenseTextRB
+$(^NameDA) қолданбасын жоймас бұрын лицензиялық келісімді оқып шығыңыз. Келісімнің барлық шарттарын қабылдасаңыз, төмендегі бірінші нұсқаны таңдаңыз. $_CLICK
+# ^Custom
+Таңдамалы
+# ^ComponentsText
+Орнатқыңыз келетін компоненттерді таңдаңыз, ал орнатқыңыз келмейтін компоненттердің белгісін алып тастаңыз. $_CLICK
+# ^ComponentsSubText1
+Орнату түрін таңдаңыз:
+# ^ComponentsSubText2_NoInstTypes
+Орнатылатын компоненттерді таңдаңыз:
+# ^ComponentsSubText2
+Немесе орнатылатын қосымша компоненттерді таңдаңыз:
+# ^UnComponentsText
+Жойғыңыз келетін компоненттерді таңдаңыз, ал жойғыңыз келмейтін компоненттердің белгісін алып тастаңыз. $_CLICK
+# ^UnComponentsSubText1
+Жою түрін таңдаңыз:
+# ^UnComponentsSubText2_NoInstTypes
+Жойылатын компоненттерді таңдаңыз:
+# ^UnComponentsSubText2
+Немесе жойылатын қосымша компоненттерді таңдаңыз:
+# ^DirText
+Орнату бағдарламасы $(^NameDA) қолданбасын келесі қалтаға орнатады. Басқа қалтаға орнату үшін «Шолу» түймесін басып, басқа қалтаны таңдаңыз. $_CLICK
+# ^DirSubText
+Мақсатты қалта
+# ^DirBrowseText
+$(^NameDA) қолданбасын орнататын қалтаны таңдаңыз:
+# ^UnDirText
+Орнату бағдарламасы $(^NameDA) қолданбасын келесі қалтадан жояды. Басқа қалтадан жою үшін «Шолу» түймесін басып, басқа қалтаны таңдаңыз. $_CLICK
+# ^UnDirSubText
+""
+# ^UnDirBrowseText
+$(^NameDA) қолданбасын жоятын қалтаны таңдаңыз:
+# ^SpaceAvailable
+"Қолжетімді орын: "
+# ^SpaceRequired
+"Қажетті орын: "
+# ^UninstallingText
+$(^NameDA) қолданбасы келесі қалтадан жойылады. $_CLICK
+# ^UninstallingSubText
+Келесі қалтадан жойылуда:
+# ^FileError
+Файлды жазу үшін ашу қатесі: \r\n\r\n$0\r\n\r\nОрнатуды тоқтату үшін «Тоқтату», әрекетті қайталау үшін «Қайталау», ал бұл файлды өткізіп жіберу үшін «Елемеу» түймесін басыңыз.
+# ^FileError_NoIgnore
+Файлды жазу үшін ашу қатесі: \r\n\r\n$0\r\n\r\nӘрекетті қайталау үшін «Қайталау», ал орнатуды тоқтату үшін «Болдырмау» түймесін басыңыз.
+# ^CantWrite
+"Жазу мүмкін емес: "
+# ^CopyFailed
+Көшіру сәтсіз аяқталды
+# ^CopyTo
+"Келесі орынға көшіру: "
+# ^Registering
+"Тіркелуде: "
+# ^Unregistering
+"Тіркеуден шығарылуда: "
+# ^SymbolNotFound
+"Таңба табылмады: "
+# ^CouldNotLoad
+"Жүктеу мүмкін емес: "
+# ^CreateFolder
+"Қалтаны жасау: "
+# ^CreateShortcut
+"Жарлықты жасау: "
+# ^CreatedUninstaller
+"Жою бағдарламасы жасалды: "
+# ^Delete
+"Файлды жою: "
+# ^DeleteOnReboot
+"Қайта жүктегенде жою: "
+# ^ErrorCreatingShortcut
+"Жарлықты жасау қатесі: "
+# ^ErrorCreating
+"Жасау қатесі: "
+# ^ErrorDecompressing
+Деректерді ашу қатесі. Орнатқыш зақымдалған болуы мүмкін.
+# ^ErrorRegistering
+DLL тіркеу қатесі
+# ^ExecShell
+"Қабық пәрменін орындау: "
+# ^Exec
+"Орындау: "
+# ^Extract
+"Шығару: "
+# ^ErrorWriting
+"Шығару: файлды жазу қатесі "
+# ^InvalidOpcode
+Орнатқыш зақымдалған: жарамсыз операция коды
+# ^NoOLE
+"OLE жоқ: "
+# ^OutputFolder
+"Шығару қалтасы: "
+# ^RemoveFolder
+"Қалтаны жою: "
+# ^RenameOnReboot
+"Қайта жүктегенде атауын өзгерту: "
+# ^Rename
+"Атауын өзгерту: "
+# ^Skipped
+"Өткізіп жіберілді: "
+# ^CopyDetails
+Мәліметтерді алмасу буферіне көшіру
+# ^LogInstall
+Орнату процесін журналға жазу
+# ^Byte
+Б
+# ^Kilo
+К
+# ^Mega
+М
+# ^Giga
+Г

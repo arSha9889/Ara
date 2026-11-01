@@ -15,7 +15,7 @@ jobs:
       matrix:
         include:
           - name: macOS Apple Silicon
-            os: macos-14
+            os: macos-15
             artifact: AraChat-macos-arm64
             bundle: dmg
             path: apps/pc/src-tauri/target/release/bundle/dmg/*.dmg

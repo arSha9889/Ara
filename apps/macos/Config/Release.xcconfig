@@ -1,0 +1,9 @@
+// Публичный адрес API, не содержащий секрета. CI может переопределить его
+// параметром ARACHAT_API_BASE_URL при вызове xcodebuild.
+URL_SCHEME_SEPARATOR = /
+ARACHAT_API_BASE_URL = https:$(URL_SCHEME_SEPARATOR)$(URL_SCHEME_SEPARATOR)aramsg.ru
+
+ARCHS = arm64
+MACOSX_DEPLOYMENT_TARGET = 13.0
+SWIFT_VERSION = 6.0
+SWIFT_STRICT_CONCURRENCY = complete

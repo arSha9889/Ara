@@ -1,4 +1,5 @@
 import { apiRequest } from '../../shared/api/apiClient.js';
+import { passwordResetConfirmRequestBody, passwordResetStartRequestBody } from './passwordResetRequestBody.js';
 import { registrationRequestBody } from './registrationRequestBody.js';
 
 export function loginWithEmail({ email, password, deviceId }) {
@@ -26,6 +27,20 @@ export function completeRegistration(input) {
   return apiRequest('/api/auth/register/complete', {
     method: 'POST',
     body: registrationRequestBody(input),
+  });
+}
+
+export function startPasswordReset(input) {
+  return apiRequest('/api/auth/password/reset/start', {
+    method: 'POST',
+    body: passwordResetStartRequestBody(input),
+  });
+}
+
+export function confirmPasswordReset(input) {
+  return apiRequest('/api/auth/password/reset/confirm', {
+    method: 'POST',
+    body: passwordResetConfirmRequestBody(input),
   });
 }
 

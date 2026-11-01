@@ -16,6 +16,7 @@ import { formatFileSize } from '../../shared/format/fileSize.js';
 import { ChannelCommentsPanel } from './ChannelCommentsPanel.jsx';
 import { ChannelDetailsPanel } from './ChannelDetailsPanel.jsx';
 import { MessageContent } from './MessageContent.jsx';
+import { scrollHistoryToEnd } from './scrollHistoryToEnd.js';
 
 const ACCEPTED_FILE_TYPES = 'image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/avif,video/mp4,video/webm,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,application/pdf,text/plain';
 
@@ -102,6 +103,8 @@ export function ChannelChatPanel({
   const canPost = Boolean(channel.can_post);
   const canManagePosts = ['owner', 'admin'].includes(channel.current_role);
   const avatarUrl = mediaUrlForDesktop(channel.avatar_ref);
+  const historyRef = useRef(null);
+  const autoScrollFrameRef = useRef(null);
 
   const loadMessages = useCallback(async ({ showLoading = true } = {}) => {
     if (showLoading) setIsLoadingMessages(true);
@@ -167,11 +170,30 @@ export function ChannelChatPanel({
   }, [focusMessage, focusMessageId, focusRequestId]);
 
   useEffect(() => {
+    if (isLoadingMessages || !messages.length) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      autoScrollFrameRef.current = null;
+      scrollHistoryToEnd(historyRef.current);
+    });
+    autoScrollFrameRef.current = frameId;
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (autoScrollFrameRef.current === frameId) autoScrollFrameRef.current = null;
+    };
+  }, [isLoadingMessages, messages]);
+
+  useEffect(() => {
     if (!focusMessageId || !focusRequestId || focusedRequestIdRef.current === focusRequestId) return;
     if (!messages.some((message) => String(message.id) === String(focusMessageId))) return;
     const postElement = postElementRefs.current.get(String(focusMessageId));
     if (!postElement) return;
 
+    if (autoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
     focusedRequestIdRef.current = focusRequestId;
     setHighlightedPostId(focusMessageId);
     postElement.scrollIntoView({
@@ -334,7 +356,7 @@ export function ChannelChatPanel({
       <div className="chat-header-actions" aria-label={t('workspace.channels.actionsLabel')}><AraButton type="button" aria-label={t('workspace.channels.channelInfo')} title={t('workspace.channels.channelInfo')} onClick={() => setPanel('details')} size="icon" variant="ghost"><Icon name="settings" size={18} /></AraButton></div>
     </header>
 
-    <div className="chat-history channel-post-history" aria-label={t('workspace.channels.postsLabel')} aria-busy={isLoadingMessages}>
+    <div ref={historyRef} className="chat-history channel-post-history" aria-label={t('workspace.channels.postsLabel')} aria-busy={isLoadingMessages}>
       <div className={`chat-server-notice is-${realtimeStatus}`} role="status"><Icon name="shield" size={15} /><span>{channelRealtimeNotice(realtimeStatus, t)}</span></div>
       {historyError ? <div className="chat-history-error" role="alert"><strong>{t('workspace.chatPanel.historyLoadError')}</strong><span>{historyError}</span><AraButton type="button" onClick={() => void loadMessages()} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
       {isLoadingMessages ? <p className="chat-history-status" role="status">{t('workspace.channels.loadingPosts')}</p> : historyError ? null : messages.length ? messages.map((post) => {

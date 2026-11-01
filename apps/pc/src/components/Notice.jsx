@@ -1,4 +1,4 @@
-export function Notice({ children, tone = 'info' }) {
+export function Notice({ children, tone = 'info', id }) {
   if (!children) return null;
-  return <p className={`notice notice-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>{children}</p>;
+  return <p className={`notice notice-${tone}`} id={id} role={tone === 'error' ? 'alert' : 'status'}>{children}</p>;
 }

@@ -53,7 +53,7 @@ export function AdminLoginPage() {
   return (
     <main className="public-page ara-page ara-auth-page ara-admin-access-page" aria-labelledby="admin-login-title">
       <div className="public-shell">
-        <PublicSiteHeader minimal showAuthAction={false} showLanguage={false} />
+        <PublicSiteHeader minimal showLanguage={false} />
         <section className="auth-page">
           <form className="panel auth-card" onSubmit={handleSubmit}>
             <span className="ara-admin-access-icon" aria-hidden="true"><Icon name="shield" size={23} /></span>

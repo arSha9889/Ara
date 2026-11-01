@@ -1,18 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { LanguageSwitcher } from '../../../shared/ui/LanguageSwitcher.jsx';
 import { ThemeSwitcher } from '../../../shared/ui/ThemeSwitcher.jsx';
 import { Icon } from '../../../shared/ui/Icon.jsx';
-import { DownloadConfirmationDialog } from './DownloadConfirmationDialog.jsx';
 
-export function PublicSiteHeader({ activePage = 'home', minimal = false, publicOnly = true, showAuthAction = true, showLanguage = true }) {
+export function PublicSiteHeader({ activePage = 'home', minimal = false, publicOnly = true, showLanguage = true }) {
   const { t } = useI18n();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
-  const downloadTriggerRef = useRef(null);
-  const messengerLabel = t('onboarding.openMessenger');
 
   const navigation = [
     { to: '/#story', label: t('comet.navigationStory'), isActive: activePage === 'home' },
@@ -44,12 +40,6 @@ export function PublicSiteHeader({ activePage = 'home', minimal = false, publicO
     };
   }, [isMenuOpen]);
 
-  function openDownloadDialog(event) {
-    downloadTriggerRef.current = event.currentTarget;
-    closeMenu();
-    setIsDownloadDialogOpen(true);
-  }
-
   return (
     <>
       <header className={`ara-site-header ${minimal ? 'is-minimal' : ''}`}>
@@ -67,7 +57,6 @@ export function PublicSiteHeader({ activePage = 'home', minimal = false, publicO
         <div className="ara-site-actions">
           {showLanguage ? <LanguageSwitcher publicOnly={publicOnly} /> : null}
           <ThemeSwitcher />
-          {showAuthAction ? <button className="ara-header-cta" type="button" aria-haspopup="dialog" aria-expanded={isDownloadDialogOpen} onClick={openDownloadDialog}>{messengerLabel}</button> : null}
           {!minimal ? <button
             className="ara-menu-toggle"
             type="button"
@@ -84,15 +73,9 @@ export function PublicSiteHeader({ activePage = 'home', minimal = false, publicO
           {isMenuOpen ? <button className="ara-mobile-menu-backdrop" type="button" aria-label={t('common.close')} onClick={closeMenu} /> : null}
           <nav className={`ara-mobile-navigation ${isMenuOpen ? 'is-open' : ''}`} id="ara-mobile-navigation" aria-label={t('common.navigation')} aria-hidden={!isMenuOpen}>
           {navigation.map((item) => <Link to={item.to} onClick={closeMenu} key={item.to}>{item.label}</Link>)}
-          {showAuthAction ? <button className="ara-header-cta" type="button" aria-haspopup="dialog" aria-expanded={isDownloadDialogOpen} onClick={openDownloadDialog}>{messengerLabel}</button> : null}
           </nav>
         </> : null}
       </header>
-      <DownloadConfirmationDialog
-        isOpen={isDownloadDialogOpen}
-        onClose={() => setIsDownloadDialogOpen(false)}
-        returnFocusRef={downloadTriggerRef}
-      />
     </>
   );
 }

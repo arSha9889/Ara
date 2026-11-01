@@ -1,0 +1,68 @@
+; NSIS 3.11, which Tauri 2.12.1 downloads for Windows bundles, has no built-in
+; Kazakh language pack. Load AraChat's complete local language table before
+; Tauri declares its standard installer languages, then add it to MUI's selector.
+!define ARACHAT_NSIS_LANGUAGE_DIR "${__FILEDIR__}\languages"
+LoadLanguageFile "${ARACHAT_NSIS_LANGUAGE_DIR}\Kazakh.nlf"
+
+!define /ifndef MUI_LANGDLL_LANGUAGES ""
+!define /redef MUI_LANGDLL_LANGUAGES `"Қазақша" "${LANG_KAZAKH}" ${MUI_LANGDLL_LANGUAGES}`
+!define MUI_LANGDLL_ALLLANGUAGES
+
+; The default NSIS language file format requires a separate .nsh for MUI text.
+; Tauri's default template includes this hook before it defines installer pages,
+; so define the Kazakh strings directly instead.
+LangString MUI_TEXT_WELCOME_INFO_TITLE ${LANG_KAZAKH} "$(^NameDA) орнату шеберіне қош келдіңіз"
+LangString MUI_TEXT_WELCOME_INFO_TEXT ${LANG_KAZAKH} "Бұл бағдарлама $(^NameDA) қолданбасын компьютеріңізге орнатады.$\r$\n$\r$\nОрнатуды бастамас бұрын барлық ашық бағдарламаларды жабу ұсынылады. Бұл жүйелік файлдарды компьютерді қайта жүктемей жаңартуға мүмкіндік береді.$\r$\n$\r$\n$_CLICK"
+LangString MUI_TEXT_DIRECTORY_TITLE ${LANG_KAZAKH} "Орнату қалтасын таңдаңыз"
+LangString MUI_TEXT_DIRECTORY_SUBTITLE ${LANG_KAZAKH} "$(^NameDA) орнатылатын қалтаны таңдаңыз."
+LangString MUI_TEXT_INSTALLING_TITLE ${LANG_KAZAKH} "Орнатылуда"
+LangString MUI_TEXT_INSTALLING_SUBTITLE ${LANG_KAZAKH} "$(^NameDA) орнатылғанша күте тұрыңыз."
+LangString MUI_TEXT_FINISH_TITLE ${LANG_KAZAKH} "Орнату аяқталды"
+LangString MUI_TEXT_FINISH_SUBTITLE ${LANG_KAZAKH} "Орнату сәтті аяқталды."
+LangString MUI_TEXT_ABORT_TITLE ${LANG_KAZAKH} "Орнату тоқтатылды"
+LangString MUI_TEXT_ABORT_SUBTITLE ${LANG_KAZAKH} "Орнату аяқталмады."
+LangString MUI_TEXT_FINISH_INFO_TITLE ${LANG_KAZAKH} "$(^NameDA) орнатуды аяқтау"
+LangString MUI_TEXT_FINISH_INFO_TEXT ${LANG_KAZAKH} "$(^NameDA) компьютеріңізге орнатылды.$\r$\n$\r$\nОрнату шеберін жабу үшін «Аяқтау» түймесін басыңыз."
+LangString MUI_TEXT_FINISH_INFO_REBOOT ${LANG_KAZAKH} "$(^NameDA) орнатуын аяқтау үшін компьютерді қайта жүктеу керек. Қазір қайта жүктегіңіз келе ме?"
+LangString MUI_TEXT_FINISH_REBOOTNOW ${LANG_KAZAKH} "Қазір қайта жүктеу"
+LangString MUI_TEXT_FINISH_REBOOTLATER ${LANG_KAZAKH} "Кейінірек қолмен қайта жүктеймін"
+LangString MUI_TEXT_FINISH_RUN ${LANG_KAZAKH} "$(^NameDA) қолданбасын &іске қосу"
+LangString MUI_TEXT_FINISH_SHOWREADME ${LANG_KAZAKH} "&ReadMe файлын көрсету"
+LangString MUI_BUTTONTEXT_FINISH ${LANG_KAZAKH} "&Аяқтау"
+LangString MUI_UNTEXT_UNINSTALLING_TITLE ${LANG_KAZAKH} "Жойылуда"
+LangString MUI_UNTEXT_UNINSTALLING_SUBTITLE ${LANG_KAZAKH} "$(^NameDA) жойылғанша күте тұрыңыз."
+LangString MUI_UNTEXT_FINISH_TITLE ${LANG_KAZAKH} "Жою аяқталды"
+LangString MUI_UNTEXT_FINISH_SUBTITLE ${LANG_KAZAKH} "Жою сәтті аяқталды."
+LangString MUI_UNTEXT_ABORT_TITLE ${LANG_KAZAKH} "Жою тоқтатылды"
+LangString MUI_UNTEXT_ABORT_SUBTITLE ${LANG_KAZAKH} "Жою аяқталмады."
+LangString MUI_UNTEXT_CONFIRM_TITLE ${LANG_KAZAKH} "$(^NameDA) қолданбасын жою"
+LangString MUI_UNTEXT_CONFIRM_SUBTITLE ${LANG_KAZAKH} "$(^NameDA) қолданбасын компьютеріңізден жою."
+
+; Tauri-specific NSIS strings for the Kazakh language table.
+LangString addOrReinstall ${LANG_KAZAKH} "Компоненттерді қосу/қайта орнату"
+LangString alreadyInstalled ${LANG_KAZAKH} "Бұрыннан орнатылған"
+LangString alreadyInstalledLong ${LANG_KAZAKH} "$(^Name) қолданбасы орнатылған. Орындағыңыз келетін әрекетті таңдап, жалғастыру үшін «Келесі» түймесін басыңыз."
+LangString appRunning ${LANG_KAZAKH} "$(^Name) іске қосулы. Алдымен қолданбаны жауып, әрекетті қайталаңыз."
+LangString appRunningOkKill ${LANG_KAZAKH} "$(^Name) іске қосулы.$\nОны жабу үшін OK түймесін басыңыз"
+LangString chooseMaintenanceOption ${LANG_KAZAKH} "Орындағыңыз келетін әрекетті таңдаңыз."
+LangString choowHowToInstall ${LANG_KAZAKH} "$(^Name) қалай орнатылатынын таңдаңыз."
+LangString createDesktop ${LANG_KAZAKH} "Жұмыс үстелінде жарлық жасау"
+LangString dontUninstall ${LANG_KAZAKH} "Жоймау"
+LangString dontUninstallDowngrade ${LANG_KAZAKH} "Жоймау (жоймай тұрып төменірек нұсқаны орнату өшірілген)"
+LangString failedToKillApp ${LANG_KAZAKH} "$(^Name) жабылмады. Алдымен қолданбаны жауып, әрекетті қайталаңыз."
+LangString installingWebview2 ${LANG_KAZAKH} "WebView2 орнатылуда..."
+LangString newerVersionInstalled ${LANG_KAZAKH} "$(^Name) қолданбасының жаңарақ нұсқасы орнатылған. Ескі нұсқаны орнату ұсынылмайды. Егер осы нұсқаны орнатқыңыз келсе, алдымен ағымдағы нұсқаны жойған дұрыс. Орындағыңыз келетін әрекетті таңдап, жалғастыру үшін «Келесі» түймесін басыңыз."
+LangString older ${LANG_KAZAKH} "ескі"
+LangString olderOrUnknownVersionInstalled ${LANG_KAZAKH} "Жүйеңізде $(^Name) қолданбасының $R4 нұсқасы орнатылған. Жаңа нұсқаны орнатпас бұрын ағымдағы нұсқаны жою ұсынылады. Орындағыңыз келетін әрекетті таңдап, жалғастыру үшін «Келесі» түймесін басыңыз."
+LangString silentDowngrades ${LANG_KAZAKH} "Бұл орнатқышта төменірек нұсқаны үнсіз орнату өшірілген. Графикалық интерфейсті орнатқышты пайдаланыңыз.$\n"
+LangString unableToUninstall ${LANG_KAZAKH} "Жою мүмкін болмады."
+LangString uninstallApp ${LANG_KAZAKH} "$(^Name) қолданбасын жою"
+LangString uninstallBeforeInstalling ${LANG_KAZAKH} "Орнату алдында жою"
+LangString unknown ${LANG_KAZAKH} "белгісіз"
+LangString webview2AbortError ${LANG_KAZAKH} "WebView2 орнатылмады. Қолданба онсыз іске қосылмайды. Орнатқышты қайта іске қосып көріңіз."
+LangString webview2DownloadError ${LANG_KAZAKH} "Қате: WebView2 жүктелмеді — $0"
+LangString webview2DownloadSuccess ${LANG_KAZAKH} "WebView2 жүктеушісі сәтті жүктелді"
+LangString webview2Downloading ${LANG_KAZAKH} "WebView2 жүктеушісі жүктелуде..."
+LangString webview2InstallError ${LANG_KAZAKH} "Қате: WebView2 орнатылмады, шығу коды: $1"
+LangString webview2InstallSuccess ${LANG_KAZAKH} "WebView2 сәтті орнатылды"
+LangString deleteAppData ${LANG_KAZAKH} "Қолданба деректерін жою"

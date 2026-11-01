@@ -173,12 +173,6 @@ export function CallOverlay({ call, peer, t }) {
     <div className="desktop-call-overlay" role="presentation">
       {call.remoteStream ? <StreamAudio stream={call.remoteStream} /> : null}
       <section ref={dialogRef} className={`desktop-call-dialog ${isVideoCall ? 'is-video' : ''} ${isShareStudioOpen ? 'is-share-studio-open' : ''}`} role="dialog" aria-modal={!isShareStudioOpen} aria-hidden={isShareStudioOpen} aria-labelledby="desktop-call-title" aria-describedby="desktop-call-status">
-        <header className="desktop-call-topbar">
-          <span className={`desktop-call-live-dot ${isActive ? 'is-active' : ''}`} aria-hidden="true" />
-          <span>{isIncoming ? t('workspace.callsPanel.incoming') : isVideoCall ? t('workspace.callsPanel.video') : t('workspace.callsPanel.audio')}</span>
-          {!isIncoming ? <time aria-label={t('workspace.callsPanel.duration', { duration })}>{duration}</time> : null}
-        </header>
-
         <div className={`desktop-call-media ${showRemoteVideo ? 'has-remote-video' : ''} ${showRemoteScreen ? 'has-remote-screen' : ''}`}>
           {showRemoteScreen ? <StreamVideo className="desktop-call-remote-video" stream={call.remoteScreenStream} muted /> : showRemoteCamera ? <StreamVideo className="desktop-call-remote-video" stream={call.remoteCameraStream} muted /> : remoteScreenIsActive || remoteScreenIsPaused ? (
             <div className="desktop-share-waiting-stage">
@@ -193,11 +187,19 @@ export function CallOverlay({ call, peer, t }) {
               <span className={`workspace-avatar workspace-avatar-large is-${avatarTone(peer?.id)}`} aria-hidden="true">{initials(peerName, peer?.username)}</span>
             </div>
           )}
-          <div className="desktop-call-peer-copy">
-            <h1 id="desktop-call-title">{peerName}</h1>
-            {peerUsername ? <span>{peerUsername}</span> : null}
-            <p id="desktop-call-status" role="status" aria-live="polite">{remoteScreenIsActive || remoteScreenIsPaused ? t('workspace.callsPanel.remoteSharing', { source: sourceLabel(call.remoteShareState?.source) }) : call.statusText || t('workspace.callsPanel.connecting')}</p>
-          </div>
+          <header className="desktop-call-topbar">
+            <span className={`workspace-avatar desktop-call-peer-avatar is-${avatarTone(peer?.id)}`} aria-hidden="true">{initials(peerName, peer?.username)}</span>
+            <div className="desktop-call-peer-copy">
+              <h1 id="desktop-call-title">{peerName}</h1>
+              <p id="desktop-call-status" role="status" aria-live="polite">{remoteScreenIsActive || remoteScreenIsPaused ? t('workspace.callsPanel.remoteSharing', { source: sourceLabel(call.remoteShareState?.source) }) : call.statusText || t('workspace.callsPanel.connecting')}</p>
+              {peerUsername ? <span>{peerUsername}</span> : null}
+            </div>
+            <div className="desktop-call-state">
+              <span className={`desktop-call-live-dot ${isActive ? 'is-active' : ''}`} aria-hidden="true" />
+              <span>{isIncoming ? t('workspace.callsPanel.incoming') : isVideoCall ? t('workspace.callsPanel.video') : t('workspace.callsPanel.audio')}</span>
+              {!isIncoming ? <time aria-label={t('workspace.callsPanel.duration', { duration })}>{duration}</time> : null}
+            </div>
+          </header>
           {remoteScreenIsActive || remoteScreenIsPaused ? <div className="desktop-share-remote-chip"><Icon name="screen" size={14} /><span>{sourceLabel(call.remoteShareState?.source)}</span>{call.remoteShareState?.audioEnabled ? <Icon name="speaker" size={14} /> : null}</div> : null}
           {isSharing ? <div className="desktop-share-local-preview">
             {hasLiveVideo(call.localScreenStream) ? <StreamVideo className="desktop-share-local-preview-video" stream={call.localScreenStream} muted /> : null}
@@ -207,29 +209,29 @@ export function CallOverlay({ call, peer, t }) {
             {showLocalVideo ? <StreamVideo className="desktop-call-local-video-element" stream={call.localStream} muted /> : <span><Icon name="camera" size={19} />{t('workspace.callsPanel.cameraOff')}</span>}
             <small>{t('workspace.callsPanel.you')}</small>
           </div> : null}
+
+          {isSharing ? <section className="desktop-share-console" aria-label={t('workspace.callsPanel.shareConsole')}>
+            <div className="desktop-share-console-source"><span className="desktop-share-console-icon"><Icon name="screen" size={18} /></span><span><strong>{sourceLabel(call.screenShareState?.source)}</strong><small>{isSharePaused ? t('workspace.callsPanel.sharePaused') : t('workspace.callsPanel.sharing')}</small></span></div>
+            <button className="desktop-share-console-action" type="button" onClick={call.toggleScreenSharePaused}><Icon name={isSharePaused ? 'play' : 'pause'} size={17} /><span>{isSharePaused ? t('workspace.callsPanel.resumeShare') : t('workspace.callsPanel.pauseShare')}</span></button>
+            <button className="desktop-share-console-action" type="button" onClick={openShareStudio}><Icon name="switch" size={17} /><span>{t('workspace.callsPanel.changeSource')}</span></button>
+            <label className="desktop-share-console-volume"><Icon name={call.screenShareState?.audioEnabled ? 'speaker' : 'speaker-off'} size={17} /><span className="sr-only">{t('workspace.callsPanel.shareAudioVolume')}</span><input type="range" min="0" max="100" value={call.screenAudioLevel} onChange={(event) => call.setScreenShareAudioLevel(event.target.value)} disabled={!call.screenShareState?.audioEnabled} /><output>{call.screenAudioLevel}%</output></label>
+            <button className="desktop-share-console-stop" type="button" onClick={() => void call.stopScreenShare()}><Icon name="screen" size={17} /><span>{t('workspace.callsPanel.stopShare')}</span></button>
+            {call.screenShareNotice ? <p className="desktop-share-console-notice" role="status">{call.screenShareNotice}</p> : null}
+          </section> : null}
+
+          <footer className="desktop-call-controls" aria-label={t('workspace.callsPanel.controls')}>
+            {isIncoming ? <>
+              <CallControl className="is-decline" label={t('workspace.callsPanel.decline')} onClick={call.rejectCall}><Icon name="phone-off" size={21} /><span>{t('workspace.callsPanel.decline')}</span></CallControl>
+              {isVideoCall ? <CallControl label={t('workspace.callsPanel.answerAudio')} onClick={() => void call.acceptCall({ withVideo: false })}><Icon name="calls" size={21} /><span>{t('workspace.callsPanel.answerAudio')}</span></CallControl> : null}
+              <CallControl className="is-accept" label={isVideoCall ? t('workspace.callsPanel.answerVideo') : t('workspace.callsPanel.answer')} onClick={() => void call.acceptCall({ withVideo: isVideoCall })}><Icon name={isVideoCall ? 'video' : 'calls'} size={21} /><span>{isVideoCall ? t('workspace.callsPanel.answerVideo') : t('workspace.callsPanel.answer')}</span></CallControl>
+            </> : <>
+              <CallControl active={call.isMuted} label={call.isMuted ? t('workspace.callsPanel.unmute') : t('workspace.callsPanel.mute')} onClick={call.toggleMute}><Icon name={call.isMuted ? 'mic-off' : 'mic'} size={21} /><span>{call.isMuted ? t('workspace.callsPanel.unmute') : t('workspace.callsPanel.mute')}</span></CallControl>
+              {isVideoCall ? <CallControl active={!call.isVideoEnabled} label={call.isVideoEnabled ? t('workspace.callsPanel.cameraOff') : t('workspace.callsPanel.cameraOn')} onClick={() => void call.toggleVideo()}><Icon name="camera" size={21} /><span>{call.isVideoEnabled ? t('workspace.callsPanel.cameraOff') : t('workspace.callsPanel.cameraOn')}</span></CallControl> : null}
+              <CallControl active={isSharing} disabled={call.callState !== 'active' || !call.canShareScreen} label={isSharing ? t('workspace.callsPanel.stopShare') : t('workspace.callsPanel.startShare')} onClick={isSharing ? () => void call.stopScreenShare() : openShareStudio} data-share-trigger><Icon name="screen" size={21} /><span>{isSharing ? t('workspace.callsPanel.stopShare') : t('workspace.callsPanel.startShare')}</span></CallControl>
+              <CallControl className="is-end" label={call.callState === 'calling' ? t('workspace.callsPanel.cancel') : t('workspace.callsPanel.hangUp')} onClick={call.endCall}><Icon name="phone-off" size={21} /><span>{call.callState === 'calling' ? t('workspace.callsPanel.cancel') : t('workspace.callsPanel.hangUp')}</span></CallControl>
+            </>}
+          </footer>
         </div>
-
-        {isSharing ? <section className="desktop-share-console" aria-label={t('workspace.callsPanel.shareConsole')}>
-          <div className="desktop-share-console-source"><span className="desktop-share-console-icon"><Icon name="screen" size={18} /></span><span><strong>{sourceLabel(call.screenShareState?.source)}</strong><small>{isSharePaused ? t('workspace.callsPanel.sharePaused') : t('workspace.callsPanel.sharing')}</small></span></div>
-          <button className="desktop-share-console-action" type="button" onClick={call.toggleScreenSharePaused}><Icon name={isSharePaused ? 'play' : 'pause'} size={17} /><span>{isSharePaused ? t('workspace.callsPanel.resumeShare') : t('workspace.callsPanel.pauseShare')}</span></button>
-          <button className="desktop-share-console-action" type="button" onClick={openShareStudio}><Icon name="switch" size={17} /><span>{t('workspace.callsPanel.changeSource')}</span></button>
-          <label className="desktop-share-console-volume"><Icon name={call.screenShareState?.audioEnabled ? 'speaker' : 'speaker-off'} size={17} /><span className="sr-only">{t('workspace.callsPanel.shareAudioVolume')}</span><input type="range" min="0" max="100" value={call.screenAudioLevel} onChange={(event) => call.setScreenShareAudioLevel(event.target.value)} disabled={!call.screenShareState?.audioEnabled} /><output>{call.screenAudioLevel}%</output></label>
-          <button className="desktop-share-console-stop" type="button" onClick={() => void call.stopScreenShare()}><Icon name="screen" size={17} /><span>{t('workspace.callsPanel.stopShare')}</span></button>
-          {call.screenShareNotice ? <p className="desktop-share-console-notice" role="status">{call.screenShareNotice}</p> : null}
-        </section> : null}
-
-        <footer className="desktop-call-controls" aria-label={t('workspace.callsPanel.controls')}>
-          {isIncoming ? <>
-            <CallControl className="is-decline" label={t('workspace.callsPanel.decline')} onClick={call.rejectCall}><Icon name="phone-off" size={21} /><span>{t('workspace.callsPanel.decline')}</span></CallControl>
-            {isVideoCall ? <CallControl label={t('workspace.callsPanel.answerAudio')} onClick={() => void call.acceptCall({ withVideo: false })}><Icon name="calls" size={21} /><span>{t('workspace.callsPanel.answerAudio')}</span></CallControl> : null}
-            <CallControl className="is-accept" label={isVideoCall ? t('workspace.callsPanel.answerVideo') : t('workspace.callsPanel.answer')} onClick={() => void call.acceptCall({ withVideo: isVideoCall })}><Icon name={isVideoCall ? 'video' : 'calls'} size={21} /><span>{isVideoCall ? t('workspace.callsPanel.answerVideo') : t('workspace.callsPanel.answer')}</span></CallControl>
-          </> : <>
-            <CallControl active={call.isMuted} label={call.isMuted ? t('workspace.callsPanel.unmute') : t('workspace.callsPanel.mute')} onClick={call.toggleMute}><Icon name={call.isMuted ? 'mic-off' : 'mic'} size={21} /><span>{call.isMuted ? t('workspace.callsPanel.unmute') : t('workspace.callsPanel.mute')}</span></CallControl>
-            {isVideoCall ? <CallControl active={!call.isVideoEnabled} label={call.isVideoEnabled ? t('workspace.callsPanel.cameraOff') : t('workspace.callsPanel.cameraOn')} onClick={() => void call.toggleVideo()}><Icon name="camera" size={21} /><span>{call.isVideoEnabled ? t('workspace.callsPanel.cameraOff') : t('workspace.callsPanel.cameraOn')}</span></CallControl> : null}
-            <CallControl active={isSharing} disabled={call.callState !== 'active' || !call.canShareScreen} label={isSharing ? t('workspace.callsPanel.stopShare') : t('workspace.callsPanel.startShare')} onClick={isSharing ? () => void call.stopScreenShare() : openShareStudio} data-share-trigger><Icon name="screen" size={21} /><span>{isSharing ? t('workspace.callsPanel.stopShare') : t('workspace.callsPanel.startShare')}</span></CallControl>
-            <CallControl className="is-end" label={call.callState === 'calling' ? t('workspace.callsPanel.cancel') : t('workspace.callsPanel.hangUp')} onClick={call.endCall}><Icon name="phone-off" size={21} /><span>{call.callState === 'calling' ? t('workspace.callsPanel.cancel') : t('workspace.callsPanel.hangUp')}</span></CallControl>
-          </>}
-        </footer>
       </section>
       {isShareStudioOpen ? <section ref={shareStudioRef} className="desktop-share-studio" role="dialog" aria-modal="true" aria-labelledby="desktop-share-studio-title" aria-describedby="desktop-share-studio-description">
         <header className="desktop-share-studio-header"><span className="desktop-share-studio-mark"><Icon name="screen" size={21} /></span><div><h2 id="desktop-share-studio-title">{t('workspace.callsPanel.shareStudioTitle')}</h2><p id="desktop-share-studio-description">{t('workspace.callsPanel.shareStudioDescription')}</p></div><button type="button" aria-label={t('common.close')} onClick={closeShareStudio} disabled={isStartingShare}><Icon name="close" size={18} /></button></header>

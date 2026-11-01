@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { AuthField, AuthPasswordField } from '../components/AuthField.jsx';
 import { Notice } from '../components/Notice.jsx';
+import { WorkspaceIcon as Icon } from '../components/WorkspaceIcon.jsx';
 import {
   completeRegistration,
   confirmEmailVerification,
@@ -154,36 +156,34 @@ export function RegisterScreen({ language, t, onNavigate, onOpenLegal, onAuthent
       <form className="auth-form" onSubmit={goForward} noValidate>
         {step === 0 ? (
           <>
-            <label className="field">
-              <span>{t('auth.registrationCountry')}</span>
-              <select value={form.country} onChange={(event) => update('country', event.target.value)} aria-invalid={Boolean(error)} disabled={isLoading}>
+            <div className="auth-field auth-select-field">
+              <label className="sr-only" htmlFor="registration-country">{t('auth.registrationCountry')}</label>
+              <div className="auth-input-shell"><Icon name="globe" size={22} /><select id="registration-country" value={form.country} onChange={(event) => update('country', event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'registration-form-error' : undefined} disabled={isLoading}>
                 <option value="">{t('auth.selectCountry')}</option>
                 {COUNTRIES.map((country) => <option value={country} key={country}>{t(`auth.countries.${country}`)}</option>)}
-              </select>
-            </label>
-            <label className="field">
-              <span>{t('auth.email')}</span>
-              <input type="email" inputMode="email" autoComplete="email" placeholder={t('auth.emailHint')} value={form.email} onChange={(event) => updateEmail(event.target.value)} aria-invalid={Boolean(error)} disabled={isLoading} />
-            </label>
+              </select></div>
+            </div>
+            <AuthField id="registration-email" label={t('auth.email')} icon="mail" type="email" inputMode="email" autoComplete="email" placeholder={t('auth.emailHint')} value={form.email} onChange={(event) => updateEmail(event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'registration-form-error' : undefined} disabled={isLoading} />
             <button className="button button-secondary button-full" type="button" onClick={requestCode} disabled={isLoading}>{codeRequested ? t('auth.resendCode') : t('auth.sendCode')}</button>
-            {codeRequested ? <label className="field"><span>{t('auth.verificationCode')}</span><input type="text" inputMode="numeric" autoComplete="one-time-code" placeholder={t('auth.codeHint')} maxLength="6" value={form.code} onChange={(event) => update('code', event.target.value.replace(/\D/g, ''))} disabled={isLoading} /></label> : null}
+            {codeRequested ? <AuthField id="registration-code" label={t('auth.verificationCode')} icon="key" type="text" inputMode="numeric" autoComplete="one-time-code" placeholder={t('auth.codeHint')} maxLength="6" value={form.code} onChange={(event) => update('code', event.target.value.replace(/\D/g, ''))} aria-invalid={Boolean(error)} aria-describedby={error ? 'registration-form-error' : undefined} disabled={isLoading} /> : null}
           </>
         ) : null}
         {step === 1 ? (
           <>
-            <label className="field"><span>{t('auth.displayName')}</span><input type="text" autoComplete="name" placeholder={t('auth.displayNameHint')} value={form.displayName} onChange={(event) => update('displayName', event.target.value)} disabled={isLoading} /></label>
-            <label className="field"><span>{t('auth.username')}</span><input type="text" autoComplete="username" spellCheck="false" placeholder={t('auth.usernameHint')} value={form.username} onChange={(event) => update('username', event.target.value.replace(/\s/g, ''))} disabled={isLoading} /><small>{t('auth.usernameDescription')}</small></label>
+            <AuthField id="registration-name" label={t('auth.displayName')} icon="profile" type="text" autoComplete="name" placeholder={t('auth.displayNameHint')} value={form.displayName} onChange={(event) => update('displayName', event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'registration-form-error' : undefined} disabled={isLoading} />
+            <div className="auth-field"><label className="sr-only" htmlFor="registration-username">{t('auth.username')}</label><div className="auth-input-shell"><Icon name="at" size={22} /><input id="registration-username" type="text" autoComplete="username" spellCheck="false" placeholder={t('auth.usernameHint')} value={form.username} onChange={(event) => update('username', event.target.value.replace(/\s/g, ''))} aria-invalid={Boolean(error)} aria-describedby={error ? 'registration-form-error' : undefined} disabled={isLoading} /></div><small>{t('auth.usernameDescription')}</small></div>
           </>
         ) : null}
         {step === 2 ? (
           <>
-            <label className="field"><span>{t('auth.passwordCreate')}</span><input type="password" autoComplete="new-password" value={form.password} onChange={(event) => update('password', event.target.value)} disabled={isLoading} /><small>{t('auth.passwordHelp')}</small></label>
-            <label className="field"><span>{t('auth.passwordConfirm')}</span><input type="password" autoComplete="new-password" value={form.passwordConfirmation} onChange={(event) => update('passwordConfirmation', event.target.value)} disabled={isLoading} /></label>
+            <AuthPasswordField id="registration-password" label={t('auth.passwordCreate')} showLabel={t('auth.showPassword')} hideLabel={t('auth.hidePassword')} autoComplete="new-password" placeholder={t('auth.passwordCreate')} value={form.password} onChange={(event) => update('password', event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'registration-form-error' : undefined} disabled={isLoading} />
+            <p className="auth-field-note">{t('auth.passwordHelp')}</p>
+            <AuthPasswordField id="registration-password-confirmation" label={t('auth.passwordConfirm')} showLabel={t('auth.showPassword')} hideLabel={t('auth.hidePassword')} autoComplete="new-password" placeholder={t('auth.passwordConfirm')} value={form.passwordConfirmation} onChange={(event) => update('passwordConfirmation', event.target.value)} aria-invalid={Boolean(error)} aria-describedby={error ? 'registration-form-error' : undefined} disabled={isLoading} />
             <div className="checkbox-row legal-check"><input id="privacy-consent" type="checkbox" checked={form.privacy} onChange={(event) => update('privacy', event.target.checked)} disabled={isLoading} /><label htmlFor="privacy-consent">{t('auth.privacyAcceptBefore')}</label><button type="button" onClick={() => onOpenLegal('privacy')} disabled={isLoading}>{t('legal.privacyTitle')}</button><span>.</span></div>
             <div className="checkbox-row legal-check"><input id="terms-consent" type="checkbox" checked={form.terms} onChange={(event) => update('terms', event.target.checked)} disabled={isLoading} /><label htmlFor="terms-consent">{t('auth.termsAcceptBefore')}</label><button type="button" onClick={() => onOpenLegal('terms')} disabled={isLoading}>{t('legal.termsTitle')}</button><span>.</span></div>
           </>
         ) : null}
-        <Notice tone="error">{error}</Notice>
+        <Notice id="registration-form-error" tone="error">{error}</Notice>
         <Notice>{notice}</Notice>
         <div className="registration-actions">
           <button className="button button-primary" type="submit" disabled={isLoading}>{isLoading ? t('common.loading') : step === 2 ? t('auth.create') : t('common.continue')}</button>

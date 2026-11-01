@@ -30,6 +30,8 @@ import {
 import { formatFileSize } from '../../shared/format/fileSize.js';
 import { MessageContent, displayMessageType } from './MessageContent.jsx';
 import { MessageContextMenu, messageMenuPositionFromEvent } from './MessageContextMenu.jsx';
+import { messageDeliveryIndicator } from './messageDeliveryStatus.js';
+import { scrollHistoryToEnd } from './scrollHistoryToEnd.js';
 
 const AVATAR_TONES = ['violet', 'coral', 'yellow', 'blue'];
 const ACCEPTED_FILE_TYPES = 'image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/avif,video/mp4,video/webm,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,application/pdf,text/plain';
@@ -137,10 +139,10 @@ function replyPreview(message, t) {
 
 function encryptedMessageStatus(message, t) {
   if (message.encryption_state !== 'e2ee_web_v1') return null;
-  if (message.e2ee_status === 'verified') return { label: t('workspace.chatPanel.encryptionVerified'), tone: 'verified' };
-  if (message.e2ee_status === 'unverified') return { label: t('workspace.chatPanel.encryptionUnverified'), tone: 'unverified' };
-  if (message.e2ee_status === 'key_changed') return { label: t('workspace.chatPanel.encryptionKeyChanged'), tone: 'key-changed' };
-  return { label: t('workspace.chatPanel.encryptionUnavailable'), tone: 'unavailable' };
+  if (message.e2ee_status === 'verified') return { icon: 'lock', label: t('workspace.chatPanel.encryptionTextReady'), tone: 'verified', visuallyHiddenLabel: true };
+  if (message.e2ee_status === 'unverified') return { icon: 'shield', label: t('workspace.chatPanel.encryptionUnverified'), tone: 'unverified' };
+  if (message.e2ee_status === 'key_changed') return { icon: 'shield', label: t('workspace.chatPanel.encryptionKeyChanged'), tone: 'key-changed' };
+  return { icon: 'shield', label: t('workspace.chatPanel.encryptionUnavailable'), tone: 'unavailable' };
 }
 
 function directChatEncryptionLabel(status, t) {
@@ -231,6 +233,7 @@ function DirectChatPanel({
   const [e2eeStatus, setE2eeStatus] = useState(chat.type === 'direct' ? 'checking' : 'inactive');
   const [readRetryVersion, setReadRetryVersion] = useState(0);
   const fileInputRef = useRef(null);
+  const historyRef = useRef(null);
   const isCurrentRef = useRef(true);
   const messagesRef = useRef([]);
   const e2eeCryptoRef = useRef({ identity: null, keys: [] });
@@ -244,6 +247,7 @@ function DirectChatPanel({
   const handledResyncVersionRef = useRef(realtimeResyncVersion);
   const focusedRequestIdRef = useRef(0);
   const focusHighlightTimerRef = useRef(null);
+  const autoScrollFrameRef = useRef(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [recordedMedia, setRecordedMedia] = useState(null);
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
@@ -426,11 +430,30 @@ function DirectChatPanel({
   }, [chat.id, currentUserId, focusMessage, focusMessageId, focusRequestId, prepareDirectChatEncryption]);
 
   useEffect(() => {
+    if (isLoadingMessages || !messages.length) return undefined;
+
+    const frameId = window.requestAnimationFrame(() => {
+      autoScrollFrameRef.current = null;
+      scrollHistoryToEnd(historyRef.current);
+    });
+    autoScrollFrameRef.current = frameId;
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (autoScrollFrameRef.current === frameId) autoScrollFrameRef.current = null;
+    };
+  }, [isLoadingMessages, messages]);
+
+  useEffect(() => {
     if (!focusMessageId || !focusRequestId || focusedRequestIdRef.current === focusRequestId) return;
-    if (!messages.some((message) => message.id === focusMessageId)) return;
-    const messageElement = messageElementRefs.current.get(focusMessageId);
+    if (!messages.some((message) => String(message.id) === String(focusMessageId))) return;
+    const messageElement = messageElementRefs.current.get(String(focusMessageId));
     if (!messageElement) return;
 
+    if (autoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
     focusedRequestIdRef.current = focusRequestId;
     setHighlightedMessageId(focusMessageId);
     messageElement.scrollIntoView({
@@ -466,7 +489,7 @@ function DirectChatPanel({
           const message = await decryptWithCurrentCrypto(payload.message);
           if (!isCurrentRef.current) return;
           setMessages((current) => upsertMessage(current, message));
-          if (message.sender_id !== currentUserId) setActivity('');
+          if (String(message.sender_id) !== String(currentUserId)) setActivity('');
           return;
         }
 
@@ -484,7 +507,7 @@ function DirectChatPanel({
           if (!isCurrentRef.current) return;
           setMessages((current) => current.map((currentMessage) => {
             if (currentMessage.id !== message.id) return currentMessage;
-            if (currentMessage.sender_id === currentUserId && payload.reader_id !== currentUserId) return { ...currentMessage, delivery_status: 'read' };
+            if (String(currentMessage.sender_id) === String(currentUserId) && String(payload.reader_id) !== String(currentUserId)) return { ...currentMessage, delivery_status: 'read' };
             return mergeMessage(currentMessage, message);
           }));
           return;
@@ -515,7 +538,7 @@ function DirectChatPanel({
   useEffect(() => {
     if (!accessToken || !currentUserId || isLoadingMessages) return;
     const messageIds = messages
-      .filter((message) => !message.deleted_at && message.sender_id !== currentUserId && !readMessageIdsRef.current.has(message.id))
+      .filter((message) => !message.deleted_at && String(message.sender_id) !== String(currentUserId) && !readMessageIdsRef.current.has(message.id))
       .map((message) => message.id);
     if (!messageIds.length) return;
     messageIds.forEach((messageId) => readMessageIdsRef.current.add(messageId));
@@ -789,24 +812,27 @@ function DirectChatPanel({
         </div>
       </header>
 
-      <div className="chat-history" aria-label={t('workspace.chatPanel.historyLabel')} aria-busy={isLoadingMessages}>
+      <div ref={historyRef} className="chat-history" aria-label={t('workspace.chatPanel.historyLabel')} aria-busy={isLoadingMessages}>
         <div className={`chat-server-notice is-${realtimeStatus}`} role="status" aria-live="polite" aria-atomic="true"><Icon name="shield" size={15} /><span>{realtimeNotice(realtimeStatus, t)}</span></div>
         {chatState.pinned_message ? <div className="chat-pinned-message"><Icon name="pin" size={15} /><span><strong>{t('workspace.chatPanel.pinnedMessage')}</strong><small>{replyPreview(chatState.pinned_message, t)}</small></span></div> : null}
         {historyError ? <div className="chat-history-error" role="alert"><strong>{t('workspace.chatPanel.historyLoadError')}</strong><span>{historyError}</span><AraButton type="button" onClick={() => loadMessages()} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
           {isLoadingMessages ? <p className="chat-history-status" role="status">{t('workspace.chatPanel.loadingHistory')}</p> : historyError ? null : messages.length ? messages.map((message) => {
-            const isMine = message.sender_id === currentUserId;
-            const deliveryStatus = isMine ? deliveryStatusLabel(message.delivery_status, t) : '';
+            const isMine = String(message.sender_id) === String(currentUserId);
+            const deliveryIndicator = isMine ? messageDeliveryIndicator(message.delivery_status) : null;
+            const deliveryStatus = deliveryIndicator ? deliveryStatusLabel(deliveryIndicator.tone, t) : '';
             const e2eeMessageStatus = encryptedMessageStatus(message, t);
             return <article aria-expanded={messageActionMenu?.message.id === message.id} aria-haspopup={message.deleted_at ? undefined : 'menu'} aria-label={message.deleted_at ? undefined : t('workspace.chatPanel.messageActions')} className={`chat-message ${isMine ? 'is-mine' : ''} ${message.is_pinned ? 'is-pinned' : ''} ${highlightedMessageId === message.id ? 'is-notification-target' : ''}`} key={message.id} onContextMenu={message.deleted_at ? undefined : (event) => openMessageActionMenu(event, message, isMine)} onKeyDown={message.deleted_at ? undefined : (event) => handleMessageActionMenuKeyDown(event, message, isMine)} ref={(element) => {
-              if (element) messageElementRefs.current.set(message.id, element);
-              else messageElementRefs.current.delete(message.id);
+              const messageId = String(message.id);
+              if (element) messageElementRefs.current.set(messageId, element);
+              else messageElementRefs.current.delete(messageId);
             }} tabIndex={message.deleted_at ? undefined : 0}>
             <div className="chat-message-bubble">
               {message.reply_to ? <div className="chat-reply-preview"><span>{message.reply_to.sender_id === currentUserId ? t('workspace.chatPanel.you') : peerName}</span><small>{replyPreview(message.reply_to, t)}</small></div> : null}
               <MessageContent accessToken={accessToken} chatId={chat.id} message={message} t={t} />
               {!message.deleted_at && message.reactions?.length ? <div className="chat-reactions">{message.reactions.map((reaction) => <AraButton type="button" key={reaction.emoji} aria-pressed={reaction.reacted_by_me} onClick={() => handleReaction(message, reaction.emoji)} size="compact" variant={reaction.reacted_by_me ? 'selected' : 'surface'}>{reaction.emoji}<span>{reaction.count}</span></AraButton>)}</div> : null}
+              {!message.deleted_at && deliveryIndicator ? <span className={`chat-delivery-status is-${deliveryIndicator.tone}`} title={deliveryStatus}><Icon name={deliveryIndicator.icon} size={14} /><span className="sr-only">{deliveryStatus}</span></span> : null}
             </div>
-            <footer><time dateTime={message.created_at}>{formatMessageTime(message.created_at)}</time>{message.edited_at && !message.deleted_at ? <span>{t('workspace.chatPanel.edited')}</span> : null}{message.is_pinned ? <span>{t('workspace.chatPanel.pinned')}</span> : null}{e2eeMessageStatus ? <span className={`chat-message-e2ee-status is-${e2eeMessageStatus.tone}`} title={e2eeMessageStatus.label}><Icon name="shield" size={12} />{e2eeMessageStatus.label}</span> : null}{isMine && deliveryStatus ? <span className="chat-delivery-status" title={deliveryStatus}><Icon name="check-double" size={14} /><span className="sr-only">{deliveryStatus}</span></span> : null}</footer>
+            <footer><time dateTime={message.created_at}>{formatMessageTime(message.created_at)}</time>{message.edited_at && !message.deleted_at ? <span>{t('workspace.chatPanel.edited')}</span> : null}{message.is_pinned ? <span>{t('workspace.chatPanel.pinned')}</span> : null}{e2eeMessageStatus ? <span className={`chat-message-e2ee-status is-${e2eeMessageStatus.tone}`} title={e2eeMessageStatus.label}><Icon name={e2eeMessageStatus.icon} size={12} />{e2eeMessageStatus.visuallyHiddenLabel ? <span className="sr-only">{e2eeMessageStatus.label}</span> : e2eeMessageStatus.label}</span> : null}</footer>
           </article>;
         }) : <div className="chat-empty-history"><span className={`workspace-avatar workspace-avatar-large is-${avatarTone(peer?.id || chat.id)}`} aria-hidden="true">{initials(peerName, peerUsername)}</span><strong>{t('workspace.chatPanel.noMessagesTitle')}</strong><p>{t('workspace.chatPanel.noMessagesText')}</p></div>}
       </div>

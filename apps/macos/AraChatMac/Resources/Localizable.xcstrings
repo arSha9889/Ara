@@ -1,0 +1,643 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "app.loading" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading AraChat…" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "AraChat жүктелуде…" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Загрузка AraChat…" } }
+      }
+    },
+    "auth.acceptPrivacy" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "I accept the Privacy Policy" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Құпиялылық саясатын қабылдаймын" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Я принимаю Политику конфиденциальности" } }
+      }
+    },
+    "auth.acceptRequired" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Accept both legal documents to continue." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Жалғастыру үшін екі құқықтық құжатты да қабылдаңыз." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Чтобы продолжить, примите оба юридических документа." } }
+      }
+    },
+    "auth.acceptTerms" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "I accept the Terms of Service" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Пайдалану шарттарын қабылдаймын" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Я принимаю Условия использования" } }
+      }
+    },
+    "auth.back" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Back" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Артқа" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Назад" } }
+      }
+    },
+    "auth.code" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Code from e-mail" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "E-mail-дағы код" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Код из e-mail" } }
+      }
+    },
+    "auth.continue" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Continue" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Жалғастыру" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Продолжить" } }
+      }
+    },
+    "auth.country" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Country" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Ел" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Страна" } }
+      }
+    },
+    "auth.displayName" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Display name" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Көрсетілетін ат" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Отображаемое имя" } }
+      }
+    },
+    "auth.email" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "E-mail" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "E-mail" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "E-mail" } }
+      }
+    },
+    "auth.password" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Password" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Құпиясөз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пароль" } }
+      }
+    },
+    "auth.passwordConfirmation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirm password" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Құпиясөзді растаңыз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Подтвердите пароль" } }
+      }
+    },
+    "auth.passwordMismatch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Passwords do not match." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Құпиясөздер сәйкес келмейді." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пароли не совпадают." } }
+      }
+    },
+    "auth.register" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create account" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Тіркелгі жасау" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Создать аккаунт" } }
+      }
+    },
+    "auth.registration.code" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirm your e-mail" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "E-mail мекенжайын растаңыз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Подтвердите e-mail" } }
+      }
+    },
+    "auth.registration.details" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Account details" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Тіркелгі деректері" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Данные аккаунта" } }
+      }
+    },
+    "auth.registration.email" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create an account" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Тіркелгі жасаңыз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Создайте аккаунт" } }
+      }
+    },
+    "auth.requiredFields" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fill in all required fields." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Барлық міндетті жолдарды толтырыңыз." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Заполните все обязательные поля." } }
+      }
+    },
+    "auth.signIn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sign in" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Кіру" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Войти" } }
+      }
+    },
+    "auth.username" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Username" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Username" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Username" } }
+      }
+    },
+    "country.belarus" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Belarus" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Беларусь" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Беларусь" } }
+      }
+    },
+    "country.kazakhstan" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Kazakhstan" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Қазақстан" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Казахстан" } }
+      }
+    },
+    "country.kyrgyzstan" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Kyrgyzstan" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Қырғызстан" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Киргизия" } }
+      }
+    },
+    "country.russia" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Russia" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Ресей" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Россия" } }
+      }
+    },
+    "country.ukraine" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ukraine" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Украина" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Украина" } }
+      }
+    },
+    "country.uzbekistan" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Uzbekistan" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Өзбекстан" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Узбекистан" } }
+      }
+    },
+    "error.apiConfiguration" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The AraChat API address is not configured for this build." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Бұл жинақ үшін AraChat API мекенжайы бапталмаған." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Адрес API AraChat не настроен для этой сборки." } }
+      }
+    },
+    "error.network" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not connect to AraChat. Check your connection and try again." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "AraChat қызметіне қосылу мүмкін болмады. Байланысты тексеріп, қайталаңыз." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Не удалось подключиться к AraChat. Проверьте соединение и повторите попытку." } }
+      }
+    },
+    "error.serverResponse" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server returned an error." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Сервер қатені қайтарды." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сервер вернул ошибку." } }
+      }
+    },
+    "error.unexpectedResponse" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server returned an unexpected response." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Сервер күтпеген жауап қайтарды." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сервер вернул неожиданный ответ." } }
+      }
+    },
+    "language.english" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "English" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "English" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "English" } }
+      }
+    },
+    "language.kazakh" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Қазақша" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Қазақша" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Қазақша" } }
+      }
+    },
+    "language.russian" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Русский" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Русский" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Русский" } }
+      }
+    },
+    "settings.language" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Language" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Тіл" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Язык" } }
+      }
+    },
+    "welcome.register" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create account" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Тіркелгі жасау" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Создать аккаунт" } }
+      }
+    },
+    "welcome.signIn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sign in" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Кіру" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Войти" } }
+      }
+    },
+    "welcome.subtitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A private place for your conversations, communities, and calls." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Әңгімелеріңізге, қауымдастықтарыңызға және қоңырауларыңызға арналған жеке кеңістік." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Приватное пространство для разговоров, сообществ и звонков." } }
+      }
+    },
+    "welcome.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Welcome to AraChat" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "AraChat-қа қош келдіңіз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Добро пожаловать в AraChat" } }
+      }
+    },
+    "workspace.categoryChannels" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Channels" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Арналар" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Каналы" } }
+      }
+    },
+    "workspace.categoryDirect" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chats" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чаттар" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Чаты" } }
+      }
+    },
+    "workspace.categoryGroups" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Groups" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Топтар" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Группы" } }
+      }
+    },
+    "workspace.channel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Channel" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Арна" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Канал" } }
+      }
+    },
+    "workspace.chatCategory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chat category" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чат санаты" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Категория чатов" } }
+      }
+    },
+    "workspace.chatsLoadError" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not load chats" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чаттарды жүктеу мүмкін болмады" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Не удалось загрузить чаты" } }
+      }
+    },
+    "workspace.chatsTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chats" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чаттар" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Чаты" } }
+      }
+    },
+    "workspace.clearSearch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Clear search" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Іздеуді тазалау" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Очистить поиск" } }
+      }
+    },
+    "workspace.composerUnavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Message sending will appear here after its native implementation is ready." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарлама жіберу жергілікті іске асыру дайын болғаннан кейін қолжетімді болады." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Отправка сообщений появится здесь после готовности нативной реализации." } }
+      }
+    },
+    "workspace.directChat" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Direct chat" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Жеке чат" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Личный чат" } }
+      }
+    },
+    "workspace.directComposerUnavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sending is unavailable until end-to-end encryption compatibility is verified." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "End-to-end шифрлаудың үйлесімділігі тексерілгенше жіберу қолжетімсіз." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Отправка недоступна до проверки совместимости сквозного шифрования." } }
+      }
+    },
+    "workspace.encryptionChecking" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Setting up end-to-end encryption…" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Ұштан-ұшқа шифрлау реттелуде…" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Настраиваем сквозное шифрование…" } }
+      }
+    },
+    "workspace.edited" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edited" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Өзгертілді" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Изменено" } }
+      }
+    },
+    "workspace.encryptedMessage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Encrypted message" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Шифрланған хабарлама" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Зашифрованное сообщение" } }
+      }
+    },
+    "workspace.messageEncryptionKeyChanged" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sender security key changed" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Жіберушінің қауіпсіздік кілті өзгерді" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ключ безопасности отправителя изменён" } }
+      }
+    },
+    "workspace.messageEncryptionUnavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Encrypted message unavailable" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Шифрланған хабарлама қолжетімсіз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Зашифрованное сообщение недоступно" } }
+      }
+    },
+    "workspace.messageEncryptionUnverified" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sender device is unverified" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Жіберуші құрылғысы расталмаған" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Устройство отправителя не подтверждено" } }
+      }
+    },
+    "workspace.messageEncryptionVerified" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sender device verified" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Жіберуші құрылғысы расталды" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Устройство отправителя подтверждено" } }
+      }
+    },
+    "workspace.encryptionReady" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "End-to-end encryption is set up" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Ұштан-ұшқа шифрлау реттелді" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сквозное шифрование настроено" } }
+      }
+    },
+    "workspace.encryptionUnavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not set up end-to-end encryption" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Ұштан-ұшқа шифрлауды реттеу мүмкін болмады" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Не удалось настроить сквозное шифрование" } }
+      }
+    },
+    "workspace.encryptionWaiting" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waiting for the recipient’s protected device" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Әңгімелесушінің қорғалған құрылғысы күтілуде" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ожидаем защищённое устройство собеседника" } }
+      }
+    },
+    "workspace.group" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Group" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Топ" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Группа" } }
+      }
+    },
+    "workspace.loadingChats" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading chats…" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чаттар жүктелуде…" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Загрузка чатов…" } }
+      }
+    },
+    "workspace.loadingMessages" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading messages…" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарламалар жүктелуде…" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Загрузка сообщений…" } }
+      }
+    },
+    "workspace.mediaMessage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Media message" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Медиа хабарлама" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Медиафайл" } }
+      }
+    },
+    "workspace.messageDeleted" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This message was deleted" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Бұл хабарлама жойылды" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Это сообщение удалено" } }
+      }
+    },
+    "workspace.messageHistory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Message history" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарламалар тарихы" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "История сообщений" } }
+      }
+    },
+    "workspace.messagesLoadError" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not load messages" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарламаларды жүктеу мүмкін болмады" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Не удалось загрузить сообщения" } }
+      }
+    },
+    "workspace.noChatsDetail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chats in this category will appear here." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Осы санаттағы чаттар осында пайда болады." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Чаты этой категории появятся здесь." } }
+      }
+    },
+    "workspace.noChatsTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No chats yet" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чаттар әлі жоқ" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пока нет чатов" } }
+      }
+    },
+    "workspace.noMessagesDetail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The history for this chat is empty." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Бұл чаттың тарихы бос." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "История этого чата пуста." } }
+      }
+    },
+    "workspace.noMessagesPreview" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No messages" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарламалар жоқ" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Нет сообщений" } }
+      }
+    },
+    "workspace.noMessagesTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No messages yet" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарламалар әлі жоқ" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Пока нет сообщений" } }
+      }
+    },
+    "workspace.noSearchResultsDetail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Try another name, username, or message text." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Басқа атын, username-ді немесе хабарлама мәтінін қолданып көріңіз." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Попробуйте другое имя, username или текст сообщения." } }
+      }
+    },
+    "workspace.noSearchResultsTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No results" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Нәтижелер жоқ" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Ничего не найдено" } }
+      }
+    },
+    "workspace.online" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Online" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Желіде" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "В сети" } }
+      }
+    },
+    "workspace.refreshChats" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refresh chats" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чаттарды жаңарту" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Обновить чаты" } }
+      }
+    },
+    "workspace.refreshMessages" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refresh messages" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарламаларды жаңарту" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Обновить сообщения" } }
+      }
+    },
+    "workspace.realtimeConnected" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Live updates connected" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Нақты уақыттағы жаңартулар қосылды" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Обновления в реальном времени подключены" } }
+      }
+    },
+    "workspace.realtimeConnecting" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Connecting live updates…" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Нақты уақыттағы жаңартулар қосылуда…" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Подключение обновлений в реальном времени…" } }
+      }
+    },
+    "workspace.realtimeDisconnected" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Live updates disconnected" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Нақты уақыттағы жаңартулар ажыратылды" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Обновления в реальном времени отключены" } }
+      }
+    },
+    "workspace.realtimeUnavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Live updates unavailable" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Нақты уақыттағы жаңартулар қолжетімсіз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Обновления в реальном времени недоступны" } }
+      }
+    },
+    "workspace.retry" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Try again" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Қайталау" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Повторить" } }
+      }
+    },
+    "workspace.searchChats" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search chats" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чаттарды іздеу" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Поиск чатов" } }
+      }
+    },
+    "workspace.selectChatDetail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose a chat from the sidebar to view its history." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Тарихын көру үшін бүйірлік панельден чатты таңдаңыз." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выберите чат в боковой панели, чтобы открыть историю." } }
+      }
+    },
+    "workspace.selectChatTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select a chat" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Чатты таңдаңыз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выберите чат" } }
+      }
+    },
+    "workspace.unknownChat" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unknown chat" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Белгісіз чат" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Неизвестный чат" } }
+      }
+    },
+    "workspace.unreadMessages" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unread messages" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Оқылмаған хабарламалар" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Непрочитанные сообщения" } }
+      }
+    },
+    "workspace.typing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Typing…" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Хабарлама жазуда…" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Печатает…" } }
+      }
+    },
+    "workspace.offline" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "You appear to be offline" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Интернетке қосылу мүмкін болмады" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Нет подключения к интернету" } }
+      }
+    },
+    "workspace.foundationNotice" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The native workspace is being migrated in functional slices. Chat and call features will appear here only after their real API implementations are ready." } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Нативті жұмыс кеңістігі функционалдық бөліктермен көшірілуде. Чаттар мен қоңыраулар олардың нақты API іске асырылғаннан кейін ғана осында пайда болады." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Нативное рабочее пространство переносится функциональными срезами. Чаты и звонки появятся здесь только после готовности их реальной API-реализации." } }
+      }
+    },
+    "workspace.signOut" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sign out" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Шығу" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выйти" } }
+      }
+    },
+    "workspace.welcome" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "You are signed in" } },
+        "kk" : { "stringUnit" : { "state" : "translated", "value" : "Сіз жүйеге кірдіңіз" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Вы вошли в аккаунт" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
