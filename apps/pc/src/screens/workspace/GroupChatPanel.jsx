@@ -84,6 +84,7 @@ export function GroupChatPanel({
   onChatChanged,
   onGroupLeft,
   onMessageFocused,
+  onMessagesRead,
   onMessageSent,
   realtimeEvents,
   realtimeResyncVersion,
@@ -234,6 +235,8 @@ export function GroupChatPanel({
     void (async () => {
       try {
         await markMessagesRead(accessToken, chat.id, unreadMessageIds);
+        onChatChanged?.();
+        onMessagesRead?.(unreadMessageIds);
       } catch {
         unreadMessageIds.forEach((messageId) => readMessageIdsRef.current.delete(messageId));
         window.clearTimeout(readRetryTimerRef.current);
@@ -242,7 +245,7 @@ export function GroupChatPanel({
         }, 2_000);
       }
     })();
-  }, [accessToken, chat.id, currentUserId, isLoadingMessages, messages, readRetryVersion]);
+  }, [accessToken, chat.id, currentUserId, isLoadingMessages, messages, onChatChanged, onMessagesRead, readRetryVersion]);
 
   async function submitMessage(event) {
     event.preventDefault();

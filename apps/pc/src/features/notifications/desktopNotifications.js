@@ -1,4 +1,5 @@
 import { isTauri } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   isPermissionGranted,
   onAction,
@@ -28,11 +29,26 @@ function dispatchAction(payload) {
   actionSubscribers.forEach((subscriber) => subscriber(payload));
 }
 
+async function restoreMainWindow() {
+  if (!isTauri()) return false;
+  try {
+    const appWindow = getCurrentWindow();
+    await appWindow.unminimize();
+    await appWindow.show();
+    await appWindow.setFocus();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function ensureActionListener() {
   if (actionListenerPromise) return actionListenerPromise;
-  actionListenerPromise = onAction((event) => {
+  actionListenerPromise = onAction(async (event) => {
     const payload = actionPayload(event);
-    if (payload) dispatchAction(payload);
+    if (!payload) return;
+    await restoreMainWindow();
+    dispatchAction(payload);
   }).catch((error) => {
     actionListenerPromise = null;
     throw error;

@@ -185,6 +185,7 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
     const permission = await requestDesktopNotificationPermission().catch(() => 'denied');
     setNotificationPermission(permission);
     if (permission !== 'granted') {
+      updatePreferences({ desktopNotifications: false });
       setFormError(t(permission === 'unavailable'
         ? 'workspace.settingsPanel.notificationUnavailable'
         : 'workspace.settingsPanel.notificationDenied'));

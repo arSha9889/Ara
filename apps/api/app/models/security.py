@@ -53,5 +53,6 @@ class E2eeWebKey(Base):
     encryption_public_key: Mapped[str] = mapped_column(Text)
     signing_public_key: Mapped[str] = mapped_column(Text)
     algorithm: Mapped[str] = mapped_column(String(64), default='ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256')
+    envelope_version: Mapped[int] = mapped_column(default=1, server_default='1')
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

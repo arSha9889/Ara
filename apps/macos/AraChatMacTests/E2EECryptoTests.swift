@@ -199,17 +199,13 @@ final class E2EECryptoTests: XCTestCase {
             signingPublicKey: "signing-key",
             algorithm: E2EEAlgorithm.identifier
         )
-        let payload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: String]
+        let payload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
 
-        XCTAssertEqual(
-            payload,
-            [
-                "device_id": "native-device-001",
-                "encryption_public_key": "encryption-key",
-                "signing_public_key": "signing-key",
-                "algorithm": E2EEAlgorithm.identifier,
-            ]
-        )
+        XCTAssertEqual(payload?["device_id"] as? String, "native-device-001")
+        XCTAssertEqual(payload?["encryption_public_key"] as? String, "encryption-key")
+        XCTAssertEqual(payload?["signing_public_key"] as? String, "signing-key")
+        XCTAssertEqual(payload?["algorithm"] as? String, E2EEAlgorithm.identifier)
+        XCTAssertEqual(payload?["envelope_version"] as? Int, E2EEAlgorithm.envelopeVersion)
     }
 
     func testIdentityStoreRestoresTheSameKeyPairForAUser() throws {

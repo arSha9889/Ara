@@ -68,6 +68,7 @@ export function ChannelChatPanel({
   onChatChanged,
   onChannelLeft,
   onMessageFocused,
+  onMessagesRead,
   onMessageSent,
   realtimeEvents,
   realtimeResyncVersion,
@@ -216,6 +217,8 @@ export function ChannelChatPanel({
     void (async () => {
       try {
         await markMessagesRead(accessToken, chat.id, unreadMessageIds);
+        onChatChanged?.();
+        onMessagesRead?.(unreadMessageIds);
       } catch {
         unreadMessageIds.forEach((messageId) => readMessageIdsRef.current.delete(messageId));
         window.clearTimeout(readRetryTimerRef.current);
@@ -224,7 +227,7 @@ export function ChannelChatPanel({
         }, 2_000);
       }
     })();
-  }, [accessToken, chat.id, currentUserId, isLoadingMessages, messages, readRetryVersion]);
+  }, [accessToken, chat.id, currentUserId, isLoadingMessages, messages, onChatChanged, onMessagesRead, readRetryVersion]);
 
   async function submitPost(event) {
     event.preventDefault();

@@ -22,6 +22,8 @@ CALL_ID_PATTERN = re.compile(r'^[A-Za-z0-9-]{1,200}$')
 CALL_TYPES = {'audio', 'video'}
 MEDIA_SOURCES = {'screen', 'window'}
 MEDIA_STATUSES = {'active', 'paused', 'stopped'}
+MEDIA_MID_KEYS = {'camera_video', 'screen_video', 'screen_audio'}
+MEDIA_MID_PATTERN = re.compile(r'^[A-Za-z0-9._-]{1,128}$')
 INVITE_TIMEOUT_SECONDS = 75
 MAX_CALL_DURATION_SECONDS = 12 * 60 * 60
 
@@ -82,6 +84,18 @@ def normalize_call_signal(message: dict) -> dict:
         ):
             raise CallSignalingError('invalid_session_description')
         payload['description'] = {'type': expected_type, 'sdp': description['sdp']}
+        if event == 'call.offer' and 'media' in message:
+            media = message['media']
+            if not isinstance(media, dict):
+                raise CallSignalingError('invalid_media_transceivers')
+            normalized_media = {
+                key: mid
+                for key, mid in media.items()
+                if key in MEDIA_MID_KEYS
+            }
+            if any(not isinstance(mid, str) or not MEDIA_MID_PATTERN.fullmatch(mid) for mid in normalized_media.values()):
+                raise CallSignalingError('invalid_media_transceivers')
+            payload['media'] = normalized_media
 
     if event == 'call.ice_candidate':
         candidate = message.get('candidate')

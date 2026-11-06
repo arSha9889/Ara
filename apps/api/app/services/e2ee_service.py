@@ -17,6 +17,7 @@ P256_PUBLIC_KEY_BYTES = 65
 ECDSA_P256_SIGNATURE_BYTES = 64
 E2EE_MESSAGE_MAX_LENGTH = 524288
 MAX_E2EE_WEB_KEYS_PER_USER = 8
+E2EE_ENVELOPE_VERSIONS = frozenset({1, 2})
 
 
 def _validate_public_key(value: str, field_name: str) -> str:
@@ -37,8 +38,9 @@ async def upsert_e2ee_web_key(
     encryption_public_key: str,
     signing_public_key: str,
     algorithm: str,
+    envelope_version: int = 1,
 ) -> ChatE2eeKeyOut:
-    if algorithm != E2EE_WEB_ALGORITHM:
+    if algorithm != E2EE_WEB_ALGORITHM or envelope_version not in E2EE_ENVELOPE_VERSIONS:
         raise AuthError('Unsupported end-to-end encryption algorithm')
 
     encryption_key = _validate_public_key(encryption_public_key, 'encryption public key')
@@ -48,6 +50,7 @@ async def upsert_e2ee_web_key(
         key.encryption_public_key = encryption_key
         key.signing_public_key = signing_key
         key.algorithm = algorithm
+        key.envelope_version = envelope_version
     else:
         key_count = await session.scalar(
             select(func.count()).select_from(E2eeWebKey).where(E2eeWebKey.user_id == user_id)
@@ -60,6 +63,7 @@ async def upsert_e2ee_web_key(
             encryption_public_key=encryption_key,
             signing_public_key=signing_key,
             algorithm=algorithm,
+            envelope_version=envelope_version,
         )
         session.add(key)
     await session.commit()
@@ -115,7 +119,7 @@ async def validate_e2ee_message_envelope(
     }
     if not isinstance(envelope, dict) or set(envelope) != required_fields:
         raise AuthError('Invalid encrypted message envelope')
-    if envelope['version'] != 1 or envelope['algorithm'] != E2EE_WEB_ALGORITHM:
+    if type(envelope['version']) is not int or envelope['version'] not in E2EE_ENVELOPE_VERSIONS or envelope['algorithm'] != E2EE_WEB_ALGORITHM:
         raise AuthError('Unsupported encrypted message envelope')
     if not isinstance(envelope['sender_device_id'], str) or not envelope['sender_device_id']:
         raise AuthError('Invalid encrypted message envelope')
@@ -130,6 +134,8 @@ async def validate_e2ee_message_envelope(
     )).scalars())
     if {key.user_id for key in keys} != set(participant_ids):
         raise AuthError('Both chat participants must use a protected web browser')
+    if envelope['version'] >= 2 and any(key.envelope_version < envelope['version'] for key in keys):
+        raise AuthError('A recipient device does not support this encrypted message format')
 
     sender_key = next(
         (
@@ -145,12 +151,18 @@ async def validate_e2ee_message_envelope(
     _validate_exact_base64(envelope['sender_signing_public_key'], P256_PUBLIC_KEY_BYTES)
     _validate_exact_base64(envelope['signature'], ECDSA_P256_SIGNATURE_BYTES)
     recipients = envelope['recipients']
-    expected_recipient_ids = {_recipient_id(key) for key in keys}
+    keys_by_recipient_id = {_recipient_id(key): key for key in keys}
+    expected_recipient_ids = set(keys_by_recipient_id)
     if not isinstance(recipients, dict) or set(recipients) != expected_recipient_ids:
         raise AuthError('Encrypted message is missing a recipient device')
-    for recipient in recipients.values():
-        if not isinstance(recipient, dict) or set(recipient) != {'ciphertext', 'iv', 'salt'}:
+    expected_recipient_fields = {'ciphertext', 'iv', 'salt'}
+    if envelope['version'] >= 2:
+        expected_recipient_fields.add('recipient_encryption_public_key')
+    for recipient_id, recipient in recipients.items():
+        if not isinstance(recipient, dict) or set(recipient) != expected_recipient_fields:
             raise AuthError('Invalid encrypted message recipient')
+        if envelope['version'] >= 2 and recipient['recipient_encryption_public_key'] != keys_by_recipient_id[recipient_id].encryption_public_key:
+            raise AuthError('Encrypted message does not match the recipient device key')
         _validate_exact_base64(recipient['iv'], 12)
         _validate_exact_base64(recipient['salt'], 32)
         ciphertext = _decode_base64(recipient['ciphertext'])
@@ -165,6 +177,7 @@ def _key_out(key: E2eeWebKey) -> ChatE2eeKeyOut:
         encryption_public_key=key.encryption_public_key,
         signing_public_key=key.signing_public_key,
         algorithm=key.algorithm,
+        envelope_version=key.envelope_version,
         updated_at=key.updated_at,
     )
 

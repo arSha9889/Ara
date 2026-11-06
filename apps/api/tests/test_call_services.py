@@ -94,6 +94,35 @@ def test_normalize_call_media_state_keeps_only_safe_sharing_metadata() -> None:
         })
 
 
+def test_normalize_call_offer_keeps_only_valid_media_transceiver_mids() -> None:
+    normalized = normalize_call_signal({
+        'event': 'call.offer',
+        'call_id': 'call-screen-123',
+        'description': {'type': 'offer', 'sdp': 'v=0'},
+        'media': {
+            'camera_video': '1',
+            'screen_video': '2',
+            'screen_audio': '3',
+            'sensitive_label': 'discarded',
+        },
+    })
+
+    assert normalized == {
+        'event': 'call.offer',
+        'call_id': 'call-screen-123',
+        'description': {'type': 'offer', 'sdp': 'v=0'},
+        'media': {'camera_video': '1', 'screen_video': '2', 'screen_audio': '3'},
+    }
+
+    with pytest.raises(CallSignalingError, match='invalid_media_transceivers'):
+        normalize_call_signal({
+            'event': 'call.offer',
+            'call_id': 'call-screen-123',
+            'description': {'type': 'offer', 'sdp': 'v=0'},
+            'media': {'screen_video': 'bad mid'},
+        })
+
+
 @pytest.mark.anyio
 async def test_call_signaling_allows_only_the_direct_call_participants() -> None:
     manager = CallSignalingManager()

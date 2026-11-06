@@ -11,6 +11,31 @@ function bytesToBase64(bytes) {
   return Buffer.from(bytes).toString('base64');
 }
 
+async function legacyPayloadFrom(payload, signingPrivateKey) {
+  const envelope = JSON.parse(payload);
+  const recipients = Object.fromEntries(Object.entries(envelope.recipients)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([recipientId, recipient]) => [recipientId, {
+      ciphertext: recipient.ciphertext,
+      iv: recipient.iv,
+      salt: recipient.salt,
+    }]));
+  const legacyEnvelope = {
+    version: 1,
+    algorithm: envelope.algorithm,
+    sender_device_id: envelope.sender_device_id,
+    sender_ephemeral_public_key: envelope.sender_ephemeral_public_key,
+    sender_signing_public_key: envelope.sender_signing_public_key,
+    recipients,
+  };
+  const signature = await webcrypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    signingPrivateKey,
+    new TextEncoder().encode(JSON.stringify(legacyEnvelope)),
+  );
+  return JSON.stringify({ ...legacyEnvelope, signature: bytesToBase64(new Uint8Array(signature)) });
+}
+
 async function createIdentity() {
   const encryption = await webcrypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
   const signing = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
@@ -58,6 +83,7 @@ test('расшифровывает сообщение получателя, ес
         encryption_public_key: senderIdentity.encryptionPublicKey,
         signing_public_key: senderIdentity.signingPublicKey,
         algorithm: ALGORITHM,
+        envelope_version: 2,
       },
       {
         user_id: RECIPIENT_ID,
@@ -65,6 +91,7 @@ test('расшифровывает сообщение получателя, ес
         encryption_public_key: recipientIdentity.encryptionPublicKey,
         signing_public_key: recipientIdentity.signingPublicKey,
         algorithm: ALGORITHM,
+        envelope_version: 2,
       },
     ];
     const payload = await encryptE2eeText({
@@ -74,6 +101,12 @@ test('расшифровывает сообщение получателя, ес
       recipientKeys,
       identity: senderIdentity,
     });
+    const envelope = JSON.parse(payload);
+    assert.equal(envelope.version, 2);
+    assert.equal(
+      envelope.recipients[`${RECIPIENT_ID}:recipient-device`].recipient_encryption_public_key,
+      recipientIdentity.encryptionPublicKey,
+    );
 
     const senderDecrypted = await decryptE2eeMessage({
       message: { encryption_state: 'e2ee_web_v1', sender_id: SENDER_ID, payload },
@@ -86,6 +119,20 @@ test('расшифровывает сообщение получателя, ес
     assert.equal(senderDecrypted.payload, 'Проверка Desktop E2EE');
     assert.equal(senderDecrypted.e2ee_status, 'verified');
 
+    const compatiblePayload = await encryptE2eeText({
+      text: 'Сообщение для старого устройства',
+      chatId: CHAT_ID,
+      senderId: SENDER_ID,
+      recipientKeys: recipientKeys.map((key, index) => ({ ...key, envelope_version: index ? 1 : 2 })),
+      identity: senderIdentity,
+    });
+    const compatibleEnvelope = JSON.parse(compatiblePayload);
+    assert.equal(compatibleEnvelope.version, 1);
+    assert.equal(
+      Object.hasOwn(compatibleEnvelope.recipients[`${RECIPIENT_ID}:recipient-device`], 'recipient_encryption_public_key'),
+      false,
+    );
+
     localStorage.set('arachat-desktop-device-id', 'recipient-device');
     const decrypted = await decryptE2eeMessage({
       message: { encryption_state: 'e2ee_web_v1', sender_id: SENDER_ID, payload },
@@ -97,6 +144,19 @@ test('расшифровывает сообщение получателя, ес
 
     assert.equal(decrypted.payload, 'Проверка Desktop E2EE');
     assert.equal(decrypted.e2ee_status, 'unverified');
+
+    const legacyDecrypted = await decryptE2eeMessage({
+      message: {
+        encryption_state: 'e2ee_web_v1',
+        sender_id: SENDER_ID,
+        payload: await legacyPayloadFrom(payload, senderIdentity.signingPrivateKey),
+      },
+      chatId: CHAT_ID,
+      currentUserId: RECIPIENT_ID,
+      identity: recipientIdentity,
+      chatKeys: recipientKeys,
+    });
+    assert.equal(legacyDecrypted.payload, 'Проверка Desktop E2EE');
 
     const tamperedEnvelope = JSON.parse(payload);
     tamperedEnvelope.signature = `${tamperedEnvelope.signature[0] === 'A' ? 'B' : 'A'}${tamperedEnvelope.signature.slice(1)}`;

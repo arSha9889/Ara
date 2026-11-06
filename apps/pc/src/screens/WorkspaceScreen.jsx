@@ -451,6 +451,17 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     }
   }
 
+  function markMessageNotificationsRead(messageIds) {
+    const readMessageIds = new Set(messageIds.map(String));
+    if (!readMessageIds.size) return;
+    const readAt = new Date().toISOString();
+    setNotifications((current) => current.map((notification) => (
+      !notification.read_at && readMessageIds.has(String(notification.message_id))
+        ? { ...notification, read_at: readAt }
+        : notification
+    )));
+  }
+
   async function markAllNotificationsRead() {
     const unreadIds = notifications.filter((notification) => !notification.read_at).map((notification) => notification.id);
     if (!unreadIds.length || isUpdatingNotifications) return;
@@ -649,7 +660,7 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     }
 
     if (selectedChat) {
-      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} detailsRequestId={String(chatDetailsRequest?.chatId) === String(selectedChat.id) ? chatDetailsRequest.id : 0} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={(changedChat) => changedChat?.type === 'group' ? handleGroupChanged(changedChat) : void loadChats({ showLoading: false })} onChannelLeft={handleChannelLeft} onGroupLeft={removeGroupFromWorkspace} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
+      return <ChatPanel key={selectedChat.id} accessToken={accessToken} chat={selectedChat} currentUserId={currentUserId} detailsRequestId={String(chatDetailsRequest?.chatId) === String(selectedChat.id) ? chatDetailsRequest.id : 0} focusMessage={messageFocus?.message ?? null} focusMessageId={messageFocus?.id ?? null} focusRequestId={messageFocus?.requestId ?? 0} realtimeEvents={realtimeEvents} realtimeResyncVersion={realtimeResyncVersion} realtimeStatus={realtimeStatus} t={t} onBack={() => setSelectedChatId(null)} onChatChanged={(changedChat) => changedChat?.type === 'group' ? handleGroupChanged(changedChat) : void loadChats({ showLoading: false })} onChannelLeft={handleChannelLeft} onGroupLeft={removeGroupFromWorkspace} onMessageFocused={handleMessageFocused} onMessageSent={() => loadChats({ showLoading: false })} onMessagesRead={markMessageNotificationsRead} onRealtimeSend={onRealtimeSend} onStartCall={startCall} canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} callState={call.callState} />;
     }
 
     return <WorkspaceEmptyState onNewChat={openNewChat} t={t} />;

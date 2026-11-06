@@ -4,6 +4,7 @@ export const E2EE_WEB_ALGORITHM = 'ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256';
 export const E2EE_ATTACHMENT_MIME_TYPE = 'application/vnd.arachat.e2ee-attachment';
 export const E2EE_ATTACHMENT_FILENAME = 'encrypted-attachment.arachat';
 
+export const E2EE_ENVELOPE_VERSION = 2;
 const DATABASE_NAME = 'arachat-e2ee-desktop-v1';
 const DATABASE_VERSION = 1;
 const IDENTITY_STORE = 'identities';
@@ -135,6 +136,7 @@ export async function registerE2eeDesktopIdentity(userId, saveKey) {
     encryption_public_key: identity.encryptionPublicKey,
     signing_public_key: identity.signingPublicKey,
     algorithm: E2EE_WEB_ALGORITHM,
+    envelope_version: E2EE_ENVELOPE_VERSION,
   });
   return identity;
 }
@@ -201,6 +203,7 @@ function canonicalEnvelopeData(envelope) {
         ciphertext: recipient.ciphertext,
         iv: recipient.iv,
         salt: recipient.salt,
+        ...(envelope.version >= 2 ? { recipient_encryption_public_key: recipient.recipient_encryption_public_key } : {}),
       }]),
   );
   return JSON.stringify({
@@ -220,7 +223,7 @@ function parseEnvelope(payload) {
   const envelope = JSON.parse(payload);
   if (
     !envelope
-    || envelope.version !== 1
+    || ![1, E2EE_ENVELOPE_VERSION].includes(envelope.version)
     || envelope.algorithm !== E2EE_WEB_ALGORITHM
     || typeof envelope.sender_device_id !== 'string'
     || !envelope.sender_device_id
@@ -231,6 +234,14 @@ function parseEnvelope(payload) {
     || typeof envelope.recipients !== 'object'
     || Array.isArray(envelope.recipients)
   ) {
+    throw new Error('Некорректный зашифрованный контейнер.');
+  }
+  if (envelope.version >= 2 && Object.values(envelope.recipients).some((recipient) => (
+    !recipient
+    || typeof recipient !== 'object'
+    || typeof recipient.recipient_encryption_public_key !== 'string'
+    || !recipient.recipient_encryption_public_key
+  ))) {
     throw new Error('Некорректный зашифрованный контейнер.');
   }
   return envelope;
@@ -248,6 +259,9 @@ export async function encryptE2eePayload({ payload, chatId, senderId, recipientK
   const keysByRecipientId = new Map(recipientKeys.map((key) => [recipientKeyId(key), key]));
   const participantIds = new Set(recipientKeys.map((key) => String(key.user_id)));
   const currentDeviceId = getDeviceId();
+  const envelopeVersion = recipientKeys.every((key) => Number(key.envelope_version) >= E2EE_ENVELOPE_VERSION)
+    ? E2EE_ENVELOPE_VERSION
+    : 1;
   if (
     participantIds.size !== 2
     || !participantIds.has(String(senderId))
@@ -279,11 +293,12 @@ export async function encryptE2eePayload({ payload, chatId, senderId, recipientK
       ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
       iv: bytesToBase64(iv),
       salt: bytesToBase64(salt),
+      ...(envelopeVersion >= 2 ? { recipient_encryption_public_key: recipientKey.encryption_public_key } : {}),
     };
   }));
 
   const unsignedEnvelope = {
-    version: 1,
+    version: envelopeVersion,
     algorithm: E2EE_WEB_ALGORITHM,
     sender_device_id: currentDeviceId,
     sender_ephemeral_public_key: senderEphemeralPublicKey,

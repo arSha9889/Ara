@@ -85,18 +85,19 @@ def _public_key(seed: int) -> str:
     return base64.b64encode(bytes([4]) + bytes([seed]) * 64).decode()
 
 
-def _encrypted_envelope(sender_id, sender_device_id: str, recipient_keys) -> str:
+def _encrypted_envelope(sender_id, sender_device_id: str, recipient_keys, version: int = 1) -> str:
     recipients = {
         f'{key.user_id}:{key.device_id}': {
             'ciphertext': base64.b64encode(b'ciphertext-and-auth-tag').decode(),
             'iv': base64.b64encode(b'0' * 12).decode(),
             'salt': base64.b64encode(b'1' * 32).decode(),
+            **({'recipient_encryption_public_key': key.encryption_public_key} if version >= 2 else {}),
         }
         for key in recipient_keys
     }
     sender_key = next(key for key in recipient_keys if key.user_id == sender_id and key.device_id == sender_device_id)
     return json.dumps({
-        'version': 1,
+        'version': version,
         'algorithm': E2EE_WEB_ALGORITHM,
         'sender_device_id': sender_device_id,
         'sender_ephemeral_public_key': _public_key(9),
@@ -278,6 +279,8 @@ async def test_auth_profile_and_chat_services_roundtrip() -> None:
             await create_message_notifications(session, second_message)
             read_messages = await mark_messages_read(session, second_user.id, chat.id, [message.id, second_message.id])
             assert [item.id for item in read_messages] == [second_message.id]
+            updated_chat = await create_or_get_direct_chat(session, second_user.id, 'RU', '+7 999 000-00-01')
+            assert updated_chat.unread_count == 0
 
             notifications = await list_notifications(session, second_user.id)
             assert len(notifications) == 1
@@ -424,13 +427,13 @@ async def test_web_e2ee_keys_and_message_envelopes_support_multiple_devices() ->
         async with session_factory() as session:
             chat = await create_or_get_direct_chat_for_user(session, first_user.id, second_user.id)
             first_key = await upsert_e2ee_web_key(
-                session, first_user.id, 'web-device-alice-a', _public_key(1), _public_key(2), E2EE_WEB_ALGORITHM,
+                session, first_user.id, 'web-device-alice-a', _public_key(1), _public_key(2), E2EE_WEB_ALGORITHM, envelope_version=2,
             )
             second_first_key = await upsert_e2ee_web_key(
-                session, second_user.id, 'web-device-bob-a', _public_key(3), _public_key(4), E2EE_WEB_ALGORITHM,
+                session, second_user.id, 'web-device-bob-a', _public_key(3), _public_key(4), E2EE_WEB_ALGORITHM, envelope_version=2,
             )
             second_device_key = await upsert_e2ee_web_key(
-                session, second_user.id, 'web-device-bob-b', _public_key(5), _public_key(6), E2EE_WEB_ALGORITHM,
+                session, second_user.id, 'web-device-bob-b', _public_key(5), _public_key(6), E2EE_WEB_ALGORITHM, envelope_version=2,
             )
 
             keys = await list_direct_chat_e2ee_keys(session, first_user.id, chat.id)
@@ -439,6 +442,7 @@ async def test_web_e2ee_keys_and_message_envelopes_support_multiple_devices() ->
                 (second_user.id, second_first_key.device_id),
                 (second_user.id, second_device_key.device_id),
             }
+            assert {key.envelope_version for key in keys} == {2}
 
             encrypted_payload = _encrypted_envelope(first_user.id, first_key.device_id, keys)
             encrypted_message = await create_message(
@@ -449,6 +453,15 @@ async def test_web_e2ee_keys_and_message_envelopes_support_multiple_devices() ->
             )
             assert encrypted_message.encryption_state == 'e2ee_web_v1'
             assert encrypted_message.payload == encrypted_payload
+
+            current_key_payload = _encrypted_envelope(first_user.id, first_key.device_id, keys, version=2)
+            current_key_message = await create_message(
+                session,
+                first_user.id,
+                chat.id,
+                MessageCreateRequest(text=current_key_payload, encryption_state='e2ee_web_v1'),
+            )
+            assert current_key_message.payload == current_key_payload
 
             preview = (await get_chat(session, second_user.id, chat.id)).last_message
             assert preview and preview.encryption_state == 'e2ee_web_v1'
@@ -462,6 +475,27 @@ async def test_web_e2ee_keys_and_message_envelopes_support_multiple_devices() ->
                     first_user.id,
                     chat.id,
                     MessageCreateRequest(text=json.dumps(invalid_payload), encryption_state='e2ee_web_v1'),
+                )
+
+            stale_key_payload = json.loads(current_key_payload)
+            stale_key_payload['recipients'][f'{second_user.id}:{second_device_key.device_id}']['recipient_encryption_public_key'] = _public_key(7)
+            with pytest.raises(AuthError, match='does not match the recipient device key'):
+                await create_message(
+                    session,
+                    first_user.id,
+                    chat.id,
+                    MessageCreateRequest(text=json.dumps(stale_key_payload), encryption_state='e2ee_web_v1'),
+                )
+
+            await upsert_e2ee_web_key(
+                session, second_user.id, second_device_key.device_id, _public_key(5), _public_key(6), E2EE_WEB_ALGORITHM,
+            )
+            with pytest.raises(AuthError, match='does not support this encrypted message format'):
+                await create_message(
+                    session,
+                    first_user.id,
+                    chat.id,
+                    MessageCreateRequest(text=current_key_payload, encryption_state='e2ee_web_v1'),
                 )
     finally:
         await engine.dispose()

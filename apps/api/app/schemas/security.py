@@ -36,3 +36,4 @@ class E2eeWebKeyUpsertRequest(BaseModel):
     encryption_public_key: str = Field(min_length=1, max_length=2048)
     signing_public_key: str = Field(min_length=1, max_length=2048)
     algorithm: Literal['ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256']
+    envelope_version: int = Field(default=1, ge=1, le=2)

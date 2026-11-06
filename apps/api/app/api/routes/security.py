@@ -35,6 +35,7 @@ async def save_e2ee_web_key(
             request.encryption_public_key,
             request.signing_public_key,
             request.algorithm,
+            request.envelope_version,
         )
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

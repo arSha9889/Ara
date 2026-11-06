@@ -48,6 +48,7 @@ class ChatE2eeKeyOut(BaseModel):
     encryption_public_key: str
     signing_public_key: str
     algorithm: str
+    envelope_version: int
     updated_at: datetime
 
 

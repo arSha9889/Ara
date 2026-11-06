@@ -4,6 +4,7 @@ import Security
 
 enum E2EEAlgorithm {
     static let identifier = "ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256"
+    static let envelopeVersion = 2
     static let envelopePlaintextMaximumBytes = 16_368
 }
 
@@ -26,6 +27,7 @@ struct E2EEDeviceKey: Codable, Equatable, Identifiable, Sendable {
     let encryptionPublicKey: String
     let signingPublicKey: String
     let algorithm: String
+    let envelopeVersion: Int? = 1
     let updatedAt: String
 
     var id: String {
@@ -38,6 +40,7 @@ struct E2EEDeviceKey: Codable, Equatable, Identifiable, Sendable {
         case encryptionPublicKey = "encryption_public_key"
         case signingPublicKey = "signing_public_key"
         case algorithm
+        case envelopeVersion = "envelope_version"
         case updatedAt = "updated_at"
     }
 }
@@ -47,12 +50,14 @@ struct E2EEKeyRegistrationRequest: Encodable, Sendable {
     let encryptionPublicKey: String
     let signingPublicKey: String
     let algorithm: String
+    let envelopeVersion: Int = E2EEAlgorithm.envelopeVersion
 
     enum CodingKeys: String, CodingKey {
         case deviceID = "device_id"
         case encryptionPublicKey = "encryption_public_key"
         case signingPublicKey = "signing_public_key"
         case algorithm
+        case envelopeVersion = "envelope_version"
     }
 }
 
@@ -439,6 +444,9 @@ struct E2EEMessageCrypto {
         let keysByRecipientID = Dictionary(uniqueKeysWithValues: recipientKeys.map {
             (Self.recipientID(userID: $0.userID, deviceID: $0.deviceID), $0)
         })
+        let envelopeVersion = recipientKeys.allSatisfy {
+            ($0.envelopeVersion ?? 1) >= E2EEAlgorithm.envelopeVersion
+        } ? E2EEAlgorithm.envelopeVersion : 1
         let participantIDs = Set(recipientKeys.map(\.userID))
         let currentRecipientID = Self.recipientID(userID: senderID, deviceID: deviceID)
         guard participantIDs.count == 2,
@@ -484,7 +492,8 @@ struct E2EEMessageCrypto {
                 recipients[recipientID] = E2EERecipientEnvelope(
                     ciphertext: (sealedBox.ciphertext + sealedBox.tag).base64EncodedString(),
                     initializationVector: initializationVector.base64EncodedString(),
-                    salt: salt.base64EncodedString()
+                    salt: salt.base64EncodedString(),
+                    recipientEncryptionPublicKey: envelopeVersion >= 2 ? recipientKey.encryptionPublicKey : nil
                 )
             } catch {
                 throw E2EEError.invalidKeyMaterial
@@ -492,7 +501,7 @@ struct E2EEMessageCrypto {
         }
 
         let unsignedEnvelope = E2EEEnvelope(
-            version: 1,
+            version: envelopeVersion,
             algorithm: E2EEAlgorithm.identifier,
             senderDeviceID: deviceID,
             senderEphemeralPublicKey: ephemeralPrivateKey.publicKey.x963Representation.base64EncodedString(),
@@ -586,7 +595,7 @@ struct E2EEMessageCrypto {
             throw E2EEError.invalidEnvelope
         }
 
-        guard envelope.version == 1,
+        guard [1, E2EEAlgorithm.envelopeVersion].contains(envelope.version),
               envelope.algorithm == E2EEAlgorithm.identifier,
               !envelope.senderDeviceID.isEmpty,
               !envelope.senderEphemeralPublicKey.isEmpty,
@@ -594,6 +603,9 @@ struct E2EEMessageCrypto {
               !envelope.signature.isEmpty,
               !envelope.recipients.isEmpty
         else {
+            throw E2EEError.invalidEnvelope
+        }
+        if envelope.version >= 2, envelope.recipients.values.contains(where: { $0.recipientEncryptionPublicKey?.isEmpty != false }) {
             throw E2EEError.invalidEnvelope
         }
 
@@ -625,7 +637,11 @@ struct E2EEMessageCrypto {
         let recipients = envelope.recipients
             .sorted { $0.key.compare($1.key, options: .literal) == .orderedAscending }
             .map { recipientID, recipient in
-                "\(jsonString(recipientID)):{\"ciphertext\":\(jsonString(recipient.ciphertext)),\"iv\":\(jsonString(recipient.initializationVector)),\"salt\":\(jsonString(recipient.salt))}"
+                let recipientPublicKey = recipient.recipientEncryptionPublicKey ?? String()
+                let recipientKey = envelope.version >= 2
+                    ? ",\"recipient_encryption_public_key\":\(jsonString(recipientPublicKey))"
+                    : ""
+                return "\(jsonString(recipientID)):{\"ciphertext\":\(jsonString(recipient.ciphertext)),\"iv\":\(jsonString(recipient.initializationVector)),\"salt\":\(jsonString(recipient.salt))\(recipientKey)}"
             }
             .joined(separator: ",")
 
@@ -683,10 +699,12 @@ private struct E2EERecipientEnvelope: Codable {
     let ciphertext: String
     let initializationVector: String
     let salt: String
+    let recipientEncryptionPublicKey: String?
 
     enum CodingKeys: String, CodingKey {
         case ciphertext
         case initializationVector = "iv"
         case salt
+        case recipientEncryptionPublicKey = "recipient_encryption_public_key"
     }
 }

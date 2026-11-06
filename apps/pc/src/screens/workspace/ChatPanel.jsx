@@ -207,6 +207,7 @@ function DirectChatPanel({
   onBack,
   onChatChanged,
   onMessageFocused,
+  onMessagesRead,
   onMessageSent,
   onRealtimeSend,
   onStartCall,
@@ -324,15 +325,23 @@ function DirectChatPanel({
       if (isCurrentRef.current) {
         setE2eeStatus(status);
       }
-      return { identity, keys };
+      return { identity, keys, status };
     } catch {
       e2eeCryptoRef.current = { identity: null, keys: [] };
       if (isCurrentRef.current) {
         setE2eeStatus('unavailable');
       }
-      return { identity: null, keys: [] };
+      return { identity: null, keys: [], status: 'unavailable' };
     }
   }, [accessToken, chat.id, currentUserId, isDirectChat, participantIdsKey]);
+
+  const refreshEncryptionForSend = useCallback(async () => {
+    const cryptoContext = await prepareDirectChatEncryption();
+    if (!cryptoContext.identity || cryptoContext.status !== 'ready') {
+      throw new Error(t('workspace.chatPanel.encryptionNotReady'));
+    }
+    return cryptoContext;
+  }, [prepareDirectChatEncryption, t]);
 
   const decryptWithCurrentCrypto = useCallback(async (message) => {
     return decryptChatMessage(message, {
@@ -548,6 +557,8 @@ function DirectChatPanel({
         const messageIdBatch = messageIds.slice(offset, offset + 100);
         try {
           await markMessagesRead(accessToken, chat.id, messageIdBatch);
+          onChatChanged?.();
+          onMessagesRead?.(messageIdBatch);
         } catch {
           messageIdBatch.forEach((messageId) => readMessageIdsRef.current.delete(messageId));
           if (!isCurrentRef.current) return;
@@ -560,7 +571,7 @@ function DirectChatPanel({
     }
 
     void markUnreadMessagesRead();
-  }, [accessToken, chat.id, currentUserId, isLoadingMessages, messages, readRetryVersion]);
+  }, [accessToken, chat.id, currentUserId, isLoadingMessages, messages, onChatChanged, onMessagesRead, readRetryVersion]);
 
   function stopTyping() {
     window.clearTimeout(typingStopTimerRef.current);
@@ -592,6 +603,7 @@ function DirectChatPanel({
     const { file, kind, durationSeconds } = mediaDraft;
     onRealtimeSend?.({ event: kind === 'voice' ? 'voice.uploading' : 'file.uploading', chat_id: chat.id });
     if (isE2eeReady) {
+      const cryptoContext = await refreshEncryptionForSend();
       const attachment = await encryptE2eeAttachment({
         file,
         chatId: chat.id,
@@ -604,8 +616,8 @@ function DirectChatPanel({
         payload: JSON.stringify(attachment.descriptor),
         chatId: chat.id,
         senderId: String(currentUserId),
-        recipientKeys: e2eeCryptoRef.current.keys,
-        identity: e2eeCryptoRef.current.identity,
+        recipientKeys: cryptoContext.keys,
+        identity: cryptoContext.identity,
       });
       const uploadedMedia = await uploadE2eeAttachment(accessToken, attachment.encryptedFile);
       const message = await sendMessage(accessToken, chat.id, {
@@ -664,15 +676,14 @@ function DirectChatPanel({
       } else if (selectedFile || recordedMedia) {
         await sendMediaMessage();
       } else {
-        const encryptedPayload = isE2eeReady
-          ? await encryptE2eeText({
-            text,
-            chatId: chat.id,
-            senderId: String(currentUserId),
-            recipientKeys: e2eeCryptoRef.current.keys,
-            identity: e2eeCryptoRef.current.identity,
-          })
-          : null;
+        const cryptoContext = isE2eeReady ? await refreshEncryptionForSend() : null;
+        const encryptedPayload = cryptoContext ? await encryptE2eeText({
+          text,
+          chatId: chat.id,
+          senderId: String(currentUserId),
+          recipientKeys: cryptoContext.keys,
+          identity: cryptoContext.identity,
+        }) : null;
         const message = await sendMessage(accessToken, chat.id, encryptedPayload
           ? {
             type: 'text',
