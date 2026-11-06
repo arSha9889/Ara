@@ -16,6 +16,7 @@ class AppConfigModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     "apiBaseUrl" to BuildConfig.API_BASE_URL,
     "appVersion" to BuildConfig.VERSION_NAME,
     "appVersionCode" to BuildConfig.VERSION_CODE,
+    "releaseChannel" to BuildConfig.DISTRIBUTION_CHANNEL,
     "deviceLanguage" to reactApplicationContext.resources.configuration.locales[0].toLanguageTag(),
     "installSource" to installSource(),
   )

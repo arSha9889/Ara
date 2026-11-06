@@ -23,7 +23,8 @@ export function AppScreen({ children, bottomSafeArea = false, scroll = true, con
 
   return (
     <SafeAreaView edges={bottomSafeArea ? screenEdgesWithBottom : screenEdges} style={styles.safeArea}>
-      <View pointerEvents="none" style={styles.topGlow} />
+      <View pointerEvents="none" style={styles.primaryGlow} />
+      <View pointerEvents="none" style={styles.secondaryGlow} />
       <ConnectionStatusStrip />
       {scroll ? (
         <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView>
@@ -40,15 +41,25 @@ function createStyles(colors: AppColors) {
     backgroundColor: colors.canvas,
     flex: 1,
   },
-   topGlow: {
-     backgroundColor: colors.accentSubtle,
-     borderRadius: 160,
-     height: 280,
-     opacity: 0.72,
-     position: 'absolute',
-     right: -116,
-     top: -188,
-     width: 280,
+   primaryGlow: {
+      backgroundColor: colors.accentSubtle,
+      borderRadius: 220,
+      height: 380,
+      opacity: 0.72,
+      position: 'absolute',
+      right: -190,
+      top: -244,
+      width: 380,
+    },
+    secondaryGlow: {
+      backgroundColor: colors.accentSubtle,
+      borderRadius: 150,
+      bottom: -224,
+      height: 260,
+      left: -172,
+      opacity: 0.34,
+      position: 'absolute',
+      width: 260,
    },
   scrollContent: {
     flexGrow: 1,
@@ -56,7 +67,7 @@ function createStyles(colors: AppColors) {
   content: {
     alignSelf: 'center',
     flex: 1,
-    maxWidth: 720,
+     maxWidth: 680,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     width: '100%',
@@ -64,7 +75,7 @@ function createStyles(colors: AppColors) {
   scrollableContent: {
     alignSelf: 'center',
     flexGrow: 1,
-    maxWidth: 720,
+     maxWidth: 680,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     width: '100%',

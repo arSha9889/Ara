@@ -23,6 +23,8 @@ const translations: Record<string, string> = {
   appUpdateAvailable: 'Доступно обновление',
   appUpdateOpenCenterDescription: 'Посмотрите изменения и безопасный способ обновления.',
   appUpdateOpenCenterHint: 'Открывает подробности обновления AraChat',
+  openPrivacyPolicy: 'Открыть Политику конфиденциальности',
+  openTermsOfUse: 'Открыть Пользовательское соглашение',
 };
 
 jest.mock('react-native', () => ({
@@ -72,6 +74,10 @@ jest.mock('../src/ui/AppScreen', () => ({
 
 jest.mock('../src/ui/Icon', () => ({
   Icon: 'Icon',
+}));
+
+jest.mock('../src/features/auth/screens/LegalDocumentLink', () => ({
+  LegalDocumentLink: 'LegalDocumentLink',
 }));
 
 jest.mock('../src/features/account/api/accountApi', () => ({
@@ -151,6 +157,25 @@ it('does not render an update entry when no update is available', async () => {
   const component = await renderSettingsScreen();
 
   expect(component.root.findAllByProps({ testID: 'app-update-card' })).toHaveLength(0);
+
+  await act(async () => {
+    component.unmount();
+  });
+});
+
+it('keeps both published legal documents accessible from privacy settings', async () => {
+  const component = await renderSettingsScreen();
+  const links = component.root.findAllByType('LegalDocumentLink' as never);
+
+  expect(links).toHaveLength(2);
+  expect(links[0].props).toMatchObject({
+    label: translations.openPrivacyPolicy,
+    url: 'https://aramsg.ru/privacy',
+  });
+  expect(links[1].props).toMatchObject({
+    label: translations.openTermsOfUse,
+    url: 'https://aramsg.ru/terms',
+  });
 
   await act(async () => {
     component.unmount();

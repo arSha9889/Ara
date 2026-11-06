@@ -31,7 +31,6 @@ www.{$NEXUS_PUBLIC_DOMAIN} {
     header_up X-Forwarded-Proto {scheme}
   }
 }
-cat >> deploy/Caddyfile <<'EOF'
 
 staging.aramsg.ru {
   encode zstd gzip
@@ -57,4 +56,3 @@ staging.aramsg.ru {
     header_up X-Forwarded-Proto {scheme}
   }
 }
-EOF

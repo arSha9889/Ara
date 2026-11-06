@@ -142,9 +142,12 @@ services:
       NEXUS_API_UPSTREAM: http://api:8000
       VITE_API_BASE_URL: ""
       VITE_WS_BASE_URL: ""
+      ARACHAT_WINDOWS_BETA_DOWNLOAD_URL: ${ARACHAT_WINDOWS_BETA_DOWNLOAD_URL:-}
     depends_on:
       api:
         condition: service_healthy
+    volumes:
+      - ${ARACHAT_DOWNLOADS_DIR:-/var/lib/arachat/downloads}:/usr/share/nginx/html/downloads:ro
     expose:
       - "8080"
 

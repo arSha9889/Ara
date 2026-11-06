@@ -8,6 +8,7 @@ import { NativeModules } from 'react-native';
 
 import {
   androidInstallSource,
+  androidReleaseChannel,
   appVersionCode,
   ApiConfigurationError,
   normalizeApiBaseUrl,
@@ -50,6 +51,14 @@ describe('Android build metadata', () => {
 
     appConfig.appVersionCode = Number.MAX_SAFE_INTEGER + 1;
     expect(appVersionCode()).toBeNull();
+  });
+
+  it('reads only a defined Android release channel', () => {
+    appConfig.releaseChannel = 'rustore';
+    expect(androidReleaseChannel()).toBe('rustore');
+
+    appConfig.releaseChannel = 'other-store';
+    expect(androidReleaseChannel()).toBeNull();
   });
 
   it('recognizes RuStore only from the exact server-configured installer package', () => {

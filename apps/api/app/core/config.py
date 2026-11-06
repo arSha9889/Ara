@@ -75,8 +75,13 @@ class Settings(BaseSettings):
     rustore_push_service_token: str = ''
     fcm_push_project_id: str = ''
     fcm_service_account_file: str = ''
+    # Legacy fallback for Android builds released before distribution flavors.
     android_latest_version_code: int | None = Field(default=None, ge=1)
     android_latest_version_name: str = ''
+    android_direct_latest_version_code: int | None = Field(default=None, ge=1)
+    android_direct_latest_version_name: str = ''
+    android_rustore_latest_version_code: int | None = Field(default=None, ge=1)
+    android_rustore_latest_version_name: str = ''
     android_release_notes_ru: list[str] = Field(default_factory=list)
     android_release_notes_en: list[str] = Field(default_factory=list)
     android_direct_download_url: str = ''

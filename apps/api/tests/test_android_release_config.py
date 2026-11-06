@@ -27,6 +27,10 @@ def release_profile(language: str) -> UserProfileOut:
 def configure_complete_release(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runtime_settings, 'android_latest_version_code', 42)
     monkeypatch.setattr(runtime_settings, 'android_latest_version_name', '1.4.0')
+    monkeypatch.setattr(runtime_settings, 'android_direct_latest_version_code', 43)
+    monkeypatch.setattr(runtime_settings, 'android_direct_latest_version_name', '1.4.1')
+    monkeypatch.setattr(runtime_settings, 'android_rustore_latest_version_code', 44)
+    monkeypatch.setattr(runtime_settings, 'android_rustore_latest_version_name', '1.4.2')
     monkeypatch.setattr(runtime_settings, 'android_release_notes_ru', ['Ответы на сообщения'])
     monkeypatch.setattr(runtime_settings, 'android_release_notes_en', ['Message replies'])
 
@@ -100,6 +104,73 @@ async def test_android_release_metadata_supports_independent_channels(
         'direct_download_url': None,
         'rustore_app_url': 'https://store.example.test/arachat',
         'rustore_installer_package': 'ru.vk.store',
+    }
+
+
+@pytest.mark.anyio
+async def test_android_release_metadata_uses_the_requested_distribution_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_user = UserOut(
+        id=uuid4(),
+        nexus_id='1234567890123456',
+        telegram_id=None,
+        status='active',
+        profile=release_profile('ru'),
+    )
+    configure_complete_release(monkeypatch)
+    monkeypatch.setattr(
+        runtime_settings,
+        'android_direct_download_url',
+        'https://downloads.example.test/android',
+    )
+    monkeypatch.setattr(
+        runtime_settings,
+        'android_rustore_app_url',
+        'https://store.example.test/arachat',
+    )
+
+    direct_release = await get_android_release(current_user, 'direct')
+    rustore_release = await get_android_release(current_user, 'rustore')
+    legacy_release = await get_android_release(current_user)
+
+    assert (direct_release.latest_version_code, direct_release.latest_version_name) == (43, '1.4.1')
+    assert direct_release.direct_download_url == 'https://downloads.example.test/android'
+    assert direct_release.rustore_app_url is None
+    assert (rustore_release.latest_version_code, rustore_release.latest_version_name) == (44, '1.4.2')
+    assert rustore_release.direct_download_url is None
+    assert rustore_release.rustore_app_url == 'https://store.example.test/arachat'
+    assert (legacy_release.latest_version_code, legacy_release.latest_version_name) == (42, '1.4.0')
+
+
+@pytest.mark.anyio
+async def test_android_release_metadata_hides_a_channel_without_its_update_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_user = UserOut(
+        id=uuid4(),
+        nexus_id='1234567890123456',
+        telegram_id=None,
+        status='active',
+        profile=release_profile('ru'),
+    )
+    configure_complete_release(monkeypatch)
+    monkeypatch.setattr(
+        runtime_settings,
+        'android_direct_download_url',
+        'https://downloads.example.test/android',
+    )
+    monkeypatch.setattr(runtime_settings, 'android_rustore_app_url', '')
+
+    rustore_release = await get_android_release(current_user, 'rustore')
+
+    assert rustore_release.model_dump() == {
+        'latest_version_code': None,
+        'latest_version_name': None,
+        'release_notes': [],
+        'direct_download_url': None,
+        'rustore_app_url': None,
+        'rustore_installer_package': None,
     }
 
 

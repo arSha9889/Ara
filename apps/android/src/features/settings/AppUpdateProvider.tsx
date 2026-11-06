@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { androidInstallSource, appVersionCode, type AndroidInstallSource } from '../../config/runtimeConfig';
+import {
+  androidInstallSource,
+  androidReleaseChannel,
+  appVersionCode,
+  type AndroidInstallSource,
+} from '../../config/runtimeConfig';
 import { useSession } from '../auth/session/useSession';
 import { getAndroidRelease, type AndroidRelease } from './updateApi';
 
@@ -19,6 +24,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
   const [release, setRelease] = useState<AndroidRelease | null>(null);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const currentVersionCode = appVersionCode();
+  const releaseChannel = androidReleaseChannel();
   const isUpdateAvailable = Boolean(
     release && currentVersionCode !== null && release.latestVersionCode > currentVersionCode,
   );
@@ -28,7 +34,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     setIsBannerDismissed(false);
-    getAndroidRelease()
+    getAndroidRelease(releaseChannel)
       .then(nextRelease => {
         if (active) {
           setRelease(nextRelease);
@@ -43,7 +49,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [session?.accessToken]);
+  }, [releaseChannel, session?.accessToken]);
 
   const value = useMemo(
     () => ({

@@ -16,8 +16,12 @@ function getPlatformAvailability(platform) {
   };
 }
 
-function DownloadStatus({ isAvailable, t }) {
-  const label = t(isAvailable ? 'onboarding.downloadAvailable' : 'onboarding.downloadSoon');
+function DownloadStatus({ isAvailable, isBeta = false, t }) {
+  const label = t(isAvailable && isBeta
+    ? 'onboarding.downloadBeta'
+    : isAvailable
+      ? 'onboarding.downloadAvailable'
+      : 'onboarding.downloadSoon');
 
   return <span className={`ara-download-status ${isAvailable ? 'is-available' : ''}`}><span aria-hidden="true" />{label}</span>;
 }
@@ -52,7 +56,9 @@ function DownloadAction({ channel, t }) {
 
 function DownloadPlatformPanel({ platform, isActive, t }) {
   const { hasAvailableChannel, hasUnavailableChannel } = getPlatformAvailability(platform);
-  const releaseNoteKey = hasAvailableChannel
+  const releaseNoteKey = hasAvailableChannel && platform.isBeta
+    ? 'onboarding.downloadReleaseNoteBeta'
+    : hasAvailableChannel
     ? hasUnavailableChannel
       ? 'onboarding.downloadReleaseNotePartial'
       : 'onboarding.downloadReleaseNoteAvailable'
@@ -72,7 +78,7 @@ function DownloadPlatformPanel({ platform, isActive, t }) {
         <div>
           <div className="ara-download-panel-title-row">
             <p className="ara-overline">{t(platform.labelKey)}</p>
-            <DownloadStatus isAvailable={hasAvailableChannel} t={t} />
+            <DownloadStatus isAvailable={hasAvailableChannel} isBeta={platform.isBeta} t={t} />
           </div>
           <h2>{t(platform.descriptionKey)}</h2>
           {platform.requirementKey ? <p className="ara-download-requirement"><Icon name="check" size={16} />{t(platform.requirementKey)}</p> : null}
@@ -198,9 +204,8 @@ export function DownloadPage() {
         <section className="ara-security-notice" aria-labelledby="download-security-title">
           <span className="ara-security-icon" aria-hidden="true"><Icon name="shield" size={24} /></span>
           <div>
-            <h2 id="download-security-title">Официальный источник установки</h2>
-            <p>{t('onboarding.downloadOfficialSourcesNote')} {t('onboarding.downloadApkText')}</p>
-            <p>Для Android загружайте APK только по кнопке на этой странице. Перед установкой проверьте адрес сайта в браузере.</p>
+            <h2 id="download-security-title">{t('onboarding.downloadSecurityTitle')}</h2>
+            <p>{t('onboarding.downloadSecurityText')}</p>
           </div>
         </section>
 

@@ -14,6 +14,8 @@ import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
 import { AppScreen } from '../../../ui/AppScreen';
 import { Icon } from '../../../ui/Icon';
 import { InterfaceIcon } from '../../../ui/InterfaceIcon';
+import { legalDocumentUrls } from '../../auth/legalDocuments';
+import { LegalDocumentLink } from '../../auth/screens/LegalDocumentLink';
 import { deleteAccount, updateMyProfile } from '../../account/api/accountApi';
 import { useMobilePush } from '../../notifications/MobilePushProvider';
 import { useAppUpdate } from '../AppUpdateProvider';
@@ -180,6 +182,20 @@ export function SettingsScreen() {
           </View>
           <Icon color={colors.textFaint} name="chevronRight" />
         </Pressable>
+        <View style={styles.legalDocuments}>
+          <Text style={styles.legalDocumentsTitle}>{t('privacyPolicy')}</Text>
+          <LegalDocumentLink
+            label={t('openPrivacyPolicy')}
+            onOpenError={() => Alert.alert(t('documentOpenError'))}
+            url={legalDocumentUrls.privacy}
+          />
+          <Text style={styles.legalDocumentsTitle}>{t('termsOfUse')}</Text>
+          <LegalDocumentLink
+            label={t('openTermsOfUse')}
+            onOpenError={() => Alert.alert(t('documentOpenError'))}
+            url={legalDocumentUrls.terms}
+          />
+        </View>
       </View>
 
         <View style={[sharedStyles.elevatedCard, styles.section]}>
@@ -348,6 +364,18 @@ function createStyles(colors: AppColors) {
   },
   navigationCopy: {
     flex: 1,
+  },
+  legalDocuments: {
+    borderTopColor: colors.divider,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  legalDocumentsTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: spacing.xs,
   },
   signOut: {
     alignItems: 'center',

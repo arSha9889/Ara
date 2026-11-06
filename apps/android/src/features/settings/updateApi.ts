@@ -1,3 +1,4 @@
+import type { AndroidReleaseChannel } from '../../config/runtimeConfig';
 import { apiClient } from '../../infrastructure/http/apiClient';
 
 export interface AndroidRelease {
@@ -62,8 +63,10 @@ function releaseNotes(value: unknown): string[] | null {
   return notes.every(Boolean) ? notes : null;
 }
 
-export async function getAndroidRelease(): Promise<AndroidRelease | null> {
-  const response = await apiClient.request<AndroidReleaseResponse>('/api/releases/android');
+export async function getAndroidRelease(channel: AndroidReleaseChannel | null): Promise<AndroidRelease | null> {
+  const response = await apiClient.request<AndroidReleaseResponse>(
+    channel ? `/api/releases/android?channel=${channel}` : '/api/releases/android',
+  );
   const directDownloadUrl = optionalHttpsUrl(response.direct_download_url);
   const rustoreAppUrl = optionalHttpsUrl(response.rustore_app_url);
   const latestVersionCode = response.latest_version_code;

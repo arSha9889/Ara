@@ -73,7 +73,13 @@ export function AppNavigator() {
         ref={navigationRef}
         theme={navigationTheme}
       >
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator
+          screenOptions={{
+            animation: 'fade_from_bottom',
+            animationDuration: 260,
+            headerShown: false,
+          }}
+        >
           <Stack.Screen component={MainTabs} name="MainTabs" />
           <Stack.Screen component={ChatScreen} name="Chat" />
           <Stack.Screen component={GroupCreateScreen} name="GroupCreate" />

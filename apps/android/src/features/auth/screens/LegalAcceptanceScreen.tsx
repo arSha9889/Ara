@@ -1,20 +1,15 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 import { useI18n } from '../../../localization/I18nProvider';
-import { spacing } from '../../../theme/theme';
-import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
-import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
 import { authErrorKey } from '../authError';
-import { legalDocumentUrls } from '../legalDocuments';
+import { LegalDocumentsConsent } from '../components/LegalDocumentsConsent';
 import { useSession } from '../session/useSession';
 import { AuthLayout, useAuthStyles } from './AuthLayout';
-import { LegalDocumentLink } from './LegalDocumentLink';
 
 export function LegalAcceptanceScreen() {
   const { t } = useI18n();
-  const styles = useThemedStyles(createStyles);
   const authStyles = useAuthStyles();
   const { acceptLegalDocuments, signOut } = useSession();
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
@@ -55,27 +50,12 @@ export function LegalAcceptanceScreen() {
       eyebrow={t('legalUpdateEyebrow')}
       title={t('legalUpdateTitle')}
     >
-      <Text style={styles.documentName}>{t('privacyPolicy')}</Text>
-      <LegalDocumentLink
-        label={t('openPrivacyPolicy')}
+      <LegalDocumentsConsent
+        acceptedPrivacy={acceptedPrivacy}
+        acceptedTerms={acceptedTerms}
+        onAcceptedPrivacyChange={() => setAcceptedPrivacy(current => !current)}
+        onAcceptedTermsChange={() => setAcceptedTerms(current => !current)}
         onOpenError={() => setError(t('documentOpenError'))}
-        url={legalDocumentUrls.privacy}
-      />
-      <ConsentCheck
-        checked={acceptedPrivacy}
-        label={t('legalPrivacy')}
-        onChange={() => setAcceptedPrivacy(current => !current)}
-      />
-      <Text style={styles.documentName}>{t('termsOfUse')}</Text>
-      <LegalDocumentLink
-        label={t('openTermsOfUse')}
-        onOpenError={() => setError(t('documentOpenError'))}
-        url={legalDocumentUrls.terms}
-      />
-      <ConsentCheck
-        checked={acceptedTerms}
-        label={t('legalTerms')}
-        onChange={() => setAcceptedTerms(current => !current)}
       />
       {error ? <Text accessibilityRole="alert" style={authStyles.error}>{error}</Text> : null}
       <PrimaryButton
@@ -88,72 +68,4 @@ export function LegalAcceptanceScreen() {
       </Pressable>
     </AuthLayout>
   );
-}
-
-function ConsentCheck({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange(): void;
-}) {
-  const { colors } = useTheme();
-  const styles = useThemedStyles(createStyles);
-
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      onPress={onChange}
-      style={({ pressed }) => [styles.consent, pressed && styles.pressed]}
-      >
-        <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked ? <Icon color={colors.onAccent} name="check" size={16} /> : null}
-      </View>
-      <Text style={styles.consentLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function createStyles(colors: import('../../../theme/theme').AppColors) {
-  return StyleSheet.create({
-  documentName: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: spacing.sm,
-  },
-  consent: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    minHeight: 48,
-  },
-  checkbox: {
-    alignItems: 'center',
-    borderColor: colors.glassBorder,
-    borderRadius: 6,
-    borderWidth: 1,
-    height: 22,
-    justifyContent: 'center',
-    marginTop: 1,
-    width: 22,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  consentLabel: {
-    color: colors.textMuted,
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  pressed: {
-    opacity: 0.78,
-  },
-  });
 }

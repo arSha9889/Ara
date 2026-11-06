@@ -43,8 +43,23 @@ jobs:
           workspaces: apps/pc/src-tauri
       - run: npm ci
       - run: npm --workspace @arachat/desktop run tauri -- build --bundles ${{ matrix.bundle }}
+      - name: Write Windows installer checksum
+        if: matrix.bundle == 'nsis'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem apps/pc/src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
+          if ($null -eq $installer) { throw 'Windows NSIS installer was not created.' }
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash *$($installer.Name)" | Set-Content -NoNewline "$($installer.FullName).sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
+          if-no-files-found: error
+      - name: Upload Windows installer checksum
+        if: matrix.bundle == 'nsis'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AraChat-windows-x64-checksum
+          path: apps/pc/src-tauri/target/release/bundle/nsis/*.sha256
           if-no-files-found: error

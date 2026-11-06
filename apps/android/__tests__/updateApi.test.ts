@@ -27,7 +27,7 @@ it('accepts a direct APK update channel from the server', async () => {
     rustore_installer_package: null,
   });
 
-  await expect(getAndroidRelease()).resolves.toEqual({
+  await expect(getAndroidRelease('direct')).resolves.toEqual({
     latestVersionCode: 42,
     latestVersionName: '1.4.0',
     releaseNotes: ['Ответы на сообщения', 'Закреплённые сообщения'],
@@ -35,7 +35,7 @@ it('accepts a direct APK update channel from the server', async () => {
     rustoreAppUrl: null,
     rustoreInstallerPackage: null,
   });
-  expect(request).toHaveBeenCalledWith('/api/releases/android');
+  expect(request).toHaveBeenCalledWith('/api/releases/android?channel=direct');
 });
 
 it('accepts a RuStore-only update channel from the server', async () => {
@@ -47,7 +47,7 @@ it('accepts a RuStore-only update channel from the server', async () => {
     rustore_installer_package: 'ru.vk.store',
   });
 
-  await expect(getAndroidRelease()).resolves.toEqual({
+  await expect(getAndroidRelease('rustore')).resolves.toEqual({
     latestVersionCode: 43,
     latestVersionName: '1.4.0',
     releaseNotes: ['Ответы на сообщения', 'Закреплённые сообщения'],
@@ -113,5 +113,18 @@ it.each([
 ])('does not advertise an update when metadata %s', async (_description, response) => {
   request.mockResolvedValue(response);
 
-  await expect(getAndroidRelease()).resolves.toBeNull();
+  await expect(getAndroidRelease('direct')).resolves.toBeNull();
+});
+
+it('keeps the legacy response path for builds that predate distribution flavors', async () => {
+  request.mockResolvedValue({
+    latest_version_code: 42,
+    ...releaseMetadata,
+    direct_download_url: 'https://downloads.example.test/android',
+    rustore_app_url: null,
+    rustore_installer_package: null,
+  });
+
+  await expect(getAndroidRelease(null)).resolves.not.toBeNull();
+  expect(request).toHaveBeenCalledWith('/api/releases/android');
 });

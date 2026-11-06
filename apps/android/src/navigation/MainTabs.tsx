@@ -164,11 +164,13 @@ function createStyles(colors: AppColors) {
     bar: {
       alignItems: 'center',
       borderBottomWidth: 0,
+      borderTopColor: colors.glassBorder,
+      borderTopWidth: StyleSheet.hairlineWidth,
       borderTopLeftRadius: radii.sheet,
       borderTopRightRadius: radii.sheet,
       flexDirection: 'row',
-      minHeight: 68,
-      paddingHorizontal: spacing.xs,
+      minHeight: 72,
+      paddingHorizontal: spacing.sm,
       paddingTop: spacing.sm,
     },
     item: {
@@ -189,10 +191,12 @@ function createStyles(colors: AppColors) {
     itemSelected: {
       ...StyleSheet.absoluteFill,
       backgroundColor: colors.accentSubtle,
-      borderRadius: radii.control,
+      borderColor: colors.borderInteractive,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
     },
     itemPressed: { backgroundColor: colors.surfacePressed },
-    label: { color: colors.textFaint, fontSize: 10, fontWeight: '700' },
+    label: { color: colors.textFaint, fontSize: 10, fontWeight: '700', marginTop: 1 },
     labelSelected: { color: colors.accent },
   });
 }

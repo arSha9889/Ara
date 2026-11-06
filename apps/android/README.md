@@ -33,13 +33,14 @@ npm install
 
 ## Обновления Android
 
-APK не содержит URL страницы загрузки или карточки RuStore. После входа клиент получает metadata обновления из защищённого `GET /api/releases/android`. Серверу передаются только подтверждённые значения окружения:
+APK не содержит URL страницы загрузки или карточки RuStore. После входа клиент получает metadata обновления из защищённого `GET /api/releases/android`. Сборки `direct` и `rustore` запрашивают metadata своего канала, поэтому их version code не смешиваются. Серверу передаются только подтверждённые значения окружения:
 
-- `NEXUS_ANDROID_LATEST_VERSION_CODE`;
+- `NEXUS_ANDROID_DIRECT_LATEST_VERSION_CODE` и `NEXUS_ANDROID_DIRECT_LATEST_VERSION_NAME`;
+- `NEXUS_ANDROID_RUSTORE_LATEST_VERSION_CODE` и `NEXUS_ANDROID_RUSTORE_LATEST_VERSION_NAME`;
 - `NEXUS_ANDROID_DIRECT_DOWNLOAD_URL` для официальной HTTPS-страницы загрузки;
 - `NEXUS_ANDROID_RUSTORE_APP_URL` и `NEXUS_ANDROID_RUSTORE_INSTALLER_PACKAGE` для RuStore.
 
-Подтверждённая официальная страница прямого APK — `https://aramsg.ru/download`. RuStore — основной магазинный канал, но URL карточки и package installer не вносятся до её публикации и проверки фактических значений. Можно настроить только direct APK или только RuStore. Для APK из RuStore приложение предлагает страницу RuStore, для прямой установки — официальную страницу загрузки; при неопределённом источнике ссылка не показывается. Клиент не скачивает и не устанавливает APK самостоятельно: установку всегда подтверждает Android.
+Для совместимости уже выпущенной версии без канала оставьте `NEXUS_ANDROID_LATEST_VERSION_CODE` и `NEXUS_ANDROID_LATEST_VERSION_NAME` равными актуальному direct-релизу. Подтверждённая официальная страница прямого APK — `https://aramsg.ru/download`. RuStore — основной магазинный канал, но URL карточки и package installer не вносятся до её публикации и проверки фактических значений. Можно настроить только direct APK или только RuStore. Для APK из RuStore приложение предлагает страницу RuStore, для прямой установки — официальную страницу загрузки; при неопределённом источнике ссылка не показывается. Клиент не скачивает и не устанавливает APK самостоятельно: установку всегда подтверждает Android.
 
 ## Локальная конфигурация push и release-подписи
 
@@ -66,10 +67,11 @@ npm run typecheck
 npm test
 npm run android:assemble:debug
 npm run android:lint
-./android/gradlew -p android assembleRelease
+npm run android:assemble:release:direct
+npm run android:assemble:release:rustore
 ```
 
-Для `android:assemble:debug` и запуска на устройстве при необходимости передавайте `-PARACHAT_API_BASE_URL` напрямую в Gradle, как в примере выше.
+`android:assemble:debug` и `npm run android` используют direct-вариант. Release APK находятся в `android/app/build/outputs/apk/direct/release/` и `android/app/build/outputs/apk/rustore/release/`. Для `android:assemble:debug` и запуска на устройстве при необходимости передавайте `-PARACHAT_API_BASE_URL` напрямую в Gradle, как в примере выше. Обе release-сборки используют один production-ключ и `applicationId`, но имеют разные версии: RuStore — `1.0` (код `7`), сайт — `1.0.2` (код `8`). Следующий релиз каждого канала должен повышать его version code и не может быть ниже `8`, поскольку APK могут обновлять друг друга при одинаковой подписи.
 
 ## Границы текущей основы
 

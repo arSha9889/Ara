@@ -1,11 +1,13 @@
 import { NativeModules } from 'react-native';
 
 export type AndroidInstallSource = 'direct' | 'rustore' | 'unknown';
+export type AndroidReleaseChannel = 'direct' | 'rustore';
 
 interface AppConfigModule {
   apiBaseUrl?: unknown;
   appVersion?: unknown;
   appVersionCode?: unknown;
+  releaseChannel?: unknown;
   installSource?: {
     installerPackageName?: unknown;
     isFileInstall?: unknown;
@@ -76,6 +78,11 @@ export function getApiBaseUrl(): string {
 export function appVersionCode(): number | null {
   const value = nativeAppConfig?.appVersionCode;
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+export function androidReleaseChannel(): AndroidReleaseChannel | null {
+  const value = nativeAppConfig?.releaseChannel;
+  return value === 'direct' || value === 'rustore' ? value : null;
 }
 
 export function androidInstallSource(rustoreInstallerPackage: string | null): AndroidInstallSource {

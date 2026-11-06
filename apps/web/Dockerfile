@@ -17,7 +17,8 @@ RUN npm run build
 FROM nginx:1.27-alpine
 
 ENV PORT=8080 \
-    NEXUS_API_UPSTREAM=http://api:8000
+    NEXUS_API_UPSTREAM=http://api:8000 \
+    ARACHAT_WINDOWS_BETA_DOWNLOAD_URL=
 
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY docker-entrypoint.d/40-generate-runtime-config.sh /docker-entrypoint.d/40-generate-runtime-config.sh

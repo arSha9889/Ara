@@ -21,7 +21,7 @@ export function AraGlassSurface({ children, style, variant = 'chrome' }: AraGlas
 
   return (
     <LiquidGlassView
-      glassOpacity={variant === 'media' ? 0.72 : 0.86}
+      glassOpacity={variant === 'media' ? 0.76 : 0.9}
       glassTintColor={variant === 'media' ? colors.mediaOverlay : colors.glassStrong}
       glassType="regular"
       isInteractive={false}
@@ -35,14 +35,14 @@ export function AraGlassSurface({ children, style, variant = 'chrome' }: AraGlas
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     surface: {
-      backgroundColor: colors.glassStrong,
+      backgroundColor: colors.glass,
       borderColor: colors.glassBorder,
       borderWidth: StyleSheet.hairlineWidth,
-      elevation: 2,
+      elevation: 4,
       shadowColor: colors.shadow,
       shadowOffset: { height: 3, width: 0 },
-      shadowOpacity: 0.14,
-      shadowRadius: 10,
+      shadowOpacity: 0.2,
+      shadowRadius: 14,
     },
     chrome: {},
     media: {

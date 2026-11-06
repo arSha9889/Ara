@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
 
 import { runtimeConfig } from '../../../config/runtimeConfig';
 import { sessionStore } from '../../../infrastructure/storage/sessionStore';
 import { useI18n } from '../../../localization/I18nProvider';
 import { spacing, type AppColors } from '../../../theme/theme';
 import { useTheme, useThemedStyles } from '../../../theme/ThemeProvider';
-import { Icon } from '../../../ui/Icon';
 import { PrimaryButton } from '../../../ui/PrimaryButton';
-import { legalDocumentUrls } from '../legalDocuments';
 import type { RegistrationCountry } from '../registrationCountry';
 import { registrationErrorKey } from '../registrationError';
 import {
@@ -16,11 +14,11 @@ import {
   confirmEmailVerification,
   startEmailVerification,
 } from '../api/authApi';
+import { LegalDocumentsConsent } from '../components/LegalDocumentsConsent';
 import { useSession } from '../session/useSession';
 import { AuthLayout, useAuthStyles } from './AuthLayout';
-import { LegalDocumentLink } from './LegalDocumentLink';
 
-type RegisterStep = 'email' | 'details';
+type RegisterStep = 'email' | 'details' | 'legal';
 
 interface RegisterScreenProps {
   country: RegistrationCountry;
@@ -107,28 +105,42 @@ export function RegisterScreen({ country, onBack }: RegisterScreenProps) {
     }
   }
 
-  async function createAccount(): Promise<void> {
-    if (!configured || !verificationId || isSubmitting) {
-      return;
-    }
-
+  function validateProfile(): boolean {
     if (!usernamePattern.test(username.trim())) {
       setError(t('validationUsername'));
-      return;
+      return false;
     }
 
     if (!passwordPattern.test(password)) {
       setError(t('validationPassword'));
-      return;
+      return false;
     }
 
     if (password !== passwordRepeat) {
       setError(t('validationPasswordMatch'));
-      return;
+      return false;
     }
 
     if (displayName.trim().length > 80) {
       setError(t('validationDisplayName'));
+      return false;
+    }
+
+    return true;
+  }
+
+  function continueToLegalDocuments(): void {
+    if (!configured || isSubmitting || !validateProfile()) {
+      return;
+    }
+
+    setError('');
+    setStatus('');
+    setStep('legal');
+  }
+
+  async function createAccount(): Promise<void> {
+    if (!configured || !verificationId || isSubmitting || !validateProfile()) {
       return;
     }
 
@@ -215,7 +227,7 @@ export function RegisterScreen({ country, onBack }: RegisterScreenProps) {
           </>
         ) : null}
       </>
-    ) : (
+    ) : step === 'details' ? (
       <>
         <Text style={authStyles.label}>{t('displayName')}</Text>
         <TextInput
@@ -265,48 +277,61 @@ export function RegisterScreen({ country, onBack }: RegisterScreenProps) {
           textContentType="newPassword"
           value={passwordRepeat}
         />
-        <Text style={styles.sectionTitle}>{t('legalTitle')}</Text>
-        <Text style={styles.legalDescription}>{t('legalDescription')}</Text>
-        <LegalDocumentLink
-          label={t('openPrivacyPolicy')}
-          onOpenError={() => setError(t('documentOpenError'))}
-          url={legalDocumentUrls.privacy}
-        />
-        <ConsentCheck
-          checked={acceptedPrivacy}
-          label={t('legalPrivacy')}
-          onChange={() => setAcceptedPrivacy(current => !current)}
-        />
-        <LegalDocumentLink
-          label={t('openTermsOfUse')}
-          onOpenError={() => setError(t('documentOpenError'))}
-          url={legalDocumentUrls.terms}
-        />
-        <ConsentCheck
-          checked={acceptedTerms}
-          label={t('legalTerms')}
-          onChange={() => setAcceptedTerms(current => !current)}
-        />
         <PrimaryButton
           disabled={!configured || isSubmitting}
+          label={t('continue')}
+          onPress={continueToLegalDocuments}
+        />
+      </>
+    ) : (
+      <>
+        <LegalDocumentsConsent
+          acceptedPrivacy={acceptedPrivacy}
+          acceptedTerms={acceptedTerms}
+          onAcceptedPrivacyChange={() => setAcceptedPrivacy(current => !current)}
+          onAcceptedTermsChange={() => setAcceptedTerms(current => !current)}
+          onOpenError={() => setError(t('documentOpenError'))}
+        />
+        <PrimaryButton
+          disabled={!configured || !acceptedPrivacy || !acceptedTerms || isSubmitting}
           label={isSubmitting ? t('creatingAccount') : t('createAccountAction')}
           onPress={createAccount}
         />
       </>
     );
 
+  const registrationTitle =
+    step === 'email'
+      ? t('registrationEmailTitle')
+      : step === 'details'
+        ? t('registrationProfileTitle')
+        : t('legalTitle');
+  const registrationDescription =
+    step === 'email'
+      ? t('registrationEmailDescription')
+      : step === 'details'
+        ? t('registrationProfileDescription')
+        : t('legalDescription');
+
   return (
     <AuthLayout
-      description={t(step === 'email' ? 'registrationEmailDescription' : 'registrationProfileDescription')}
+      description={registrationDescription}
       eyebrow={t('registrationEyebrow')}
-      title={t(step === 'email' ? 'registrationEmailTitle' : 'registrationProfileTitle')}
+      title={registrationTitle}
     >
       {content}
       {!configured ? <Text style={authStyles.configurationMessage}>{t('apiNotConfigured')}</Text> : null}
       {status ? <Text accessibilityRole="alert" style={authStyles.success}>{status}</Text> : null}
       {error ? <Text accessibilityRole="alert" style={authStyles.error}>{error}</Text> : null}
-      {step === 'details' ? (
-        <Pressable onPress={() => setStep('email')} style={authStyles.link}>
+      {step !== 'email' ? (
+        <Pressable
+          onPress={() => {
+            setError('');
+            setStatus('');
+            setStep(step === 'legal' ? 'details' : 'email');
+          }}
+          style={authStyles.link}
+        >
           <Text style={authStyles.linkLabel}>{t('back')}</Text>
         </Pressable>
       ) : null}
@@ -314,33 +339,6 @@ export function RegisterScreen({ country, onBack }: RegisterScreenProps) {
         <Text style={authStyles.linkLabel}>{t('backToSignIn')}</Text>
       </Pressable>
     </AuthLayout>
-  );
-}
-
-function ConsentCheck({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  label: string;
-  onChange(): void;
-}) {
-  const { colors } = useTheme();
-  const styles = useThemedStyles(createStyles);
-
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      onPress={onChange}
-      style={({ pressed }) => [styles.consent, pressed && styles.pressed]}
-      >
-        <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked ? <Icon color={colors.onAccent} name="check" size={16} /> : null}
-      </View>
-      <Text style={styles.consentLabel}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -357,45 +355,6 @@ function createStyles(colors: AppColors) {
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.xs,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: spacing.lg,
-  },
-  legalDescription: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: spacing.xs,
-  },
-  consent: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    minHeight: 48,
-  },
-  checkbox: {
-    alignItems: 'center',
-    borderColor: colors.glassBorder,
-    borderRadius: 6,
-    borderWidth: 1,
-    height: 22,
-    justifyContent: 'center',
-    marginTop: 1,
-    width: 22,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  consentLabel: {
-    color: colors.textMuted,
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
   },
   });
 }
