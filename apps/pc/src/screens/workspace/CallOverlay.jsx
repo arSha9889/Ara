@@ -182,8 +182,6 @@ export function CallOverlay({ call, peer, t }) {
             </div>
           ) : (
             <div className="desktop-call-avatar-stage">
-              <span className="desktop-call-avatar-orbit one" aria-hidden="true" />
-              <span className="desktop-call-avatar-orbit two" aria-hidden="true" />
               <span className={`workspace-avatar workspace-avatar-large is-${avatarTone(peer?.id)}`} aria-hidden="true">{initials(peerName, peer?.username)}</span>
             </div>
           )}

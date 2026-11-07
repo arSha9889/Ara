@@ -514,6 +514,12 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
     setMessageFocus(null);
   }
 
+  function openChatDetails(chat) {
+    if (!['branch', 'group'].includes(chat?.type)) return;
+    openChat(chat);
+    setChatDetailsRequest((current) => ({ chatId: chat.id, id: (current?.id ?? 0) + 1 }));
+  }
+
   function openNewChat() {
     setActiveSection('contacts');
     setSelectedChatId(null);
@@ -668,13 +674,14 @@ export function WorkspaceScreen({ accessToken, currentUser, currentUserId, onCur
 
   return (
     <WorkspaceShell
-      chatList={<WorkspaceChatList activeSection={activeSection} chats={chats} chatsError={chatsError} chatsNotice={chatsNotice} directChatCount={directChatCount} isClearingChats={isClearingChats} isLoadingChats={isLoadingChats} onCategoryChange={openChatCategory} onClearChats={clearAllChats} onNewChat={openNewChat} onNewGroup={openNewGroup} onOpenChat={openChat} onQueryChange={setQuery} onRefresh={() => loadChats({ showSuccess: true })} onRetry={() => loadChats()} preferences={preferences} query={query} selectedChatId={selectedChatId} t={t} updatePreferences={updatePreferences} />}
+      chatList={<WorkspaceChatList activeSection={activeSection} chats={chats} chatsError={chatsError} chatsNotice={chatsNotice} directChatCount={directChatCount} isClearingChats={isClearingChats} isLoadingChats={isLoadingChats} onCategoryChange={openChatCategory} onClearChats={clearAllChats} onNewChat={openNewChat} onNewGroup={openNewGroup} onOpenChat={openChat} onOpenChatDetails={openChatDetails} onQueryChange={setQuery} onRefresh={() => loadChats({ showSuccess: true })} onRetry={() => loadChats()} preferences={preferences} query={query} selectedChatId={selectedChatId} t={t} updatePreferences={updatePreferences} />}
       density={preferences.density ?? 'comfortable'}
       isChatOpen={selectedChat && ['chats', 'groups', 'channels'].includes(activeSection)}
       isStandalonePage={isStandalonePage}
       navigation={<WorkspaceNavigation activeSection={activeSection} currentUser={currentUser} onHome={() => { openSection('chats'); setSelectedChatId(null); }} onSelect={openSection} t={t} />}
       details={selectedChat && ['chats', 'groups', 'channels'].includes(activeSection) ? <WorkspaceChatDetails canStartCall={selectedChat.type === 'direct' && call.canUseCalls && call.canSignalCall && call.callState === 'idle' && Boolean(selectedChat.peer?.id)} chat={selectedChat} onOpenDetails={() => setChatDetailsRequest((current) => ({ chatId: selectedChat.id, id: (current?.id ?? 0) + 1 }))} onStartCall={startCall} t={t} /> : null}
       overlay={<><CallOverlay call={call} peer={activeCallChat?.peer} t={t} />{callError && call.callState === 'idle' ? <WorkspaceCallError message={callError} onClose={() => setCallError('')} t={t} /> : null}</>}
+      t={t}
     >
       {renderMainContent()}
     </WorkspaceShell>

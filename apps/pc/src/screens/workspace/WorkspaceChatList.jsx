@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { AraButton } from '../../components/AraButton.jsx';
 import { ThemeToggle } from '../../components/ThemeLanguageControls.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { WorkspaceEmpty, WorkspaceError, WorkspaceLoading, WorkspaceNotice } from '../../components/WorkspaceState.jsx';
 import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
 
 const AVATAR_TONES = ['violet', 'coral', 'yellow', 'blue'];
+const MENU_VIEWPORT_GUTTER = 12;
 
 function initials(displayName, username) {
   const value = displayName || username || '?';
@@ -54,7 +56,120 @@ function ChatListAvatar({ chat, name, username }) {
   return <span className={`workspace-avatar is-${avatarTone(chat.peer?.id || chat.id)}`} aria-hidden="true">{initials(name, username)}</span>;
 }
 
-function WorkspaceChatRow({ activeSection, chat, onOpenChat, selectedChatId, t }) {
+function chatMenuPositionFromEvent(event) {
+  if (event.type === 'contextmenu') return { x: event.clientX, y: event.clientY };
+
+  const bounds = event.currentTarget.getBoundingClientRect();
+  return {
+    x: bounds.left + Math.min(bounds.width / 2, 180),
+    y: bounds.top + Math.min(bounds.height / 2, 32),
+  };
+}
+
+function focusChatMenuItem(menu, offset) {
+  const items = [...menu.querySelectorAll('[role="menuitem"]')];
+  const currentIndex = items.indexOf(document.activeElement);
+  const nextIndex = (currentIndex + offset + items.length) % items.length;
+  items[nextIndex]?.focus();
+}
+
+function WorkspaceChatContextMenu({ contextMenu, onClose, onOpenChat, onOpenDetails, t }) {
+  const menuRef = useRef(null);
+  const [position, setPosition] = useState(null);
+  const chat = contextMenu?.chat;
+  const canOpenDetails = ['branch', 'group'].includes(chat?.type);
+
+  useLayoutEffect(() => {
+    if (!contextMenu || !menuRef.current) {
+      setPosition(null);
+      return;
+    }
+
+    const { width, height } = menuRef.current.getBoundingClientRect();
+    setPosition({
+      x: Math.max(MENU_VIEWPORT_GUTTER, Math.min(contextMenu.x, window.innerWidth - width - MENU_VIEWPORT_GUTTER)),
+      y: Math.max(MENU_VIEWPORT_GUTTER, Math.min(contextMenu.y, window.innerHeight - height - MENU_VIEWPORT_GUTTER)),
+    });
+  }, [contextMenu]);
+
+  useEffect(() => {
+    if (!contextMenu || !menuRef.current) return undefined;
+
+    menuRef.current.querySelector('[role="menuitem"]')?.focus();
+
+    function closeOnOutsidePointer(event) {
+      if (!menuRef.current?.contains(event.target)) onClose();
+    }
+
+    window.addEventListener('pointerdown', closeOnOutsidePointer);
+    window.addEventListener('resize', onClose);
+    window.addEventListener('scroll', onClose, true);
+    return () => {
+      window.removeEventListener('pointerdown', closeOnOutsidePointer);
+      window.removeEventListener('resize', onClose);
+      window.removeEventListener('scroll', onClose, true);
+    };
+  }, [contextMenu, onClose]);
+
+  if (!contextMenu || !chat) return null;
+
+  function closeAndRun(action) {
+    onClose();
+    action();
+  }
+
+  function handleKeyDown(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      contextMenu.trigger?.focus();
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusChatMenuItem(event.currentTarget, 1);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusChatMenuItem(event.currentTarget, -1);
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      event.currentTarget.querySelector('[role="menuitem"]')?.focus();
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      const items = event.currentTarget.querySelectorAll('[role="menuitem"]');
+      items[items.length - 1]?.focus();
+      return;
+    }
+
+    if (event.key === 'Tab') onClose();
+  }
+
+  return (
+    <div
+      aria-label={t('workspace.chatContextMenu.label', { title: contextMenu.title })}
+      className="workspace-chat-context-menu"
+      onKeyDown={handleKeyDown}
+      ref={menuRef}
+      role="menu"
+      style={{ left: position?.x ?? contextMenu.x, top: position?.y ?? contextMenu.y }}
+    >
+      <AraButton onClick={() => closeAndRun(() => onOpenChat(chat))} role="menuitem" size="compact" tabIndex={-1} type="button" variant="ghost"><Icon name="chats" size={16} />{t('workspace.chatContextMenu.openChat')}</AraButton>
+      {canOpenDetails ? <AraButton onClick={() => closeAndRun(() => onOpenDetails(chat))} role="menuitem" size="compact" tabIndex={-1} type="button" variant="ghost"><Icon name="settings" size={16} />{t('workspace.chatInspector.openDetails')}</AraButton> : null}
+    </div>
+  );
+}
+
+function WorkspaceChatRow({ activeSection, chat, isContextMenuOpen, onOpenChat, onOpenContextMenu, selectedChatId, t }) {
   const peer = chat.peer;
   const name = chat.type === 'branch'
     ? chat.title || t('workspace.channels.untitled')
@@ -66,12 +181,31 @@ function WorkspaceChatRow({ activeSection, chat, onOpenChat, selectedChatId, t }
   const timestamp = formatChatTime(chat.last_message?.created_at || chat.updated_at);
   const isOpen = selectedChatId === chat.id && activeSection === (chat.type === 'branch' ? 'channels' : chat.type === 'group' ? 'groups' : 'chats');
 
+  function openContextMenu(event) {
+    event.preventDefault();
+    onOpenContextMenu({
+      chat,
+      title: name,
+      trigger: event.currentTarget,
+      ...chatMenuPositionFromEvent(event),
+    });
+  }
+
+  function handleKeyDown(event) {
+    if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+    openContextMenu(event);
+  }
+
   return (
     <AraButton
+      aria-expanded={isContextMenuOpen}
+      aria-haspopup="menu"
       aria-pressed={isOpen}
       className={`workspace-chat-row ${isOpen ? 'is-selected' : ''}`}
       key={chat.id}
       onClick={() => onOpenChat(chat)}
+      onContextMenu={openContextMenu}
+      onKeyDown={handleKeyDown}
       variant={isOpen ? 'selected' : 'ghost'}
     >
       <ChatListAvatar chat={chat} name={name} username={username} />
@@ -202,6 +336,7 @@ export function WorkspaceChatList({
   onNewGroup,
   onNewChat,
   onOpenChat,
+  onOpenChatDetails,
   onQueryChange,
   onRefresh,
   onRetry,
@@ -212,6 +347,7 @@ export function WorkspaceChatList({
   updatePreferences,
 }) {
   const [activeCategory, setActiveCategory] = useState('direct');
+  const [chatContextMenu, setChatContextMenu] = useState(null);
 
   useEffect(() => {
     if (activeSection === 'channels') setActiveCategory('channels');
@@ -267,13 +403,14 @@ export function WorkspaceChatList({
 
       <ChatCategoryTabs activeCategory={activeCategory} channelCount={channelChatCount} channelUnreadCount={channelUnreadCount} directCount={directChatCount} directUnreadCount={directUnreadCount} groupCount={groupChatCount} groupUnreadCount={groupUnreadCount} onSelect={(category) => { setActiveCategory(category); onCategoryChange?.(category); }} t={t} />
 
-      {chatsNotice ? <p className="workspace-list-notice" role="status">{chatsNotice}</p> : null}
+      {chatsNotice ? <WorkspaceNotice className="workspace-list-notice">{chatsNotice}</WorkspaceNotice> : null}
       <div aria-busy={isLoadingChats || isClearingChats} aria-labelledby={`workspace-chat-category-tab-${activeCategory}`} className="workspace-chat-list" id={`workspace-chat-category-panel-${activeCategory}`} role="tabpanel">
-        {chatsError ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.chatsLoadError')}</strong><span>{chatsError}</span><AraButton onClick={onRetry} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
-        {isLoadingChats || isClearingChats ? <p className="workspace-list-status" role="status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</p> : chatsError ? null : activeChats.length ? activeChats.map((chat) => <WorkspaceChatRow activeSection={activeSection} chat={chat} key={chat.id} onOpenChat={onOpenChat} selectedChatId={selectedChatId} t={t} />) : (
-          <div className="workspace-no-results"><strong>{emptyTitle}</strong><span>{emptyText}</span>{normalizedQuery || isChannelCategory || isGroupCategory ? null : <AraButton className="workspace-list-empty-action" onClick={onNewChat} size="compact" variant="primary">{t('workspace.findUser')}</AraButton>}</div>
+        {chatsError ? <WorkspaceError actionLabel={t('workspace.retry')} onAction={onRetry} title={t('workspace.chatsLoadError')}>{chatsError}</WorkspaceError> : null}
+        {isLoadingChats || isClearingChats ? <WorkspaceLoading className="workspace-list-status">{isClearingChats ? t('workspace.clearingChats') : t('workspace.loadingChats')}</WorkspaceLoading> : chatsError ? null : activeChats.length ? activeChats.map((chat) => <WorkspaceChatRow activeSection={activeSection} chat={chat} isContextMenuOpen={String(chatContextMenu?.chat.id) === String(chat.id)} key={chat.id} onOpenChat={onOpenChat} onOpenContextMenu={setChatContextMenu} selectedChatId={selectedChatId} t={t} />) : (
+          <WorkspaceEmpty action={normalizedQuery || isChannelCategory || isGroupCategory ? null : <AraButton className="workspace-list-empty-action" onClick={onNewChat} size="compact" variant="primary">{t('workspace.findUser')}</AraButton>} className="workspace-no-results" title={emptyTitle}>{emptyText}</WorkspaceEmpty>
         )}
       </div>
+      <WorkspaceChatContextMenu contextMenu={chatContextMenu} onClose={() => setChatContextMenu(null)} onOpenChat={onOpenChat} onOpenDetails={onOpenChatDetails} t={t} />
       <p className="workspace-list-footer">{t('workspace.chatListFooter')}</p>
     </aside>
   );

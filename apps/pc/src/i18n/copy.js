@@ -173,6 +173,7 @@ export const COPY = {
       directChatsSection: 'Чаты',
       createChatMenu: 'Создать',
       unknownUser: 'Пользователь AraChat',
+      desktopVersion: 'Версия AraChat Desktop: {version}',
       emptyKicker: 'Личные сообщения',
       emptyTitle: 'Выберите диалог',
       emptyText: 'Откройте чат слева или найдите человека, чтобы начать переписку.',
@@ -318,12 +319,6 @@ export const COPY = {
         appearanceTitle: 'Внешний вид',
         appearanceText: 'Настройте интерфейс так, чтобы в нём было комфортно работать.',
         theme: 'Тема',
-        colorPalette: 'Цветовая палитра',
-        colorPaletteText: 'Выберите акцентный цвет интерфейса. Изменение применяется сразу и сохраняется на этом устройстве.',
-        paletteGreen: 'Зелёная',
-        paletteCyan: 'Голубая',
-        paletteYellow: 'Жёлтая',
-        paletteOrange: 'Оранжевая',
         language: 'Язык интерфейса',
         languageText: 'Изменение применяется сразу и сохраняется только на этом устройстве.',
         densityTitle: 'Плотность интерфейса',
@@ -958,6 +953,7 @@ export const COPY = {
       directChatsSection: 'Chats',
       createChatMenu: 'Create',
       unknownUser: 'AraChat user',
+      desktopVersion: 'AraChat Desktop version: {version}',
       emptyKicker: 'Direct messages',
       emptyTitle: 'Choose a chat',
       emptyText: 'Open a chat on the left or find someone to start a conversation.',
@@ -1103,12 +1099,6 @@ export const COPY = {
         appearanceTitle: 'Appearance',
         appearanceText: 'Set up an interface that is comfortable to work in.',
         theme: 'Theme',
-        colorPalette: 'Color palette',
-        colorPaletteText: 'Choose the interface accent color. The change applies immediately and is saved on this device.',
-        paletteGreen: 'Green',
-        paletteCyan: 'Cyan',
-        paletteYellow: 'Yellow',
-        paletteOrange: 'Orange',
         language: 'Interface language',
         languageText: 'Changes apply immediately and are saved only on this device.',
         densityTitle: 'Interface density',
@@ -1693,12 +1683,6 @@ Object.assign(COPY.kk.workspace.settingsPanel, {
   updatesTitle: 'Desktop жаңартулары',
   updatesText: 'Desktop үшін автоматты жаңартулар әлі бапталмаған. Жаңа нұсқалар қолтаңбасы бар жаңарту арнасы жарияланғаннан кейін қолжетімді болады.',
   updatesStatus: 'Автоматты жаңартулар бапталмаған',
-  colorPalette: 'Түстер палитрасы',
-  colorPaletteText: 'Интерфейстің екпінді түсін таңдаңыз. Өзгеріс бірден қолданылады және осы құрылғыда сақталады.',
-  paletteGreen: 'Жасыл',
-  paletteCyan: 'Көгілдір',
-  paletteYellow: 'Сары',
-  paletteOrange: 'Қызғылт сары',
   legalDocumentsTitle: 'Құқықтық құжаттар',
   legalDocumentsText: 'Құпиялылық саясаты мен Пайдаланушы келісімі браузерде ашылады.',
   openPrivacyPolicy: 'Құпиялылық саясатын ашу',
@@ -1856,6 +1840,10 @@ Object.assign(COPY.kk.auth, {
 });
 
 Object.assign(COPY.ru.workspace, {
+  chatContextMenu: {
+    label: 'Действия с чатом «{title}»',
+    openChat: 'Открыть чат',
+  },
   chatInspector: {
     label: 'Сведения о чате «{title}»',
     actions: 'Действия с чатом',
@@ -1869,6 +1857,10 @@ Object.assign(COPY.ru.workspace, {
 });
 
 Object.assign(COPY.en.workspace, {
+  chatContextMenu: {
+    label: 'Actions for {title}',
+    openChat: 'Open chat',
+  },
   chatInspector: {
     label: 'Details for {title}',
     actions: 'Chat actions',
@@ -1882,6 +1874,11 @@ Object.assign(COPY.en.workspace, {
 });
 
 Object.assign(COPY.kk.workspace, {
+  desktopVersion: 'AraChat Desktop нұсқасы: {version}',
+  chatContextMenu: {
+    label: '{title} чатының әрекеттері',
+    openChat: 'Чатты ашу',
+  },
   chatInspector: {
     label: '{title} чаты туралы мәліметтер',
     actions: 'Чат әрекеттері',

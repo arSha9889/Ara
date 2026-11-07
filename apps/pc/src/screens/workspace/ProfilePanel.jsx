@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { WorkspaceNotice } from '../../components/WorkspaceState.jsx';
 import { getCurrentUser, updateCurrentProfile, uploadProfileAvatar } from '../../features/users/usersApi.js';
 import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
 
@@ -95,14 +96,12 @@ export function ProfilePanel({ accessToken, onCurrentUserUpdated, t }) {
     <section className="workspace-detail-panel workspace-profile-panel" aria-labelledby="profile-title">
       <header className="workspace-panel-heading">
         <div>
-          <p>{t('workspace.profilePanel.kicker')}</p>
           <h1 id="profile-title">{t('workspace.profilePanel.title')}</h1>
           <span>{t('workspace.profilePanel.intro')}</span>
         </div>
-        <span className="workspace-panel-icon"><Icon name="profile" size={25} /></span>
       </header>
 
-      <div className="profile-identity-card">
+      <div className="profile-identity-row">
         <div className="profile-avatar">
           {avatarUrl ? <img src={avatarUrl} alt={displayName || t('workspace.profilePanel.defaultName')} /> : initials(displayName) || 'AR'}
           <AraButton className="profile-avatar-edit" size="icon" variant="primary" aria-label={t('workspace.profilePanel.changeAvatar')} title={t('workspace.profilePanel.changeAvatar')} onClick={() => avatarInputRef.current?.click()} disabled={isLoading || isSaving}><Icon name="image" size={13} /></AraButton>
@@ -112,7 +111,6 @@ export function ProfilePanel({ accessToken, onCurrentUserUpdated, t }) {
           <span>@{username || '—'}</span>
           {avatarFile ? <small>{avatarFile.name}</small> : null}
         </div>
-        <div className="profile-server-mark"><span aria-hidden="true" />{t('workspace.profilePanel.serverMark')}</div>
       </div>
 
       <form className="profile-editor" onSubmit={saveProfile} noValidate>
@@ -142,14 +140,13 @@ export function ProfilePanel({ accessToken, onCurrentUserUpdated, t }) {
         <div className="workspace-section-card profile-id-card">
           <div className="workspace-section-heading">
             <div><h2>{t('workspace.profilePanel.idTitle')}</h2><p>{t('workspace.profilePanel.idText')}</p></div>
-            <span className="workspace-section-icon"><Icon name="shield" size={18} /></span>
           </div>
           <strong className="profile-arachat-id">{user?.nexus_id ?? '—'}</strong>
           <small>{t('workspace.profilePanel.idNotice')}</small>
         </div>
 
-        {error ? <p className="workspace-form-notice is-error" role="alert">{error}</p> : null}
-        {feedback ? <p className="workspace-form-notice" role="status"><Icon name="check" size={16} />{feedback}</p> : null}
+        {error ? <WorkspaceNotice tone="error">{error}</WorkspaceNotice> : null}
+        {feedback ? <WorkspaceNotice>{feedback}</WorkspaceNotice> : null}
         <AraButton type="submit" variant="primary" disabled={isLoading || isSaving || !profile}><Icon name="save" size={17} />{isLoading ? t('workspace.profilePanel.loading') : isSaving ? t('workspace.profilePanel.saving') : t('workspace.profilePanel.save')}</AraButton>
       </form>
     </section>

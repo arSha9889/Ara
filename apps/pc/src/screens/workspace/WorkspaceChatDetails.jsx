@@ -39,7 +39,6 @@ export function WorkspaceChatDetails({ canStartCall, chat, onOpenDetails, onStar
   return (
     <aside className="workspace-chat-details" aria-label={t('workspace.chatInspector.label', { title })}>
       <section className="chat-details-hero">
-        <div className="chat-details-cover" aria-hidden="true"><span /><span /><span /></div>
         <span className={`workspace-avatar workspace-avatar-large chat-details-avatar is-${avatarTone(peer?.id || chat.id)}`}>
           {avatarUrl ? <img src={avatarUrl} alt="" /> : initials(title)}
         </span>

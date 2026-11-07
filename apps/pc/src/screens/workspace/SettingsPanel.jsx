@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 
-import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
-import { openLegalDocument } from '../../features/legal/openLegalDocument.js';
-import { SUPPORTED_LANGUAGES } from '../../i18n/copy.js';
+import { WorkspaceNotice } from '../../components/WorkspaceState.jsx';
 import { getDeviceId } from '../../shared/device/deviceId.js';
 import {
   confirmEmailChange,
@@ -21,6 +19,10 @@ import {
   notificationPermissionStatus,
   requestDesktopNotificationPermission,
 } from '../../features/notifications/desktopNotifications.js';
+import { AboutSettings } from './settings/AboutSettings.jsx';
+import { AppearanceSettings } from './settings/AppearanceSettings.jsx';
+import { NotificationSettings } from './settings/NotificationSettings.jsx';
+import { SecuritySettings } from './settings/SecuritySettings.jsx';
 
 const TABS = [
   { id: 'appearance', icon: 'palette' },
@@ -29,56 +31,7 @@ const TABS = [
   { id: 'about', icon: 'info' },
 ];
 
-const LOGIN_METHODS = {
-  email_register: 'loginMethodEmailRegistration',
-  password: 'loginMethodPassword',
-  pin: 'loginMethodPin',
-  yandex_id: 'loginMethodYandex',
-  vk_id: 'loginMethodVk',
-};
-
-const LOGIN_RESULTS = {
-  success: 'loginResultSuccess',
-  failed: 'loginResultFailed',
-};
-
 const COMPACT_SETTINGS_NAVIGATION_QUERY = '(max-width: 1060px)';
-const COLOR_PALETTES = ['green', 'cyan', 'yellow', 'orange'];
-
-function SettingToggle({ checked, onChange, label, description }) {
-  return (
-    <div className="setting-toggle-row">
-      <div><strong>{label}</strong><span>{description}</span></div>
-      <button className={`setting-switch ${checked ? 'is-on' : ''}`} type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}><span /></button>
-    </div>
-  );
-}
-
-function formatDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat(document.documentElement.lang || 'ru', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-}
-
-function SecurityFormNotice({ error, notice }) {
-  if (!error && !notice) return null;
-  return <p className={`workspace-form-notice ${error ? 'is-error' : ''}`} role={error ? 'alert' : 'status'}>{error ? <Icon name="warning" size={16} /> : <Icon name="check" size={16} />}{error || notice}</p>;
-}
-
-function LanguageFlag({ flag }) {
-  if (flag === 'ru') {
-    return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#fff" d="M0 0h30v6.67H0z" /><path fill="#1f57a6" d="M0 6.67h30v6.66H0z" /><path fill="#d9444c" d="M0 13.33h30V20H0z" /></svg>;
-  }
-
-  if (flag === 'kz') {
-    return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#00afca" d="M0 0h30v20H0z" /><circle cx="16" cy="10" r="4.2" fill="#f9d648" /><path fill="#f9d648" d="M0 0h2v20H0zm3 0h1v20H3zM5 0h1v20H5z" /></svg>;
-  }
-
-  return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#012169" d="M0 0h30v20H0z" /><path stroke="#fff" strokeWidth="4" d="m0 0 30 20M30 0 0 20" /><path stroke="#c8102e" strokeWidth="2" d="m0 0 30 20M30 0 0 20" /><path stroke="#fff" strokeWidth="5" d="M15 0v20M0 10h30" /><path stroke="#c8102e" strokeWidth="3" d="M15 0v20M0 10h30" /></svg>;
-}
 
 export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, onLogout, preferences, updatePreferences, t }) {
   const [activeTab, setActiveTab] = useState('appearance');
@@ -169,16 +122,18 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
     return () => mediaQuery.removeEventListener('change', updateLayout);
   }, []);
 
-  function saveLocalSettings() {
+  function updateLocalPreferences(nextPreferences) {
+    if (Object.entries(nextPreferences).every(([key, value]) => preferences[key] === value)) return;
+    updatePreferences(nextPreferences);
     setFormError('');
-    setNotice(t('workspace.settingsPanel.saved'));
+    setNotice({ key: 'workspace.settingsPanel.saved' });
   }
 
   async function changeDesktopNotifications(enabled) {
     setFormError('');
     setNotice('');
     if (!enabled) {
-      updatePreferences({ desktopNotifications: false });
+      updateLocalPreferences({ desktopNotifications: false });
       return;
     }
 
@@ -191,7 +146,7 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
         : 'workspace.settingsPanel.notificationDenied'));
       return;
     }
-    updatePreferences({ desktopNotifications: true });
+    updateLocalPreferences({ desktopNotifications: true });
     setNotice(t('workspace.settingsPanel.notificationEnabled'));
   }
 
@@ -368,144 +323,53 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
   }
 
   const renderSettings = () => {
-    if (activeTab === 'about') {
-      const versionText = isLoadingAppVersion
-        ? t('workspace.settingsPanel.versionLoading')
-        : appVersion || t('workspace.settingsPanel.versionUnavailable');
-      return (
-        <div className="settings-content settings-about-content">
-          <section className="workspace-section-card settings-about-card" aria-labelledby="settings-about-title">
-            <div className="workspace-section-heading"><div><h2 id="settings-about-title">{t('workspace.settingsPanel.aboutTitle')}</h2><p>{t('workspace.settingsPanel.aboutText')}</p></div><span className="workspace-section-icon"><Icon name="info" size={18} /></span></div>
-            <div className="settings-about-version">
-              <span className="settings-about-icon" aria-hidden="true"><Icon name="info" size={19} /></span>
-              <div><strong>{t('workspace.settingsPanel.version')}</strong><output aria-live="polite">{versionText}</output></div>
-            </div>
-          </section>
-          <section className="workspace-section-card settings-about-card" aria-labelledby="settings-updates-title">
-            <div className="workspace-section-heading"><div><h2 id="settings-updates-title">{t('workspace.settingsPanel.updatesTitle')}</h2><p>{t('workspace.settingsPanel.updatesText')}</p></div></div>
-            <p className="settings-update-status"><Icon name="info" size={16} />{t('workspace.settingsPanel.updatesStatus')}</p>
-          </section>
-          <section className="workspace-section-card settings-about-card" aria-labelledby="settings-legal-title">
-            <div className="workspace-section-heading"><div><h2 id="settings-legal-title">{t('workspace.settingsPanel.legalDocumentsTitle')}</h2><p>{t('workspace.settingsPanel.legalDocumentsText')}</p></div></div>
-            <div className="settings-legal-links">
-              <AraButton type="button" variant="secondary" onClick={() => void openLegalDocument('privacy')}><Icon name="document" size={16} />{t('workspace.settingsPanel.openPrivacyPolicy')}</AraButton>
-              <AraButton type="button" variant="secondary" onClick={() => void openLegalDocument('terms')}><Icon name="document" size={16} />{t('workspace.settingsPanel.openTerms')}</AraButton>
-            </div>
-          </section>
-        </div>
-      );
-    }
+    if (activeTab === 'appearance') return <AppearanceSettings density={density} onPreferenceChange={updateLocalPreferences} preferences={preferences} t={t} />;
+    if (activeTab === 'notifications') return <NotificationSettings notificationPermission={notificationPermission} onDesktopNotificationsChange={changeDesktopNotifications} onPreferenceChange={updateLocalPreferences} preferences={preferences} t={t} />;
+    if (activeTab === 'about') return <AboutSettings appVersion={appVersion} isLoadingAppVersion={isLoadingAppVersion} t={t} />;
 
-    if (activeTab === 'notifications') {
-      return (
-        <div className="settings-content">
-          <div className="workspace-section-card">
-            <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.notificationsTitle')}</h2><p>{t('workspace.settingsPanel.notificationsText')}</p></div></div>
-            <SettingToggle checked={preferences.desktopNotifications ?? true} onChange={changeDesktopNotifications} label={t('workspace.settingsPanel.desktopNotifications')} description={t('workspace.settingsPanel.desktopNotificationsText')} />
-            <SettingToggle checked={preferences.messagePreview ?? true} onChange={(messagePreview) => updatePreferences({ messagePreview })} label={t('workspace.settingsPanel.messagePreview')} description={t('workspace.settingsPanel.messagePreviewText')} />
-            <SettingToggle checked={preferences.soundEnabled} onChange={(soundEnabled) => updatePreferences({ soundEnabled })} label={t('workspace.settingsPanel.sound')} description={t('workspace.settingsPanel.soundText')} />
-          </div>
-          <div className="workspace-backend-note"><span aria-hidden="true" />{notificationPermission === 'granted' ? t('workspace.settingsPanel.notificationsReady') : t('workspace.settingsPanel.notificationsNotice')}</div>
-        </div>
-      );
-    }
-
-    if (activeTab === 'security') {
-      return (
-        <div className="settings-content">
-          <div className="workspace-section-card">
-            <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.securityTitle')}</h2><p>{t('workspace.settingsPanel.securityText')}</p></div><span className="workspace-section-icon"><Icon name="shield" size={18} /></span></div>
-            <div className="security-status"><span><Icon name="shield" size={18} /></span><div><strong>{currentUser?.profile?.email_verified ? t('workspace.settingsPanel.emailVerified') : t('workspace.settingsPanel.emailNeedsVerification')}</strong><p>{t('workspace.settingsPanel.securityStatusText', { count: activeDevices.length })}</p></div></div>
-          </div>
-
-          <div className="workspace-section-card">
-            <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.pinTitle')}</h2><p>{t('workspace.settingsPanel.pinText')}</p></div><span className="workspace-section-icon"><Icon name="key" size={18} /></span></div>
-            <form className="security-form" onSubmit={handleSavePin}>
-              <label className="workspace-field"><span>{t('workspace.settingsPanel.currentPassword')}</span><input type="password" autoComplete="current-password" value={pinForm.currentPassword} onChange={(event) => setPinForm((current) => ({ ...current, currentPassword: event.target.value }))} required minLength="5" maxLength="30" /></label>
-              <label className="workspace-field"><span>{t('workspace.settingsPanel.pin')}</span><input type="password" inputMode="numeric" autoComplete="new-password" value={pinForm.pin} onChange={(event) => setPinForm((current) => ({ ...current, pin: event.target.value.replace(/\D/g, '') }))} required minLength="4" maxLength="8" /></label>
-              <div className="security-form-actions"><AraButton type="submit" variant="primary" disabled={isSavingPin || !pinForm.currentPassword || pinForm.pin.length < 4}>{isSavingPin ? t('workspace.settingsPanel.saving') : t('workspace.settingsPanel.savePin')}</AraButton><AraButton type="button" variant="secondary" disabled={isSavingPin || !pinForm.currentPassword} onClick={handleRemovePin}>{t('workspace.settingsPanel.removePin')}</AraButton></div>
-            </form>
-          </div>
-
-          <div className="workspace-section-card">
-            <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.changePasswordTitle')}</h2><p>{t('workspace.settingsPanel.passwordText')}</p></div><span className="workspace-section-icon"><Icon name="lock" size={18} /></span></div>
-            <form className="security-form" onSubmit={passwordConfirmation ? handleConfirmPasswordChange : handleStartPasswordChange}>
-              {!passwordConfirmation ? <><label className="workspace-field"><span>{t('workspace.settingsPanel.currentPassword')}</span><input type="password" autoComplete="current-password" value={passwordForm.currentPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))} required minLength="5" maxLength="30" /></label><label className="workspace-field"><span>{t('workspace.settingsPanel.newPassword')}</span><input type="password" autoComplete="new-password" value={passwordForm.newPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))} required minLength="5" maxLength="30" /></label><AraButton type="submit" variant="primary" disabled={isChangingPassword}>{isChangingPassword ? t('workspace.settingsPanel.sendingCode') : t('workspace.settingsPanel.sendCode')}</AraButton></> : <><label className="workspace-field"><span>{t('workspace.settingsPanel.confirmationCode')}</span><input type="text" inputMode="numeric" autoComplete="one-time-code" value={passwordCode} onChange={(event) => setPasswordCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required pattern="\d{6}" /></label><div className="security-form-actions"><AraButton type="submit" variant="primary" disabled={isChangingPassword || passwordCode.length !== 6}>{isChangingPassword ? t('workspace.settingsPanel.saving') : t('workspace.settingsPanel.confirmPassword')}</AraButton><AraButton type="button" variant="secondary" disabled={isChangingPassword} onClick={() => { setPasswordConfirmation(null); setPasswordCode(''); }}>{t('common.cancel')}</AraButton></div></>}
-            </form>
-          </div>
-
-          <div className="workspace-section-card">
-            <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.emailChangeTitle')}</h2><p>{t('workspace.settingsPanel.emailText')}</p></div><span className="workspace-section-icon"><Icon name="mail" size={18} /></span></div>
-            <form className="security-form" onSubmit={emailConfirmation ? handleConfirmEmailChange : handleStartEmailChange}>
-              {!emailConfirmation ? <><label className="workspace-field"><span>{t('workspace.settingsPanel.currentPassword')}</span><input type="password" autoComplete="current-password" value={emailForm.currentPassword} onChange={(event) => setEmailForm((current) => ({ ...current, currentPassword: event.target.value }))} required minLength="5" maxLength="30" /></label><label className="workspace-field"><span>{t('workspace.settingsPanel.newEmail')}</span><input type="email" autoComplete="email" value={emailForm.email} onChange={(event) => setEmailForm((current) => ({ ...current, email: event.target.value }))} required maxLength="255" /></label><AraButton type="submit" variant="primary" disabled={isChangingEmail}>{isChangingEmail ? t('workspace.settingsPanel.sendingCode') : t('workspace.settingsPanel.sendCode')}</AraButton></> : <><label className="workspace-field"><span>{t('workspace.settingsPanel.confirmationCode')}</span><input type="text" inputMode="numeric" autoComplete="one-time-code" value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required pattern="\d{6}" /></label><div className="security-form-actions"><AraButton type="submit" variant="primary" disabled={isChangingEmail || emailCode.length !== 6}>{isChangingEmail ? t('workspace.settingsPanel.saving') : t('workspace.settingsPanel.confirmEmail')}</AraButton><AraButton type="button" variant="secondary" disabled={isChangingEmail} onClick={() => { setEmailConfirmation(null); setEmailCode(''); }}>{t('common.cancel')}</AraButton></div></>}
-            </form>
-          </div>
-
-          <div className="workspace-section-card">
-            <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.devices')}</h2><p>{t('workspace.settingsPanel.devicesText')}</p></div><AraButton type="button" aria-label={t('workspace.settingsPanel.refreshSecurity')} onClick={() => loadSecurityData()} disabled={isLoadingSecurity} size="icon" variant="secondary"><Icon name="refresh" size={16} /></AraButton></div>
-            {isLoadingSecurity ? <p className="security-loading" role="status">{t('workspace.settingsPanel.loadingSecurity')}</p> : securityLoadError ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.settingsPanel.securityLoadError')}</strong><span>{securityLoadError}</span><AraButton type="button" onClick={() => loadSecurityData()} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : <div className="security-device-list">{devices.length ? devices.map((device) => <article className="security-device-row" key={device.id}><span className="workspace-section-icon"><Icon name="device" size={17} /></span><div><strong>{device.device_id}</strong><span>{t('workspace.settingsPanel.deviceCreated', { date: formatDate(device.created_at) })}</span><small>{t('workspace.settingsPanel.deviceExpires', { date: formatDate(device.expires_at) })}</small></div>{device.revoked_at ? <em>{t('workspace.settingsPanel.revoked')}</em> : device.device_id === currentDeviceId ? <em className="is-current">{t('workspace.settingsPanel.currentDevice')}</em> : <AraButton type="button" variant="secondary" disabled={revokingDeviceId === device.device_id} onClick={() => handleRevokeDevice(device)}>{revokingDeviceId === device.device_id ? t('workspace.settingsPanel.revoking') : t('workspace.settingsPanel.revoke')}</AraButton>}</article>) : <p className="security-empty">{t('workspace.settingsPanel.noDevices')}</p>}</div>}
-          </div>
-
-          <div className="workspace-section-card">
-            <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.loginHistory')}</h2><p>{t('workspace.settingsPanel.loginHistoryText')}</p></div></div>
-            {isLoadingSecurity ? <p className="security-loading" role="status">{t('workspace.settingsPanel.loadingSecurity')}</p> : securityLoadError ? null : <div className="security-history-list">{loginHistory.length ? loginHistory.map((entry) => <article className="security-history-row" key={entry.id}><span className="workspace-section-icon"><Icon name={entry.result === 'success' ? 'check' : 'warning'} size={16} /></span><div><strong>{t(`workspace.settingsPanel.${LOGIN_METHODS[entry.method] || 'loginMethodOther'}`)}</strong><span>{entry.device_id || t('workspace.settingsPanel.unknownDevice')} · {formatDate(entry.created_at)}</span></div><em className={entry.result === 'success' ? 'is-success' : 'is-failed'}>{t(`workspace.settingsPanel.${LOGIN_RESULTS[entry.result] || 'loginResultOther'}`)}</em></article>) : <p className="security-empty">{t('workspace.settingsPanel.noLoginHistory')}</p>}</div>}
-          </div>
-
-          <AraButton className="security-logout-button" type="button" variant="secondary" onClick={() => onLogout?.()}><Icon name="logout" size={17} />{t('workspace.settingsPanel.logout')}</AraButton>
-        </div>
-      );
-    }
-
-    return (
-      <div className="settings-content">
-        <div className="workspace-section-card">
-          <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.appearanceTitle')}</h2><p>{t('workspace.settingsPanel.appearanceText')}</p></div></div>
-          <div className="setting-control-block">
-            <strong>{t('workspace.settingsPanel.theme')}</strong>
-            <div className="theme-choice-grid">
-              {['light', 'dark'].map((theme) => <button className={`theme-choice theme-choice-${theme} ${preferences.theme === theme ? 'is-selected' : ''}`} type="button" key={theme} aria-pressed={preferences.theme === theme} onClick={() => updatePreferences({ theme })}><span aria-hidden="true" /><b>{t(`common.${theme}`)}</b><i><Icon name="check" size={13} /></i></button>)}
-            </div>
-          </div>
-          <div className="setting-control-block color-palette-control">
-            <strong id="color-palette-label">{t('workspace.settingsPanel.colorPalette')}</strong>
-            <p id="color-palette-description">{t('workspace.settingsPanel.colorPaletteText')}</p>
-            <div className="color-palette-choice-grid" aria-labelledby="color-palette-label" aria-describedby="color-palette-description" role="group">
-              {COLOR_PALETTES.map((colorPalette) => <button className={`color-palette-choice color-palette-choice-${colorPalette} ${preferences.colorPalette === colorPalette ? 'is-selected' : ''}`} type="button" key={colorPalette} aria-pressed={preferences.colorPalette === colorPalette} onClick={() => updatePreferences({ colorPalette })}><span className="color-palette-swatch" aria-hidden="true" /><b>{t(`workspace.settingsPanel.palette${colorPalette[0].toUpperCase()}${colorPalette.slice(1)}`)}</b><i><Icon name="check" size={13} /></i></button>)}
-            </div>
-          </div>
-          <fieldset className="setting-control-block language-choice-group">
-            <legend>{t('workspace.settingsPanel.language')}</legend>
-            <p id="language-choice-description">{t('workspace.settingsPanel.languageText')}</p>
-            <div className="language-choice-list">
-              {SUPPORTED_LANGUAGES.map((language) => {
-                const isSelected = preferences.language === language.id;
-                return (
-                  <label className={`language-choice ${isSelected ? 'is-selected' : ''}`} key={language.id}>
-                    <input type="radio" name="language" value={language.id} checked={isSelected} onChange={() => updatePreferences({ language: language.id })} aria-describedby="language-choice-description" />
-                    <span className="language-choice-flag"><LanguageFlag flag={language.flag} /></span>
-                    <span className="language-choice-copy"><strong>{language.label}</strong><small>{language.id.toUpperCase()}</small></span>
-                    <span className="language-choice-state" aria-hidden="true"><Icon name="check" size={15} /></span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-        </div>
-        <div className="workspace-section-card">
-          <div className="workspace-section-heading"><div><h2>{t('workspace.settingsPanel.densityTitle')}</h2><p>{t('workspace.settingsPanel.densityText')}</p></div></div>
-          <div className="density-choices">
-            {['comfortable', 'compact'].map((value) => <button className={density === value ? 'is-selected' : ''} type="button" key={value} aria-pressed={density === value} onClick={() => updatePreferences({ density: value })}><span className={`density-preview density-preview-${value}`} aria-hidden="true"><i /><i /><i /></span><span><strong>{t(`workspace.settingsPanel.${value}`)}</strong><small>{t(`workspace.settingsPanel.${value}Text`)}</small></span><Icon name="check" size={17} /></button>)}
-          </div>
-        </div>
-      </div>
-    );
+    return <SecuritySettings
+      activeDevices={activeDevices}
+      currentDeviceId={currentDeviceId}
+      currentUser={currentUser}
+      devices={devices}
+      emailCode={emailCode}
+      emailConfirmation={emailConfirmation}
+      emailForm={emailForm}
+      isChangingEmail={isChangingEmail}
+      isChangingPassword={isChangingPassword}
+      isLoadingSecurity={isLoadingSecurity}
+      isSavingPin={isSavingPin}
+      loginHistory={loginHistory}
+      onCancelEmailChange={() => { setEmailConfirmation(null); setEmailCode(''); }}
+      onCancelPasswordChange={() => { setPasswordConfirmation(null); setPasswordCode(''); }}
+      onConfirmEmailChange={handleConfirmEmailChange}
+      onConfirmPasswordChange={handleConfirmPasswordChange}
+      onEmailCodeChange={setEmailCode}
+      onEmailFormChange={setEmailForm}
+      onLoadSecurityData={() => void loadSecurityData()}
+      onLogout={() => onLogout?.()}
+      onPasswordCodeChange={setPasswordCode}
+      onPasswordFormChange={setPasswordForm}
+      onPinFormChange={setPinForm}
+      onRemovePin={handleRemovePin}
+      onRevokeDevice={handleRevokeDevice}
+      onSavePin={handleSavePin}
+      onStartEmailChange={handleStartEmailChange}
+      onStartPasswordChange={handleStartPasswordChange}
+      passwordCode={passwordCode}
+      passwordConfirmation={passwordConfirmation}
+      passwordForm={passwordForm}
+      pinForm={pinForm}
+      revokingDeviceId={revokingDeviceId}
+      securityLoadError={securityLoadError}
+      t={t}
+    />;
   };
 
   return (
     <section className="workspace-detail-panel workspace-settings-panel" aria-labelledby="settings-title">
       <header className="workspace-panel-heading">
-        <div><p>{t('workspace.settingsPanel.kicker')}</p><h1 id="settings-title">{t('workspace.settingsPanel.title')}</h1><span>{t('workspace.settingsPanel.intro')}</span></div>
-        <span className="workspace-panel-icon"><Icon name="settings" size={25} /></span>
+        <div><h1 id="settings-title">{t('workspace.settingsPanel.title')}</h1><span>{t('workspace.settingsPanel.intro')}</span></div>
       </header>
       <div className="settings-layout">
         <div className="settings-tabs" role="tablist" aria-label={t('workspace.settingsPanel.tabsLabel')} aria-orientation={isCompactSettingsNavigation ? 'horizontal' : 'vertical'}>
@@ -513,8 +377,7 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
         </div>
         <div className="settings-main">
           <div id={`settings-panel-${activeTab}`} role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`}>{renderSettings()}</div>
-          <SecurityFormNotice error={formError} notice={notice} />
-          {['appearance', 'notifications'].includes(activeTab) ? <AraButton type="button" variant="primary" onClick={saveLocalSettings}><Icon name="save" size={17} />{t('workspace.settingsPanel.save')}</AraButton> : null}
+          {formError ? <WorkspaceNotice tone="error">{formError}</WorkspaceNotice> : notice ? <WorkspaceNotice>{typeof notice === 'string' ? notice : t(notice.key)}</WorkspaceNotice> : null}
         </div>
       </div>
     </section>

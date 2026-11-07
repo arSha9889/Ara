@@ -30,8 +30,6 @@ export function WelcomeScreen({ preferences, updatePreferences, t, onNavigate, o
         <ThemeLanguageControls preferences={preferences} updatePreferences={updatePreferences} t={t} compact presentation="auth" />
       </div>
 
-      <div className="auth-wallpaper" aria-hidden="true" />
-
       <section className="welcome-content welcome-hero" aria-labelledby="welcome-heading">
         <BrandMark />
         <div className="welcome-copy">

@@ -1,0 +1,1862 @@
+/*
+ * AraChat Desktop
+ *
+ * This final layer deliberately owns the desktop presentation. Legacy styles
+ * underneath retain component geometry and responsive fallbacks; these rules
+ * provide one calm, functional material system for the product UI.
+ */
+
+:root {
+  color-scheme: dark;
+  font-family: 'Gilroy', 'Segoe UI Variable', 'Segoe UI', sans-serif;
+  background: #0a111c;
+  color: #f3f7fc;
+  --desktop-focus: #8cc9ff;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  background: #f4f7fb;
+  color: #142033;
+  --desktop-focus: #176eb1;
+}
+
+.desktop-app {
+  --ara-canvas: #0a111c;
+  --ara-surface: #141f30;
+  --ara-surface-elevated: #1a273a;
+  --ara-text: #f3f7fc;
+  --ara-text-muted: #b0becf;
+  --ara-border-subtle: #2a3b53;
+  --ara-border-interactive: #496581;
+  --ara-border-strong: #6384a8;
+  --ara-accent: #4aa8f0;
+  --ara-accent-hover: #8cc9ff;
+  --ara-on-accent: #071420;
+  --ara-error: #ef7b82;
+  --ara-warning: #e3b65d;
+  --ara-focus: #8cc9ff;
+  --ara-message-status-muted: #b0becf;
+  --ara-message-read: #8cc9ff;
+  --ara-shadow: rgb(0 0 0 / .3);
+  --ara-radius-control: 8px;
+  --ara-radius-panel: 10px;
+  --ara-motion-fast: 140ms ease;
+  --canvas: var(--ara-canvas);
+  --canvas-deep: var(--ara-canvas);
+  --surface: var(--ara-surface);
+  --surface-strong: var(--ara-surface-elevated);
+  --surface-soft: var(--ara-surface-elevated);
+  --text: var(--ara-text);
+  --text-muted: var(--ara-text-muted);
+  --line: var(--ara-border-subtle);
+  --purple: var(--ara-accent);
+  --purple-soft: var(--ara-accent-hover);
+  --coral: var(--ara-error);
+  --yellow: var(--ara-warning);
+  --shadow: var(--ara-shadow);
+  min-height: 100vh;
+  background: var(--ara-canvas);
+}
+
+:root[data-theme='light'] .desktop-app {
+  --ara-canvas: #f4f7fb;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #eaf0f7;
+  --ara-text: #142033;
+  --ara-text-muted: #5b6b7e;
+  --ara-border-subtle: #ccd8e5;
+  --ara-border-interactive: #8aa8c5;
+  --ara-border-strong: #6688aa;
+  --ara-accent: #176eb1;
+  --ara-accent-hover: #0e5d9b;
+  --ara-on-accent: #ffffff;
+  --ara-error: #bd4854;
+  --ara-warning: #956d1b;
+  --ara-focus: #176eb1;
+  --ara-message-status-muted: #7e8d9e;
+  --ara-message-read: #176eb1;
+  --ara-shadow: rgb(33 58 82 / .16);
+}
+
+.desktop-app *,
+.desktop-app *::before,
+.desktop-app *::after {
+  scrollbar-color: var(--ara-border-strong) transparent;
+}
+
+.desktop-app :is(button, input, select, textarea, a[href]):focus-visible {
+  outline: 2px solid var(--ara-focus);
+  outline-offset: 2px;
+}
+
+.desktop-app :is(button, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+
+.desktop-app :is(.workspace-main, .workspace-nav, .workspace-list, .workspace-chat-details, .workspace-section-card, .auth-panel-card, .welcome-content, .desktop-call-dialog, .desktop-share-studio, .message-context-menu, .chat-recording-menu) {
+  backdrop-filter: none !important;
+}
+
+.desktop-app .titlebar {
+  height: 40px;
+  color: var(--ara-text-muted);
+  border-bottom-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .window-control:hover:not(:disabled) {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .brand-mark,
+.desktop-app .brand-mark.is-compact {
+  color: var(--ara-text);
+  font-family: inherit;
+}
+
+.desktop-app .brand-mark img {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.desktop-app .ara-button,
+.desktop-app .button,
+.desktop-app .workspace-primary-button,
+.desktop-app .workspace-outline-button,
+.desktop-app .workspace-icon-button {
+  border-radius: var(--ara-radius-control);
+  box-shadow: none;
+}
+
+.desktop-app .ara-button,
+.desktop-app .button-secondary,
+.desktop-app .workspace-outline-button,
+.desktop-app .workspace-icon-button {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .ara-button:hover:not(:disabled),
+.desktop-app .button-secondary:hover:not(:disabled),
+.desktop-app .workspace-outline-button:hover:not(:disabled),
+.desktop-app .workspace-icon-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-strong);
+  background: var(--ara-surface);
+}
+
+.desktop-app .ara-button--primary,
+.desktop-app .ara-button--active,
+.desktop-app .ara-button--selected,
+.desktop-app .button-primary,
+.desktop-app .workspace-primary-button {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .ara-button--primary:hover:not(:disabled),
+.desktop-app .ara-button--active:hover:not(:disabled),
+.desktop-app .ara-button--selected:hover:not(:disabled),
+.desktop-app .button-primary:hover:not(:disabled),
+.desktop-app .workspace-primary-button:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent-hover);
+  background: var(--ara-accent-hover);
+  box-shadow: none;
+}
+
+.desktop-app .ara-button--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.desktop-app .ara-button--ghost:hover:not(:disabled) {
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .ara-button:disabled,
+.desktop-app .button:disabled {
+  opacity: .48;
+}
+
+/* Entry flow */
+.desktop-app .welcome-screen,
+.desktop-app .auth-scene.auth-screen {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  min-height: 638px;
+  height: 100%;
+  padding: 48px 24px 24px;
+  overflow: auto;
+  color: var(--ara-text);
+  background: var(--ara-canvas);
+}
+
+.desktop-app .welcome-screen::before,
+.desktop-app .welcome-screen::after,
+.desktop-app .auth-scene::before,
+.desktop-app .auth-scene::after,
+.desktop-app .auth-wallpaper,
+.desktop-app .auth-wallpaper::after {
+  display: none !important;
+  content: none;
+}
+
+.desktop-app .welcome-utility-bar,
+.desktop-app .auth-scene-preferences {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 18px;
+  left: auto;
+}
+
+.desktop-app .preference-controls--auth .select-control select,
+.desktop-app .theme-toggle--auth,
+.desktop-app .preference-controls .select-control select,
+.desktop-app .preference-controls .theme-toggle {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: 7px;
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .welcome-content.welcome-hero {
+  display: flex;
+  align-items: flex-start;
+  width: min(100%, 480px);
+  min-height: auto;
+  padding: 0;
+  color: var(--ara-text);
+  background: transparent;
+  isolation: auto;
+}
+
+.desktop-app .welcome-content.welcome-hero > * {
+  position: static;
+}
+
+.desktop-app .welcome-hero .brand-mark {
+  font-size: 22px;
+}
+
+.desktop-app .welcome-copy {
+  max-width: 440px;
+  margin-top: 34px;
+  opacity: 1;
+  transform: none;
+}
+
+.desktop-app .welcome-copy h1 {
+  max-width: 430px;
+  color: var(--ara-text);
+  font-family: inherit;
+  font-size: clamp(32px, 4vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -.04em;
+}
+
+.desktop-app .welcome-copy p {
+  margin-top: 12px;
+  color: var(--ara-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.desktop-app .welcome-actions {
+  display: block;
+  width: min(100%, 320px);
+  margin-top: 26px;
+  opacity: 1;
+  transform: none;
+}
+
+.desktop-app .welcome-hero .button-primary {
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.desktop-app .welcome-signin {
+  margin: 14px 0 0;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+}
+
+.desktop-app .welcome-signin button,
+.desktop-app .welcome-legal button,
+.desktop-app .auth-panel-card .auth-switch button,
+.desktop-app .auth-panel-card .auth-doc-links button,
+.desktop-app .auth-panel-card .legal-check button,
+.desktop-app .auth-forgot-link {
+  color: var(--ara-accent-hover);
+}
+
+.desktop-app .welcome-signin button:hover,
+.desktop-app .welcome-legal button:hover,
+.desktop-app .auth-panel-card .auth-switch button:hover,
+.desktop-app .auth-panel-card .auth-doc-links button:hover,
+.desktop-app .auth-panel-card .legal-check button:hover,
+.desktop-app .auth-forgot-link:hover:not(:disabled) {
+  color: var(--ara-text);
+  text-decoration: underline;
+}
+
+.desktop-app .welcome-legal {
+  max-width: 400px;
+  margin-top: 22px;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 1;
+  transform: none;
+}
+
+.desktop-app .auth-panel-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 560px);
+  max-height: calc(100vh - 82px);
+  min-height: 0;
+  overflow: hidden;
+  color: var(--ara-text);
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: 0 14px 32px var(--ara-shadow);
+}
+
+.desktop-app .auth-card-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 62px;
+  gap: 12px;
+  padding: 0 16px 0 58px;
+  border-bottom: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app .auth-card-brand {
+  position: static;
+}
+
+.desktop-app .auth-card-brand .brand-mark img {
+  width: 26px;
+  height: 26px;
+}
+
+.desktop-app .auth-card-brand .brand-mark span {
+  display: none;
+}
+
+.desktop-app .auth-card-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  height: 100%;
+}
+
+.desktop-app .auth-card-tabs button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 61px;
+  padding: 0 10px;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  border: 0;
+  background: transparent;
+}
+
+.desktop-app .auth-card-tabs button::after {
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 12px;
+  height: 2px;
+  content: '';
+  background: transparent;
+}
+
+.desktop-app .auth-card-tabs button:hover:not(.is-active) {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .auth-card-tabs button.is-active {
+  color: var(--ara-text);
+}
+
+.desktop-app .auth-card-tabs button.is-active::after {
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .auth-card-back {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--ara-text-muted);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+}
+
+.desktop-app .auth-card-back:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .auth-card-scroll {
+  display: grid;
+  min-height: 0;
+  padding: 32px clamp(28px, 6vw, 52px);
+  overflow-y: auto;
+}
+
+.desktop-app .auth-panel-card .auth-form-wrap {
+  width: min(100%, 400px);
+  margin: auto;
+  padding: 0;
+}
+
+.desktop-app .auth-panel-card .auth-heading {
+  text-align: left;
+}
+
+.desktop-app .auth-panel-card .auth-heading p {
+  margin-bottom: 8px;
+  color: var(--ara-accent-hover);
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.desktop-app .auth-panel-card .auth-heading h1 {
+  max-width: none;
+  color: var(--ara-text);
+  font-family: inherit;
+  font-size: 28px;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+}
+
+.desktop-app .auth-panel-card .auth-heading > span {
+  max-width: 370px;
+  margin-top: 10px;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.desktop-app .auth-panel-card .auth-form {
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.desktop-app .auth-input-shell {
+  height: 46px;
+  padding: 0 12px;
+  color: var(--ara-text-muted);
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+}
+
+.desktop-app .auth-input-shell:hover {
+  border-color: var(--ara-border-interactive);
+}
+
+.desktop-app .auth-input-shell:focus-within {
+  color: var(--ara-accent-hover);
+  border-color: var(--ara-accent);
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 28%, transparent);
+}
+
+.desktop-app .auth-input-shell input,
+.desktop-app .auth-input-shell select {
+  color: var(--ara-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.desktop-app .auth-input-shell input::placeholder {
+  color: color-mix(in srgb, var(--ara-text-muted) 72%, transparent);
+}
+
+.desktop-app .auth-input-shell select option {
+  color: var(--ara-text);
+  background: var(--ara-surface);
+}
+
+.desktop-app .auth-password-toggle {
+  color: var(--ara-text-muted);
+  border-radius: 6px;
+}
+
+.desktop-app .auth-password-toggle:hover:not(:disabled),
+.desktop-app .auth-password-toggle[aria-pressed='true'] {
+  color: var(--ara-accent-hover);
+  background: color-mix(in srgb, var(--ara-accent) 10%, transparent);
+}
+
+.desktop-app .auth-panel-card .checkbox-row,
+.desktop-app .auth-form-hint,
+.desktop-app .auth-field > small,
+.desktop-app .auth-field-note,
+.desktop-app .auth-reset-email,
+.desktop-app .auth-panel-card .auth-switch,
+.desktop-app .auth-panel-card .auth-doc-links,
+.desktop-app .auth-panel-card .legal-check {
+  color: var(--ara-text-muted);
+}
+
+.desktop-app .auth-panel-card .checkbox-row input {
+  accent-color: var(--ara-accent);
+}
+
+.desktop-app .auth-reset-email {
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .auth-reset-email svg,
+.desktop-app .auth-form-hint svg {
+  color: var(--ara-accent);
+}
+
+.desktop-app .auth-panel-card .notice {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 42%, var(--ara-border-subtle));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+
+.desktop-app .auth-panel-card .notice-error {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-error) 55%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 10%, var(--ara-surface-elevated));
+}
+
+.desktop-app .auth-panel-card .button {
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.desktop-app .auth-submit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--ara-on-accent) !important;
+  border-color: var(--ara-accent) !important;
+  background: var(--ara-accent) !important;
+  box-shadow: none !important;
+}
+
+.desktop-app .auth-submit-button:hover:not(:disabled) {
+  background: var(--ara-accent-hover) !important;
+  box-shadow: none !important;
+}
+
+.desktop-app .auth-panel-card .registration-steps {
+  position: relative;
+  gap: 5px;
+  margin: 20px 0 0;
+}
+
+.desktop-app .auth-panel-card .registration-steps::before {
+  background: var(--ara-border-subtle);
+}
+
+.desktop-app .auth-panel-card .registration-steps li {
+  color: var(--ara-text-muted);
+}
+
+.desktop-app .auth-panel-card .registration-steps li span {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: 50%;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .auth-panel-card .registration-steps li.is-current,
+.desktop-app .auth-panel-card .registration-steps li.is-complete {
+  color: var(--ara-text);
+}
+
+.desktop-app .auth-panel-card .registration-steps li.is-current span {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .auth-panel-card .registration-steps li.is-complete span {
+  color: var(--ara-accent-hover);
+  border-color: var(--ara-border-interactive);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+
+/* Workspace frame */
+.desktop-app .workspace-screen {
+  position: relative;
+  grid-template-columns: 184px minmax(260px, 304px) minmax(0, 1fr) 256px;
+  gap: 0;
+  min-height: 638px;
+  padding: 0;
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-app-version {
+  position: absolute;
+  right: 12px;
+  bottom: 9px;
+  z-index: 2;
+  color: var(--ara-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.desktop-app .workspace-screen.is-standalone-page {
+  grid-template-columns: 184px minmax(0, 1fr);
+}
+
+.desktop-app .workspace-nav,
+.desktop-app .workspace-list,
+.desktop-app .workspace-main,
+.desktop-app .workspace-chat-details {
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.desktop-app .workspace-nav {
+  padding: 12px 8px;
+  border-right: 1px solid var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-logo.ara-button {
+  justify-content: flex-start;
+  width: 100%;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 7px;
+  color: var(--ara-text);
+  border: 0;
+  background: transparent;
+}
+
+.desktop-app .workspace-logo.ara-button:hover:not(:disabled) {
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-logo .brand-mark img {
+  width: 26px;
+  height: 26px;
+}
+
+.desktop-app .workspace-logo .brand-mark span {
+  font-size: 16px;
+  letter-spacing: -.03em;
+}
+
+.desktop-app .workspace-nav-groups {
+  align-items: stretch;
+  margin-top: 18px;
+}
+
+.desktop-app .workspace-nav-group {
+  width: 100%;
+  gap: 3px;
+}
+
+.desktop-app .workspace-nav-separator {
+  width: calc(100% - 14px);
+  margin: 12px 7px;
+  background: var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-nav-button.ara-button {
+  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 9px;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+  font-weight: 650;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+}
+
+.desktop-app .workspace-nav-button.ara-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-nav-button.ara-button.is-active,
+.desktop-app .workspace-nav-button.ara-button.is-active:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 38%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 13%, var(--ara-surface-elevated));
+  box-shadow: inset 2px 0 0 var(--ara-accent);
+}
+
+.desktop-app .workspace-user-chip.ara-button {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  min-height: 46px;
+  padding: 6px 7px;
+  color: var(--ara-text);
+  border-top-color: var(--ara-border-subtle);
+  border-radius: 0;
+  background: transparent;
+}
+
+.desktop-app .workspace-user-chip.ara-button:hover:not(:disabled),
+.desktop-app .workspace-user-chip.ara-button.is-active {
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-user-avatar {
+  width: 26px;
+  height: 26px;
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-user-chip small {
+  color: var(--ara-text-muted);
+}
+
+.desktop-app .workspace-list {
+  border-right: 1px solid var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .workspace-list-header {
+  min-height: 68px;
+  padding: 14px 12px 8px;
+  border-bottom: 0;
+}
+
+.desktop-app .workspace-list-header h1 {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+.desktop-app .workspace-list-header p {
+  display: none;
+}
+
+.desktop-app .workspace-list-actions {
+  gap: 3px;
+}
+
+.desktop-app .workspace-list .theme-toggle,
+.desktop-app .workspace-list-refresh,
+.desktop-app .workspace-list-clear,
+.desktop-app .workspace-new-chat {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 7px;
+}
+
+.desktop-app .workspace-list .theme-toggle,
+.desktop-app .workspace-list-refresh,
+.desktop-app .workspace-list-clear {
+  color: var(--ara-text-muted);
+  border-color: transparent;
+  background: transparent;
+}
+
+.desktop-app .workspace-list .theme-toggle:hover:not(:disabled),
+.desktop-app .workspace-list-refresh:hover:not(:disabled),
+.desktop-app .workspace-list-clear:hover:not(:disabled) {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-new-chat {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-search {
+  min-height: 36px;
+  margin: 2px 10px 8px;
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: 7px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-search:focus-within {
+  border-color: var(--ara-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 25%, transparent);
+}
+
+.desktop-app .workspace-search input {
+  color: var(--ara-text);
+}
+
+.desktop-app .workspace-chat-category-tabs {
+  margin: 0 10px 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.desktop-app .workspace-chat-category-tab.ara-button {
+  min-height: 28px;
+  padding: 0 5px;
+  color: var(--ara-text-muted);
+  border-radius: 6px;
+}
+
+.desktop-app .workspace-chat-category-tab.ara-button.is-active,
+.desktop-app .workspace-chat-category-tab.ara-button.is-active:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--ara-accent) 13%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-chat-row {
+  min-height: 60px;
+  margin: 1px 4px;
+  padding: 8px 7px;
+  border-radius: 7px;
+}
+
+.desktop-app .workspace-chat-row:hover:not(.is-selected) {
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-row.is-selected {
+  border-color: color-mix(in srgb, var(--ara-accent) 36%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 13%, var(--ara-surface-elevated));
+  box-shadow: inset 2px 0 0 var(--ara-accent);
+}
+
+.desktop-app .workspace-list .workspace-avatar {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-row.is-selected .workspace-avatar,
+.desktop-app .workspace-unread {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-list-footer {
+  color: var(--ara-text-muted);
+  background: transparent;
+}
+
+.desktop-app .workspace-main {
+  position: relative;
+  isolation: auto;
+  overflow: hidden;
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-main::before,
+.desktop-app .workspace-main::after {
+  display: none;
+  content: none;
+}
+
+.desktop-app .workspace-chat-details {
+  overflow-y: auto;
+  color: var(--ara-text);
+  border-left: 1px solid var(--ara-border-subtle);
+  background: var(--ara-surface);
+}
+
+.desktop-app .chat-details-hero {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  overflow: visible;
+  text-align: left;
+}
+
+.desktop-app .chat-details-avatar {
+  width: 52px;
+  height: 52px;
+  margin: 0;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 50%;
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .chat-details-copy {
+  gap: 3px;
+  margin: 0;
+}
+
+.desktop-app .chat-details-copy h2 {
+  max-width: 220px;
+  font-size: 14px;
+  letter-spacing: -.02em;
+}
+
+.desktop-app .chat-details-copy p,
+.desktop-app .chat-details-section p {
+  color: var(--ara-text-muted);
+}
+
+.desktop-app .chat-details-actions {
+  justify-content: flex-start;
+  padding: 0 16px 14px;
+  border-bottom-color: var(--ara-border-subtle);
+}
+
+.desktop-app .chat-details-actions .ara-button {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  border-radius: 7px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .chat-details-actions .ara-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-canvas);
+}
+
+.desktop-app .chat-details-section {
+  margin: 0 16px;
+  padding: 14px 0;
+  border-bottom-color: var(--ara-border-subtle);
+}
+
+.desktop-app .chat-details-security > svg,
+.desktop-app .chat-details-members .ara-button {
+  color: var(--ara-accent);
+}
+
+/* Conversations and functional panels */
+.desktop-app .workspace-chat-panel,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel),
+.desktop-app .workspace-chat-panel.channel-chat-panel,
+.desktop-app .workspace-chat-panel.channel-comments-panel,
+.desktop-app .workspace-chat-panel.channel-details-panel {
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-chat-panel .chat-header {
+  min-height: 62px;
+  padding: 10px 16px;
+  border-bottom-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+  backdrop-filter: none;
+}
+
+.desktop-app .workspace-chat-panel .chat-header-actions button,
+.desktop-app .workspace-chat-panel .chat-composer-icon,
+.desktop-app .chat-media-action {
+  color: var(--ara-text-muted);
+  border-radius: 7px;
+}
+
+.desktop-app .workspace-chat-panel .chat-header-actions button:hover:not(:disabled),
+.desktop-app .workspace-chat-panel .chat-composer-icon:hover:not(:disabled),
+.desktop-app .chat-media-action:is(:hover, .is-open):not(:disabled) {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel .chat-history {
+  padding: 18px clamp(20px, 3.6vw, 42px) 20px;
+  background: var(--ara-canvas);
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message-bubble {
+  border-color: var(--ara-border-subtle);
+  border-radius: 9px 9px 9px 3px;
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-bubble {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  border-radius: 9px 9px 3px 9px;
+  background: var(--ara-accent);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer-area {
+  padding: 10px clamp(18px, 3vw, 32px) 12px;
+  border-top-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+  backdrop-filter: none;
+}
+
+.desktop-app .workspace-chat-panel .chat-composer {
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer:focus-within {
+  border-color: var(--ara-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 25%, transparent);
+}
+
+.desktop-app .workspace-chat-panel .chat-send-button {
+  color: var(--ara-on-accent);
+  border-radius: 7px;
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-detail-panel {
+  width: min(100%, 880px);
+  padding: 30px clamp(24px, 4vw, 54px) 40px;
+}
+
+.desktop-app .workspace-panel-heading {
+  padding-bottom: 22px;
+}
+
+.desktop-app .workspace-panel-heading h1,
+.desktop-app .workspace-section-heading h2 {
+  font-family: inherit;
+}
+
+.desktop-app .workspace-panel-heading > div > p,
+.desktop-app .workspace-panel-icon,
+.desktop-app .workspace-section-icon {
+  color: var(--ara-accent);
+}
+
+.desktop-app .workspace-panel-icon,
+.desktop-app .workspace-section-icon {
+  border-color: color-mix(in srgb, var(--ara-accent) 34%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-section-card {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-section-card {
+  background-image: none;
+}
+
+.desktop-app .workspace-field input,
+.desktop-app .workspace-field select,
+.desktop-app .workspace-field textarea,
+.desktop-app .workspace-input-prefix,
+.desktop-app .channel-form input,
+.desktop-app .channel-form textarea,
+.desktop-app .channel-details-form input,
+.desktop-app .channel-details-form textarea,
+.desktop-app .channel-comment-composer textarea {
+  color: var(--ara-text);
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-field input:focus,
+.desktop-app .workspace-field select:focus,
+.desktop-app .workspace-field textarea:focus,
+.desktop-app .workspace-input-prefix:focus-within,
+.desktop-app .channel-form input:focus,
+.desktop-app .channel-form textarea:focus,
+.desktop-app .channel-details-form input:focus,
+.desktop-app .channel-details-form textarea:focus,
+.desktop-app .channel-comment-composer textarea:focus {
+  border-color: var(--ara-accent);
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ara-focus) 25%, transparent);
+}
+
+.desktop-app .workspace-settings-panel .settings-tabs {
+  border-color: var(--ara-border-subtle);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-settings-panel .settings-tabs button.is-active {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 38%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 13%, var(--ara-surface));
+}
+
+.desktop-app .theme-choice,
+.desktop-app .language-choice,
+.desktop-app .density-choices > button {
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .theme-choice:hover,
+.desktop-app .language-choice:hover,
+.desktop-app .density-choices > button:hover {
+  border-color: var(--ara-border-interactive);
+}
+
+.desktop-app .theme-choice.is-selected,
+.desktop-app .language-choice.is-selected,
+.desktop-app .density-choices > button.is-selected {
+  border-color: var(--ara-accent);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+
+.desktop-app .theme-choice > span {
+  border-color: var(--ara-border-subtle);
+  background: #f4f7fb;
+}
+
+.desktop-app .theme-choice-dark > span {
+  background: #0a111c;
+}
+
+.desktop-app .theme-choice.is-selected i,
+.desktop-app .language-choice.is-selected .language-choice-state {
+  color: var(--ara-on-accent);
+  background: var(--ara-accent);
+}
+
+.desktop-app .message-context-menu,
+.desktop-app .chat-recording-menu,
+.desktop-app .workspace-chat-context-menu {
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface);
+  box-shadow: 0 10px 24px var(--ara-shadow);
+}
+
+.desktop-app .message-context-menu .ara-button:hover:not(:disabled),
+.desktop-app .chat-recording-menu .ara-button:hover:not(:disabled),
+.desktop-app .chat-recording-menu .ara-button:focus-visible,
+.desktop-app .workspace-chat-context-menu .ara-button:hover:not(:disabled),
+.desktop-app .workspace-chat-context-menu .ara-button:focus-visible {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-chat-context-menu {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  gap: 1px;
+  width: 236px;
+  padding: 6px;
+  color: var(--ara-text);
+  border: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-chat-context-menu .ara-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 9px;
+  color: var(--ara-text);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.desktop-app .workspace-chat-context-menu .ara-button:focus-visible {
+  outline: 2px solid var(--ara-focus);
+  outline-offset: -2px;
+}
+
+/* Calls: video and controls remain prominent without scenic layers. */
+.desktop-app .desktop-call-overlay {
+  inset: 40px 0 0;
+  padding: 16px;
+  background: rgb(4 10 17 / .92);
+  backdrop-filter: none;
+}
+
+.desktop-app .desktop-call-overlay::before,
+.desktop-app .desktop-call-overlay::after {
+  display: none;
+  content: none;
+}
+
+.desktop-app .desktop-call-dialog {
+  width: min(100%, 1180px);
+  max-height: 900px;
+  border-color: var(--ara-border-strong);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-canvas);
+  box-shadow: 0 18px 44px rgb(0 0 0 / .42);
+}
+
+.desktop-app .desktop-call-media {
+  background: var(--ara-canvas);
+}
+
+.desktop-app .desktop-call-media.has-remote-video::after {
+  background: rgb(0 0 0 / .28);
+}
+
+.desktop-app .desktop-call-topbar {
+  top: 12px;
+  right: 12px;
+  left: 12px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface);
+  box-shadow: 0 8px 20px rgb(0 0 0 / .22);
+  backdrop-filter: none;
+}
+
+.desktop-app .desktop-call-peer-avatar,
+.desktop-app .desktop-call-avatar-stage .workspace-avatar {
+  color: var(--ara-on-accent);
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .desktop-call-live-dot.is-active {
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .desktop-call-avatar-stage {
+  width: 156px;
+  height: 156px;
+}
+
+.desktop-app .desktop-call-avatar-stage .workspace-avatar {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+}
+
+.desktop-app .desktop-call-avatar-orbit {
+  display: none;
+}
+
+.desktop-app .desktop-share-remote-chip,
+.desktop-app .desktop-share-local-preview,
+.desktop-app .desktop-call-local-video,
+.desktop-app .desktop-share-console {
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface);
+  box-shadow: 0 8px 20px rgb(0 0 0 / .22);
+  backdrop-filter: none;
+}
+
+.desktop-app .desktop-call-control::before {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface);
+  box-shadow: 0 6px 14px rgb(0 0 0 / .2);
+}
+
+.desktop-app .desktop-call-control:hover:not(:disabled)::before {
+  border-color: var(--ara-border-interactive);
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 6px 14px rgb(0 0 0 / .2);
+}
+
+.desktop-app .desktop-call-control[aria-pressed='true']:not([data-share-trigger])::before,
+.desktop-app .desktop-call-control.is-decline::before,
+.desktop-app .desktop-call-control.is-end::before {
+  border-color: var(--ara-error);
+  background: var(--ara-error);
+  box-shadow: none;
+}
+
+.desktop-app .desktop-call-control[data-share-trigger][aria-pressed='true']::before,
+.desktop-app .desktop-call-control.is-accept::before {
+  border-color: var(--ara-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .desktop-share-studio {
+  border-color: var(--ara-border-strong);
+  border-radius: var(--ara-radius-panel);
+  background: var(--ara-surface);
+  box-shadow: 0 18px 44px var(--ara-shadow);
+}
+
+.desktop-app .desktop-share-studio-mark {
+  color: var(--ara-on-accent);
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .desktop-share-source-option,
+.desktop-app .desktop-share-audio-option,
+.desktop-app .desktop-share-console-action {
+  border-color: var(--ara-border-subtle);
+  border-radius: 8px;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .desktop-share-source-option.is-selected {
+  border-color: var(--ara-accent);
+  background: color-mix(in srgb, var(--ara-accent) 10%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-state {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.desktop-app .workspace-state strong {
+  color: var(--ara-text);
+  font-size: 13px;
+}
+
+.desktop-app .workspace-state--loading {
+  padding: 16px 0;
+}
+
+.desktop-app .workspace-state--empty {
+  justify-items: start;
+  padding: 16px 0 0;
+  text-align: left;
+}
+
+.desktop-app .workspace-state--empty p {
+  max-width: 420px;
+  margin: 0;
+}
+
+.desktop-app .workspace-state--error {
+  padding: 12px 0;
+  color: var(--ara-error);
+  border-block: 1px solid color-mix(in srgb, var(--ara-error) 42%, var(--ara-border-subtle));
+}
+
+.desktop-app .workspace-state--error .ara-button {
+  justify-self: start;
+}
+
+.desktop-app .workspace-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--ara-text);
+  font-size: 12px;
+  line-height: 1.45;
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 46%, var(--ara-border-subtle));
+  border-radius: var(--ara-radius-control);
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-notice > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--ara-accent);
+}
+
+.desktop-app .workspace-notice--error {
+  color: var(--ara-error);
+  border-color: color-mix(in srgb, var(--ara-error) 48%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-error) 9%, var(--ara-surface-elevated));
+}
+
+.desktop-app .workspace-notice--error > svg {
+  color: var(--ara-error);
+}
+
+.desktop-app .workspace-settings-panel .settings-main > .workspace-notice {
+  margin-top: 15px;
+}
+
+.desktop-app .workspace-profile-panel .profile-editor > .workspace-notice {
+  margin-top: 16px;
+}
+
+.desktop-app .workspace-list > .workspace-notice.workspace-list-notice {
+  margin: 0 10px 8px;
+}
+
+.desktop-app .channels-panel > .workspace-notice.workspace-list-notice {
+  margin: 0 0 12px;
+}
+
+.desktop-app .workspace-state:is(.workspace-list-status, .notification-list-status, .calls-history-status, .channel-empty) {
+  margin: 0;
+  padding: 16px 0;
+  font-size: 12px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+}
+
+/* Dense standalone panels: information is organized by rows and dividers, not presentation cards. */
+.desktop-app .workspace-empty-state {
+  align-items: flex-start;
+  width: min(100%, 620px);
+  margin: 0;
+  padding: 40px clamp(24px, 5vw, 64px);
+  text-align: left;
+}
+
+.desktop-app .workspace-empty-state h1 {
+  margin: 0;
+  font-size: clamp(24px, 2.5vw, 30px);
+  line-height: 1.2;
+  letter-spacing: -.03em;
+}
+
+.desktop-app .workspace-empty-state > span {
+  max-width: 460px;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.desktop-app .workspace-empty-state .workspace-empty-action {
+  margin-top: 20px;
+}
+
+.desktop-app :is(.workspace-notifications-panel, .workspace-contacts-panel, .workspace-profile-panel, .workspace-calls-panel, .workspace-settings-panel, .channels-panel) .workspace-panel-heading {
+  align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app :is(.workspace-notifications-panel, .workspace-contacts-panel, .workspace-profile-panel, .workspace-calls-panel, .workspace-settings-panel, .channels-panel) .workspace-panel-heading h1 {
+  font-size: clamp(24px, 2.5vw, 30px);
+  line-height: 1.2;
+  letter-spacing: -.03em;
+}
+
+.desktop-app :is(.workspace-notifications-panel, .workspace-contacts-panel, .workspace-profile-panel, .workspace-calls-panel, .workspace-settings-panel, .channels-panel) .workspace-panel-heading > div > span {
+  max-width: 600px;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.desktop-app .channels-panel .channel-form-close {
+  flex: 0 0 auto;
+}
+
+.desktop-app :is(.workspace-notifications-panel, .workspace-contacts-panel, .workspace-profile-panel, .workspace-calls-panel, .workspace-settings-panel, .channels-panel) .workspace-section-card {
+  padding: 16px 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.desktop-app :is(.workspace-notifications-panel, .workspace-contacts-panel, .workspace-profile-panel, .workspace-calls-panel, .workspace-settings-panel, .channels-panel) .workspace-section-card + .workspace-section-card {
+  margin-top: 0;
+}
+
+.desktop-app :is(.workspace-notifications-panel, .workspace-contacts-panel, .workspace-profile-panel, .workspace-calls-panel, .workspace-settings-panel, .channels-panel) .workspace-section-heading {
+  margin-bottom: 12px;
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-list {
+  gap: 0;
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 11px 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row:hover:not(.is-unread) {
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row.is-unread {
+  background: color-mix(in srgb, var(--ara-accent) 8%, transparent);
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row.is-unread strong {
+  color: var(--ara-text);
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row.is-unread {
+  box-shadow: inset 2px 0 0 var(--ara-accent);
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row > span {
+  gap: 4px;
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row strong,
+.desktop-app .workspace-contacts-panel .contact-result-row strong,
+.desktop-app .channels-panel .channel-card strong,
+.desktop-app .workspace-calls-panel .calls-history-copy strong {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row small,
+.desktop-app .workspace-contacts-panel .contact-result-row small,
+.desktop-app .channels-panel .channel-card small,
+.desktop-app .workspace-calls-panel .calls-history-copy :is(span, small) {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.desktop-app .workspace-notifications-panel .desktop-notification-row time,
+.desktop-app .workspace-chat-meta time,
+.desktop-app .workspace-calls-panel .calls-history-outcome,
+.desktop-app .workspace-contacts-panel .contact-result-id {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.desktop-app .workspace-chat-name {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.desktop-app .workspace-chat-preview {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.desktop-app .workspace-notifications-panel .notifications-empty,
+.desktop-app .workspace-contacts-panel .contacts-no-results,
+.desktop-app .workspace-calls-panel .calls-history-empty {
+  padding-top: 16px;
+}
+
+.desktop-app .workspace-notifications-panel .notifications-empty p,
+.desktop-app .workspace-contacts-panel .contacts-no-results p,
+.desktop-app .workspace-calls-panel .calls-history-empty p {
+  max-width: 380px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection {
+  display: grid;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection-heading p {
+  margin: 0;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection-heading h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection-heading span:not(.workspace-avatar) {
+  color: var(--ara-text-muted);
+  font-size: 12px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection dl div {
+  display: grid;
+  gap: 2px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection dt {
+  color: var(--ara-text-muted);
+  font-size: 12px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-selection dd {
+  margin: 0;
+  font-size: 12px;
+}
+
+.desktop-app .workspace-profile-panel .profile-identity-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-profile-panel .profile-avatar {
+  width: 52px;
+  height: 52px;
+  color: var(--ara-on-accent);
+  font-size: 14px;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 50%;
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-profile-panel .profile-avatar img {
+  border-radius: inherit;
+}
+
+.desktop-app .workspace-profile-panel .profile-avatar-edit {
+  right: -4px;
+  bottom: -4px;
+  border-color: var(--ara-surface);
+  border-radius: 50%;
+}
+
+.desktop-app .workspace-profile-panel .profile-editor {
+  gap: 0;
+}
+
+.desktop-app .workspace-profile-panel .profile-editor > .ara-button {
+  justify-self: start;
+  margin-top: 16px;
+}
+
+.desktop-app .workspace-calls-panel .call-start-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-calls-panel .call-start-copy h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.desktop-app .workspace-calls-panel .call-start-copy p {
+  margin: 4px 0 12px;
+  color: var(--ara-text-muted);
+  font-size: 12px;
+}
+
+.desktop-app .workspace-contacts-panel .contact-found-note {
+  font-size: 12px;
+}
+
+.desktop-app .workspace-calls-panel .call-readiness-list li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.desktop-app .workspace-calls-panel .calls-history-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.desktop-app .workspace-settings-panel .settings-about-card + .settings-about-card {
+  margin-top: 0;
+}
+
+.desktop-app .workspace-settings-panel .settings-about-version {
+  display: grid;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.desktop-app .workspace-settings-panel .settings-update-status,
+.desktop-app .workspace-settings-panel .security-status,
+.desktop-app .workspace-settings-panel .workspace-backend-note {
+  margin: 0;
+  padding: 12px 0 0;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.desktop-app .workspace-settings-panel .security-device-row,
+.desktop-app .workspace-settings-panel .security-history-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.desktop-app .channels-panel .channel-card-list {
+  gap: 0;
+}
+
+.desktop-app .channels-panel .channel-card {
+  min-height: 56px;
+  padding: 8px 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+.desktop-app .channels-panel .channel-card:is(:hover, :has(.channel-card-main:hover)) {
+  border-color: var(--ara-border-subtle);
+  background: transparent;
+}
+
+.desktop-app .channels-panel .channel-avatar {
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 50%;
+  background: var(--ara-accent);
+  box-shadow: none;
+}
+
+@media (max-width: 620px) {
+  .desktop-app .workspace-contacts-panel .contact-selection dl {
+    grid-template-columns: 1fr;
+  }
+
+  .desktop-app .workspace-calls-panel .call-start-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .desktop-app .workspace-calls-panel .calls-history-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .desktop-app .workspace-calls-panel .calls-history-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1260px) {
+  .desktop-app .workspace-screen,
+  .desktop-app .workspace-screen.has-chat-details {
+    grid-template-columns: 184px minmax(250px, 294px) minmax(0, 1fr);
+  }
+
+  .desktop-app .workspace-chat-details {
+    display: none;
+  }
+}
+
+@media (max-width: 1060px) {
+  .desktop-app .workspace-screen,
+  .desktop-app .workspace-screen.has-chat-details {
+    grid-template-columns: 62px minmax(248px, 278px) minmax(0, 1fr);
+  }
+
+  .desktop-app .workspace-screen.is-standalone-page {
+    grid-template-columns: 62px minmax(0, 1fr);
+  }
+
+  .desktop-app .workspace-nav {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .desktop-app .workspace-logo.ara-button,
+  .desktop-app .workspace-nav-button.ara-button {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .desktop-app .workspace-logo .brand-mark span,
+  .desktop-app .workspace-nav-button.ara-button > span,
+  .desktop-app .workspace-user-chip > span:nth-child(2),
+  .desktop-app .workspace-user-chip > svg {
+    display: none;
+  }
+
+  .desktop-app .workspace-user-chip.ara-button {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 8px 0;
+  }
+}
+
+@media (max-height: 720px) {
+  .desktop-app .welcome-screen,
+  .desktop-app .auth-scene.auth-screen {
+    padding-top: 44px;
+  }
+
+  .desktop-app .auth-panel-card {
+    max-height: calc(100vh - 64px);
+  }
+
+  .desktop-app .auth-card-scroll {
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+
+  .desktop-app .auth-panel-card .auth-form {
+    gap: 11px;
+    margin-top: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-app *,
+  .desktop-app *::before,
+  .desktop-app *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

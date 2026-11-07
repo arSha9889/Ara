@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { WorkspaceEmpty, WorkspaceNotice } from '../../components/WorkspaceState.jsx';
 import { createDirectChatForUser } from '../../features/chats/chatsApi.js';
 import { searchPublicUsers } from '../../features/users/usersApi.js';
 
@@ -32,8 +33,39 @@ export function ContactsPanel({ accessToken, currentUserId, mode, onChatCreated,
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState('');
   const [chatError, setChatError] = useState('');
+  const resultRefs = useRef([]);
   const isNewChat = mode === 'new';
-  const selectedUser = results.find((user) => user.id === selectedUserId);
+  const selectableResults = results.filter((user) => user.profile);
+  const selectedUser = selectableResults.find((user) => user.id === selectedUserId);
+
+  function selectResult(index, shouldFocus = false) {
+    const total = selectableResults.length;
+    if (!total) return;
+    const nextIndex = (index + total) % total;
+    setSelectedUserId(selectableResults[nextIndex].id);
+    setChatError('');
+    if (shouldFocus) resultRefs.current[nextIndex]?.focus();
+  }
+
+  function handleResultKeyDown(event, index) {
+    if (!selectableResults.length) return;
+    const lastIndex = selectableResults.length - 1;
+    let nextIndex = null;
+    if (event.key === 'ArrowDown') nextIndex = index === lastIndex ? 0 : index + 1;
+    if (event.key === 'ArrowUp') nextIndex = index === 0 ? lastIndex : index - 1;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = lastIndex;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    selectResult(nextIndex, true);
+  }
+
+  function handleSearchKeyDown(event) {
+    if (!selectableResults.length || !['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = selectableResults.findIndex((user) => user.id === selectedUserId);
+    selectResult(event.key === 'ArrowDown' ? currentIndex + 1 : currentIndex - 1, true);
+  }
 
   async function search(event) {
     event.preventDefault();
@@ -80,32 +112,29 @@ export function ContactsPanel({ accessToken, currentUserId, mode, onChatCreated,
     <section className="workspace-detail-panel workspace-contacts-panel" aria-labelledby="contacts-title">
       <header className="workspace-panel-heading">
         <div>
-          <p>{t(isNewChat ? 'workspace.contactsPanel.newKicker' : 'workspace.contactsPanel.kicker')}</p>
           <h1 id="contacts-title">{t(isNewChat ? 'workspace.contactsPanel.newTitle' : 'workspace.contactsPanel.title')}</h1>
           <span>{t(isNewChat ? 'workspace.contactsPanel.newIntro' : 'workspace.contactsPanel.intro')}</span>
         </div>
-        <span className="workspace-panel-icon"><Icon name="contacts" size={25} /></span>
       </header>
 
       <div className="workspace-section-card contacts-search-card">
         <form className="contacts-search" onSubmit={search}>
           <Icon name="search" size={18} />
           <label className="sr-only" htmlFor="contacts-search-query">{t('workspace.contactsPanel.searchLabel')}</label>
-          <input id="contacts-search-query" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedUserId(''); setError(''); setChatError(''); }} placeholder={t('workspace.contactsPanel.searchPlaceholder')} aria-invalid={Boolean(error)} aria-describedby={error ? 'contacts-search-error' : undefined} disabled={isSearching || isOpeningChat} />
+          <input id="contacts-search-query" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setSelectedUserId(''); setError(''); setChatError(''); }} onKeyDown={handleSearchKeyDown} placeholder={t('workspace.contactsPanel.searchPlaceholder')} aria-invalid={Boolean(error)} aria-describedby={error ? 'contacts-search-error' : undefined} disabled={isSearching || isOpeningChat} />
           {query ? <AraButton type="button" aria-label={t('workspace.contactsPanel.clearSearch')} onClick={() => { setQuery(''); setResults([]); setSelectedUserId(''); setHasSearched(false); setError(''); setChatError(''); }} disabled={isSearching || isOpeningChat} size="icon" variant="ghost"><Icon name="close" size={15} /></AraButton> : null}
           <AraButton className="contacts-search-action" type="submit" disabled={isSearching || isOpeningChat} size="compact" variant="primary">{isSearching ? t('workspace.contactsPanel.searching') : t('workspace.contactsPanel.searchAction')}</AraButton>
         </form>
         <p aria-live="polite">{isSearching ? t('workspace.contactsPanel.searching') : hasSearched ? t('workspace.contactsPanel.searchResults', { count: results.length }) : t('workspace.contactsPanel.searchHint')}</p>
-        {error ? <p className="workspace-form-notice is-error" id="contacts-search-error" role="alert">{error}</p> : null}
+        {error ? <WorkspaceNotice id="contacts-search-error" tone="error">{error}</WorkspaceNotice> : null}
 
-        {results.length ? (
+        {selectableResults.length ? (
           <div className="contacts-result-list">
-            {results.map((user) => {
+            {selectableResults.map((user, index) => {
               const profile = user.profile;
-              if (!profile) return null;
               const isSelected = selectedUserId === user.id;
               return (
-                <AraButton className={`contact-result-row ${isSelected ? 'is-selected' : ''}`} type="button" key={user.id} aria-pressed={isSelected} onClick={() => { setSelectedUserId(user.id); setChatError(''); }} disabled={isOpeningChat} variant={isSelected ? 'selected' : 'ghost'}>
+                <AraButton className={`contact-result-row ${isSelected ? 'is-selected' : ''}`} type="button" key={user.id} aria-pressed={isSelected} onClick={() => { setSelectedUserId(user.id); setChatError(''); }} onKeyDown={(event) => handleResultKeyDown(event, index)} ref={(element) => { resultRefs.current[index] = element; }} disabled={isOpeningChat} variant={isSelected ? 'selected' : 'ghost'}>
                   <span className={`workspace-avatar is-${avatarTone(user.id)}`} aria-hidden="true">{initials(profile.display_name, profile.username)}</span>
                   <span><strong>{profile.display_name}</strong><small>@{profile.username}</small></span>
                   <span className="contact-result-id">{user.nexus_id}</span>
@@ -114,13 +143,13 @@ export function ContactsPanel({ accessToken, currentUserId, mode, onChatCreated,
             })}
           </div>
         ) : hasSearched && !isSearching && !error ? (
-          <div className="contacts-no-results"><span className="workspace-section-icon"><Icon name="search" size={18} /></span><strong>{t('workspace.contactsPanel.noResultsTitle')}</strong><p>{t('workspace.contactsPanel.noResultsText')}</p></div>
+          <WorkspaceEmpty className="contacts-no-results" title={t('workspace.contactsPanel.noResultsTitle')}>{t('workspace.contactsPanel.noResultsText')}</WorkspaceEmpty>
         ) : null}
       </div>
 
       {selectedUser?.profile ? (
-        <section className="contact-found-card" aria-live="polite">
-          <div className="contact-found-heading">
+        <section className="contact-selection" aria-live="polite">
+          <div className="contact-selection-heading">
             <span className={`workspace-avatar workspace-avatar-large is-${avatarTone(selectedUser.id)}`} aria-hidden="true">{initials(selectedUser.profile.display_name, selectedUser.profile.username)}</span>
             <div><p>{t('workspace.contactsPanel.userFound')}</p><h2>{selectedUser.profile.display_name}</h2><span>@{selectedUser.profile.username}</span></div>
           </div>
@@ -130,7 +159,7 @@ export function ContactsPanel({ accessToken, currentUserId, mode, onChatCreated,
               <AraButton type="button" variant="primary" onClick={openDirectChat} disabled={isOpeningChat} aria-describedby={chatError ? 'contacts-chat-error' : undefined}>
                 <Icon name="chats" size={16} />{isOpeningChat ? t('workspace.contactsPanel.openingChat') : t('workspace.contactsPanel.openChat')}
               </AraButton>
-              {chatError ? <p className="workspace-form-notice is-error" id="contacts-chat-error" role="alert">{chatError}</p> : null}
+              {chatError ? <WorkspaceNotice id="contacts-chat-error" tone="error">{chatError}</WorkspaceNotice> : null}
             </>
           ) : <p className="contact-found-note"><Icon name="shield" size={15} />{t('workspace.contactsPanel.searchOnlyNote')}</p>}
         </section>

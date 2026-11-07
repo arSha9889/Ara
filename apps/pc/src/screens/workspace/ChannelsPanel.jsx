@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AraButton } from '../../components/AraButton.jsx';
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
+import { WorkspaceError, WorkspaceLoading, WorkspaceNotice } from '../../components/WorkspaceState.jsx';
 import {
   createPrivateChannel,
   getPublicChannels,
@@ -148,8 +149,8 @@ export function ChannelsPanel({ accessToken, channels, onChannelChanged, onOpenC
   if (mode === 'create') {
     return <section className="workspace-detail-panel channels-panel" aria-labelledby="channel-create-title">
       <header className="workspace-panel-heading">
-        <div><p>{t('workspace.channels.kicker')}</p><h1 id="channel-create-title">{t('workspace.channels.createTitle')}</h1><span>{t('workspace.channels.createIntro')}</span></div>
-        <div className="workspace-panel-actions"><span className="workspace-panel-icon"><Icon name="channels" size={25} /></span><AraButton className="channel-form-close" type="button" aria-label={t('common.close')} title={t('common.close')} onClick={() => changeMode('list')} size="icon" variant="secondary"><Icon name="close" size={18} /></AraButton></div>
+        <div><h1 id="channel-create-title">{t('workspace.channels.createTitle')}</h1><span>{t('workspace.channels.createIntro')}</span></div>
+        <AraButton className="channel-form-close" type="button" aria-label={t('common.close')} title={t('common.close')} onClick={() => changeMode('list')} size="icon" variant="secondary"><Icon name="close" size={18} /></AraButton>
       </header>
       <form className="workspace-section-card channel-form" onSubmit={createChannel}>
         <label><span>{t('workspace.channels.titleLabel')}</span><input value={title} onChange={(event) => setTitle(event.target.value)} minLength="2" maxLength="120" required autoFocus /></label>
@@ -165,8 +166,8 @@ export function ChannelsPanel({ accessToken, channels, onChannelChanged, onOpenC
   if (mode === 'join') {
     return <section className="workspace-detail-panel channels-panel" aria-labelledby="channel-join-title">
       <header className="workspace-panel-heading">
-        <div><p>{t('workspace.channels.kicker')}</p><h1 id="channel-join-title">{t('workspace.channels.joinTitle')}</h1><span>{t('workspace.channels.joinIntro')}</span></div>
-        <div className="workspace-panel-actions"><span className="workspace-panel-icon"><Icon name="channels" size={25} /></span><AraButton className="channel-form-close" type="button" aria-label={t('common.close')} title={t('common.close')} onClick={() => changeMode('list')} size="icon" variant="secondary"><Icon name="close" size={18} /></AraButton></div>
+        <div><h1 id="channel-join-title">{t('workspace.channels.joinTitle')}</h1><span>{t('workspace.channels.joinIntro')}</span></div>
+        <AraButton className="channel-form-close" type="button" aria-label={t('common.close')} title={t('common.close')} onClick={() => changeMode('list')} size="icon" variant="secondary"><Icon name="close" size={18} /></AraButton>
       </header>
       <form className="workspace-section-card channel-form" onSubmit={joinByInvite}>
         <label><span>{t('workspace.channels.inviteLabel')}</span><textarea value={inviteValue} onChange={(event) => setInviteValue(event.target.value)} rows="3" placeholder={t('workspace.channels.invitePlaceholder')} required autoFocus /></label>
@@ -179,22 +180,21 @@ export function ChannelsPanel({ accessToken, channels, onChannelChanged, onOpenC
   const privateChannels = channels.filter((channel) => channel.is_private);
   return <section className="workspace-detail-panel channels-panel" aria-labelledby="channels-title">
     <header className="workspace-panel-heading">
-      <div><p>{t('workspace.channels.kicker')}</p><h1 id="channels-title">{t('workspace.channels.title')}</h1><span>{t('workspace.channels.intro')}</span></div>
-      <span className="workspace-panel-icon"><Icon name="channels" size={25} /></span>
+      <div><h1 id="channels-title">{t('workspace.channels.title')}</h1><span>{t('workspace.channels.intro')}</span></div>
     </header>
     <div className="channels-actions">
       <AraButton type="button" onClick={() => changeMode('create')} variant="primary"><Icon name="plus" size={17} />{t('workspace.channels.create')}</AraButton>
       <AraButton type="button" onClick={() => changeMode('join')} variant="secondary"><Icon name="link" size={17} />{t('workspace.channels.joinByInvite')}</AraButton>
     </div>
-    {notice ? <p className="workspace-list-notice" role="status">{notice}</p> : null}
-    {error ? <div className="workspace-list-error" role="alert"><strong>{t('workspace.channels.errorTitle')}</strong><span>{error}</span><AraButton type="button" onClick={() => void loadCatalog()} size="compact" variant="primary">{t('workspace.retry')}</AraButton></div> : null}
+    {notice ? <WorkspaceNotice className="workspace-list-notice">{notice}</WorkspaceNotice> : null}
+    {error ? <WorkspaceError actionLabel={t('workspace.retry')} onAction={() => void loadCatalog()} title={t('workspace.channels.errorTitle')}>{error}</WorkspaceError> : null}
     <section className="workspace-section-card channel-section" aria-labelledby="my-channels-title">
       <div className="channel-section-heading"><h2 id="my-channels-title">{t('workspace.channels.myChannels')}</h2><span>{privateChannels.length}</span></div>
       {privateChannels.length ? <div className="channel-card-list">{privateChannels.map((channel) => <AraButton className="channel-card" type="button" key={channel.id} onClick={() => onOpenChannel?.(channel.id, channel)} variant="ghost"><ChannelAvatar channel={channel} /><span><strong>{channel.title}</strong><small>{channel.description || t('workspace.channels.privateChannel')}</small></span><Icon name="chevron-right" size={18} /></AraButton>)}</div> : <p className="channel-empty">{t('workspace.channels.noMyChannels')}</p>}
     </section>
     <section className="workspace-section-card channel-section" aria-labelledby="catalog-channels-title">
       <div className="channel-section-heading"><h2 id="catalog-channels-title">{t('workspace.channels.catalog')}</h2><AraButton type="button" aria-label={t('workspace.channels.refreshCatalog')} title={t('workspace.channels.refreshCatalog')} onClick={() => void loadCatalog()} disabled={isLoading} size="icon" variant="ghost"><Icon name="refresh" size={15} /></AraButton></div>
-      {isLoading ? <p className="channel-empty" role="status">{t('workspace.channels.loadingCatalog')}</p> : catalog.length ? <div className="channel-card-list">{catalog.map((channel) => <div className="channel-card" key={channel.id}><AraButton type="button" className="channel-card-main" onClick={() => channel.is_subscribed && onOpenChannel?.(channel.id, channel)} disabled={!channel.is_subscribed} variant="ghost"><ChannelAvatar channel={channel} /><span><strong>{channel.title}</strong><small>{channel.description || t('workspace.noMessagesPreview')}</small></span></AraButton><AraButton type="button" className="channel-subscribe-button" onClick={() => void togglePublicSubscription(channel)} disabled={isSaving} size="compact" variant={channel.is_subscribed ? 'primary' : 'surface'}>{channel.is_subscribed ? t('workspace.channels.open') : t('workspace.channels.subscribe')}</AraButton></div>)}</div> : <p className="channel-empty">{t('workspace.channels.noCatalog')}</p>}
+      {isLoading ? <WorkspaceLoading className="channel-empty">{t('workspace.channels.loadingCatalog')}</WorkspaceLoading> : catalog.length ? <div className="channel-card-list">{catalog.map((channel) => <div className="channel-card" key={channel.id}><AraButton type="button" className="channel-card-main" onClick={() => channel.is_subscribed && onOpenChannel?.(channel.id, channel)} disabled={!channel.is_subscribed} variant="ghost"><ChannelAvatar channel={channel} /><span><strong>{channel.title}</strong><small>{channel.description || t('workspace.noMessagesPreview')}</small></span></AraButton><AraButton type="button" className="channel-subscribe-button" onClick={() => void togglePublicSubscription(channel)} disabled={isSaving} size="compact" variant={channel.is_subscribed ? 'primary' : 'surface'}>{channel.is_subscribed ? t('workspace.channels.open') : t('workspace.channels.subscribe')}</AraButton></div>)}</div> : <p className="channel-empty">{t('workspace.channels.noCatalog')}</p>}
     </section>
   </section>;
 }
