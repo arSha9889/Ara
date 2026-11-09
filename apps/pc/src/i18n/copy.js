@@ -1,7 +1,7 @@
 export const SUPPORTED_LANGUAGES = [
   { id: 'ru', label: 'Русский', flag: 'ru' },
   { id: 'kk', label: 'Қазақша', flag: 'kz' },
-  { id: 'en', label: 'English', flag: 'gb' },
+  { id: 'en', label: 'English', flag: 'us' },
 ];
 
 export const COPY = {

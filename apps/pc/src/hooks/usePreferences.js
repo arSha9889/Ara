@@ -10,7 +10,7 @@ function readPreferences() {
   const fallback = {
     language: localeFromSystem(),
     theme: systemTheme,
-    colorPalette: 'green',
+    colorPalette: 'cyan',
     soundEnabled: false,
     hasSeenWelcome: false,
     density: 'comfortable',

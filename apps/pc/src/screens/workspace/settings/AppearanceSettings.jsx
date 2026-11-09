@@ -12,7 +12,7 @@ function LanguageFlag({ flag }) {
     return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#00afca" d="M0 0h30v20H0z" /><circle cx="16" cy="10" r="4.2" fill="#f9d648" /><path fill="#f9d648" d="M0 0h2v20H0zm3 0h1v20H3zM5 0h1v20H5z" /></svg>;
   }
 
-  return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#012169" d="M0 0h30v20H0z" /><path stroke="#fff" strokeWidth="4" d="m0 0 30 20M30 0 0 20" /><path stroke="#c8102e" strokeWidth="2" d="m0 0 30 20M30 0 0 20" /><path stroke="#fff" strokeWidth="5" d="M15 0v20M0 10h30" /><path stroke="#c8102e" strokeWidth="3" d="M15 0v20M0 10h30" /></svg>;
+  return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#fff" d="M0 0h30v20H0z" />{[0, 3, 6, 9, 12, 15, 18].map((y) => <path d={`M0 ${y}h30v1.54H0z`} fill="#b22234" key={y} />)}<path fill="#3c3b6e" d="M0 0h13.5v10.77H0z" /></svg>;
 }
 
 export function AppearanceSettings({ density, onPreferenceChange, preferences, t }) {

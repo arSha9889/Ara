@@ -85,7 +85,7 @@
   scrollbar-color: var(--ara-border-strong) transparent;
 }
 
-.desktop-app :is(button, input, select, textarea, a[href]):focus-visible {
+.desktop-app :is(button, a[href]):focus-visible {
   outline: 2px solid var(--ara-focus);
   outline-offset: 2px;
 }
@@ -1977,8 +1977,7 @@
 .desktop-app .workspace-user-chip > svg { display: none; }
 .desktop-app .workspace-user-avatar { width: 32px; height: 32px; }
 
-/* The composer keeps its attachment as an independent transparent control and
- * groups writing, recording and sending into one soft rounded field. */
+/* The composer groups attachments, writing, recording and sending in one field. */
 .desktop-app .workspace-chat-panel .chat-composer-area {
   padding: 14px clamp(20px, 3vw, 34px) 16px;
   border-top: 0;
@@ -1987,11 +1986,12 @@
 
 .desktop-app .workspace-chat-panel .chat-composer {
   position: relative;
-  grid-template-columns: minmax(0, 1fr) auto;
-  width: calc(100% - 60px);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 4px;
+  width: 100%;
   min-height: 56px;
-  margin-left: 60px;
-  padding: 6px 8px 6px 14px;
+  margin-left: 0;
+  padding: 6px 8px;
   border-color: color-mix(in srgb, var(--ara-border-subtle) 86%, transparent);
   border-radius: 999px;
   background: var(--ara-surface-elevated);
@@ -1999,8 +1999,8 @@
 }
 
 .desktop-app .workspace-chat-panel .chat-composer:focus-within {
-  border-color: var(--ara-border-interactive);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ara-focus) 20%, transparent), 0 5px 18px color-mix(in srgb, var(--ara-shadow) 38%, transparent);
+  border-color: color-mix(in srgb, var(--ara-border-subtle) 86%, transparent);
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--ara-shadow) 38%, transparent);
 }
 
 .desktop-app .workspace-chat-panel .chat-composer textarea {
@@ -2011,19 +2011,18 @@
 }
 
 .desktop-app .workspace-chat-panel .chat-composer-icon {
-  position: absolute;
-  top: 50%;
-  right: calc(100% + 12px);
-  width: 48px;
-  height: 48px;
-  min-height: 48px;
+  position: static;
+  align-self: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
   color: var(--ara-text-muted);
-  border: 1px solid color-mix(in srgb, var(--ara-border-subtle) 74%, transparent);
+  border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--ara-surface-elevated) 58%, transparent);
+  background: transparent;
   box-shadow: none;
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .desktop-app .workspace-chat-panel .chat-composer-icon:hover:not(:disabled),
@@ -2151,29 +2150,79 @@
 }
 
 .desktop-app .workspace-nav-menu-trigger.ara-button:is(:hover, :focus-visible, .is-open) { color: var(--ara-on-accent); border-color: var(--ara-accent); background: var(--ara-accent); box-shadow: 0 6px 18px color-mix(in srgb, var(--ara-accent) 30%, transparent); }
-.desktop-app .workspace-nav-menu {
-  position: absolute;
-  top: 0;
-  left: calc(100% + 12px);
-  z-index: 20;
+.desktop-app .workspace-nav-drawer-backdrop {
+  position: fixed;
+  z-index: 70;
+  inset: 38px 0 0;
+  background: rgb(3 10 18 / .46);
+  backdrop-filter: blur(10px);
+}
+
+.desktop-app .workspace-nav-drawer {
+  position: fixed;
+  z-index: 71;
+  top: 38px;
+  bottom: 0;
+  left: 0;
   display: grid;
-  width: 222px;
-  padding: 6px;
+  align-content: start;
+  width: min(356px, calc(100vw - 24px));
+  padding: 16px 12px;
   border: 1px solid var(--ara-border-subtle);
-  border-radius: 14px;
-  background: var(--ara-surface);
-  box-shadow: 0 16px 36px color-mix(in srgb, var(--ara-shadow) 65%, transparent);
+  border-left: 0;
+  border-radius: 0 18px 18px 0;
+  background: color-mix(in srgb, var(--ara-surface) 96%, var(--ara-canvas));
+  box-shadow: 18px 0 42px color-mix(in srgb, var(--ara-shadow) 72%, transparent);
+}
+
+.desktop-app .workspace-nav-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 4px 14px;
+  border-bottom: 1px solid var(--ara-border-subtle);
+}
+
+.desktop-app .workspace-nav-drawer-header h2 {
+  margin: 0;
+  color: var(--ara-text);
+  font-size: 16px;
+}
+
+.desktop-app .workspace-nav-drawer-close.ara-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  color: var(--ara-text-muted);
+  border-radius: 9px;
+}
+
+.desktop-app .workspace-nav-drawer-close.ara-button:hover:not(:disabled) {
+  color: var(--ara-text);
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-nav-drawer-menu {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
 }
 
 .desktop-app .workspace-nav-menu-group { display: grid; gap: 2px; }
-.desktop-app .workspace-nav-menu-separator { height: 1px; margin: 6px 4px; background: var(--ara-border-subtle); }
+.desktop-app .workspace-nav-menu-separator { height: 1px; margin: 8px 4px; background: var(--ara-border-subtle); }
 .desktop-app .workspace-nav-menu-item.ara-button {
   justify-content: flex-start;
   gap: 10px;
-  min-height: 38px;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 10px 12px;
   color: var(--ara-text);
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
   border-radius: 9px;
 }
@@ -2332,4 +2381,52 @@
   --ara-on-accent: #ffffff;
   --ara-focus: #963f00;
   --ara-shadow: rgba(116, 52, 12, .16);
+}
+
+/* Text-entry controls retain a stable surface while keeping keyboard focus on controls. */
+.desktop-app :is(input, select, textarea):focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
+.desktop-app .workspace-screen :is(input, select, textarea):focus-visible,
+.desktop-app .desktop-call-overlay input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
+.desktop-app :is(input, select, textarea):focus {
+  box-shadow: none;
+}
+
+.desktop-app .auth-input-shell:focus-within {
+  color: var(--ara-text-muted);
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+}
+
+.desktop-app .auth-glass-card .field :is(input, select):focus {
+  border-color: rgb(255 255 255 / .15);
+  background: var(--auth-control);
+  box-shadow: none;
+}
+
+.desktop-app :is(.workspace-search, .contacts-search):focus-within,
+.desktop-app .workspace-input-prefix:focus-within {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+}
+
+.desktop-app :is(.workspace-field input, .workspace-field select, .workspace-field textarea, .channel-form input, .channel-form textarea, .channel-details-form input, .channel-details-form textarea, .channel-comment-composer textarea, .group-create-form input:not([type='file']), .group-create-form textarea, .group-transfer-controls select):focus {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+  box-shadow: none;
+}
+
+.desktop-app .workspace-settings-panel .language-choice:has(input:focus-visible),
+.desktop-app .desktop-share-audio-option:has(input:focus-visible) {
+  outline: none;
+  outline-offset: 0;
 }

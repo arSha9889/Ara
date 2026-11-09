@@ -19,7 +19,7 @@ body { min-height: 100vh; overflow: hidden; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #ffbf38; outline-offset: 3px; }
+button:focus-visible { outline: 3px solid #ffbf38; outline-offset: 3px; }
 button, a { -webkit-tap-highlight-color: transparent; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
@@ -643,7 +643,7 @@ button.channel-card { cursor: pointer; }
 :root { --desktop-focus: #e8ff78; }
 :root[data-theme='light'] { --desktop-focus: #405a00; }
 
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+button:focus-visible {
   outline-color: var(--desktop-focus);
 }
 
@@ -3493,7 +3493,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .desktop-app .language-flag--ru { background: linear-gradient(#fff 0 33.33%, #1359bd 33.33% 66.66%, #da334b 66.66%); }
 .desktop-app .language-flag--kk { background: radial-gradient(circle at 36% 50%, #ffe66c 0 13%, transparent 15%), #4eb8cf; }
-.desktop-app .language-flag--en { background: linear-gradient(90deg, transparent 40%, #ed3f53 40% 60%, transparent 60%), linear-gradient(transparent 32%, #fff 32% 68%, transparent 68%), #28519e; }
+.desktop-app .language-flag--en { background: linear-gradient(#3c3b6e 0 0) 0 0 / 48% 54% no-repeat, repeating-linear-gradient(to bottom, #b22234 0 1px, #fff 1px 2px); }
 
 .desktop-app .theme-toggle--auth { display: grid; place-items: center; width: 36px; padding: 0; }
 .desktop-app .theme-toggle--auth .theme-toggle-swatch { width: 15px; height: 15px; border: 1px solid rgba(255, 255, 255, .64); border-radius: 50%; background: linear-gradient(135deg, #0d1235 46%, #b688ff 47% 64%, #efd1ff 65%); box-shadow: 0 0 12px rgba(180, 115, 255, .58); }

@@ -24,12 +24,10 @@ function NavigationGroup({ activeSection, items, onSelect, t }) {
     const label = item.id === 'channels' ? t('workspace.channels.title') : item.id === 'groups' ? t('workspace.groups.title') : t(`workspace.${item.id}`);
     return (
       <AraButton
-        aria-checked={isActive}
         aria-current={isActive ? 'page' : undefined}
         className={`workspace-nav-menu-item ${isActive ? 'is-active' : ''}`}
         key={item.id}
         onClick={() => onSelect(item.id)}
-        role="menuitemradio"
         variant="ghost"
       >
         <Icon name={item.icon} />
@@ -41,28 +39,43 @@ function NavigationGroup({ activeSection, items, onSelect, t }) {
 
 export function WorkspaceNavigation({ activeSection, currentUser, onHome, onSelect, t }) {
   const [isOpen, setIsOpen] = useState(false);
-  const navigationRef = useRef(null);
+  const drawerRef = useRef(null);
   const triggerRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return undefined;
 
-    function closeOnOutsideInteraction(event) {
-      if (!navigationRef.current?.contains(event.target)) setIsOpen(false);
+    const focusFirstDrawerControl = window.requestAnimationFrame(() => {
+      drawerRef.current?.querySelector('button:not([disabled])')?.focus();
+    });
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+      const focusableControls = [...(drawerRef.current?.querySelectorAll('button:not([disabled])') ?? [])];
+      const firstControl = focusableControls[0];
+      const lastControl = focusableControls.at(-1);
+
+      if (!firstControl || !lastControl) return;
+      if (event.shiftKey && document.activeElement === firstControl) {
+        event.preventDefault();
+        lastControl.focus();
+      } else if (!event.shiftKey && document.activeElement === lastControl) {
+        event.preventDefault();
+        firstControl.focus();
+      }
     }
 
-    function closeOnEscape(event) {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      setIsOpen(false);
-      triggerRef.current?.focus();
-    }
-
-    document.addEventListener('pointerdown', closeOnOutsideInteraction);
-    document.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('pointerdown', closeOnOutsideInteraction);
-      document.removeEventListener('keydown', closeOnEscape);
+      window.cancelAnimationFrame(focusFirstDrawerControl);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
@@ -72,16 +85,16 @@ export function WorkspaceNavigation({ activeSection, currentUser, onHome, onSele
   }
 
   return (
-    <aside className="workspace-nav ara-workspace-navigation" aria-label={t('workspace.navigation')} ref={navigationRef}>
+    <aside className="workspace-nav ara-workspace-navigation" aria-label={t('workspace.navigation')}>
       <AraButton className="workspace-logo" onClick={onHome} variant="surface" aria-label={t('window.appName')}>
         <BrandMark />
       </AraButton>
       <div className="workspace-nav-actions">
         <AraButton
           ref={triggerRef}
-          aria-controls="workspace-navigation-menu"
+          aria-controls="workspace-navigation-drawer"
           aria-expanded={isOpen}
-          aria-haspopup="menu"
+          aria-haspopup="dialog"
           aria-label={t('workspace.navigation')}
           className={`workspace-nav-menu-trigger ${isOpen ? 'is-open' : ''}`}
           onClick={() => setIsOpen((current) => !current)}
@@ -90,15 +103,26 @@ export function WorkspaceNavigation({ activeSection, currentUser, onHome, onSele
         >
           <Icon name="menu" size={20} />
         </AraButton>
-        {isOpen ? <nav className="workspace-nav-menu" id="workspace-navigation-menu" role="menu" aria-label={t('workspace.navigation')}>
-          <div className="workspace-nav-menu-group" role="group">
-            <NavigationGroup activeSection={activeSection} items={PRIMARY_NAVIGATION_ITEMS} onSelect={selectSection} t={t} />
-          </div>
-          <div className="workspace-nav-menu-separator" />
-          <div className="workspace-nav-menu-group" role="group">
-            <NavigationGroup activeSection={activeSection} items={SECONDARY_NAVIGATION_ITEMS} onSelect={selectSection} t={t} />
-          </div>
-        </nav> : null}
+        {isOpen ? <>
+          <div aria-hidden="true" className="workspace-nav-drawer-backdrop" onMouseDown={() => setIsOpen(false)} />
+          <aside className="workspace-nav-drawer" aria-label={t('workspace.navigation')} aria-modal="true" id="workspace-navigation-drawer" ref={drawerRef} role="dialog">
+            <header className="workspace-nav-drawer-header">
+              <h2>{t('workspace.navigation')}</h2>
+              <AraButton aria-label={t('common.close')} className="workspace-nav-drawer-close" onClick={() => { setIsOpen(false); triggerRef.current?.focus(); }} title={t('common.close')} variant="ghost">
+                <Icon name="close" size={18} />
+              </AraButton>
+            </header>
+            <nav className="workspace-nav-drawer-menu" aria-label={t('workspace.navigation')}>
+              <div className="workspace-nav-menu-group">
+                <NavigationGroup activeSection={activeSection} items={PRIMARY_NAVIGATION_ITEMS} onSelect={selectSection} t={t} />
+              </div>
+              <div className="workspace-nav-menu-separator" />
+              <div className="workspace-nav-menu-group">
+                <NavigationGroup activeSection={activeSection} items={SECONDARY_NAVIGATION_ITEMS} onSelect={selectSection} t={t} />
+              </div>
+            </nav>
+          </aside>
+        </> : null}
       </div>
     </aside>
   );
