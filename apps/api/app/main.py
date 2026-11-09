@@ -36,6 +36,7 @@ TYPING_EVENT_THROTTLE_SECONDS = 2
 ACCESS_TOKEN_EXPIRED_CLOSE_CODE = 4001
 CALL_EXPIRY_SWEEP_SECONDS = 1
 CLIENT_PLATFORMS = frozenset({'android', 'iphone', 'ipad', 'desktop', 'web'})
+MEDIA_ACTIVITY_TYPES = frozenset({'file', 'photo', 'video'})
 logger = logging.getLogger(__name__)
 
 
@@ -199,11 +200,7 @@ def create_app() -> FastAPI:
                         continue
                     await realtime_manager.broadcast_to_chat(
                         chat_id,
-                        {
-                            'event': event,
-                            'chat_id': str(chat_id),
-                            'user_id': str(user_id),
-                        },
+                        _chat_activity_payload(event, chat_id, user_id, message.get('media_type')),
                     )
                     continue
 
@@ -271,6 +268,17 @@ def _parse_uuid(value: object) -> UUID | None:
         return UUID(value)
     except ValueError:
         return None
+
+
+def _chat_activity_payload(event: str, chat_id: UUID, user_id: UUID, media_type: object) -> dict[str, str]:
+    payload = {
+        'event': event,
+        'chat_id': str(chat_id),
+        'user_id': str(user_id),
+    }
+    if event == 'file.uploading' and isinstance(media_type, str) and media_type in MEDIA_ACTIVITY_TYPES:
+        payload['media_type'] = media_type
+    return payload
 
 
 async def _is_chat_participant(user_id: UUID, chat_id: UUID) -> bool:

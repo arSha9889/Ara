@@ -1617,6 +1617,8 @@ Object.assign(COPY.ru.workspace.chatPanel, {
   videoNotePlaybackError: 'Не удалось воспроизвести видеозаметку на этом устройстве.',
   recordMedia: 'Записать сообщение',
   recordingActions: 'Выбор типа записи',
+  sendingPhoto: 'отправляет фото…',
+  sendingVideo: 'отправляет видео…',
   realtimeDisconnected: 'Нет подключения к обновлениям сообщений. Новые сообщения появятся после восстановления связи.',
 });
 
@@ -1637,6 +1639,8 @@ Object.assign(COPY.en.workspace.chatPanel, {
   videoNotePlaybackError: 'Could not play this video note on this device.',
   recordMedia: 'Record a message',
   recordingActions: 'Choose a recording type',
+  sendingPhoto: 'sending a photo…',
+  sendingVideo: 'sending a video…',
   realtimeDisconnected: 'Message updates are unavailable. New messages will appear when the connection is restored.',
 });
 
@@ -1657,6 +1661,8 @@ Object.assign(COPY.kk.workspace.chatPanel, {
   videoNotePlaybackError: 'Бұл құрылғыда бейнежазбаны ойнату мүмкін болмады.',
   recordMedia: 'Хабарлама жазу',
   recordingActions: 'Жазба түрін таңдау',
+  sendingPhoto: 'фото жіберіп жатыр…',
+  sendingVideo: 'бейне жіберіп жатыр…',
   realtimeDisconnected: 'Хабарлама жаңартуларына қосылым жоқ. Қосылым қалпына келгеннен кейін жаңа хабарламалар пайда болады.',
 });
 

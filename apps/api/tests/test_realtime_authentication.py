@@ -34,6 +34,23 @@ class InvalidJsonWebSocketStub(WebSocketStub):
         raise ValueError('Invalid JSON')
 
 
+def test_file_upload_activity_includes_only_supported_media_type() -> None:
+    chat_id = uuid4()
+    user_id = uuid4()
+
+    assert main._chat_activity_payload('file.uploading', chat_id, user_id, 'photo') == {
+        'event': 'file.uploading',
+        'chat_id': str(chat_id),
+        'user_id': str(user_id),
+        'media_type': 'photo',
+    }
+    assert main._chat_activity_payload('file.uploading', chat_id, user_id, 'audio') == {
+        'event': 'file.uploading',
+        'chat_id': str(chat_id),
+        'user_id': str(user_id),
+    }
+
+
 @pytest.mark.anyio
 async def test_websocket_authenticates_only_with_the_first_authentication_message(monkeypatch: pytest.MonkeyPatch) -> None:
     user_id = uuid4()

@@ -122,6 +122,13 @@ function messageTypeForUpload(upload) {
   return 'file';
 }
 
+function uploadActivityType(file, kind) {
+  if (kind === 'voice') return 'voice';
+  if (kind === 'video_note' || file.type.startsWith('video/')) return 'video';
+  if (file.type.startsWith('image/')) return 'photo';
+  return 'file';
+}
+
 function messageTypeLabel(message, t) {
   const key = {
     photo: 'photo', video: 'video', video_note: 'videoNote', audio: 'audio', voice: 'voice', file: 'file', sticker: 'sticker', emoji: 'emoji',
@@ -524,7 +531,10 @@ function DirectChatPanel({
 
         if (payload.user_id === currentUserId) return;
         if (payload.event === 'typing.started') showActivity(t('workspace.chatPanel.typing'), 3_500);
-        if (payload.event === 'file.uploading') showActivity(t('workspace.chatPanel.sendingFile'), 8_000);
+        if (payload.event === 'file.uploading') {
+          const activityKey = payload.media_type === 'photo' ? 'sendingPhoto' : payload.media_type === 'video' ? 'sendingVideo' : 'sendingFile';
+          showActivity(t(`workspace.chatPanel.${activityKey}`), 8_000);
+        }
         if (payload.event === 'voice.uploading') showActivity(t('workspace.chatPanel.sendingAudio'), 8_000);
         if (payload.event === 'typing.stopped') setActivity('');
         if (payload.event === 'presence.active') showActivity(t('workspace.chatPanel.peerActive'));
@@ -601,7 +611,12 @@ function DirectChatPanel({
     const mediaDraft = recordedMedia || (selectedFile ? { file: selectedFile, kind: null, durationSeconds: null } : null);
     if (!mediaDraft) return;
     const { file, kind, durationSeconds } = mediaDraft;
-    onRealtimeSend?.({ event: kind === 'voice' ? 'voice.uploading' : 'file.uploading', chat_id: chat.id });
+    const activityType = uploadActivityType(file, kind);
+    onRealtimeSend?.({
+      event: activityType === 'voice' ? 'voice.uploading' : 'file.uploading',
+      chat_id: chat.id,
+      ...(activityType === 'voice' ? {} : { media_type: activityType }),
+    });
     if (isE2eeReady) {
       const cryptoContext = await refreshEncryptionForSend();
       const attachment = await encryptE2eeAttachment({
@@ -815,7 +830,7 @@ function DirectChatPanel({
         <AraButton className="chat-back-button" type="button" onClick={onBack} size="compact" variant="ghost"><Icon name="arrow-left" size={18} />{t('workspace.chatPanel.back')}</AraButton>
         <div className="chat-contact-heading">
           <span className={`workspace-avatar is-${avatarTone(peer?.id || chat.id)}`} aria-hidden="true">{initials(peerName, peerUsername)}</span>
-          <div><h1 id="chat-title">{peerName}</h1><span>{activity || `${peerUsername ? `@${peerUsername} · ` : ''}${peerPresence(peer, t)}`}</span>{isDirectChat ? <span className={`chat-e2ee-chat-status is-${directChatEncryption.tone}`} title={directChatEncryption.label}><Icon name="shield" size={12} />{directChatEncryption.label}</span> : null}</div>
+          <div><h1 id="chat-title">{peerName}</h1><span>{`${peerUsername ? `@${peerUsername} · ` : ''}${peerPresence(peer, t)}`}</span>{isDirectChat ? <span className={`chat-e2ee-chat-status is-${directChatEncryption.tone}`} title={directChatEncryption.label}><Icon name="shield" size={12} />{directChatEncryption.label}</span> : null}</div>
         </div>
         <div className="chat-header-actions" aria-label={t('workspace.chatPanel.actionsLabel')}>
           <AraButton type="button" title={canStartCall && !isRecording ? t('workspace.chatPanel.startAudio') : t('workspace.chatPanel.callUnavailable')} aria-label={t('workspace.chatPanel.startAudio')} onClick={() => void onStartCall?.(chat, 'audio')} disabled={!canStartCall || isRecording} size="icon" variant="ghost"><Icon name="calls" size={18} /></AraButton>
@@ -851,6 +866,7 @@ function DirectChatPanel({
 
       <div className="chat-composer-area">
         {composerError ? <p className="chat-composer-error" id="chat-message-error" role="alert">{composerError}</p> : null}
+        {activity ? <p className="chat-composer-activity" role="status" aria-live="polite">{activity}</p> : null}
         {replyingTo ? <div className="chat-composer-context"><Icon name="reply" size={15} /><span><strong>{t('workspace.chatPanel.replyingTo')}</strong><small>{replyPreview(replyingTo, t)}</small></span><AraButton type="button" aria-label={t('workspace.chatPanel.cancelReply')} onClick={() => setReplyingTo(null)} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
         {editingMessage ? <div className="chat-composer-context"><Icon name="edit" size={15} /><span><strong>{t('workspace.chatPanel.editingMessage')}</strong><small>{t('workspace.chatPanel.editHint')}</small></span><AraButton type="button" aria-label={t('workspace.chatPanel.cancelEdit')} onClick={() => { setEditingMessage(null); setEditText(''); }} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
         {recordedMedia ? <div className="chat-draft-type"><span><Icon name={recordedMedia.kind === 'voice' ? 'mic' : 'video'} size={16} /></span><div><strong>{recordedMedia.kind === 'voice' ? t('workspace.chatPanel.voiceDraftReady') : t('workspace.chatPanel.videoNoteDraftReady')}</strong><small>{formatDuration(recordedMedia.durationSeconds)} · {formatFileSize(recordedMedia.file.size)}</small></div><AraButton type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setRecordedMedia(null)} disabled={isSending} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}

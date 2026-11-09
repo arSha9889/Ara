@@ -2078,3 +2078,258 @@
   .desktop-app .workspace-screen,
   .desktop-app .workspace-screen.has-chat-details { grid-template-columns: 68px minmax(250px, 294px) minmax(0, 1fr); }
 }
+
+/* Compact menus keep rarely used controls available without permanently
+ * occupying the workspace. */
+.desktop-app .preference-controls--auth { position: relative; }
+.desktop-app .auth-language-control { position: relative; }
+.desktop-app .auth-language-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: var(--ara-text);
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 50%;
+  background: var(--ara-surface);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ara-shadow) 42%, transparent);
+}
+
+.desktop-app .auth-language-button:hover,
+.desktop-app .auth-language-button[aria-expanded='true'] { border-color: var(--ara-border-interactive); background: var(--ara-surface-elevated); }
+.desktop-app .auth-language-button .language-flag { position: absolute; right: -2px; bottom: -1px; width: 13px; height: 9px; border-color: var(--ara-surface); transform: none; }
+.desktop-app .auth-language-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  min-width: 158px;
+  padding: 5px;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 12px;
+  background: var(--ara-surface);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--ara-shadow) 60%, transparent);
+}
+
+.desktop-app .auth-language-menu button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 8px;
+  color: var(--ara-text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.desktop-app .auth-language-menu button:hover,
+.desktop-app .auth-language-menu button:focus-visible,
+.desktop-app .auth-language-menu button[aria-checked='true'] { background: color-mix(in srgb, var(--ara-accent) 12%, var(--ara-surface-elevated)); }
+.desktop-app .auth-language-menu .language-flag { position: static; width: 16px; height: 11px; transform: none; }
+.desktop-app .auth-language-menu svg { color: var(--ara-accent); }
+
+.desktop-app .workspace-nav-actions { position: relative; margin-top: 22px; }
+.desktop-app .workspace-nav-menu-trigger.ara-button {
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--ara-text);
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 50%;
+  background: var(--ara-surface-elevated);
+}
+
+.desktop-app .workspace-nav-menu-trigger.ara-button:is(:hover, :focus-visible, .is-open) { color: var(--ara-on-accent); border-color: var(--ara-accent); background: var(--ara-accent); box-shadow: 0 6px 18px color-mix(in srgb, var(--ara-accent) 30%, transparent); }
+.desktop-app .workspace-nav-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  z-index: 20;
+  display: grid;
+  width: 222px;
+  padding: 6px;
+  border: 1px solid var(--ara-border-subtle);
+  border-radius: 14px;
+  background: var(--ara-surface);
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--ara-shadow) 65%, transparent);
+}
+
+.desktop-app .workspace-nav-menu-group { display: grid; gap: 2px; }
+.desktop-app .workspace-nav-menu-separator { height: 1px; margin: 6px 4px; background: var(--ara-border-subtle); }
+.desktop-app .workspace-nav-menu-item.ara-button {
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  color: var(--ara-text);
+  font-size: 12px;
+  text-align: left;
+  border-radius: 9px;
+}
+
+.desktop-app .workspace-nav-menu-item.ara-button:is(:hover, :focus-visible) { color: var(--ara-text); background: var(--ara-surface-elevated); }
+.desktop-app .workspace-nav-menu-item.ara-button.is-active { color: var(--ara-on-accent); background: var(--ara-accent); }
+.desktop-app .workspace-nav-menu-item .workspace-icon-asset,
+.desktop-app .workspace-nav-menu-item svg { flex: 0 0 auto; color: currentColor; }
+
+/* The empty state belongs to the center of the conversation panel. */
+.desktop-app .workspace-empty-state { align-items: center; justify-content: center; width: min(100%, 620px); min-height: 100%; margin: auto; text-align: center; }
+
+/* Message content is intentionally high contrast on every accent palette. */
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-bubble { color: #fff; font-weight: 400; border-color: color-mix(in srgb, var(--ara-accent) 58%, #071723); background: color-mix(in srgb, var(--ara-accent) 40%, #071723); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-message-bubble :is(p, small, time) { color: inherit; font-weight: inherit; }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-reply-preview { border-left-color: rgb(255 255 255 / .7); background: rgb(255 255 255 / .1); }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-reply-preview :is(span, small) { color: #fff; }
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-delivery-status,
+.desktop-app .workspace-chat-panel:not(.channel-chat-panel) .chat-message.is-mine .chat-delivery-status.is-read { color: #fff; opacity: .9; }
+.desktop-app .workspace-chat-panel .chat-composer-activity { margin: 0 auto 7px; color: var(--ara-accent); font-size: 12px; font-weight: 650; line-height: 1.3; text-align: center; }
+.desktop-app .workspace-chat-panel .chat-composer-activity::before { display: inline-block; width: 6px; height: 6px; margin: 0 6px 1px 0; content: ''; vertical-align: middle; border-radius: 50%; background: currentColor; box-shadow: 10px 0 0 color-mix(in srgb, currentColor 68%, transparent), 20px 0 0 color-mix(in srgb, currentColor 36%, transparent); }
+
+/* Palette variables must be defined in the final layer because it is imported
+ * after the original theme rules. */
+:root[data-color-palette='green'] .desktop-app {
+  --ara-canvas: #031411;
+  --ara-surface: #071d18;
+  --ara-surface-elevated: #0c2921;
+  --ara-text: #e4efea;
+  --ara-text-muted: #91aaa0;
+  --ara-border-subtle: rgba(137, 194, 171, .14);
+  --ara-border-interactive: rgba(106, 217, 161, .35);
+  --ara-border-strong: rgba(141, 236, 185, .54);
+  --ara-accent: #22d878;
+  --ara-accent-hover: #47ec93;
+  --ara-on-accent: #032114;
+  --ara-error: #ff7775;
+  --ara-warning: #f4cb55;
+  --ara-focus: #a3ffd0;
+  --ara-message-status-muted: #b8c1bc;
+  --ara-message-read: #64c6f3;
+  --ara-shadow: rgba(0, 8, 5, .54);
+}
+
+:root[data-theme='light'][data-color-palette='green'] .desktop-app {
+  --ara-canvas: #eaf4ee;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #eef8f1;
+  --ara-text: #10251c;
+  --ara-text-muted: #587267;
+  --ara-border-subtle: rgba(26, 92, 60, .14);
+  --ara-border-interactive: rgba(13, 136, 72, .34);
+  --ara-border-strong: rgba(11, 106, 56, .52);
+  --ara-accent: #07994d;
+  --ara-accent-hover: #047b3d;
+  --ara-on-accent: #ffffff;
+  --ara-error: #cb4749;
+  --ara-warning: #9d6f08;
+  --ara-focus: #057b3e;
+  --ara-message-status-muted: #d4dbd6;
+  --ara-message-read: #57bced;
+  --ara-shadow: rgba(25, 77, 50, .15);
+}
+
+:root[data-color-palette='cyan'] .desktop-app {
+  --ara-canvas: #04181d;
+  --ara-surface: #08252d;
+  --ara-surface-elevated: #0d333d;
+  --ara-text: #e4f3f7;
+  --ara-text-muted: #91b1ba;
+  --ara-border-subtle: rgba(132, 203, 222, .16);
+  --ara-border-interactive: rgba(93, 207, 239, .38);
+  --ara-border-strong: rgba(126, 223, 249, .56);
+  --ara-accent: #31c8ef;
+  --ara-accent-hover: #76def5;
+  --ara-on-accent: #04212a;
+  --ara-focus: #9beaff;
+  --ara-shadow: rgba(0, 11, 16, .54);
+}
+
+:root[data-theme='light'][data-color-palette='cyan'] .desktop-app {
+  --ara-canvas: #e9f7fb;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #effaff;
+  --ara-text: #0d2831;
+  --ara-text-muted: #57747d;
+  --ara-border-subtle: rgba(18, 104, 132, .15);
+  --ara-border-interactive: rgba(0, 127, 168, .38);
+  --ara-border-strong: rgba(0, 112, 148, .54);
+  --ara-accent: #007fa8;
+  --ara-accent-hover: #006a8d;
+  --ara-on-accent: #ffffff;
+  --ara-focus: #006c90;
+  --ara-shadow: rgba(20, 80, 98, .16);
+}
+
+:root[data-color-palette='yellow'] .desktop-app {
+  --ara-canvas: #191505;
+  --ara-surface: #282207;
+  --ara-surface-elevated: #39300b;
+  --ara-text: #fff8df;
+  --ara-text-muted: #c0b58c;
+  --ara-border-subtle: rgba(228, 202, 108, .17);
+  --ara-border-interactive: rgba(255, 209, 73, .40);
+  --ara-border-strong: rgba(255, 223, 125, .58);
+  --ara-accent: #ffd149;
+  --ara-accent-hover: #ffe28b;
+  --ara-on-accent: #2d2403;
+  --ara-focus: #ffdf7b;
+  --ara-shadow: rgba(14, 11, 0, .56);
+}
+
+:root[data-theme='light'][data-color-palette='yellow'] .desktop-app {
+  --ara-canvas: #fbf6e8;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #fff9e8;
+  --ara-text: #302804;
+  --ara-text-muted: #706540;
+  --ara-border-subtle: rgba(132, 96, 8, .16);
+  --ara-border-interactive: rgba(142, 97, 0, .40);
+  --ara-border-strong: rgba(121, 83, 0, .55);
+  --ara-accent: #8e6100;
+  --ara-accent-hover: #704d00;
+  --ara-on-accent: #ffffff;
+  --ara-focus: #785300;
+  --ara-shadow: rgba(96, 74, 14, .16);
+}
+
+:root[data-color-palette='orange'] .desktop-app {
+  --ara-canvas: #1c0e05;
+  --ara-surface: #2b1608;
+  --ara-surface-elevated: #3d210d;
+  --ara-text: #fff0e6;
+  --ara-text-muted: #c8ab97;
+  --ara-border-subtle: rgba(237, 165, 116, .17);
+  --ara-border-interactive: rgba(255, 149, 69, .40);
+  --ara-border-strong: rgba(255, 184, 125, .58);
+  --ara-accent: #ff9545;
+  --ara-accent-hover: #ffb577;
+  --ara-on-accent: #2c1203;
+  --ara-focus: #ffc28e;
+  --ara-shadow: rgba(16, 6, 0, .57);
+}
+
+:root[data-theme='light'][data-color-palette='orange'] .desktop-app {
+  --ara-canvas: #fff1e8;
+  --ara-surface: #ffffff;
+  --ara-surface-elevated: #fff5ef;
+  --ara-text: #321906;
+  --ara-text-muted: #795c48;
+  --ara-border-subtle: rgba(156, 67, 8, .16);
+  --ara-border-interactive: rgba(179, 79, 0, .40);
+  --ara-border-strong: rgba(160, 69, 0, .55);
+  --ara-accent: #b34f00;
+  --ara-accent-hover: #913f00;
+  --ara-on-accent: #ffffff;
+  --ara-focus: #963f00;
+  --ara-shadow: rgba(116, 52, 12, .16);
+}

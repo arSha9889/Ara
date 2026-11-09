@@ -62,6 +62,7 @@ export function WorkspaceIcon({ name, size = 20 }) {
   if (name === 'arrow-right') return <svg {...commonProps}><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
   if (name === 'user-add') return <svg {...commonProps}><circle cx="9" cy="8" r="3" /><path d="M3.7 19.5c.8-3.2 2.7-4.8 5.3-4.8 1.2 0 2.3.3 3.2.9M18 11v8M14 15h8" /></svg>;
   if (name === 'globe') return <svg {...commonProps}><circle cx="12" cy="12" r="8.5" /><path d="M3.8 12h16.4M12 3.5c2.1 2.3 3.2 5.1 3.2 8.5S14.1 18.2 12 20.5c-2.1-2.3-3.2-5.1-3.2-8.5S9.9 5.8 12 3.5" /></svg>;
+  if (name === 'menu') return <svg {...commonProps}><path d="M5 7h14M5 12h14M5 17h14" /></svg>;
   if (name === 'at') return <svg {...commonProps}><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3" /><path d="M15 12v1.1a1.7 1.7 0 0 0 3.4 0V12" /></svg>;
   if (name === 'chevron-right') return <svg {...commonProps}><path d="m9 5 7 7-7 7" /></svg>;
   if (name === 'check') return <svg {...commonProps}><path d="m5 12.5 4.3 4.3L19.5 6.6" /></svg>;
