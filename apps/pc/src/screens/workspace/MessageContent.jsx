@@ -138,27 +138,68 @@ function VoiceMessage({ blob, durationSeconds, url, t }) {
   </div>;
 }
 
-function VideoNoteMessage({ durationSeconds, url, t }) {
+function VideoNoteMessage({ blob, durationSeconds, url, t }) {
   const videoRef = useRef(null);
+  const fallbackAttemptedRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const duration = Number(durationSeconds) || videoRef.current?.duration || 0;
+  const [duration, setDuration] = useState(Number(durationSeconds) || 0);
+  const [isPreparingFallback, setIsPreparingFallback] = useState(false);
+  const [playbackError, setPlaybackError] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState(url);
+
+  useEffect(() => {
+    fallbackAttemptedRef.current = false;
+    setIsPlaying(false);
+    setDuration(Number(durationSeconds) || 0);
+    setIsPreparingFallback(false);
+    setPlaybackError(false);
+    setPlaybackUrl(url);
+  }, [durationSeconds, url]);
+
+  function prepareDataUrlFallback() {
+    setIsPlaying(false);
+    if (!blob || fallbackAttemptedRef.current) {
+      setPlaybackError(true);
+      return;
+    }
+
+    fallbackAttemptedRef.current = true;
+    setIsPreparingFallback(true);
+    void dataUrlForBlob(blob)
+      .then((fallbackUrl) => {
+        setPlaybackUrl(fallbackUrl);
+        setPlaybackError(false);
+      })
+      .catch(() => setPlaybackError(true))
+      .finally(() => setIsPreparingFallback(false));
+  }
 
   function togglePlayback() {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || isPreparingFallback) return;
     if (video.paused) {
-      void video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      void video.play().then(() => setIsPlaying(true)).catch(prepareDataUrlFallback);
       return;
     }
     video.pause();
     setIsPlaying(false);
   }
 
-  return <button className={`chat-video-note ${isPlaying ? 'is-playing' : ''}`} type="button" onClick={togglePlayback} aria-label={isPlaying ? t('workspace.chatPanel.pauseVideoNote') : t('workspace.chatPanel.playVideoNote')} title={isPlaying ? t('workspace.chatPanel.pauseVideoNote') : t('workspace.chatPanel.playVideoNote')}>
-    <video ref={videoRef} src={url} playsInline preload="metadata" onEnded={() => setIsPlaying(false)} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
-    <span className="chat-video-note-play" aria-hidden="true"><Icon name={isPlaying ? 'pause' : 'play'} size={18} /></span>
-    <time>{formatDuration(duration)}</time>
-  </button>;
+  const playbackLabel = isPreparingFallback
+    ? t('workspace.chatPanel.preparingVideoNote')
+    : isPlaying ? t('workspace.chatPanel.pauseVideoNote') : t('workspace.chatPanel.playVideoNote');
+
+  return <div className="chat-video-note-message">
+    <div className={`chat-video-note ${isPlaying ? 'is-playing' : ''} ${playbackError ? 'has-error' : ''}`}>
+      <video ref={videoRef} src={playbackUrl} playsInline preload="metadata" onEnded={() => setIsPlaying(false)} onError={prepareDataUrlFallback} onLoadedMetadata={() => setDuration((current) => current || videoRef.current?.duration || 0)} onPause={() => setIsPlaying(false)} onPlay={() => setIsPlaying(true)} />
+      <button className="chat-video-note-control" type="button" disabled={isPreparingFallback} onClick={togglePlayback} aria-label={playbackLabel} title={playbackLabel}>
+        <span className="chat-video-note-play" aria-hidden="true"><Icon name={isPlaying ? 'pause' : 'play'} size={18} /></span>
+        <time>{formatDuration(duration)}</time>
+      </button>
+    </div>
+    {isPreparingFallback ? <p className="chat-video-note-playback-status" role="status">{t('workspace.chatPanel.preparingVideoNote')}</p> : null}
+    {playbackError ? <p className="chat-video-note-playback-status is-error" role="alert">{t('workspace.chatPanel.videoNotePlaybackError')}</p> : null}
+  </div>;
 }
 
 function MediaMessage({ accessToken, message, t }) {
@@ -169,7 +210,7 @@ function MediaMessage({ accessToken, message, t }) {
   if (isLoading) return <p className="chat-media-status" role="status">{t('workspace.chatPanel.loadingMedia')}</p>;
   if (error || !url) return <p className="chat-media-status is-error">{t('workspace.chatPanel.mediaLoadError')}</p>;
   if (message.type === 'voice') return <><VoiceMessage blob={blob} durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
-  if (message.type === 'video_note') return <><VideoNoteMessage durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
+  if (message.type === 'video_note') return <><VideoNoteMessage blob={blob} durationSeconds={message.duration_seconds} url={url} t={t} />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'photo') return <><img className="chat-media-image" src={url} alt={message.media_name || t('workspace.chatPanel.photoAlt')} />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'video') return <><video className="chat-media-video" src={url} controls preload="metadata" />{message.payload ? <p>{message.payload}</p> : null}</>;
   if (displayType === 'audio' || displayType === 'voice') return <><audio className="chat-media-audio" src={url} controls preload="metadata" />{message.payload ? <p>{message.payload}</p> : null}</>;
@@ -179,7 +220,7 @@ function MediaMessage({ accessToken, message, t }) {
 
 function AttachmentPreview({ blob, descriptor, url, t }) {
   if (descriptor.media_kind === 'voice') return <><VoiceMessage blob={blob} durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
-  if (descriptor.media_kind === 'video_note') return <><VideoNoteMessage durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
+  if (descriptor.media_kind === 'video_note') return <><VideoNoteMessage blob={blob} durationSeconds={descriptor.duration_seconds} url={url} t={t} />{descriptor.caption ? <p>{descriptor.caption}</p> : null}</>;
   const displayType = descriptor.mime_type.startsWith('image/')
     ? 'photo'
     : descriptor.mime_type.startsWith('video/')

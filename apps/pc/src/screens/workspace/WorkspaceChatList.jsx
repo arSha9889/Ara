@@ -43,6 +43,7 @@ function chatPreview(lastMessage, t) {
   if (lastMessage.type === 'system') return t('workspace.groups.system.preview');
   if (lastMessage.type === 'text' || lastMessage.type === 'emoji') return lastMessage.payload;
   if (lastMessage.type === 'photo' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('image/'))) return t('workspace.chatPanel.typePhoto');
+  if (lastMessage.type === 'video_note') return t('workspace.chatPanel.typeVideoNote');
   if (lastMessage.type === 'video' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('video/'))) return t('workspace.chatPanel.typeVideo');
   if (lastMessage.type === 'voice' || (lastMessage.type === 'file' && lastMessage.media_mime_type?.startsWith('audio/'))) return t('workspace.chatPanel.typeAudio');
   if (lastMessage.type === 'call') return t('workspace.calls');

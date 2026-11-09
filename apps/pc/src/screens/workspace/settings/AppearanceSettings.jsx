@@ -1,6 +1,8 @@
 import { WorkspaceIcon as Icon } from '../../../components/WorkspaceIcon.jsx';
 import { SUPPORTED_LANGUAGES } from '../../../i18n/copy.js';
 
+const COLOR_PALETTES = ['green', 'cyan', 'yellow', 'orange'];
+
 function LanguageFlag({ flag }) {
   if (flag === 'ru') {
     return <svg viewBox="0 0 30 20" aria-hidden="true"><path fill="#fff" d="M0 0h30v6.67H0z" /><path fill="#1f57a6" d="M0 6.67h30v6.66H0z" /><path fill="#d9444c" d="M0 13.33h30V20H0z" /></svg>;
@@ -22,6 +24,16 @@ export function AppearanceSettings({ density, onPreferenceChange, preferences, t
           <strong>{t('workspace.settingsPanel.theme')}</strong>
           <div className="theme-choice-grid">
             {['light', 'dark'].map((theme) => <button className={`theme-choice theme-choice-${theme} ${preferences.theme === theme ? 'is-selected' : ''}`} type="button" key={theme} aria-pressed={preferences.theme === theme} onClick={() => onPreferenceChange({ theme })}><span aria-hidden="true" /><b>{t(`common.${theme}`)}</b><i><Icon name="check" size={13} /></i></button>)}
+          </div>
+          <div className="color-palette-control">
+            <strong>{t('workspace.settingsPanel.colorPalette')}</strong>
+            <p>{t('workspace.settingsPanel.colorPaletteText')}</p>
+            <div className="color-palette-choice-grid" role="group" aria-label={t('workspace.settingsPanel.colorPalette')}>
+              {COLOR_PALETTES.map((palette) => {
+                const isSelected = preferences.colorPalette === palette;
+                return <button className={`color-palette-choice color-palette-choice-${palette} ${isSelected ? 'is-selected' : ''}`} type="button" key={palette} aria-pressed={isSelected} onClick={() => onPreferenceChange({ colorPalette: palette })}><span className="color-palette-swatch" aria-hidden="true" /><b>{t(`workspace.settingsPanel.palette${palette[0].toUpperCase()}${palette.slice(1)}`)}</b><i aria-hidden="true"><Icon name="check" size={13} /></i></button>;
+              })}
+            </div>
           </div>
         </div>
         <fieldset className="setting-control-block language-choice-group">

@@ -1613,27 +1613,60 @@ Object.assign(COPY.ru.workspace.chatPanel, {
   messageActions: 'Действия с сообщением',
   preparingVoice: 'Подготавливаем голосовое сообщение…',
   voicePlaybackError: 'Не удалось воспроизвести голосовое сообщение на этом устройстве.',
+  preparingVideoNote: 'Подготавливаем видеозаметку…',
+  videoNotePlaybackError: 'Не удалось воспроизвести видеозаметку на этом устройстве.',
   recordMedia: 'Записать сообщение',
   recordingActions: 'Выбор типа записи',
   realtimeDisconnected: 'Нет подключения к обновлениям сообщений. Новые сообщения появятся после восстановления связи.',
+});
+
+Object.assign(COPY.ru.workspace.settingsPanel, {
+  colorPalette: 'Цветовая палитра',
+  colorPaletteText: 'Акцентный цвет применяется ко всему интерфейсу и сохраняется на этом устройстве.',
+  paletteGreen: 'Лесная',
+  paletteCyan: 'Северное сияние',
+  paletteYellow: 'Янтарная',
+  paletteOrange: 'Терракотовая',
 });
 
 Object.assign(COPY.en.workspace.chatPanel, {
   messageActions: 'Message actions',
   preparingVoice: 'Preparing voice message…',
   voicePlaybackError: 'Could not play this voice message on this device.',
+  preparingVideoNote: 'Preparing video note…',
+  videoNotePlaybackError: 'Could not play this video note on this device.',
   recordMedia: 'Record a message',
   recordingActions: 'Choose a recording type',
   realtimeDisconnected: 'Message updates are unavailable. New messages will appear when the connection is restored.',
+});
+
+Object.assign(COPY.en.workspace.settingsPanel, {
+  colorPalette: 'Colour palette',
+  colorPaletteText: 'The accent colour applies throughout the interface and is saved on this device.',
+  paletteGreen: 'Forest',
+  paletteCyan: 'Northern light',
+  paletteYellow: 'Amber',
+  paletteOrange: 'Terracotta',
 });
 
 Object.assign(COPY.kk.workspace.chatPanel, {
   messageActions: 'Хабарлама әрекеттері',
   preparingVoice: 'Дауыстық хабарлама дайындалуда…',
   voicePlaybackError: 'Бұл құрылғыда дауыстық хабарламаны ойнату мүмкін болмады.',
+  preparingVideoNote: 'Бейнежазба дайындалуда…',
+  videoNotePlaybackError: 'Бұл құрылғыда бейнежазбаны ойнату мүмкін болмады.',
   recordMedia: 'Хабарлама жазу',
   recordingActions: 'Жазба түрін таңдау',
   realtimeDisconnected: 'Хабарлама жаңартуларына қосылым жоқ. Қосылым қалпына келгеннен кейін жаңа хабарламалар пайда болады.',
+});
+
+Object.assign(COPY.kk.workspace.settingsPanel, {
+  colorPalette: 'Түс палитрасы',
+  colorPaletteText: 'Акцент түсі бүкіл интерфейске қолданылады және осы құрылғыда сақталады.',
+  paletteGreen: 'Орман',
+  paletteCyan: 'Солтүстік шұғыласы',
+  paletteYellow: 'Кәріптас',
+  paletteOrange: 'Терракота',
 });
 
 Object.assign(COPY.kk.workspace.callsPanel, {

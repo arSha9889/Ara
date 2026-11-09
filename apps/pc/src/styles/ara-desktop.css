@@ -1860,3 +1860,221 @@
     transition: none !important;
   }
 }
+
+/* Windows workspace: keep navigation compact, reveal labels as small contextual bubbles. */
+.desktop-app .workspace-screen,
+.desktop-app .workspace-screen.has-chat-details {
+  grid-template-columns: 68px minmax(238px, 274px) minmax(380px, 1fr) minmax(254px, 282px);
+}
+
+.desktop-app .workspace-screen.is-standalone-page { grid-template-columns: 68px minmax(0, 1fr); }
+
+.desktop-app .workspace-nav {
+  position: relative;
+  z-index: 12;
+  align-items: center;
+  padding: 14px 10px 12px;
+  overflow: visible;
+}
+
+.desktop-app .workspace-logo.ara-button {
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 14px;
+}
+
+.desktop-app .workspace-logo .brand-mark span { display: none; }
+.desktop-app .workspace-logo .brand-mark { gap: 0; }
+.desktop-app .workspace-logo .brand-mark img { width: 30px; height: 30px; }
+
+.desktop-app .workspace-nav-groups {
+  align-items: center;
+  margin-top: 22px;
+  overflow: visible;
+}
+
+.desktop-app .workspace-nav-group { display: grid; justify-items: center; width: auto; gap: 8px; }
+.desktop-app .workspace-nav-separator { width: 28px; margin: auto 0 16px; }
+
+.desktop-app .workspace-nav-button.ara-button {
+  position: relative;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.desktop-app .workspace-nav-button.ara-button > span,
+.desktop-app .workspace-user-chip.ara-button > span:nth-child(2) {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 2;
+  display: grid;
+  width: max-content;
+  max-width: 188px;
+  min-height: 34px;
+  padding: 7px 12px;
+  overflow: hidden;
+  color: var(--ara-text);
+  font-size: 11px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  border: 1px solid color-mix(in srgb, var(--ara-accent) 24%, var(--ara-border-subtle));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ara-surface) 96%, var(--ara-canvas));
+  box-shadow: 0 10px 26px var(--ara-shadow);
+  opacity: 0;
+  transform: translate(-6px, -50%);
+  transition: opacity var(--ara-motion-fast), transform var(--ara-motion-fast), visibility var(--ara-motion-fast);
+}
+
+.desktop-app .workspace-nav-button.ara-button > span { align-items: center; }
+.desktop-app .workspace-user-chip.ara-button > span:nth-child(2) { gap: 1px; }
+.desktop-app .workspace-user-chip.ara-button > span:nth-child(2) small { display: none; }
+
+.desktop-app .workspace-nav-button.ara-button:is(:hover, :focus-visible) > span,
+.desktop-app .workspace-user-chip.ara-button:is(:hover, :focus-visible) > span:nth-child(2) {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+.desktop-app .workspace-nav-button.ara-button.is-active,
+.desktop-app .workspace-nav-button.ara-button.is-active:hover:not(:disabled) {
+  color: var(--ara-on-accent);
+  border-color: transparent;
+  background: var(--ara-accent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ara-accent) 28%, transparent);
+}
+
+.desktop-app .workspace-nav-button.is-active::before { display: none; }
+
+.desktop-app .workspace-user-chip.ara-button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 50%;
+}
+
+.desktop-app .workspace-user-chip > svg { display: none; }
+.desktop-app .workspace-user-avatar { width: 32px; height: 32px; }
+
+/* The composer keeps its attachment as an independent transparent control and
+ * groups writing, recording and sending into one soft rounded field. */
+.desktop-app .workspace-chat-panel .chat-composer-area {
+  padding: 14px clamp(20px, 3vw, 34px) 16px;
+  border-top: 0;
+  background: color-mix(in srgb, var(--ara-canvas) 90%, transparent);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: calc(100% - 60px);
+  min-height: 56px;
+  margin-left: 60px;
+  padding: 6px 8px 6px 14px;
+  border-color: color-mix(in srgb, var(--ara-border-subtle) 86%, transparent);
+  border-radius: 999px;
+  background: var(--ara-surface-elevated);
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--ara-shadow) 38%, transparent);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer:focus-within {
+  border-color: var(--ara-border-interactive);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ara-focus) 20%, transparent), 0 5px 18px color-mix(in srgb, var(--ara-shadow) 38%, transparent);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer textarea {
+  min-height: 38px;
+  padding: 8px 4px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.desktop-app .workspace-chat-panel .chat-composer-icon {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 12px);
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  color: var(--ara-text-muted);
+  border: 1px solid color-mix(in srgb, var(--ara-border-subtle) 74%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ara-surface-elevated) 58%, transparent);
+  box-shadow: none;
+  transform: translateY(-50%);
+}
+
+.desktop-app .workspace-chat-panel .chat-composer-icon:hover:not(:disabled),
+.desktop-app .workspace-chat-panel .chat-composer-icon:focus-visible {
+  color: var(--ara-accent);
+  border-color: color-mix(in srgb, var(--ara-accent) 44%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 10%, transparent);
+}
+
+.desktop-app .chat-composer-actions { min-width: 44px; }
+.desktop-app .chat-media-action,
+.desktop-app .workspace-chat-panel .chat-send-button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+}
+
+.desktop-app .chat-media-action { color: var(--ara-text-muted); background: transparent; }
+.desktop-app .chat-media-action:is(:hover, .is-open):not(:disabled) { color: var(--ara-accent); background: color-mix(in srgb, var(--ara-accent) 10%, transparent); }
+.desktop-app .workspace-chat-panel .chat-send-button { box-shadow: 0 5px 14px color-mix(in srgb, var(--ara-accent) 24%, transparent); }
+.desktop-app .workspace-chat-panel .chat-composer-hint { margin-top: 8px; }
+
+/* Video notes use a real media element plus a separate control, so playback
+ * errors and the fallback source remain visible instead of failing silently. */
+.desktop-app .chat-video-note-message { display: grid; justify-items: start; width: fit-content; max-width: 100%; }
+.desktop-app .chat-video-note {
+  width: 168px;
+  height: 168px;
+  background: color-mix(in srgb, var(--ara-canvas) 84%, #000);
+}
+
+.desktop-app .chat-video-note video { pointer-events: none; }
+.desktop-app .chat-video-note-control {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  color: inherit;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.desktop-app .chat-video-note-control:focus-visible { outline-offset: -4px; }
+.desktop-app .chat-video-note.has-error { filter: saturate(.55); }
+.desktop-app .chat-video-note-playback-status { width: 168px; margin: 6px 0 0; color: var(--ara-text-muted); font-size: 10px; line-height: 1.35; }
+.desktop-app .chat-video-note-playback-status.is-error { color: var(--ara-error); }
+
+@media (max-width: 1260px) {
+  .desktop-app .workspace-screen,
+  .desktop-app .workspace-screen.has-chat-details { grid-template-columns: 68px minmax(250px, 294px) minmax(0, 1fr); }
+}
