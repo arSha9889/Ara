@@ -333,6 +333,12 @@ class AndroidReleaseOut(BaseModel):
     rustore_installer_package: str | None = None
 
 
+class WindowsBetaReleaseOut(BaseModel):
+    release_at: datetime | None = None
+    is_available: bool = False
+    download_url: str | None = None
+
+
 class NotificationTargetOut(BaseModel):
     """Platform-neutral destination selected by the client after a notification tap."""
 

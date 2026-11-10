@@ -1,9 +1,13 @@
 # Закрытая бета AraChat для Windows
 
-Этот процесс публикует только **проверенный Windows x64 NSIS-пакет** для
-закрытой беты. Он не заменяет подпись исполняемого файла: до настройки
-сертификата подписи Windows тестировщик может увидеть предупреждение
-SmartScreen. Не представляйте такой пакет как публичный стабильный релиз.
+Этот процесс публикует проверенный Windows x64 NSIS-пакет для закрытой беты.
+Установщик становится доступен по общей ссылке **11 ноября 2026 года в 10:00
+МСК** (`2026-11-11T07:00:00Z`). До этого момента API отвечает `404`, даже если
+файл уже скопирован на сервер.
+
+> В этой версии нет технического лимита на 30 скачиваний. Доступ к первым 30
+> тестировщикам контролируется вручную: не публикуйте ссылку в открытых каналах
+> и рассылайте её только выбранным людям.
 
 ## Условия перед публикацией
 
@@ -13,8 +17,6 @@ SmartScreen. Не представляйте такой пакет как пуб
    `AraChat-windows-x64-checksum` с файлом `.sha256` из того же запуска.
 3. На чистой Windows 10 или 11 x64 подтверждены установка, запуск, вход,
    восстановление сессии, личный чат, файл/медиа, WebSocket reconnect и выход.
-   Звонки и демонстрация экрана должны быть либо проверены на двух устройствах,
-   либо выключены из бета-интерфейса.
 4. Выполнена CORS preflight-проверка для `Origin: http://tauri.localhost` по
    [инструкции деплоя](DEPLOYMENT.md#5-cors-для-desktop-клиента).
 5. Нет известных критических или высокоприоритетных дефектов.
@@ -31,35 +33,66 @@ Get-Content .\<имя-установщика>.exe.sha256
 Значения хеша должны совпадать. Не подменяйте установщик или файл контрольной
 суммы после этой проверки.
 
-## Публикация на сайте
+## Подготовка и запуск на сайте
 
-1. На сервере создайте каталог, заданный `ARACHAT_DOWNLOADS_DIR` (по умолчанию
-   `/var/lib/arachat/downloads`), и скопируйте в него **оба** файла из
-   проверенного CI-артефакта: `.exe` и соответствующий `.exe.sha256`.
-2. Сделайте каталог и файлы доступными web-контейнеру только на чтение. Compose
-   монтирует его в контейнер по пути `/usr/share/nginx/html/downloads` в режиме
-   `:ro`; содержимое не попадает в Git или Docker image.
-3. В `deploy/production.env` укажите точный HTTPS URL установщика, используя
-   его фактическое имя:
-
-   ```dotenv
-   ARACHAT_WINDOWS_BETA_DOWNLOAD_URL=https://aramsg.ru/downloads/<имя-установщика>.exe
-   ```
-
-   URL обязан быть HTTPS и не должен содержать учётные данные, параметры запроса
-   или фрагмент. Пустое значение отключает кнопку скачивания.
-4. Пересоздайте только web-контейнер, затем проверьте страницу `/download?platform=windows`:
+1. На сервере создайте закрытый каталог релиза и скопируйте в него оба файла из
+   проверенного CI-артефакта. Не используйте публичный `/var/lib/arachat/downloads`:
 
    ```bash
-   docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --no-deps web
+   install -d -m 0750 /var/lib/arachat/releases
+   install -m 0640 <имя-установщика>.exe /var/lib/arachat/releases/
+   install -m 0640 <имя-установщика>.exe.sha256 /var/lib/arachat/releases/
    ```
 
-5. Убедитесь, что кнопка имеет статус «Закрытая бета», файл скачивается с
-   `https://aramsg.ru/downloads/`, а его SHA-256 совпадает с опубликованным
-   `.sha256`.
+2. В `deploy/production.env` укажите имя проверенного файла
+   `AraChat_0.9.3_x64-setup.exe` и уже утверждённое время старта. Время хранится
+   в UTC:
+
+   ```dotenv
+   NEXUS_WINDOWS_BETA_RELEASES_DIR=/var/lib/arachat/releases
+   NEXUS_WINDOWS_BETA_INSTALLER_FILENAME=AraChat_0.9.3_x64-setup.exe
+   NEXUS_WINDOWS_BETA_RELEASE_AT=2026-11-11T07:00:00Z
+   ```
+
+   `07:00:00Z` соответствует `10:00` по Москве. SHA-256 файла:
+
+   ```text
+   c152814076b9af94f31a2482af567ef346925acca3e3977015f8aa94669495ad
+   ```
+
+   Обе переменные обязательны: неполная конфигурация не даст API запуститься,
+   чтобы релиз не открылся случайно.
+
+3. До времени запуска разверните API и web:
+
+   ```bash
+   docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --build api web
+   ```
+
+4. Проверьте подготовку до 10:00 МСК:
+
+   ```bash
+   curl -sS https://aramsg.ru/api/releases/windows/beta
+   curl -sS -o /dev/null -w '%{http_code}\n' https://aramsg.ru/api/releases/windows/beta/download
+   ```
+
+   Первый запрос должен содержать `"is_available":false`, второй — вернуть
+   `404`. В 10:00 МСК API автоматически начнёт отдавать файл, а страница
+   `/download?platform=windows` обновит кнопку без нового деплоя.
+
+5. После старта убедитесь, что `GET /api/releases/windows/beta` возвращает
+   `"is_available":true`, скачайте файл с сайта и ещё раз сравните SHA-256 с
+   опубликованным `.sha256`.
 
 ## Откат
 
-Очистите `ARACHAT_WINDOWS_BETA_DOWNLOAD_URL` в `deploy/production.env` и
-пересоздайте web-контейнер. Сайт сразу вернёт Windows в состояние «Скоро»;
-после этого удалите с сервера отозванный `.exe` и `.sha256`.
+Очистите **обе** переменные `NEXUS_WINDOWS_BETA_RELEASE_AT` и
+`NEXUS_WINDOWS_BETA_INSTALLER_FILENAME` в `deploy/production.env`, затем
+пересоздайте API-контейнер:
+
+```bash
+docker compose --env-file deploy/production.env -f deploy/compose.production.yml up -d --no-deps --build api
+```
+
+После этого удалите отозванный `.exe` и `.sha256` из
+`/var/lib/arachat/releases`. API немедленно вернёт `404` для ссылки загрузки.

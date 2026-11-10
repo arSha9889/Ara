@@ -4,6 +4,8 @@ apps/web/node_modules/
 apps/web/dist/
 apps/pc/dist/
 apps/pc/src-tauri/target/
+# Release installers are transferred to the server separately and must not be committed.
+apps/pc/Релизы/
 apps/api/.venv/
 apps/api/storage/
 __pycache__/

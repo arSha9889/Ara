@@ -1,7 +1,8 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { API_BASE_URL } from '../../../shared/api/httpClient.js';
 import { APP_DISTRIBUTION } from '../../../shared/config/projectLinks.js';
 import { Icon } from '../../../shared/ui/Icon.jsx';
 import { AraFooter } from '../components/AraFooter.jsx';
@@ -13,6 +14,46 @@ function getPlatformAvailability(platform) {
   return {
     hasAvailableChannel: channels.some((channel) => Boolean(channel.href)),
     hasUnavailableChannel: channels.some((channel) => !channel.href),
+  };
+}
+
+const WINDOWS_BETA_RELEASE_PATH = '/api/releases/windows/beta';
+
+function formatWindowsBetaReleaseTime(releaseAt, language) {
+  const date = new Date(releaseAt);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(language, {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Europe/Moscow',
+  }).format(date);
+}
+
+function windowsBetaReleaseNote(release, language, t) {
+  if (release?.is_available) return t('onboarding.downloadReleaseNoteBeta');
+  if (!release?.release_at) return t('onboarding.downloadReleaseNote');
+
+  const releaseTime = formatWindowsBetaReleaseTime(release.release_at, language);
+  if (!releaseTime) return t('onboarding.downloadReleaseNote');
+  return language === 'ru'
+    ? `Ссылка откроется ${releaseTime} по Москве. Доступ к бете вручную получают первые 30 приглашённых тестировщиков.`
+    : `The link opens ${releaseTime} Moscow time. The first 30 invited testers receive beta access manually.`;
+}
+
+function withWindowsBetaRelease(platform, release, language, t) {
+  if (platform.key !== 'windows') return platform;
+
+  return {
+    ...platform,
+    releaseNote: windowsBetaReleaseNote(release, language, t),
+    groups: platform.groups.map((group) => ({
+      ...group,
+      channels: group.channels.map((channel) => (
+        channel.isWindowsBeta && release?.is_available && release.download_url
+          ? { ...channel, href: `${API_BASE_URL}${release.download_url}`, download: true }
+          : channel
+      )),
+    })),
   };
 }
 
@@ -44,7 +85,13 @@ function DownloadAction({ channel, t }) {
   );
 
   return isAvailable ? (
-    <a className="ara-download-action is-ready" href={channel.href} target="_blank" rel="noreferrer">
+    <a
+      className="ara-download-action is-ready"
+      href={channel.href}
+      download={channel.download || undefined}
+      target={channel.download ? undefined : '_blank'}
+      rel={channel.download ? undefined : 'noreferrer'}
+    >
       {content}
     </a>
   ) : (
@@ -102,7 +149,7 @@ function DownloadPlatformPanel({ platform, isActive, t }) {
         ))}
       </div>
 
-      <p className="ara-download-release-note"><Icon name="sparkles" size={18} />{t(releaseNoteKey)}</p>
+      <p className="ara-download-release-note" role="status"><Icon name="sparkles" size={18} />{platform.releaseNote ?? t(releaseNoteKey)}</p>
     </section>
   );
 }
@@ -111,12 +158,41 @@ export function DownloadPage() {
   const { language, t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabRefs = useRef([]);
+  const [windowsBetaRelease, setWindowsBetaRelease] = useState(null);
   const requestedPlatformKey = searchParams.get('platform');
-  const activePlatform = APP_DISTRIBUTION.find((platform) => platform.key === requestedPlatformKey) ?? APP_DISTRIBUTION[0];
+  const distribution = APP_DISTRIBUTION.map((platform) => withWindowsBetaRelease(platform, windowsBetaRelease, language, t));
+  const activePlatform = distribution.find((platform) => platform.key === requestedPlatformKey) ?? distribution[0];
+
+  useEffect(() => {
+    let active = true;
+    let refreshTimer;
+
+    async function refreshWindowsBetaRelease() {
+      try {
+        const response = await fetch(`${API_BASE_URL}${WINDOWS_BETA_RELEASE_PATH}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Windows beta release is unavailable');
+        const release = await response.json();
+        if (!active) return;
+        setWindowsBetaRelease(release);
+
+        const releaseTime = release.release_at ? new Date(release.release_at).getTime() : Number.NaN;
+        const delayUntilRelease = Number.isNaN(releaseTime) ? 60_000 : releaseTime - Date.now() + 300;
+        refreshTimer = window.setTimeout(refreshWindowsBetaRelease, Math.max(1_000, Math.min(delayUntilRelease, 60_000)));
+      } catch {
+        if (active) refreshTimer = window.setTimeout(refreshWindowsBetaRelease, 60_000);
+      }
+    }
+
+    refreshWindowsBetaRelease();
+    return () => {
+      active = false;
+      window.clearTimeout(refreshTimer);
+    };
+  }, []);
 
   function selectPlatform(platformKey) {
     const nextSearchParams = new URLSearchParams(searchParams);
-    if (platformKey === APP_DISTRIBUTION[0].key) {
+    if (platformKey === distribution[0].key) {
       nextSearchParams.delete('platform');
     } else {
       nextSearchParams.set('platform', platformKey);
@@ -135,10 +211,10 @@ export function DownloadPage() {
     event.preventDefault();
     const nextIndex = isFirst
       ? 0
-      : isLast
-        ? APP_DISTRIBUTION.length - 1
-        : (index + (isPrevious ? -1 : 1) + APP_DISTRIBUTION.length) % APP_DISTRIBUTION.length;
-    const nextPlatform = APP_DISTRIBUTION[nextIndex];
+        : isLast
+          ? distribution.length - 1
+          : (index + (isPrevious ? -1 : 1) + distribution.length) % distribution.length;
+    const nextPlatform = distribution[nextIndex];
     selectPlatform(nextPlatform.key);
     tabRefs.current[nextIndex]?.focus();
   }
@@ -165,7 +241,7 @@ export function DownloadPage() {
             <h2 id="download-platforms-title">{t('onboarding.downloadPlatformsTitle')}</h2>
           </div>
           <div className="ara-download-tabs" role="tablist" aria-label={t('onboarding.downloadPlatformsLabel')}>
-            {APP_DISTRIBUTION.map((platform, index) => {
+            {distribution.map((platform, index) => {
               const isActive = platform.key === activePlatform.key;
               const tabId = `download-tab-${platform.key}`;
               const panelId = `download-panel-${platform.key}`;
@@ -192,7 +268,7 @@ export function DownloadPage() {
           </div>
         </section>
 
-        {APP_DISTRIBUTION.map((platform) => (
+        {distribution.map((platform) => (
           <DownloadPlatformPanel
             platform={platform}
             isActive={platform.key === activePlatform.key}

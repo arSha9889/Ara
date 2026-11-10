@@ -1,7 +1,3 @@
-import { getRuntimeHttpsUrl } from './runtimeConfig.js';
-
-const WINDOWS_BETA_DOWNLOAD_URL = getRuntimeHttpsUrl('ARACHAT_WINDOWS_BETA_DOWNLOAD_URL');
-
 export const OFFICIAL_CHANNELS = [
   {
     key: 'telegram',
@@ -133,7 +129,8 @@ export const APP_DISTRIBUTION = [
             icon: 'monitor',
             labelKey: 'onboarding.downloadWindowsInstaller',
             descriptionKey: 'onboarding.downloadWindowsInstallerText',
-            href: WINDOWS_BETA_DOWNLOAD_URL,
+            href: '',
+            isWindowsBeta: true,
           },
         ],
       },

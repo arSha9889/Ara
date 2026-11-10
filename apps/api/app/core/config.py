@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 from typing import Literal
@@ -87,6 +88,9 @@ class Settings(BaseSettings):
     android_direct_download_url: str = ''
     android_rustore_app_url: str = ''
     android_rustore_installer_package: str = ''
+    windows_beta_release_at: datetime | None = None
+    windows_beta_installer_filename: str = ''
+    windows_beta_release_dir: str = '/var/lib/arachat/releases'
     turn_public_host: str = ''
     turn_shared_secret: str = ''
     turn_port: int = Field(default=3478, ge=1, le=65535)
@@ -127,6 +131,20 @@ class Settings(BaseSettings):
         installer_package = self.android_rustore_installer_package.strip()
         if installer_package and not _is_android_package_name(installer_package):
             raise ValueError('android_rustore_installer_package must be a valid Android package name')
+        windows_beta_filename = self.windows_beta_installer_filename.strip()
+        if bool(windows_beta_filename) != bool(self.windows_beta_release_at):
+            raise ValueError('windows_beta_release_at and windows_beta_installer_filename must be configured together')
+        if windows_beta_filename and (
+            Path(windows_beta_filename).name != windows_beta_filename
+            or '\x00' in windows_beta_filename
+            or not windows_beta_filename.lower().endswith('.exe')
+        ):
+            raise ValueError('windows_beta_installer_filename must be a plain .exe filename')
+        self.windows_beta_installer_filename = windows_beta_filename
+        if self.windows_beta_release_at:
+            if self.windows_beta_release_at.tzinfo is None:
+                raise ValueError('windows_beta_release_at must include a time zone')
+            self.windows_beta_release_at = self.windows_beta_release_at.astimezone(timezone.utc)
 
     @property
     def smtp_is_configured(self) -> bool:

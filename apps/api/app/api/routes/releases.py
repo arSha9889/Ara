@@ -1,13 +1,23 @@
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import FileResponse
 
 from app.api.dependencies.auth import get_current_user
 from app.core.config import settings
-from app.schemas.chats import AndroidReleaseOut
+from app.schemas.chats import AndroidReleaseOut, WindowsBetaReleaseOut
 from app.schemas.users import UserOut
 
 router = APIRouter()
+
+WINDOWS_BETA_DOWNLOAD_PATH = '/api/releases/windows/beta/download'
+WINDOWS_BETA_DOWNLOAD_HEADERS = {
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex',
+}
 
 
 @router.get('/android', response_model=AndroidReleaseOut)
@@ -56,6 +66,30 @@ async def get_android_release(
     )
 
 
+@router.get('/windows/beta', response_model=WindowsBetaReleaseOut)
+async def get_windows_beta_release(response: Response) -> WindowsBetaReleaseOut:
+    response.headers['Cache-Control'] = 'no-store'
+    is_available = _windows_beta_is_available()
+    return WindowsBetaReleaseOut(
+        release_at=settings.windows_beta_release_at,
+        is_available=is_available,
+        download_url=WINDOWS_BETA_DOWNLOAD_PATH if is_available else None,
+    )
+
+
+@router.get('/windows/beta/download', include_in_schema=False)
+async def download_windows_beta_installer() -> FileResponse:
+    installer_path = _windows_beta_installer_path()
+    if not _windows_beta_is_available() or installer_path is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Release not found')
+    return FileResponse(
+        installer_path,
+        media_type='application/octet-stream',
+        filename=installer_path.name,
+        headers=WINDOWS_BETA_DOWNLOAD_HEADERS,
+    )
+
+
 def _release_notes(notes: list[str]) -> list[str]:
     return [note.strip() for note in notes if note.strip()]
 
@@ -72,3 +106,25 @@ def _release_version(channel: Literal['direct', 'rustore'] | None) -> tuple[int 
             settings.android_rustore_latest_version_name.strip(),
         )
     return settings.android_latest_version_code, settings.android_latest_version_name.strip()
+
+
+def _windows_beta_is_available(now: datetime | None = None) -> bool:
+    release_at = settings.windows_beta_release_at
+    installer_path = _windows_beta_installer_path()
+    return bool(
+        release_at
+        and installer_path
+        and release_at <= (now or datetime.now(timezone.utc))
+        and installer_path.is_file()
+    )
+
+
+def _windows_beta_installer_path() -> Path | None:
+    filename = settings.windows_beta_installer_filename
+    if not filename:
+        return None
+    release_dir = Path(settings.windows_beta_release_dir).resolve()
+    installer_path = (release_dir / filename).resolve()
+    if installer_path.parent != release_dir:
+        return None
+    return installer_path

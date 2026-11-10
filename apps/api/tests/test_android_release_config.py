@@ -57,6 +57,30 @@ def test_android_release_urls_must_be_safe_https_urls() -> None:
         Settings(android_rustore_installer_package='com.магазин')
 
 
+def test_windows_beta_release_configuration_requires_a_safe_complete_pair() -> None:
+    settings = Settings(
+        windows_beta_release_at='2026-11-11T07:00:00Z',
+        windows_beta_installer_filename='AraChat_0.9.3_x64-setup.exe',
+    )
+
+    assert settings.windows_beta_release_at is not None
+    assert settings.windows_beta_release_at.isoformat() == '2026-11-11T07:00:00+00:00'
+    assert settings.windows_beta_installer_filename == 'AraChat_0.9.3_x64-setup.exe'
+
+    with pytest.raises(ValueError, match='configured together'):
+        Settings(windows_beta_release_at='2026-11-11T07:00:00Z')
+    with pytest.raises(ValueError, match='plain .exe filename'):
+        Settings(
+            windows_beta_release_at='2026-11-11T07:00:00Z',
+            windows_beta_installer_filename='../AraChat.exe',
+        )
+    with pytest.raises(ValueError, match='must include a time zone'):
+        Settings(
+            windows_beta_release_at='2026-11-11T10:00:00',
+            windows_beta_installer_filename='AraChat.exe',
+        )
+
+
 @pytest.mark.anyio
 async def test_android_release_metadata_supports_independent_channels(
     monkeypatch: pytest.MonkeyPatch,
