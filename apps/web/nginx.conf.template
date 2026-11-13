@@ -45,6 +45,20 @@ server {
     add_header Content-Disposition "attachment";
   }
 
+  # Tauri validates the signed binary itself, but latest.json must refresh
+  # promptly so clients discover a just-published release.
+  location = /desktop-updates/latest.json {
+    try_files $uri =404;
+    default_type application/json;
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+  }
+
+  location /desktop-updates/ {
+    try_files $uri =404;
+    default_type application/octet-stream;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+  }
+
   location = /index.html {
     try_files $uri =404;
     add_header Cache-Control "no-cache, must-revalidate";
