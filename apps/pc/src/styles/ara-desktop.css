@@ -1736,6 +1736,14 @@
   background: transparent;
 }
 
+.desktop-app .workspace-settings-panel .settings-update-actions {
+  margin-top: 12px;
+}
+
+.desktop-app .workspace-settings-panel .settings-update-progress {
+  margin-top: 10px;
+}
+
 .desktop-app .workspace-settings-panel .security-device-row,
 .desktop-app .workspace-settings-panel .security-history-row {
   grid-template-columns: minmax(0, 1fr) auto;

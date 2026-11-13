@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 
 import { WorkspaceIcon as Icon } from '../../components/WorkspaceIcon.jsx';
@@ -19,6 +19,12 @@ import {
   notificationPermissionStatus,
   requestDesktopNotificationPermission,
 } from '../../features/notifications/desktopNotifications.js';
+import {
+  checkDesktopUpdate,
+  desktopUpdaterIsAvailable,
+  downloadDesktopUpdate,
+  relaunchDesktop,
+} from '../../features/updates/desktopUpdater.js';
 import { AboutSettings } from './settings/AboutSettings.jsx';
 import { AppearanceSettings } from './settings/AppearanceSettings.jsx';
 import { NotificationSettings } from './settings/NotificationSettings.jsx';
@@ -32,6 +38,7 @@ const TABS = [
 ];
 
 const COMPACT_SETTINGS_NAVIGATION_QUERY = '(max-width: 1060px)';
+const INITIAL_UPDATE_STATE = Object.freeze({ phase: 'idle', progress: null, update: null });
 
 export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, onLogout, preferences, updatePreferences, t }) {
   const [activeTab, setActiveTab] = useState('appearance');
@@ -55,6 +62,8 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
   const [notificationPermission, setNotificationPermission] = useState('loading');
   const [appVersion, setAppVersion] = useState('');
   const [isLoadingAppVersion, setIsLoadingAppVersion] = useState(false);
+  const [desktopUpdateState, setDesktopUpdateState] = useState(INITIAL_UPDATE_STATE);
+  const nativeUpdateRef = useRef(null);
   const [isCompactSettingsNavigation, setIsCompactSettingsNavigation] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia(COMPACT_SETTINGS_NAVIGATION_QUERY).matches
   ));
@@ -115,6 +124,11 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== 'about' || desktopUpdateState.phase !== 'idle' || desktopUpdaterIsAvailable()) return;
+    setDesktopUpdateState({ phase: 'unavailable', progress: null, update: null });
+  }, [activeTab, desktopUpdateState.phase]);
+
+  useEffect(() => {
     const mediaQuery = window.matchMedia(COMPACT_SETTINGS_NAVIGATION_QUERY);
     const updateLayout = () => setIsCompactSettingsNavigation(mediaQuery.matches);
     updateLayout();
@@ -127,6 +141,52 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
     updatePreferences(nextPreferences);
     setFormError('');
     setNotice({ key: 'workspace.settingsPanel.saved' });
+  }
+
+  async function handleCheckForDesktopUpdate() {
+    if (desktopUpdateState.phase === 'checking' || desktopUpdateState.phase === 'downloading') return;
+
+    nativeUpdateRef.current = null;
+    setDesktopUpdateState({ phase: 'checking', progress: null, update: null });
+    try {
+      const result = await checkDesktopUpdate();
+      if (result.status === 'available') {
+        nativeUpdateRef.current = result.nativeUpdate;
+        setDesktopUpdateState({ phase: 'available', progress: null, update: result.update });
+        return;
+      }
+      setDesktopUpdateState({ phase: result.status, progress: null, update: null });
+    } catch {
+      setDesktopUpdateState({ phase: 'error', progress: null, update: null });
+    }
+  }
+
+  async function handleDownloadDesktopUpdate() {
+    const nativeUpdate = nativeUpdateRef.current;
+    if (!nativeUpdate || desktopUpdateState.phase !== 'available') return;
+
+    const update = desktopUpdateState.update;
+    setDesktopUpdateState({ phase: 'downloading', progress: 0, update });
+    try {
+      await downloadDesktopUpdate(nativeUpdate, (progress) => {
+        setDesktopUpdateState({ phase: 'downloading', progress: progress.percent, update });
+      });
+      setDesktopUpdateState({ phase: 'ready', progress: 100, update });
+    } catch {
+      nativeUpdateRef.current = null;
+      setDesktopUpdateState({ phase: 'error', progress: null, update: null });
+    }
+  }
+
+  async function handleRestartAfterDesktopUpdate() {
+    if (desktopUpdateState.phase !== 'ready') return;
+
+    setDesktopUpdateState((currentState) => ({ ...currentState, phase: 'restarting' }));
+    try {
+      await relaunchDesktop();
+    } catch {
+      setDesktopUpdateState((currentState) => ({ ...currentState, phase: 'error', progress: null, update: null }));
+    }
   }
 
   async function changeDesktopNotifications(enabled) {
@@ -325,7 +385,15 @@ export function SettingsPanel({ accessToken, currentUser, onCurrentUserUpdated, 
   const renderSettings = () => {
     if (activeTab === 'appearance') return <AppearanceSettings density={density} onPreferenceChange={updateLocalPreferences} preferences={preferences} t={t} />;
     if (activeTab === 'notifications') return <NotificationSettings notificationPermission={notificationPermission} onDesktopNotificationsChange={changeDesktopNotifications} onPreferenceChange={updateLocalPreferences} preferences={preferences} t={t} />;
-    if (activeTab === 'about') return <AboutSettings appVersion={appVersion} isLoadingAppVersion={isLoadingAppVersion} t={t} />;
+    if (activeTab === 'about') return <AboutSettings
+      appVersion={appVersion}
+      isLoadingAppVersion={isLoadingAppVersion}
+      onCheckForUpdate={() => void handleCheckForDesktopUpdate()}
+      onDownloadUpdate={() => void handleDownloadDesktopUpdate()}
+      onRestartAfterUpdate={() => void handleRestartAfterDesktopUpdate()}
+      t={t}
+      updateState={desktopUpdateState}
+    />;
 
     return <SecuritySettings
       activeDevices={activeDevices}

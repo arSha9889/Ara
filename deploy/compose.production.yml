@@ -151,6 +151,7 @@ services:
         condition: service_healthy
     volumes:
       - ${ARACHAT_DOWNLOADS_DIR:-/var/lib/arachat/downloads}:/usr/share/nginx/html/downloads:ro
+      - ${ARACHAT_DESKTOP_UPDATES_DIR:-/var/lib/arachat/desktop-updates}:/usr/share/nginx/html/desktop-updates:ro
     expose:
       - "8080"
 

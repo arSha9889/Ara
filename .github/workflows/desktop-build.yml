@@ -2,6 +2,12 @@ name: Desktop packages
 
 on:
   workflow_dispatch:
+    inputs:
+      release_notes:
+        description: Release notes for the signed updater manifest
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -17,13 +23,21 @@ jobs:
           - name: macOS Apple Silicon
             os: macos-15
             artifact: AraChat-macos-arm64
-            bundle: dmg
+            bundle: app,dmg
             path: apps/pc/src-tauri/target/release/bundle/dmg/*.dmg
+            updater_artifact: AraChat-updater-macos-arm64
+            updater_path: |
+              apps/pc/src-tauri/target/release/bundle/macos/*.app.tar.gz
+              apps/pc/src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
           - name: Windows x64
             os: windows-latest
             artifact: AraChat-windows-x64
             bundle: nsis
             path: apps/pc/src-tauri/target/release/bundle/nsis/*.exe
+            updater_artifact: AraChat-updater-windows-x64
+            updater_path: |
+              apps/pc/src-tauri/target/release/bundle/nsis/*.exe
+              apps/pc/src-tauri/target/release/bundle/nsis/*.exe.sig
 
     steps:
       - uses: actions/checkout@v4
@@ -43,6 +57,9 @@ jobs:
           workspaces: apps/pc/src-tauri
       - run: npm ci
       - run: npm --workspace @arachat/desktop run tauri -- build --bundles ${{ matrix.bundle }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       - name: Write Windows installer checksum
         if: matrix.bundle == 'nsis'
         shell: pwsh
@@ -56,10 +73,47 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
           if-no-files-found: error
+      - name: Upload signed updater artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.updater_artifact }}
+          path: ${{ matrix.updater_path }}
+          if-no-files-found: error
       - name: Upload Windows installer checksum
         if: matrix.bundle == 'nsis'
         uses: actions/upload-artifact@v4
         with:
           name: AraChat-windows-x64-checksum
           path: apps/pc/src-tauri/target/release/bundle/nsis/*.sha256
+          if-no-files-found: error
+
+  updater-release:
+    name: Signed updater release
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            apps/pc/package.json
+            apps/pc/scripts
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: AraChat-updater-*
+          path: release
+          merge-multiple: true
+      - name: Create latest.json
+        env:
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          node apps/pc/scripts/create-updater-manifest.mjs \
+            --artifacts-dir release \
+            --output release/latest.json \
+            --base-url https://aramsg.ru/desktop-updates/ \
+            --version "$(node -p "require('./apps/pc/package.json').version")" \
+            --notes "$RELEASE_NOTES"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AraChat-updater-release
+          path: release
           if-no-files-found: error

@@ -3276,7 +3276,7 @@ button:focus-visible {
 .desktop-app .workspace-settings-panel .settings-about-version strong { color: var(--ara-text); font-size: 11px; }
 .desktop-app .workspace-settings-panel .settings-about-version output { color: var(--ara-text-muted); font-size: 11px; }
 .desktop-app .workspace-settings-panel .settings-update-status {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 7px;
   margin: 15px 0 0;
@@ -3289,6 +3289,26 @@ button:focus-visible {
   background: color-mix(in srgb, var(--ara-warning) 9%, var(--ara-surface-elevated));
 }
 .desktop-app .workspace-settings-panel .settings-update-status > svg { flex: 0 0 auto; color: var(--ara-warning); }
+.desktop-app .workspace-settings-panel .settings-update-status[data-tone="accent"] {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 46%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 9%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .settings-update-status[data-tone="accent"] > svg { color: var(--ara-accent); }
+.desktop-app .workspace-settings-panel .settings-update-status[data-tone="success"] {
+  color: var(--ara-text);
+  border-color: color-mix(in srgb, var(--ara-accent) 40%, var(--ara-border-subtle));
+  background: color-mix(in srgb, var(--ara-accent) 7%, var(--ara-surface-elevated));
+}
+.desktop-app .workspace-settings-panel .settings-update-status[data-tone="success"] > svg { color: var(--ara-accent); }
+.desktop-app .workspace-settings-panel .settings-update-status[data-tone="neutral"] {
+  border-color: var(--ara-border-subtle);
+  background: var(--ara-surface-elevated);
+}
+.desktop-app .workspace-settings-panel .settings-update-status[data-tone="neutral"] > svg { color: var(--ara-text-muted); }
+.desktop-app .workspace-settings-panel .settings-update-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.desktop-app .workspace-settings-panel .settings-update-progress { height: 5px; margin-top: 10px; overflow: hidden; border-radius: 99px; background: var(--ara-surface-elevated); }
+.desktop-app .workspace-settings-panel .settings-update-progress > span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: var(--ara-accent); transition: width var(--ara-motion-fast); }
 
 .desktop-app .workspace-calls-panel .calls-history-card { margin-top: 14px; }
 .desktop-app .workspace-calls-panel .calls-history-status,

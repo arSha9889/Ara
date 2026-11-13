@@ -1,6 +1,6 @@
 [package]
 name = "arachat-desktop"
-version = "0.1.5"
+version = "0.9.4"
 description = "AraChat Desktop client"
 authors = ["AraChat"]
 edition = "2021"
@@ -16,8 +16,11 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 keyring = { version = "3.6.2", default-features = false, features = ["apple-native", "windows-native"] }
+serde_json = "1"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2.5.1"
+tauri-plugin-process = "2.4.0"
+tauri-plugin-updater = "2.14.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.5"
