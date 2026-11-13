@@ -20,6 +20,8 @@ from app.services.storage_service import (
 
 
 WEBM_BYTES = b'\x1a\x45\xdf\xa3webm-data'
+MP3_BYTES = b'ID3mp3-data'
+JPEG_BYTES = b'\xff\xd8\xffjpeg-data'
 PNG_BYTES = b'\x89PNG\r\n\x1a\nimage-data'
 HEIC_BYTES = b'\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic'
 AVIF_BYTES = b'\x00\x00\x00\x18ftypavif\x00\x00\x00\x00mif1avif'
@@ -48,6 +50,33 @@ async def test_save_upload_file_stores_audio_with_normalized_mime_type(tmp_path,
     assert stored.suggested_message_type == 'voice'
     assert stored.storage_key.startswith(f'/storage/uploads/{user_id}/')
     assert (tmp_path / str(user_id) / stored.storage_key.rsplit('/', 1)[-1]).exists()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ('filename', 'content_type', 'expected_mime_type'),
+    [
+        ('track.mp3', 'audio/mp3', 'audio/mpeg'),
+        ('track.mp3', '', 'audio/mpeg'),
+        ('photo.jpg', '', 'image/jpeg'),
+        ('movie.mp4', 'application/octet-stream', 'video/mp4'),
+    ],
+)
+async def test_save_upload_file_normalizes_windows_mime_variants_and_missing_types(
+    tmp_path,
+    monkeypatch,
+    filename: str,
+    content_type: str,
+    expected_mime_type: str,
+) -> None:
+    monkeypatch.setattr(settings, 'storage_backend', 'local')
+    monkeypatch.setattr(settings, 'upload_dir', str(tmp_path))
+    monkeypatch.setattr(settings, 'storage_public_url_prefix', '/storage/uploads')
+    content = MP3_BYTES if expected_mime_type == 'audio/mpeg' else JPEG_BYTES if expected_mime_type == 'image/jpeg' else b'\x00\x00\x00\x18ftypmp42video-data'
+
+    stored = await save_upload_file(_upload(filename, content_type, content), uuid4())
+
+    assert stored.mime_type == expected_mime_type
 
 
 @pytest.mark.anyio
@@ -96,6 +125,17 @@ async def test_save_upload_file_rejects_content_type_spoofing(tmp_path, monkeypa
 
     with pytest.raises(AuthError, match='does not match declared type'):
         await save_upload_file(_upload('photo.png', 'image/png', b'MZ-not-a-real-png'), uuid4())
+
+    assert not list(tmp_path.rglob('*.*'))
+
+
+@pytest.mark.anyio
+async def test_save_upload_file_rejects_spoofed_extension_when_windows_omits_mime_type(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(settings, 'upload_dir', str(tmp_path))
+    monkeypatch.setattr(settings, 'upload_max_size_bytes', 1024)
+
+    with pytest.raises(AuthError, match='does not match declared type'):
+        await save_upload_file(_upload('photo.jpg', '', b'MZ-not-a-real-jpeg'), uuid4())
 
     assert not list(tmp_path.rglob('*.*'))
 

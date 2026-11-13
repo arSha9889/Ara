@@ -1,4 +1,5 @@
 import { getDeviceId } from '../device/deviceId.js';
+import { mimeTypeForFile } from '../media/fileType.js';
 
 export const E2EE_WEB_ALGORITHM = 'ECDH_P256_HKDF_SHA256_A256GCM_ECDSA_P256';
 export const E2EE_ATTACHMENT_MIME_TYPE = 'application/vnd.arachat.e2ee-attachment';
@@ -362,8 +363,8 @@ export async function encryptE2eeAttachment({
   );
   const rawKey = new Uint8Array(await window.crypto.subtle.exportKey('raw', fileKey));
   const name = typeof file.name === 'string' && file.name.trim() ? file.name.slice(0, 255) : 'attachment';
-  const declaredMimeType = typeof file.type === 'string' ? file.type.split(';', 1)[0].trim().toLowerCase() : '';
-  const mimeType = E2EE_ATTACHMENT_MIME_TYPES.has(declaredMimeType) ? declaredMimeType : 'application/octet-stream';
+  const detectedMimeType = mimeTypeForFile(file);
+  const mimeType = E2EE_ATTACHMENT_MIME_TYPES.has(detectedMimeType) ? detectedMimeType : 'application/octet-stream';
 
   return {
     encryptedFile: new File([ciphertext], E2EE_ATTACHMENT_FILENAME, { type: E2EE_ATTACHMENT_MIME_TYPE }),

@@ -4,6 +4,10 @@
 !define ARACHAT_NSIS_LANGUAGE_DIR "${__FILEDIR__}\languages"
 LoadLanguageFile "${ARACHAT_NSIS_LANGUAGE_DIR}\Kazakh.nlf"
 
+; Keep the native Modern UI animated progress treatment. This needs no plugin,
+; works with the signed updater's NSIS packages, and respects Windows settings.
+!define MUI_INSTFILESPAGE_PROGRESSBAR smooth
+
 !define /ifndef MUI_LANGDLL_LANGUAGES ""
 !define /redef MUI_LANGDLL_LANGUAGES `"Қазақша" "${LANG_KAZAKH}" ${MUI_LANGDLL_LANGUAGES}`
 !define MUI_LANGDLL_ALLLANGUAGES

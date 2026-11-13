@@ -13,6 +13,7 @@ from app.services.storage_service import (
     AVATAR_MAX_SIZE_BYTES,
     E2EE_ATTACHMENT_PURPOSE,
     delete_storage_object,
+    resolve_upload_mime_type,
     save_e2ee_attachment_file,
     save_upload_file,
 )
@@ -69,7 +70,7 @@ async def upload_avatar(
     file: Annotated[UploadFile, File()],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> UploadOut:
-    if not (file.content_type or '').startswith('image/'):
+    if not resolve_upload_mime_type(file.content_type, file.filename).startswith('image/'):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Avatar must be an image')
     try:
         stored = await save_upload_file(file, current_user.id, AVATAR_MAX_SIZE_BYTES)

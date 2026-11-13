@@ -28,14 +28,13 @@ import {
   registerE2eeDesktopIdentity,
 } from '../../shared/crypto/e2eeDesktop.js';
 import { formatFileSize } from '../../shared/format/fileSize.js';
+import { ACCEPTED_FILE_TYPES, mimeTypeForFile } from '../../shared/media/fileType.js';
 import { MessageContent, displayMessageType } from './MessageContent.jsx';
 import { MessageContextMenu, messageMenuPositionFromEvent } from './MessageContextMenu.jsx';
 import { messageDeliveryIndicator } from './messageDeliveryStatus.js';
 import { scrollHistoryToEnd } from './scrollHistoryToEnd.js';
 
 const AVATAR_TONES = ['violet', 'coral', 'yellow', 'blue'];
-const ACCEPTED_FILE_TYPES = 'image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/avif,video/mp4,video/webm,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,application/pdf,text/plain';
-
 function initials(displayName, username) {
   const value = displayName || username || '?';
   return value.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
@@ -870,7 +869,7 @@ function DirectChatPanel({
         {replyingTo ? <div className="chat-composer-context"><Icon name="reply" size={15} /><span><strong>{t('workspace.chatPanel.replyingTo')}</strong><small>{replyPreview(replyingTo, t)}</small></span><AraButton type="button" aria-label={t('workspace.chatPanel.cancelReply')} onClick={() => setReplyingTo(null)} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
         {editingMessage ? <div className="chat-composer-context"><Icon name="edit" size={15} /><span><strong>{t('workspace.chatPanel.editingMessage')}</strong><small>{t('workspace.chatPanel.editHint')}</small></span><AraButton type="button" aria-label={t('workspace.chatPanel.cancelEdit')} onClick={() => { setEditingMessage(null); setEditText(''); }} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
         {recordedMedia ? <div className="chat-draft-type"><span><Icon name={recordedMedia.kind === 'voice' ? 'mic' : 'video'} size={16} /></span><div><strong>{recordedMedia.kind === 'voice' ? t('workspace.chatPanel.voiceDraftReady') : t('workspace.chatPanel.videoNoteDraftReady')}</strong><small>{formatDuration(recordedMedia.durationSeconds)} · {formatFileSize(recordedMedia.file.size)}</small></div><AraButton type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setRecordedMedia(null)} disabled={isSending} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
-        {selectedFile ? <div className="chat-draft-type"><span><Icon name={selectedFile.type.startsWith('image/') ? 'image' : selectedFile.type.startsWith('video/') ? 'video' : 'document'} size={16} /></span><div><strong>{t('workspace.chatPanel.attachmentReady')}</strong><small>{selectedFile.name}{formatFileSize(selectedFile.size) ? ` · ${formatFileSize(selectedFile.size)}` : ''}</small></div><AraButton type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setSelectedFile(null)} disabled={isSending} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
+        {selectedFile ? <div className="chat-draft-type"><span><Icon name={mimeTypeForFile(selectedFile).startsWith('image/') ? 'image' : mimeTypeForFile(selectedFile).startsWith('video/') ? 'video' : 'document'} size={16} /></span><div><strong>{t('workspace.chatPanel.attachmentReady')}</strong><small>{selectedFile.name}{formatFileSize(selectedFile.size) ? ` · ${formatFileSize(selectedFile.size)}` : ''}</small></div><AraButton type="button" aria-label={t('workspace.chatPanel.removeAttachment')} onClick={() => setSelectedFile(null)} disabled={isSending} size="compact" variant="ghost"><Icon name="close" size={15} /></AraButton></div> : null}
         {isRecording ? <div className="chat-recording-panel" role="status" aria-live="polite">
           {recording.kind === 'video_note' ? <video className="chat-recording-preview" ref={recordingVideoRef} muted playsInline /> : <span className="chat-recording-mark"><Icon name="mic" size={19} /></span>}
           <span className="chat-recording-copy"><strong>{recording.kind === 'video_note' ? t('workspace.chatPanel.recordingVideoNote') : t('workspace.chatPanel.recordingVoice')}</strong><small>{recording.status === 'requesting' ? t('workspace.chatPanel.requestingMediaAccess') : `${formatDuration(recording.elapsedSeconds)} / ${formatDuration(RECORDING_OPTIONS[recording.kind].maxDurationSeconds)}`}</small></span>

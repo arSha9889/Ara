@@ -69,6 +69,46 @@ EXTENSIONS_BY_MIME_TYPE = {
     E2EE_ATTACHMENT_MIME_TYPE: '.arachat',
 }
 
+MIME_ALIASES = {
+    'audio/mp3': 'audio/mpeg',
+    'audio/x-mp3': 'audio/mpeg',
+    'audio/x-mpeg': 'audio/mpeg',
+    'audio/x-wav': 'audio/wav',
+    'audio/wave': 'audio/wav',
+    'audio/vnd.wave': 'audio/wav',
+    'audio/x-m4a': 'audio/mp4',
+    'audio/x-aac': 'audio/aac',
+    'audio/x-ogg': 'audio/ogg',
+    'image/jpg': 'image/jpeg',
+    'image/pjpeg': 'image/jpeg',
+    'image/x-png': 'image/png',
+    'video/x-m4v': 'video/mp4',
+}
+
+MIME_TYPES_BY_EXTENSION = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.jpe': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.heic': 'image/heic',
+    '.heif': 'image/heif',
+    '.avif': 'image/avif',
+    '.mp4': 'video/mp4',
+    '.m4v': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mov': 'video/quicktime',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
+    '.mp3': 'audio/mpeg',
+    '.ogg': 'audio/ogg',
+    '.oga': 'audio/ogg',
+    '.wav': 'audio/wav',
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+}
+
 
 @dataclass(frozen=True)
 class StoredUpload:
@@ -106,7 +146,7 @@ async def save_upload_file(
     allowed_mime_types: set[str] | None = None,
     original_name: str | None = None,
 ) -> StoredUpload:
-    mime_type = _normalize_mime_type(upload.content_type)
+    mime_type = resolve_upload_mime_type(upload.content_type, upload.filename)
     if mime_type not in (allowed_mime_types or ALLOWED_MIME_TYPES):
         raise AuthError('Unsupported upload type')
 
@@ -314,8 +354,17 @@ def _clean_filename(filename: str) -> str:
     return cleaned[:255] or 'upload'
 
 
+def resolve_upload_mime_type(content_type: str | None, filename: str | None) -> str:
+    normalized = _normalize_mime_type(content_type)
+    canonical = MIME_ALIASES.get(normalized, normalized)
+    extension_mime_type = MIME_TYPES_BY_EXTENSION.get(Path(filename or '').suffix.lower())
+    if extension_mime_type and canonical in {'', 'application/octet-stream'}:
+        return extension_mime_type
+    return canonical
+
+
 def _normalize_mime_type(mime_type: str | None) -> str:
-    return (mime_type or 'application/octet-stream').split(';', 1)[0].strip().lower()
+    return (mime_type or '').split(';', 1)[0].strip().lower()
 
 
 def _suggest_message_type(mime_type: str) -> str:

@@ -14,12 +14,11 @@ import {
 } from '../../features/chats/chatsApi.js';
 import { mediaUrlForDesktop } from '../../shared/api/authenticatedMedia.js';
 import { formatFileSize } from '../../shared/format/fileSize.js';
+import { ACCEPTED_FILE_TYPES } from '../../shared/media/fileType.js';
 import { GroupDetailsPanel } from './GroupDetailsPanel.jsx';
 import { MessageContent, displayMessageType } from './MessageContent.jsx';
 import { MessageContextMenu, messageMenuPositionFromEvent } from './MessageContextMenu.jsx';
 import { scrollHistoryToEnd } from './scrollHistoryToEnd.js';
-
-const ACCEPTED_FILE_TYPES = 'image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,image/avif,video/mp4,video/webm,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,application/pdf,text/plain';
 
 function initials(value) {
   return (value || '?').trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
@@ -35,7 +34,6 @@ function messageTypeForUpload(upload) {
   const mimeType = upload.media_mime_type || '';
   if (mimeType.startsWith('image/')) return 'photo';
   if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType.startsWith('audio/')) return 'audio';
   return 'file';
 }
 

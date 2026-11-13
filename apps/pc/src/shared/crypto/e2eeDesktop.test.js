@@ -74,7 +74,7 @@ test('расшифровывает сообщение получателя, ес
   };
 
   try {
-    const { decryptE2eeMessage, encryptE2eeText } = await import('./e2eeDesktop.js');
+    const { decryptE2eeMessage, encryptE2eeAttachment, encryptE2eeText } = await import('./e2eeDesktop.js');
     const [senderIdentity, recipientIdentity] = await Promise.all([createIdentity(), createIdentity()]);
     const recipientKeys = [
       {
@@ -107,6 +107,13 @@ test('расшифровывает сообщение получателя, ес
       envelope.recipients[`${RECIPIENT_ID}:recipient-device`].recipient_encryption_public_key,
       recipientIdentity.encryptionPublicKey,
     );
+
+    const encryptedAttachment = await encryptE2eeAttachment({
+      file: new File(['track'], 'track.mp3', { type: 'audio/mp3' }),
+      chatId: CHAT_ID,
+      senderId: SENDER_ID,
+    });
+    assert.equal(encryptedAttachment.descriptor.mime_type, 'audio/mpeg');
 
     const senderDecrypted = await decryptE2eeMessage({
       message: { encryption_state: 'e2ee_web_v1', sender_id: SENDER_ID, payload },
